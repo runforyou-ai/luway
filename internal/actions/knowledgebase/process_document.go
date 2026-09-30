@@ -11,12 +11,12 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/documentconvert"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/embedding"
-	"github.com/runforyou-ai/cervi/pkg/textsplit"
-	"github.com/runforyou-ai/cervi/pkg/webfetch"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/documentconvert"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/embedding"
+	"github.com/runforyou-ai/luway/pkg/textsplit"
+	"github.com/runforyou-ai/luway/pkg/webfetch"
 	"github.com/uptrace/bun"
 )
 

@@ -3,7 +3,7 @@
 // Package aiprovider 实现模型服务供应商的查询与操作。
 package aiprovider
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // Input 定义创建模型服务供应商的字段。
 type Input struct {

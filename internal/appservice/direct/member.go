@@ -7,10 +7,10 @@ import (
 	"errors"
 	"log/slog"
 
-	memberaction "github.com/runforyou-ai/cervi/internal/actions/member"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	memberaction "github.com/runforyou-ai/luway/internal/actions/member"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // ListMemberOptions 返回可分配的企业身份。

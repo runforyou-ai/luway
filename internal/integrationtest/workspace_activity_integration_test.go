@@ -11,13 +11,13 @@ import (
 
 	"uuid"
 
-	authaction "github.com/runforyou-ai/cervi/internal/actions/auth"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/appservice/direct"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	"github.com/runforyou-ai/cervi/internal/realtime/gateway"
-	"github.com/runforyou-ai/cervi/internal/realtime/protocol"
+	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	"github.com/runforyou-ai/luway/internal/realtime/gateway"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 	"github.com/uptrace/bun"
 )
 

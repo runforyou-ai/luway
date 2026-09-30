@@ -7,9 +7,9 @@ import (
 	"database/sql"
 	"errors"
 
-	teamaction "github.com/runforyou-ai/cervi/internal/actions/team"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/uptrace/bun"
 )
 

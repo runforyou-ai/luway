@@ -3,7 +3,7 @@ package appservice
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // ServiceReportDimension 定义客服报表的拆分维度。

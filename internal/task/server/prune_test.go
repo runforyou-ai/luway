@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestPruneTerminalRuns 验证只删除完成时间早于保留期的成功和失败运行。

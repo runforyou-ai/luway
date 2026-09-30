@@ -9,14 +9,14 @@ import (
 	"slices"
 	"strconv"
 
-	deliveryaction "github.com/runforyou-ai/cervi/internal/actions/customerdelivery"
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/common/messagepreview"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
+	deliveryaction "github.com/runforyou-ai/luway/internal/actions/customerdelivery"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/common/messagepreview"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 

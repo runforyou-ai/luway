@@ -10,11 +10,11 @@ import (
 	"runtime"
 	"sync/atomic"
 
-	appservicenative "github.com/runforyou-ai/cervi/internal/appservice/native"
-	nativesystemlocale "github.com/runforyou-ai/cervi/internal/appservice/native/systemlocale"
-	nativesystemtray "github.com/runforyou-ai/cervi/internal/appservice/native/systemtray"
-	"github.com/runforyou-ai/cervi/internal/common/brand"
-	"github.com/runforyou-ai/cervi/internal/storage"
+	appservicenative "github.com/runforyou-ai/luway/internal/appservice/native"
+	nativesystemlocale "github.com/runforyou-ai/luway/internal/appservice/native/systemlocale"
+	nativesystemtray "github.com/runforyou-ai/luway/internal/appservice/native/systemtray"
+	"github.com/runforyou-ai/luway/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/storage"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )

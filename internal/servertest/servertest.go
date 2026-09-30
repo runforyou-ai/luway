@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 )
 
 // DatabaseConfig 从测试专用的 PostgreSQL 分项环境变量读取连接配置。

@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	"github.com/runforyou-ai/cervi/internal/integration/telegram"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	"github.com/runforyou-ai/luway/internal/integration/telegram"
 )
 
 // TestTelegramWebhook 验证公开回调认证、请求体限制和状态码契约。

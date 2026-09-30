@@ -6,8 +6,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // ValidationCode 标识模型服务供应商字段校验结果。

@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 )
 
 // streamFlushInterval 是运行流增量的合并发布周期。

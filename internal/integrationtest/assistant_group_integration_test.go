@@ -8,13 +8,13 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	"github.com/runforyou-ai/cervi/internal/actions/chatstate"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	deviceaction "github.com/runforyou-ai/cervi/internal/actions/device"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	deviceaction "github.com/runforyou-ai/luway/internal/actions/device"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestGroupAssistants 验证助理只能由主人带进群、在群内被点名时派发到主人电脑，并随主人退群、被移出或停用而离开。

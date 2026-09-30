@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	contactprofileaction "github.com/runforyou-ai/cervi/internal/actions/contactprofile"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	contactprofileaction "github.com/runforyou-ai/luway/internal/actions/contactprofile"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestInboxNameSearchPagination 验证会话名称搜索的完整分页、检索分组与分页首页一致、改名后的资格变化和游标绑定。

@@ -7,8 +7,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // appservicePackage 限定文件地址补全的遍历范围，遇到 time.Time 等外部类型即停止。

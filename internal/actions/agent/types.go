@@ -5,9 +5,9 @@ package agent
 import (
 	"time"
 
-	teamaction "github.com/runforyou-ai/cervi/internal/actions/team"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // CreateInput 定义新增 AI 员工字段，AvatarFileID 为空时不设置头像。

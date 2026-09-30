@@ -9,13 +9,13 @@ import (
 	"strings"
 	"testing"
 
-	contactprofileaction "github.com/runforyou-ai/cervi/internal/actions/contactprofile"
-	"github.com/runforyou-ai/cervi/internal/actions/customerservice"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	"github.com/runforyou-ai/cervi/internal/actions/servicesummary"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/decision"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	contactprofileaction "github.com/runforyou-ai/luway/internal/actions/contactprofile"
+	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/decision"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

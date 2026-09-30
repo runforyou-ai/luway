@@ -10,12 +10,12 @@ import (
 	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // CreateFilePartUpload 为当前用户的有效临时文件签发分片直传请求。

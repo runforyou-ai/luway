@@ -12,7 +12,7 @@ import (
 
 	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/lock"
-	"github.com/runforyou-ai/cervi/pkg/goosecheck"
+	"github.com/runforyou-ai/luway/pkg/goosecheck"
 )
 
 //go:embed migrations/*.sql

@@ -8,9 +8,9 @@ import (
 	"slices"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	"github.com/runforyou-ai/cervi/pkg/searchtext"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/pkg/searchtext"
 	"github.com/uptrace/bun"
 )
 

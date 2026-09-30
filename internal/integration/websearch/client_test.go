@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
 
 // captured 记录模拟服务收到的请求。

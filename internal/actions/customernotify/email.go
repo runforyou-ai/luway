@@ -13,12 +13,12 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/runforyou-ai/cervi/internal/actions/chatstate"
-	"github.com/runforyou-ai/cervi/internal/actions/contactprofile"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/email"
-	"github.com/runforyou-ai/cervi/pkg/mail"
+	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/email"
+	"github.com/runforyou-ai/luway/pkg/mail"
 	"github.com/uptrace/bun"
 )
 

@@ -5,10 +5,10 @@ package channel
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/integration/telegram"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/integration/telegram"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 	"github.com/uptrace/bun"
 )
 

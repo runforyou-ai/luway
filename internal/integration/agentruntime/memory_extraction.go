@@ -13,7 +13,7 @@ import (
 	toolutils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // memoryExtractionMaxIterations 是一次记忆提取的模型与工具迭代上限。

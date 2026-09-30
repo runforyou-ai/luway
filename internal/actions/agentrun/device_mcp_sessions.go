@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 )
 
 // deviceMCPIdleTimeout 是设备运行的企业 MCP 连接无调用后保留的时长，覆盖模型多轮生成之间的间隔；运行在其他实例结束时由它兜底关闭。

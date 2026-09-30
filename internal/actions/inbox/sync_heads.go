@@ -5,7 +5,7 @@ package inbox
 import (
 	"context"
 
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // SyncHeads 定义当前用户可见会话集合、身份资料与个人置顶顺序的探针值。

@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // searchSerpAPI 调用 SerpApi 的 Google 搜索引擎，凭据放在查询参数中。

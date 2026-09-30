@@ -7,12 +7,12 @@ import (
 	"testing"
 	"uuid"
 
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	useraction "github.com/runforyou-ai/cervi/internal/actions/user"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	useraction "github.com/runforyou-ai/luway/internal/actions/user"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

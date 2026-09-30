@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
 // Service 将跨平台业务调用转发给当前运行平台的 Backend。

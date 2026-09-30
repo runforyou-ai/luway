@@ -4,8 +4,8 @@ import {
   PreviewCustomerReplyTranslation,
   TranslateConversationMessages,
   UpdateCustomerReplyLanguage,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
-import type { ConversationMessageTranslationResult } from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
+import type { ConversationMessageTranslationResult } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 
 /** 读取当前成员在客户会话中的翻译状态。 */

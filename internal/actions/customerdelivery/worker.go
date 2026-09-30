@@ -12,13 +12,13 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/runforyou-ai/cervi/internal/actions/channelmessage"
-	"github.com/runforyou-ai/cervi/internal/actions/chatstate"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/telegram"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	models "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
+	"github.com/runforyou-ai/luway/internal/actions/channelmessage"
+	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/telegram"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	models "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 

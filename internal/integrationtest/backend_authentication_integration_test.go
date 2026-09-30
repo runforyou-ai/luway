@@ -7,9 +7,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	servertest "github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	servertest "github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 )
 
 // publicBackendMethods 是不解析登录会话的方法，与 backend.go 中标记 auth=public 的路由一一对应。

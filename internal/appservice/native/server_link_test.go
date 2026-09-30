@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/common/brand"
 )
 
 // TestOpenedServerLinkKeepsLatestServer 验证连接链接只接受本应用协议的连接地址，读取后清除，并在每次收到有效链接时调用登记的处理。

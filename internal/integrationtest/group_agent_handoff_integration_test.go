@@ -8,10 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // submitReply 以指定正文结束一次群内运行，并返回执行的 AI 员工身份。

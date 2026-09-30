@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 )
 
 // TestNormalizeServiceTextMessageInput 验证成员消息输入按 Unicode 字符校验。

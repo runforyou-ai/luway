@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 )
 
 // RunStreamQueue 缓存一条运行过程流待写出的事件：快照分片先于增量，待发增量按序号相接合并为一条，源运行流结束后补发结束事件。

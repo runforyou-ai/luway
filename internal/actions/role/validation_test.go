@@ -5,7 +5,7 @@ package role
 import (
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestNormalizeInputAddsViewDependency 验证管理权限自动补齐同功能的查看权限。

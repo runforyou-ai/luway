@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestLoadMergesFileAndEnvironment 验证环境变量覆盖显式配置文件。

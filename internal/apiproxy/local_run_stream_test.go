@@ -9,9 +9,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
-	"github.com/runforyou-ai/cervi/internal/realtime/protocol"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 )
 
 // testLocalRuns 以一个运行流模拟本机执行中的运行。

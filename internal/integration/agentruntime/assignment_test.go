@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // customerFacts 构造一份客服场景的业务事实。

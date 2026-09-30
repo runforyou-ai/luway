@@ -9,9 +9,9 @@ import (
 	"time"
 	"uuid"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestDirectMessageReplies 验证单聊双方引用、幂等重放及删除后的引用摘要。

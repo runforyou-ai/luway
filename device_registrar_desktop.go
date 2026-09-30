@@ -5,11 +5,11 @@ package main
 import (
 	"log/slog"
 
-	"github.com/runforyou-ai/cervi/internal/apiproxy"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/clientsession"
-	"github.com/runforyou-ai/cervi/internal/devicehost"
-	"github.com/runforyou-ai/cervi/internal/storage"
+	"github.com/runforyou-ai/luway/internal/apiproxy"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/clientsession"
+	"github.com/runforyou-ai/luway/internal/devicehost"
+	"github.com/runforyou-ai/luway/internal/storage"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

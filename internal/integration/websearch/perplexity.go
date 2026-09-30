@@ -3,7 +3,7 @@ package websearch
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // perplexitySnippetTokens 是每条结果从页面中提取的最大 token 数。

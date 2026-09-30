@@ -18,7 +18,7 @@ import {
   SendFirstDirectTextMessage,
   StopAgentReply,
   StopGroupAgentReply,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import type {
   ConversationAgentProcess,
   ConversationMessage,
@@ -27,7 +27,7 @@ import type {
   FirstAgentTextMessageInput,
   FirstDirectTextMessageInput,
   MarkConversationReadInput,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import { enqueueConversationUnreadChange } from "@/api/conversation-read-queue"
 import type { AgentInboxConversationData, DirectInboxConversationData } from "@/api/inbox"

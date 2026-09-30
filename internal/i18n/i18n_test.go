@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/common/brand"
 )
 
 // TestKeyConstantsMatchLocaleFiles 验证 Key 常量与各语言词条键集合一致。

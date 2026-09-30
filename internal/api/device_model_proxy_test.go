@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/appservice/direct"
-	"github.com/runforyou-ai/cervi/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
 // stubDeviceModelAuthorizer 按预设返回上游模型服务或错误，并记录收到的认证信息。

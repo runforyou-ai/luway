@@ -5,8 +5,8 @@ package storage
 import (
 	"context"
 
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 )
 
 // Open 初始化服务端使用的 PostgreSQL 存储。

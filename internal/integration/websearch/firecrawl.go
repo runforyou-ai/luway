@@ -3,7 +3,7 @@ package websearch
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // searchFirecrawl 调用 Firecrawl Search v2，只取网页结果的摘要。

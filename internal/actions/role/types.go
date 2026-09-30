@@ -6,7 +6,7 @@ package role
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // Input 定义角色可编辑字段。

@@ -10,10 +10,10 @@ import (
 	"path"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/appservice/direct"
-	"github.com/runforyou-ai/cervi/internal/common"
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/common"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 )
 
 // LocalObjectService 通过稳定对象键处理本地文件的上传和静态读取，认证与归属校验由 appservice 完成。

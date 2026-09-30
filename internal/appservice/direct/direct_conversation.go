@@ -9,11 +9,11 @@ import (
 
 	"log/slog"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // SendFirstDirectTextMessage 发送首条单聊消息并按需创建长期会话。

@@ -9,10 +9,10 @@ import (
 	"slices"
 	"testing"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // scriptedMemoryExtractor 记录提取请求，在返回前执行可选的并发操作并返回预设变更。

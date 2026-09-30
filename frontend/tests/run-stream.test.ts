@@ -8,7 +8,7 @@ import {
   type RunStreamState,
 } from "../src/api/realtime/run-stream.ts"
 import type { RealtimeStreamHandlers, RealtimeTransport } from "../src/api/realtime/realtime-client.ts"
-import type { AgentPlanTaskStatus, AgentRunBlockKind } from "../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+import type { AgentPlanTaskStatus, AgentRunBlockKind } from "../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 
 const runId = "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b"
 const streamId = "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8c"

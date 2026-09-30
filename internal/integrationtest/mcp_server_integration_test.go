@@ -8,14 +8,14 @@ import (
 	"errors"
 	"testing"
 
-	mcpserveraction "github.com/runforyou-ai/cervi/internal/actions/mcpserver"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	mcpintegration "github.com/runforyou-ai/cervi/internal/integration/mcp"
-	servertest "github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	mcpserveraction "github.com/runforyou-ai/luway/internal/actions/mcpserver"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
+	servertest "github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 	"github.com/uptrace/bun"
 )
 

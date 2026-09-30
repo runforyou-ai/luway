@@ -10,11 +10,11 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

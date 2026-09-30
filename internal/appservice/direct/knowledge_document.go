@@ -8,12 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 
-	knowledgeaction "github.com/runforyou-ai/cervi/internal/actions/knowledgebase"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	filecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	filecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // ListKnowledgeDocuments 返回当前企业知识库中的文档。

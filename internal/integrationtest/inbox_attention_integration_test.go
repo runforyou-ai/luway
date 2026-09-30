@@ -8,13 +8,13 @@ import (
 	"testing"
 	"uuid"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // readAttention 读取已知消息之后计入成员提醒的未读消息。

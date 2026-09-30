@@ -7,13 +7,13 @@ import (
 	"errors"
 	"log/slog"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // ListServiceCopilotThreads 返回服务会话的全部 Copilot 线程。

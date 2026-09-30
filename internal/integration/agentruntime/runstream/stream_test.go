@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestStreamSnapshotApply 验证增量按起止序号应用，重复被忽略，缺口、换流和无法应用的操作不修改快照。

@@ -5,8 +5,8 @@ package teamperformance
 import (
 	"fmt"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // reportScopeSQL 定义报表的公共集合 closed，%s 处拼入可选的渠道与队列条件。

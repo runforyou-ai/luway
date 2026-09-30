@@ -6,7 +6,7 @@ import (
 	"context"
 	"uuid"
 
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 )

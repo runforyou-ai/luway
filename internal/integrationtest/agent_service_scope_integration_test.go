@@ -9,12 +9,12 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	aiprovideraction "github.com/runforyou-ai/cervi/internal/actions/aiprovider"
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	teamaction "github.com/runforyou-ai/cervi/internal/actions/team"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestAgentServiceScope 验证 AI 员工服务对象与转人工团队的保存、校验、接待资格和团队删除后的回退。

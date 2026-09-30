@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	"github.com/uptrace/bun"
 )
 

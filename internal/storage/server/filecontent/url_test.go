@@ -5,7 +5,7 @@ package filecontent
 import (
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestPublicURL 验证公开基础地址会保留路径并拒绝越界对象键。

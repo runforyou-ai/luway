@@ -12,14 +12,14 @@ import (
 	"testing"
 	"uuid"
 
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	"github.com/runforyou-ai/cervi/internal/api"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/appservice/direct"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	"github.com/runforyou-ai/luway/internal/api"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/domain"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // websiteVisitorHTTP 通过公开路由调用网站访客接口。

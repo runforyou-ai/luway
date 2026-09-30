@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/actions/channelmessage"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	models "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/actions/channelmessage"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	models "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

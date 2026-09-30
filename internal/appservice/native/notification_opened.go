@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

@@ -9,10 +9,10 @@ import (
 	"time"
 	"uuid"
 
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
-	"github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
+	"github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestSyncScheduleWithPostgreSQL 验证计划同步的时间类型和下一执行时间保留规则。

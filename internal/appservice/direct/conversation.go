@@ -5,13 +5,13 @@
 package direct
 
 import (
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 

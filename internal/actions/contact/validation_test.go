@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestNormalizeContactInput 验证联系人字段和联系方式规范化。

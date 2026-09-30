@@ -9,12 +9,12 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // titleReplyRuntime 领取全部待处理输入并返回固定回复。

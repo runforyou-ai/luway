@@ -11,11 +11,11 @@ import (
 	"time"
 	"uuid"
 
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/realtime/protocol"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 )
 
 // nextTyping 在时限内读取下一条输入状态事件，跳过心跳与变更通知。

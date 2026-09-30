@@ -10,14 +10,14 @@ import (
 	"strings"
 	"uuid"
 
-	"github.com/runforyou-ai/cervi/internal/actions/chatstate"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

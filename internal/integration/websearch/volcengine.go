@@ -3,8 +3,8 @@ package websearch
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
 
 // volcengineTimeRange 是火山引擎联网搜索的时间范围取值。

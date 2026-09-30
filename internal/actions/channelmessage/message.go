@@ -7,7 +7,7 @@ import (
 	"context"
 	"fmt"
 
-	models "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	models "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

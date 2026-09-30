@@ -16,7 +16,7 @@ import {
   UpdateConversationNotificationSettings,
   UpdateConversationPin,
   UpdateConversationUnreadMark,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import type {
   AgentInboxConversation,
   ArchivedConversationList,
@@ -33,7 +33,7 @@ import type {
   InboxSearchResult,
   LoadInboxInput,
   ServiceInboxConversation,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import {
   ConversationPinPosition,
   ConversationType,
@@ -46,7 +46,7 @@ import {
   ServiceQueueFilter,
   ServiceSessionStatus,
   ServiceSource,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import { enqueueConversationUnreadChange } from "@/api/conversation-read-queue"
 import type { NonNullArrays } from "@/api/normalize"

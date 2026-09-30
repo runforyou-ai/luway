@@ -12,12 +12,12 @@ import (
 	"slices"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
-	"github.com/runforyou-ai/cervi/internal/integration/knowledgeretrieval"
-	"github.com/runforyou-ai/cervi/internal/integration/localworkspace"
-	"github.com/runforyou-ai/cervi/internal/integration/websearch"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
+	"github.com/runforyou-ai/luway/internal/integration/localworkspace"
+	"github.com/runforyou-ai/luway/internal/integration/websearch"
 )
 
 const (

@@ -11,12 +11,12 @@ import (
 	"slices"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/actions/contactname"
-	"github.com/runforyou-ai/cervi/internal/actions/knowledgegap"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/storage/server/messagequery"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

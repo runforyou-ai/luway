@@ -15,12 +15,12 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/appservice/direct"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	"github.com/runforyou-ai/cervi/internal/realtime/protocol"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 )
 
 // Path 是成员实时事件流路径。

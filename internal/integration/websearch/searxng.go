@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // searchSearXNG 调用企业自行部署的 SearXNG 实例，实例须在 search.formats 中开启 json。

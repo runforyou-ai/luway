@@ -7,9 +7,9 @@ import (
 	"errors"
 	"fmt"
 
-	websearchaction "github.com/runforyou-ai/cervi/internal/actions/websearch"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	"github.com/runforyou-ai/cervi/internal/integration/websearch"
+	websearchaction "github.com/runforyou-ai/luway/internal/actions/websearch"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/websearch"
 	"github.com/uptrace/bun"
 )
 

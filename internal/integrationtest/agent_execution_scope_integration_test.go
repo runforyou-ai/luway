@@ -7,17 +7,17 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	aiprovideraction "github.com/runforyou-ai/cervi/internal/actions/aiprovider"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/internal/storage/server/pgerr"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/storage/server/pgerr"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 )
 
 type executionScopeFixture struct {

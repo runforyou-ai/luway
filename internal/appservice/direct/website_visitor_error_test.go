@@ -7,8 +7,8 @@ import (
 	"errors"
 	"testing"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 // TestWebsiteVisitorErrorUsesCustomerLocale 验证访客接口错误按对客语言本地化并记录文案语言。

@@ -3,7 +3,7 @@ package appservice
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // KnowledgeBaseCategory 表示知识库内容类型。

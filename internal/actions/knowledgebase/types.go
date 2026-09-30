@@ -5,7 +5,7 @@ package knowledgebase
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // Input 定义知识库可编辑字段。

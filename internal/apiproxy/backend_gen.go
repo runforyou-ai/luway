@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 // StartOfficialLogin 登记官方账号登录尝试并返回授权地址。

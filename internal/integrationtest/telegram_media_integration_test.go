@@ -10,14 +10,14 @@ import (
 	"testing"
 	"time"
 
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	"github.com/runforyou-ai/cervi/internal/actions/filemaintenance"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/telegram"
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
-	models "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	"github.com/runforyou-ai/luway/internal/actions/filemaintenance"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/telegram"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	models "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 	"github.com/uptrace/bun"
 )
 

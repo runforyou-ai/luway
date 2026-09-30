@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/common/brand"
-	desktopstorage "github.com/runforyou-ai/cervi/internal/storage/desktop"
+	"github.com/runforyou-ai/luway/internal/common/brand"
+	desktopstorage "github.com/runforyou-ai/luway/internal/storage/desktop"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

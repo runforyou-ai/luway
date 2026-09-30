@@ -8,11 +8,11 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	aiprovideraction "github.com/runforyou-ai/cervi/internal/actions/aiprovider"
-	memberaction "github.com/runforyou-ai/cervi/internal/actions/member"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
+	memberaction "github.com/runforyou-ai/luway/internal/actions/member"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestServiceDeskDirectory 验证 AI 员工负责人的保存与校验，以及同事目录中服务台的范围、排序、检索和负责人展示。

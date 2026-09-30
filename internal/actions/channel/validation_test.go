@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/common/embedhost"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/common/embedhost"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestNormalizeCreateMessageChannelInput 验证消息渠道创建字段规范化和长度限制。

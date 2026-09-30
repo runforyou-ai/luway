@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 )
 
 // TestNormalizeDirectIdentityPair 验证双方发起得到同一规范化身份对。

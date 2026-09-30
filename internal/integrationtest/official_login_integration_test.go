@@ -20,14 +20,14 @@ import (
 
 	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/appservice/direct"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	"github.com/runforyou-ai/cervi/internal/integration/officialidentity"
-	"github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/integration/officialidentity"
+	"github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	"github.com/uptrace/bun"
 )
 

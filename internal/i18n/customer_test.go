@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestCustomerLocalesProvideCustomerKeys 验证每种对客语言都完整提供对客词条、只含对客词条，且只使用应用语言词条中出现过的占位符。

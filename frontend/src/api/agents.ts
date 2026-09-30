@@ -9,7 +9,7 @@ import {
   ReactivateAgent,
   UpdateAgent,
   UpdateAgentExecution,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   AgentExecutionMode,
   type Agent,
@@ -19,7 +19,7 @@ import {
   type AgentListItem,
   type CreateAgentInput,
   type UpdateAgentInput,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import type { NonNullArrays } from "@/api/normalize"
 

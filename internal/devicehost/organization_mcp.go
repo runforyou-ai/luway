@@ -8,9 +8,9 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	"github.com/runforyou-ai/cervi/internal/integration/mcp"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/mcp"
 )
 
 // organizationMCPConnections 经企业服务端列出运行绑定的企业 MCP 服务，返回经服务端代理调用的连接配置；列出失败时本次运行不加载企业服务。

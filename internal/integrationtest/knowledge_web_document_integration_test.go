@@ -7,13 +7,13 @@ import (
 	"errors"
 	"testing"
 
-	knowledgeaction "github.com/runforyou-ai/cervi/internal/actions/knowledgebase"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servertest "github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/webfetch"
+	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servertest "github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/webfetch"
 )
 
 // TestKnowledgeWebDocumentLifecycle 验证网页导入的抓取、快照、重试不出网、重新抓取与失败保留。

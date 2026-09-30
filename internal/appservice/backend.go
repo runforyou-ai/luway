@@ -2,7 +2,7 @@ package appservice
 
 import "context"
 
-//go:generate go run github.com/runforyou-ai/cervi/internal/tools/appservicegen
+//go:generate go run github.com/runforyou-ai/luway/internal/tools/appservicegen
 
 // Backend 定义各运行平台都需要实现的业务调用。
 //

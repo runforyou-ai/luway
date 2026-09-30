@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/clientsession"
-	nativemodels "github.com/runforyou-ai/cervi/internal/storage/native/models"
+	"github.com/runforyou-ai/luway/internal/clientsession"
+	nativemodels "github.com/runforyou-ai/luway/internal/storage/native/models"
 )
 
 const currentClientSessionID = "current"

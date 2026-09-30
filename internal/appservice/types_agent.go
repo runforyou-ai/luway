@@ -3,7 +3,7 @@ package appservice
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // AgentExecutionMode 表示 AI 员工与助理的执行方式。

@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/clientsession"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/clientsession"
 )
 
 // TestBackendInboxWindow 验证原生端窗口请求、原边界和独立锚点头像归一化。

@@ -6,9 +6,9 @@ import (
 	"context"
 	"strconv"
 
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // GetInboxContext 读取锚点当前资格与同一快照内的列表邻域。

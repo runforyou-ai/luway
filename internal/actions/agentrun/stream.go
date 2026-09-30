@@ -3,7 +3,7 @@
 package agentrun
 
 import (
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 )
 
 // SubscribeRunStream 订阅本进程中运行当前执行尝试的临时过程流，返回快照后按序回调只读增量，执行尝试退出时回调结束；调用方负责会话访问校验。

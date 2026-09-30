@@ -6,9 +6,9 @@ import (
 	"context"
 	"strconv"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // GetConversationMessageContext 返回已授权消息周围的连续窗口。

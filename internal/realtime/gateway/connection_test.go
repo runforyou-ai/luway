@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	"github.com/runforyou-ai/cervi/internal/realtime/protocol"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 )
 
 // TestConnectionQueue 验证发送队列按会话与种类保留最高版本并合并会话变化类别，失权事件不合并，溢出时清空队列并结束事件流。

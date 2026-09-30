@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/token"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/token"
 	"github.com/uptrace/bun"
 )
 

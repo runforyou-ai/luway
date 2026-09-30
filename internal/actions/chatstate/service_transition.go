@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	customerserviceaction "github.com/runforyou-ai/cervi/internal/actions/customerservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

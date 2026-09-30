@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
 
 // newSessionTestServer 启动带回声、报错和结构化结果工具的测试 MCP 服务。

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestLocalMultipart 验证缺片无法合并、错误分片可重传以及完整文件字节一致。

@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 // TestOpenedNotificationKeepsLatestWorkspacePath 验证被点击的通知只记录工作区内的页面地址，其他地址清除待打开的页面，读取后清除，并在每次点击时调用登记的处理。

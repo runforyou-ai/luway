@@ -5,9 +5,9 @@ package customerchat
 import (
 	"context"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/common/customeridentity"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/uptrace/bun"
 )
 

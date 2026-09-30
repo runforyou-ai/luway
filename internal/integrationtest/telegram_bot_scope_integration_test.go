@@ -8,13 +8,13 @@ import (
 	"testing"
 	"time"
 
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	telegramintegration "github.com/runforyou-ai/cervi/internal/integration/telegram"
-	"github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	"github.com/runforyou-ai/luway/internal/domain"
+	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
+	"github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 	"github.com/uptrace/bun"
 )
 

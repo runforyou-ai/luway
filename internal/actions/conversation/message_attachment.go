@@ -8,10 +8,10 @@ import (
 	"errors"
 	"fmt"
 
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

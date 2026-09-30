@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestInboxCursor 验证微秒与空时间无损往返，并拒绝失效排序版本和筛选。

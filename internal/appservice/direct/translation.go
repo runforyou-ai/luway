@@ -8,14 +8,14 @@ import (
 	"errors"
 	"log/slog"
 
-	customerserviceaction "github.com/runforyou-ai/cervi/internal/actions/customerservice"
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	translationaction "github.com/runforyou-ai/cervi/internal/actions/translation"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

@@ -5,9 +5,9 @@ package aiperformance
 import (
 	"fmt"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/storage/server/messagequery"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // reportScopeSQL 定义报表的两个公共集合，%s 处拼入可选的渠道与 AI 员工条件。

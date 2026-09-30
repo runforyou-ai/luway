@@ -11,17 +11,17 @@ import (
 	"uuid"
 
 	"github.com/nats-io/nats.go"
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	"github.com/runforyou-ai/cervi/internal/actions/customerservice"
-	"github.com/runforyou-ai/cervi/internal/actions/serviceassignment"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	"github.com/runforyou-ai/cervi/internal/actions/servicetimeout"
-	teamaction "github.com/runforyou-ai/cervi/internal/actions/team"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/actions/servicetimeout"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // timeoutFixture 保存超时测试共用的客服会话环境、超时执行器与实时通知订阅。

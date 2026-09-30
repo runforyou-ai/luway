@@ -13,8 +13,8 @@ import (
 	"uuid"
 
 	acp "github.com/coder/acp-go-sdk"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 )
 
 // errLocalAgentClientMethod 表示本机 Agent 调用了客户端未声明的能力。

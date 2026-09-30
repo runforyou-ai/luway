@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 	"golang.org/x/text/language"
 )
 

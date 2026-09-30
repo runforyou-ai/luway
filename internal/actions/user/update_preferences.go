@@ -6,11 +6,11 @@ import (
 	"context"
 	"fmt"
 
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/languagetag"
-	commontimezone "github.com/runforyou-ai/cervi/pkg/timezone"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/languagetag"
+	commontimezone "github.com/runforyou-ai/luway/pkg/timezone"
 	"github.com/uptrace/bun"
 )
 

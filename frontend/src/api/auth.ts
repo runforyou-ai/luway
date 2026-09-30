@@ -12,13 +12,13 @@ import {
   ServerURL,
   StartOfficialLogin,
   TakeOpenedServerLink,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import type {
   Auth,
   InstallWorkspaceInput,
   LoginInput,
   RegisterInput,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import {
   bind,
   clearWebToken,

@@ -10,7 +10,7 @@ import (
 
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // scriptedTerminalModel 按调用顺序返回预设输出，并记录每次调用可见的工具与工具结果。

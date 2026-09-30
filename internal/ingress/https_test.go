@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"golang.org/x/crypto/acme/autocert"
 )
 

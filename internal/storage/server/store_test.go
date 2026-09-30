@@ -5,7 +5,7 @@ package server
 import (
 	"testing"
 
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 )
 
 // TestPostgresDSN 验证驱动连接地址会正确编码分项配置。

@@ -9,15 +9,15 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	websearchaction "github.com/runforyou-ai/cervi/internal/actions/websearch"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	"github.com/runforyou-ai/cervi/internal/integration/websearch"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	websearchaction "github.com/runforyou-ai/luway/internal/actions/websearch"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/websearch"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestWebSearchSettingsAndAgentTools 验证联网搜索设置的校验、保存与关闭，以及内部对话运行按设置获得联网搜索与网页读取。

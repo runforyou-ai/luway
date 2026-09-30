@@ -6,9 +6,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/runforyou-ai/cervi/internal/actions/contactname"
-	"github.com/runforyou-ai/cervi/internal/actions/contactprofile"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

@@ -3,8 +3,8 @@ package websearch
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
 
 // baiduRecency 是百度千帆 AI 搜索的时间范围取值，最小粒度为一周，放宽时由 recencyNotice 说明。

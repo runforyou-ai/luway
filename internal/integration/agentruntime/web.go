@@ -5,8 +5,8 @@ import (
 
 	"github.com/cloudwego/eino/components/tool"
 	toolutils "github.com/cloudwego/eino/components/tool/utils"
-	"github.com/runforyou-ai/cervi/internal/integration/websearch"
-	"github.com/runforyou-ai/cervi/pkg/webfetch"
+	"github.com/runforyou-ai/luway/internal/integration/websearch"
+	"github.com/runforyou-ai/luway/pkg/webfetch"
 )
 
 const (

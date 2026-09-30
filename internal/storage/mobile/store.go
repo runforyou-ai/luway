@@ -7,7 +7,7 @@ import (
 	"context"
 	"embed"
 
-	"github.com/runforyou-ai/cervi/internal/storage/native"
+	"github.com/runforyou-ai/luway/internal/storage/native"
 )
 
 //go:embed migrations/*.sql

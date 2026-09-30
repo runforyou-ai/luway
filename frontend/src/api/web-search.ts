@@ -3,8 +3,8 @@ import {
   GetWebSearchSettings,
   TestWebSearchService,
   UpdateWebSearchSettings,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
-import { WebSearchProvider } from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
+import { WebSearchProvider } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 
 export type WebSearchProviderId = Exclude<WebSearchProvider, WebSearchProvider.$zero>

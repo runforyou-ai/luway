@@ -1,6 +1,6 @@
 package appservice
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // WebSearchProvider 表示联网搜索服务商。
 type WebSearchProvider string

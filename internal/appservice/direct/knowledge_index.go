@@ -3,9 +3,9 @@
 package direct
 
 import (
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
 // knowledgeIndexPresentation 把来源索引阶段映射为展示状态，并本地化失败原因。

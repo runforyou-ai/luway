@@ -8,7 +8,7 @@ import {
   ListAvailableAIModels,
   TestAIProviderConnection,
   UpdateAIProvider,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   AIModelInputModality,
   AIModelType,
@@ -22,7 +22,7 @@ import {
   type AIProviderModelSummary,
   type AIProviderSummary,
   type AIProviderUpdateInput,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import type { NonNullArrays } from "@/api/normalize"
 

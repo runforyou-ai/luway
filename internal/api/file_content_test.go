@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 )
 
 // TestLocalObjectStorageKey 验证本地对象服务只接受规范 storage_key。

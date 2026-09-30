@@ -6,7 +6,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 )
 
 // testRunStreamDelta 构造指定起止序号的单操作增量。

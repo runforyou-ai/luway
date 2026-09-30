@@ -5,9 +5,9 @@ package user
 import (
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	commonemail "github.com/runforyou-ai/cervi/pkg/email"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	commonemail "github.com/runforyou-ai/luway/pkg/email"
 )
 
 // ValidationCode 标识用户字段校验结果。

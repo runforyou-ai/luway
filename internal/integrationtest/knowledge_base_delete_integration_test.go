@@ -8,11 +8,11 @@ import (
 	"time"
 	"uuid"
 
-	knowledgeaction "github.com/runforyou-ai/cervi/internal/actions/knowledgebase"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servertest "github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servertest "github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestKnowledgeBaseDeleteWaitsForQAPublish 验证删除知识库等待进行中的问答发布事务，发布提交后不残留分段。

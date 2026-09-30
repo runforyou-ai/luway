@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestNormalizeInput 验证知识库字段会被规范化并校验长度。

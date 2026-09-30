@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // testHubDelta 构造指定起止序号的单操作增量。

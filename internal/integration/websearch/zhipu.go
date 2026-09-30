@@ -3,7 +3,7 @@ package websearch
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // zhipuRecency 是智谱 Web Search 的时间范围取值。

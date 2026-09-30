@@ -9,11 +9,11 @@ import (
 	"testing"
 	"uuid"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 const websiteVisitorExternalID = "web-session:0123456789abcdef0123456789abcdef"

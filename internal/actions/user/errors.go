@@ -5,7 +5,7 @@ package user
 import (
 	"errors"
 
-	roleaction "github.com/runforyou-ai/cervi/internal/actions/role"
+	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
 )
 
 var (

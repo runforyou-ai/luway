@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 var (

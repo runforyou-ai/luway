@@ -9,11 +9,11 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

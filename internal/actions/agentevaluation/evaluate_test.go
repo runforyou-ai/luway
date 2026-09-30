@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 )
 
 // TestJudgeStateFitsContextWindow 验证工具返回与前文共用判断模型窗口一半的预算：先保留最新的工具返回，再从新到旧保留前文。

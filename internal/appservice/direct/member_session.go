@@ -5,7 +5,7 @@ package direct
 import (
 	"time"
 
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // MemberSession 定义实时网关持有的已认证成员会话：公开受众与存活时限所需的工作区、用户、登录会话编号与到期时间，身份详情只供后端内部使用。

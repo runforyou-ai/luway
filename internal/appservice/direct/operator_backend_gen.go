@@ -7,7 +7,7 @@ package direct
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 // LoadDeployment 返回部署形态与部署地址。

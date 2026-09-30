@@ -9,14 +9,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/clientsession"
-	"github.com/runforyou-ai/cervi/internal/common/brand"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	"github.com/runforyou-ai/cervi/internal/integration/localmcp"
-	"github.com/runforyou-ai/cervi/internal/integration/localskill"
-	"github.com/runforyou-ai/cervi/internal/integration/toolchain"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/clientsession"
+	"github.com/runforyou-ai/luway/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/localmcp"
+	"github.com/runforyou-ai/luway/internal/integration/localskill"
+	"github.com/runforyou-ai/luway/internal/integration/toolchain"
 )
 
 // localMCPConfigName 是数据目录中本地 MCP 配置文件的名称。

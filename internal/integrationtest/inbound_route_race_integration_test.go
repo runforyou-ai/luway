@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/telegram"
-	models "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/telegram"
+	models "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

@@ -7,10 +7,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	commonemail "github.com/runforyou-ai/cervi/pkg/email"
-	commonphone "github.com/runforyou-ai/cervi/pkg/phone"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	commonemail "github.com/runforyou-ai/luway/pkg/email"
+	commonphone "github.com/runforyou-ai/luway/pkg/phone"
 )
 
 // ValidationCode 标识联系人字段校验结果。

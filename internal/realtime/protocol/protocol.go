@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // Version 是当前协议主版本，只有破坏性演进才提升。

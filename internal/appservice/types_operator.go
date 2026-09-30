@@ -5,7 +5,7 @@ package appservice
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // OperatorRequestMeta 描述运营调用的服务凭据、请求关联标识和语言。

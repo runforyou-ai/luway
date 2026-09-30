@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 )
 
 // TestRunStreamSnapshotParts 验证快照按文本预算拆分，候选正文只在首个分片，每个分片至少一个内容块。

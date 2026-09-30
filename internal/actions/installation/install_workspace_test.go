@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	accountaction "github.com/runforyou-ai/cervi/internal/actions/account"
-	organizationaction "github.com/runforyou-ai/cervi/internal/actions/organization"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	accountaction "github.com/runforyou-ai/luway/internal/actions/account"
+	organizationaction "github.com/runforyou-ai/luway/internal/actions/organization"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // validInput 返回可以通过字段校验的首次安装输入。

@@ -8,8 +8,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/mileusna/useragent"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // maxVisitorContextText 是访客上下文单个文本字段保留的最大字符数。

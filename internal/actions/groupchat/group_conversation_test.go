@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"testing"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestCreateGroupConversationRejectsInvalidMembers 验证群聊创建拒绝无效的初始成员集合。

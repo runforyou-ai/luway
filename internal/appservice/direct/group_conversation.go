@@ -10,12 +10,12 @@ import (
 	"log/slog"
 	"net/http"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // CreateGroupConversation 创建包含有效企业成员的企业内部群聊。

@@ -10,7 +10,7 @@ import (
 	"time"
 	"uuid"
 
-	knowledgeaction "github.com/runforyou-ai/cervi/internal/actions/knowledgebase"
+	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
 )
 
 // TestReconcileKnowledgeVectorIndexes 验证已发布分段达到阈值的知识库获得专属向量索引，维度变化时重建，知识库删除后移除，上下文取消时中断等待中的索引构建。

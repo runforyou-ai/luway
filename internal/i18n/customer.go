@@ -9,8 +9,8 @@ import (
 	goi18n "github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
 
-	"github.com/runforyou-ai/cervi/internal/common/brand"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // 网站访客接口返回给访客的错误文案。

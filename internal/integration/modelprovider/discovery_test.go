@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestOllamaDiscovererMapsCapabilities 验证 Ollama 已安装模型按能力映射用途和输入模态，上下文窗口只取 Modelfile 设定的 num_ctx。

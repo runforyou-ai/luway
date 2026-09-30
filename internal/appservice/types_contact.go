@@ -3,7 +3,7 @@ package appservice
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // ContactStage 表示联系人阶段。

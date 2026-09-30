@@ -9,15 +9,15 @@ import (
 
 	"log/slog"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	translationaction "github.com/runforyou-ai/cervi/internal/actions/translation"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // SendServiceTextMessage 发送成员服务会话文本消息。

@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
 
 // Kind 定义判断题型。

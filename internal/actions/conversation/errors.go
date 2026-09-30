@@ -5,8 +5,8 @@ package conversation
 import (
 	"errors"
 
-	"github.com/runforyou-ai/cervi/internal/actions/chatstate"
-	"github.com/runforyou-ai/cervi/internal/common"
+	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	"github.com/runforyou-ai/luway/internal/common"
 )
 
 var (

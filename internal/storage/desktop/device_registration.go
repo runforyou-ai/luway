@@ -8,8 +8,8 @@ import (
 	"errors"
 	"time"
 
-	desktopmodels "github.com/runforyou-ai/cervi/internal/storage/desktop/models"
-	nativemodels "github.com/runforyou-ai/cervi/internal/storage/native/models"
+	desktopmodels "github.com/runforyou-ai/luway/internal/storage/desktop/models"
+	nativemodels "github.com/runforyou-ai/luway/internal/storage/native/models"
 	"uuid"
 )
 

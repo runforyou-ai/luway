@@ -5,8 +5,8 @@ package apiproxy
 import (
 	"log/slog"
 
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
-	"github.com/runforyou-ai/cervi/internal/realtime/protocol"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 )
 
 const (

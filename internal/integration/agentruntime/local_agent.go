@@ -9,8 +9,8 @@ import (
 	"time"
 
 	acp "github.com/coder/acp-go-sdk"
-	"github.com/runforyou-ai/cervi/internal/common/brand"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 )
 
 // localAgentCancelGrace 是停止时发出取消后等待本机 Agent 结束本轮的时限，超时后直接终止进程树。

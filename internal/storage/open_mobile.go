@@ -6,7 +6,7 @@ import (
 	"context"
 	"path/filepath"
 
-	mobilestorage "github.com/runforyou-ai/cervi/internal/storage/mobile"
+	mobilestorage "github.com/runforyou-ai/luway/internal/storage/mobile"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

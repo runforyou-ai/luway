@@ -6,8 +6,8 @@ import (
 	"context"
 	"crypto/subtle"
 
-	organizationaction "github.com/runforyou-ai/cervi/internal/actions/organization"
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	organizationaction "github.com/runforyou-ai/luway/internal/actions/organization"
+	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/uptrace/bun"
 )
 

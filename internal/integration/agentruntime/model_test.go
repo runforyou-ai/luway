@@ -10,7 +10,7 @@ import (
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestToolArgumentsNormalizerFillsEmptyArguments 验证空工具参数补为空 JSON 对象且不修改原消息。

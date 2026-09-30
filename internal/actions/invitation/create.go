@@ -9,12 +9,12 @@ import (
 	"log/slog"
 	"strings"
 
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	roleaction "github.com/runforyou-ai/cervi/internal/actions/role"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/internal/storage/server/pgerr"
-	commonemail "github.com/runforyou-ai/cervi/pkg/email"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/storage/server/pgerr"
+	commonemail "github.com/runforyou-ai/luway/pkg/email"
 	"github.com/uptrace/bun"
 )
 

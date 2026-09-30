@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/runforyou-ai/cervi/internal/ingress"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	"github.com/runforyou-ai/cervi/internal/realtime/gateway"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
+	"github.com/runforyou-ai/luway/internal/ingress"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	"github.com/runforyou-ai/luway/internal/realtime/gateway"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

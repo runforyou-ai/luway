@@ -238,7 +238,7 @@ tasks:
       - |
         for tags in "" testhash server server,testhash; do
           packages=$(go list -deps -test -tags="$tags" ./pkg/...) || exit 1
-          deps=$(echo "$packages" | grep '^github.com/runforyou-ai/cervi/internal/' || true)
+          deps=$(echo "$packages" | grep '^github.com/runforyou-ai/luway/internal/' || true)
           if [ -n "$deps" ]; then
             echo "pkg 不得依赖 internal（tags=$tags）：$deps"
             exit 1
@@ -250,8 +250,8 @@ tasks:
     summary: 校验原生端构建不依赖服务端实现，移动端构建不依赖本机 Agent 运行能力
     cmds:
       - |
-        server='^github.com/runforyou-ai/cervi/internal/(appservice/direct|actions|api|storage/server|task|ingress|config/server|publicweb|realtime|realtime/gateway|servertest|integrationtest)(/|$)'
-        mobile='^github.com/runforyou-ai/cervi/internal/(devicehost|integration/(agentruntime|toolchain|localmcp|localskill|localworkspace|mcp|websearch|knowledgeretrieval))(/|$)'
+        server='^github.com/runforyou-ai/luway/internal/(appservice/direct|actions|api|storage/server|task|ingress|config/server|publicweb|realtime|realtime/gateway|servertest|integrationtest)(/|$)'
+        mobile='^github.com/runforyou-ai/luway/internal/(devicehost|integration/(agentruntime|toolchain|localmcp|localskill|localworkspace|mcp|websearch|knowledgeretrieval))(/|$)'
         for target in darwin: windows: linux: ios:ios android:android; do
           goos=${target%%:*}
           tags=${target#*:}

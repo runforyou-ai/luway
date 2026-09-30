@@ -1,7 +1,7 @@
 package appservice
 
 import (
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"time"
 )
 

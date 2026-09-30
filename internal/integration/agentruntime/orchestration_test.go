@@ -13,9 +13,9 @@ import (
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
-	"github.com/runforyou-ai/cervi/internal/integration/localskill"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/localskill"
 )
 
 // orchestrationChatModel 按输入区分主 Agent 与子 Agent：主 Agent 按调用次序返回预设输出，子 Agent 由 delegate 按其输入决定输出；每次输出携带固定用量。

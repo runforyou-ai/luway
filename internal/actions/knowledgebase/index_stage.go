@@ -7,12 +7,12 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/modelprovider"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
-	"github.com/runforyou-ai/cervi/pkg/embedding"
-	"github.com/runforyou-ai/cervi/pkg/textsplit"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
+	"github.com/runforyou-ai/luway/pkg/embedding"
+	"github.com/runforyou-ai/luway/pkg/textsplit"
 	"github.com/uptrace/bun"
 )
 

@@ -6,8 +6,8 @@ package aiperformance
 import (
 	"errors"
 
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 var (

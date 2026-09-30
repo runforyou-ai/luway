@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/runforyou-ai/cervi/internal/apiproxy"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	appservicenative "github.com/runforyou-ai/cervi/internal/appservice/native"
-	"github.com/runforyou-ai/cervi/internal/clientsession"
+	"github.com/runforyou-ai/luway/internal/apiproxy"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	appservicenative "github.com/runforyou-ai/luway/internal/appservice/native"
+	"github.com/runforyou-ai/luway/internal/clientsession"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )

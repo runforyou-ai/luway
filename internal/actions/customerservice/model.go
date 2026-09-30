@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	"github.com/uptrace/bun"
 )
 

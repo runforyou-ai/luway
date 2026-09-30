@@ -12,14 +12,14 @@ import (
 	"log/slog"
 	"strconv"
 
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	"github.com/runforyou-ai/cervi/internal/actions/channelmessage"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/telegram"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	"github.com/runforyou-ai/luway/internal/actions/channelmessage"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/telegram"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 

@@ -10,8 +10,8 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	"github.com/runforyou-ai/cervi/internal/realtime/protocol"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 )
 
 // mergeKey 标识发送队列中可合并的事件：变更通知按会话与种类，输入状态按会话与发送者，工作区动态按工作区、会话与原事件种类。

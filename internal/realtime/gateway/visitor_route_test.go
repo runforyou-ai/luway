@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/appservice/direct"
-	"github.com/runforyou-ai/cervi/internal/realtime"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/realtime"
 )
 
 // fakeVisitorBackend 按预设结果解析访客受众与签名身份。

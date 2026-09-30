@@ -1,6 +1,6 @@
 package appservice
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // AIProviderBrand 表示模型服务供应商品牌。
 type AIProviderBrand string

@@ -7,11 +7,11 @@ import (
 	"database/sql"
 	"errors"
 
-	roleaction "github.com/runforyou-ai/cervi/internal/actions/role"
-	teamaction "github.com/runforyou-ai/cervi/internal/actions/team"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

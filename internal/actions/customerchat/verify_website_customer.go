@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"time"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	customerserviceaction "github.com/runforyou-ai/cervi/internal/actions/customerservice"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/common/customeridentity"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/common/customeridentity"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/uptrace/bun"
 )
 

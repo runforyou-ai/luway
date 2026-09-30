@@ -10,15 +10,15 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // testCustomerReplyGenerator 记录回复候选生成请求并返回预设结果。

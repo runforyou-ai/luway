@@ -1,6 +1,6 @@
 package appservice
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // AgentRunBlockKind 定义思考区域中的内容类型。
 type AgentRunBlockKind string

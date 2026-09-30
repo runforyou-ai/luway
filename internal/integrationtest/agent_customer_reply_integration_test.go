@@ -11,14 +11,14 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestAgentCustomerReplies 验证客服上下文按周期隔离，并保留窗口外和跨周期的一层引用。

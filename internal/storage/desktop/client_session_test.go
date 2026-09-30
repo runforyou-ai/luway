@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/clientsession"
+	"github.com/runforyou-ai/luway/internal/clientsession"
 )
 
 // TestClientSessionPersistsInDesktopStorage 验证桌面端登录凭据能够持久化和删除。

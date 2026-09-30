@@ -10,7 +10,7 @@ package systemtray
 import "C"
 
 import (
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 // SetUnreadState 更新 iOS 应用图标角标。

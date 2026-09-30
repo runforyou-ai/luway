@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // searchSerper 调用 Serper 的 Google 搜索接口。

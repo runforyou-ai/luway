@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/clientsession"
-	"github.com/runforyou-ai/cervi/internal/realtime/protocol"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/clientsession"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 )
 
 // testWindowKey 在测试中标记发起调用的前端窗口。

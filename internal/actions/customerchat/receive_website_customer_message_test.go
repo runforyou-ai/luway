@@ -5,8 +5,8 @@ package customerchat
 import (
 	"testing"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	"github.com/runforyou-ai/cervi/internal/common/customeridentity"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 )
 
 // TestNormalizeWebsiteMessageInput 验证网站消息正文和身份输入规范化。

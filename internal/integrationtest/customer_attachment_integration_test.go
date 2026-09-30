@@ -8,11 +8,11 @@ import (
 	"testing"
 	"uuid"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestCustomerAttachmentReply 验证成员向网站客户会话发送附件时激活文件、隐式领取周期并按发送意图幂等。

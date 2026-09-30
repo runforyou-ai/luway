@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/runforyou-ai/cervi/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/common/brand"
 )
 
 // LoadStartup 根据部署安装状态返回初始化、服务器连接或就绪入口和界面品牌；登录与工作区选择由后续身份加载决定。

@@ -3,7 +3,7 @@
 package main
 
 import (
-	appservicenative "github.com/runforyou-ai/cervi/internal/appservice/native"
+	appservicenative "github.com/runforyou-ai/luway/internal/appservice/native"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

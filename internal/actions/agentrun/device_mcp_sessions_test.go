@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	mcpintegration "github.com/runforyou-ai/cervi/internal/integration/mcp"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
 )
 
 // fakeMCPConnection 记录关闭次数的测试 MCP 连接。

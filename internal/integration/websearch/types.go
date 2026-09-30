@@ -1,7 +1,7 @@
 // Package websearch 调用企业配置的联网搜索服务，把各服务商的结果整理为统一格式。
 package websearch
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // Recency 表示搜索结果的发布时间范围。
 type Recency string

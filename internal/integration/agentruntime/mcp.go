@@ -19,7 +19,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/eino-contrib/jsonschema"
 	"github.com/mozillazg/go-pinyin"
-	"github.com/runforyou-ai/cervi/internal/integration/mcp"
+	"github.com/runforyou-ai/luway/internal/integration/mcp"
 )
 
 const (

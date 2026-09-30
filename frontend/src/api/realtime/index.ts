@@ -8,7 +8,7 @@ import {
   DisconnectAgentRunStream,
   DisconnectRealtime,
   DisconnectWorkspaceActivity,
-} from "../../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   isApiError,
   isNotFoundApiError,

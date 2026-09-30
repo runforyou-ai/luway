@@ -6,7 +6,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/runforyou-ai/cervi/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
 // OperatorErrorCode 是运营接口的稳定错误码，供 SaaS 按语义处理。

@@ -6,7 +6,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestNotifyMergesConversationChanges 验证同一事务内同一受众与会话的变更通知合并为最高版本，并保留全部变化类别。

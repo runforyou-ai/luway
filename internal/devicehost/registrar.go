@@ -14,9 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/clientsession"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/clientsession"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 const (

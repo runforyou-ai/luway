@@ -10,13 +10,13 @@ import (
 	"strings"
 	"uuid"
 
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	teamaction "github.com/runforyou-ai/cervi/internal/actions/team"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/realtime"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

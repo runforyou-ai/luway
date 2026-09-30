@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	commonemail "github.com/runforyou-ai/cervi/pkg/email"
-	commonphone "github.com/runforyou-ai/cervi/pkg/phone"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	commonemail "github.com/runforyou-ai/luway/pkg/email"
+	commonphone "github.com/runforyou-ai/luway/pkg/phone"
 	"github.com/uptrace/bun"
 )
 

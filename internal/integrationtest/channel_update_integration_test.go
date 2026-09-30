@@ -7,9 +7,9 @@ import (
 	"errors"
 	"testing"
 
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestChannelIndependentUpdates 验证两个页签的交错更新各自保留另一组字段。

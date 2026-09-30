@@ -5,7 +5,7 @@ package file
 import (
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestNormalizeUploadInput 验证图片上传元数据规范化和限制。

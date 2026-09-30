@@ -3,7 +3,7 @@
 package models
 
 import (
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/uptrace/bun"
 	"time"
 )

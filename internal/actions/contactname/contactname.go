@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // numberQuery 匹配以编号结尾的检索词，编号前可带 #。

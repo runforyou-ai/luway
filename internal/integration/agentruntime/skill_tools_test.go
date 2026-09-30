@@ -14,7 +14,7 @@ import (
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
-	"github.com/runforyou-ai/cervi/internal/integration/localskill"
+	"github.com/runforyou-ai/luway/internal/integration/localskill"
 )
 
 // testSkills 创建以临时目录为技能目录的技能存储，其中已安装带脚本的 xlsx 技能。

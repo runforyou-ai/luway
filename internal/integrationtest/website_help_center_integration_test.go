@@ -8,14 +8,14 @@ import (
 	"slices"
 	"testing"
 
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	helpcenteraction "github.com/runforyou-ai/cervi/internal/actions/helpcenter"
-	knowledgeaction "github.com/runforyou-ai/cervi/internal/actions/knowledgebase"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servertest "github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	helpcenteraction "github.com/runforyou-ai/luway/internal/actions/helpcenter"
+	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servertest "github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestWebsiteHelpCenter 验证网站渠道帮助中心的发布范围、合集与文章读取、只检索已发布文章、渠道停用与知识库删除。

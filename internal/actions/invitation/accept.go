@@ -10,10 +10,10 @@ import (
 	"strings"
 	"time"
 
-	roleaction "github.com/runforyou-ai/cervi/internal/actions/role"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/token"
+	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/token"
 	"github.com/uptrace/bun"
 )
 

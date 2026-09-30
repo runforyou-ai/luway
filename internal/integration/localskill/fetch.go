@@ -17,8 +17,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/common/brand"
-	"github.com/runforyou-ai/cervi/pkg/archive"
+	"github.com/runforyou-ai/luway/internal/common/brand"
+	"github.com/runforyou-ai/luway/pkg/archive"
 )
 
 // maxDiscoverDepth 是在技能容器目录下查找技能的最大层数，覆盖按分类分组的目录结构。

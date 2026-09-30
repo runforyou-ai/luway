@@ -15,7 +15,7 @@ import (
 
 	"golang.org/x/image/draw"
 
-	"github.com/runforyou-ai/cervi/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/common/brand"
 )
 
 // brandFile 是仓库中的构建品牌文件。

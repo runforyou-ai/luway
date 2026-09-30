@@ -7,7 +7,7 @@ import type {
   AgentPlanTaskStatus,
   AgentRunBlockKind,
   AgentToolCallStatus,
-} from "../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 
 type FixtureCase = {
   name: string

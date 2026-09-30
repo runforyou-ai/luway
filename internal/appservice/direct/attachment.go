@@ -9,13 +9,13 @@ import (
 	"mime"
 	"net/url"
 
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // SendAttachmentMessage 保存已上传的内部会话附件，并返回消息及首发创建的单聊或 AI 聊天。

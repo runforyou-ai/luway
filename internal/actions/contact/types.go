@@ -5,9 +5,9 @@ package contact
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/actions/contactprofile"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // MethodInput 定义联系人联系方式输入。

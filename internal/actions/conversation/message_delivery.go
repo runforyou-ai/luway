@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	deliveryaction "github.com/runforyou-ai/cervi/internal/actions/customerdelivery"
+	deliveryaction "github.com/runforyou-ai/luway/internal/actions/customerdelivery"
 	"github.com/uptrace/bun"
 )
 

@@ -1,6 +1,6 @@
 package appservice
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // FilePurpose 表示文件上传用途。
 type FilePurpose string

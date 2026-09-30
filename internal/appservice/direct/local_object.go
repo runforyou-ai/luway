@@ -8,12 +8,12 @@ import (
 	"errors"
 	"strings"
 
-	authaction "github.com/runforyou-ai/cervi/internal/actions/auth"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	"github.com/runforyou-ai/cervi/internal/common/customeridentity"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	"github.com/runforyou-ai/luway/internal/common/customeridentity"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/uptrace/bun"
 )
 

@@ -12,11 +12,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/runforyou-ai/cervi/internal/api"
-	"github.com/runforyou-ai/cervi/internal/common/brand"
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
-	"github.com/runforyou-ai/cervi/internal/storage"
-	"github.com/runforyou-ai/cervi/internal/webasset"
+	"github.com/runforyou-ai/luway/internal/api"
+	"github.com/runforyou-ai/luway/internal/common/brand"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
+	"github.com/runforyou-ai/luway/internal/storage"
+	"github.com/runforyou-ai/luway/internal/webasset"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

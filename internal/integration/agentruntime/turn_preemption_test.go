@@ -13,7 +13,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestTurnPreemptionDoesNotSendEmptyAssistant 验证模型调用期间补入新消息后，下一轮输入有效且思考展示保留。

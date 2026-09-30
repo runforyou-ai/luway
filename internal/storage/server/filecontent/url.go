@@ -9,7 +9,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // ImmutableCacheControl 是 UUID 对象统一使用的浏览器和 CDN 缓存策略。

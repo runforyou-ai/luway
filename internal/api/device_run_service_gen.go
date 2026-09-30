@@ -8,7 +8,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 // registerGeneratedDeviceRunRoutes 注册由 appservicegen 生成的设备运行期路由。

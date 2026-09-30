@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	roleaction "github.com/runforyou-ai/cervi/internal/actions/role"
-	useraction "github.com/runforyou-ai/cervi/internal/actions/user"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
+	useraction "github.com/runforyou-ai/luway/internal/actions/user"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

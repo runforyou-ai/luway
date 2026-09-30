@@ -7,11 +7,11 @@ import (
 	"slices"
 	"testing"
 
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	"github.com/runforyou-ai/cervi/internal/actions/servicesummary"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	"uuid"
 )
 

@@ -8,7 +8,7 @@ import (
 	"errors"
 	"time"
 
-	nativemodels "github.com/runforyou-ai/cervi/internal/storage/native/models"
+	nativemodels "github.com/runforyou-ai/luway/internal/storage/native/models"
 )
 
 const serverURLSettingKey = "server_url"

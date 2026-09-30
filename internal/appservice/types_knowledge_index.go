@@ -1,6 +1,6 @@
 package appservice
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // KnowledgeIndexStatus 定义知识来源的索引展示状态，文档与问答条目共用。
 type KnowledgeIndexStatus string

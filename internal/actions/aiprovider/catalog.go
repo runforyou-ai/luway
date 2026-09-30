@@ -2,7 +2,7 @@
 
 package aiprovider
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // AvailableModels 返回指定品牌的预设模型目录。
 func AvailableModels(brand domain.AIProviderBrand) []Model {

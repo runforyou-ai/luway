@@ -8,11 +8,11 @@ import (
 	"testing"
 	"uuid"
 
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	useraction "github.com/runforyou-ai/cervi/internal/actions/user"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	useraction "github.com/runforyou-ai/luway/internal/actions/user"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestServiceHandlingAuthorization 验证只有开启接待的成员可以领取、对客回复、关闭与重开客服周期，未开启的成员仍可写内部备注，也不能作为转交目标。

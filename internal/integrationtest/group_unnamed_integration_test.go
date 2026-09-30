@@ -7,10 +7,10 @@ import (
 	"slices"
 	"testing"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestUnnamedGroupConversation 验证未命名群聊的创建、成员名称摘要、按成员名称搜索和清空群名称。

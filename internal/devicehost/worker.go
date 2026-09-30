@@ -17,16 +17,16 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
-	"github.com/runforyou-ai/cervi/internal/integration/localmcp"
-	"github.com/runforyou-ai/cervi/internal/integration/localskill"
-	"github.com/runforyou-ai/cervi/internal/integration/localworkspace"
-	"github.com/runforyou-ai/cervi/internal/realtime/protocol"
-	"github.com/runforyou-ai/cervi/pkg/webfetch"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/localmcp"
+	"github.com/runforyou-ai/luway/internal/integration/localskill"
+	"github.com/runforyou-ai/luway/internal/integration/localworkspace"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
+	"github.com/runforyou-ai/luway/pkg/webfetch"
 )
 
 const (

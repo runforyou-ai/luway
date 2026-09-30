@@ -8,9 +8,9 @@ import (
 	"log/slog"
 	"uuid"
 
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 

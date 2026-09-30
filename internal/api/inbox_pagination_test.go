@@ -10,7 +10,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 type inboxPageBackend struct {

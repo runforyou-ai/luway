@@ -16,7 +16,7 @@ import (
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 	"github.com/goccy/go-yaml"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // memoryDirectory 是向模型展示的记忆目录，其中的索引与条目由记忆中间件从服务端数据提供；执行侧同名的本机路径不存放记忆，指令要求模型不经本机工具访问。

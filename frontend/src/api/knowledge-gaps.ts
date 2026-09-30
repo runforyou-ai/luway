@@ -4,7 +4,7 @@ import {
   DismissKnowledgeGap,
   GetKnowledgeGap,
   ListKnowledgeGaps,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   KnowledgeGapDraftStatus,
   KnowledgeGapSource,
@@ -15,7 +15,7 @@ import {
   type KnowledgeGapListInput,
   type KnowledgeGapSummary,
   type ServiceTranscriptMessage,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import type { NonNullArrays } from "@/api/normalize"
 

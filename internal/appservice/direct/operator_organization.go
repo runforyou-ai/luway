@@ -8,10 +8,10 @@ import (
 	"net/http"
 	"time"
 
-	organizationaction "github.com/runforyou-ai/cervi/internal/actions/organization"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/i18n"
+	organizationaction "github.com/runforyou-ai/luway/internal/actions/organization"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
 // operatorOrganizationPageSizeMax 是运营工作区列表单页的最大条数。

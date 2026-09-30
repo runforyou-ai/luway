@@ -6,9 +6,9 @@ import (
 	"context"
 	"testing"
 
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	teamaction "github.com/runforyou-ai/cervi/internal/actions/team"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestTeamRenameInvalidatesCustomerInbox 验证团队改名推进会话版本与同步探针并通知客服受众，相同名称和描述变更保持版本。

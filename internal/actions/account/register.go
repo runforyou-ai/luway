@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"strings"
 
-	authaction "github.com/runforyou-ai/cervi/internal/actions/auth"
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	invitationaction "github.com/runforyou-ai/cervi/internal/actions/invitation"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	commonemail "github.com/runforyou-ai/cervi/pkg/email"
-	commonpassword "github.com/runforyou-ai/cervi/pkg/password"
+	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	invitationaction "github.com/runforyou-ai/luway/internal/actions/invitation"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	commonemail "github.com/runforyou-ai/luway/pkg/email"
+	commonpassword "github.com/runforyou-ai/luway/pkg/password"
 	"github.com/uptrace/bun"
 )
 

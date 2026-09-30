@@ -15,7 +15,7 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
-	"github.com/runforyou-ai/cervi/internal/integration/knowledgeretrieval"
+	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
 )
 
 // summaryModel 对不带工具的摘要调用返回带分析段的摘要并记录其输入，其余调用交给主模型。

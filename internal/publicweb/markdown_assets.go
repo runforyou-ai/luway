@@ -6,7 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 
-	"github.com/runforyou-ai/cervi/internal/webasset"
+	"github.com/runforyou-ai/luway/internal/webasset"
 )
 
 // markdownAssetsByName 与 markdownAssetVersion 在启动时由内嵌资源生成，聊天页按版本引用资源地址。

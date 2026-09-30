@@ -1,7 +1,7 @@
 package protocol
 
 import (
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 )
 
 // RunStreamSnapshotParts 把运行流快照按文本预算拆分为分片事件，每个分片至少包含一个内容块。

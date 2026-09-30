@@ -5,9 +5,9 @@ package integrationtest
 import (
 	"context"
 
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 

@@ -17,7 +17,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"github.com/runforyou-ai/cervi/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/common/brand"
 )
 
 // FileName 是技能说明文件的名称。

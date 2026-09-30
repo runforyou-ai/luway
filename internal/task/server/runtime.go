@@ -13,7 +13,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"github.com/uptrace/bun"
 )
 

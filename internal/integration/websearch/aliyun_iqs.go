@@ -3,7 +3,7 @@ package websearch
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // aliyunTimeRange 是阿里云 IQS 的时间范围取值。

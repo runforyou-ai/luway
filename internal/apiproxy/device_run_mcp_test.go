@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/clientsession"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/clientsession"
 )
 
 // TestCallDeviceRunMCPToolFollowsContext 验证企业 MCP 工具调用不受普通接口的请求时限与响应大小上限约束，普通接口仍受时限约束。

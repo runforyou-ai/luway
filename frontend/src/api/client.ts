@@ -5,7 +5,7 @@ import {
   Locale,
   type Auth,
   type RequestMeta,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import type { NonNullArrays } from "@/api/normalize"
 import {
   currentSessionGeneration,

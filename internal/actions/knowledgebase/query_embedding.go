@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/runforyou-ai/cervi/pkg/embedding"
+	"github.com/runforyou-ai/luway/pkg/embedding"
 )
 
 // queryEmbeddingKey 标识一组可以共用查询向量的向量模型配置。

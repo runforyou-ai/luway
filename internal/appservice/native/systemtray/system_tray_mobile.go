@@ -3,7 +3,7 @@
 package systemtray
 
 import (
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 // Controller 保持移动端与桌面端原生界面控制接口一致。

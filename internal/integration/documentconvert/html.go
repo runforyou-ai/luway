@@ -8,7 +8,7 @@ import (
 	"mime"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/pkg/htmlmarkdown"
+	"github.com/runforyou-ai/luway/pkg/htmlmarkdown"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding"

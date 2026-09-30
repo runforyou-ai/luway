@@ -6,8 +6,8 @@ import (
 	"context"
 	"fmt"
 
-	translationaction "github.com/runforyou-ai/cervi/internal/actions/translation"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

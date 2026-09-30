@@ -20,1951 +20,1951 @@ import * as $models from "./models.js";
  * AcceptInvitation 由当前账号接受邀请并加入工作区。
  */
 export function AcceptInvitation(meta: $models.RequestMeta, input: $models.InvitationTokenInput): $CancellablePromise<$models.Workspace> {
-    return $Call.ByID(1997548769, meta, input);
+    return $Call.ByID(2332265878, meta, input);
 }
 
 /**
  * AcceptKnowledgeGap 把待补知识整理的问答加入知识库。
  */
 export function AcceptKnowledgeGap(meta: $models.RequestMeta, gapID: string, input: $models.KnowledgeGapAcceptInput): $CancellablePromise<void> {
-    return $Call.ByID(3432414194, meta, gapID, input);
+    return $Call.ByID(3037245109, meta, gapID, input);
 }
 
 /**
  * ActivateMessageChannel 启用消息渠道。
  */
 export function ActivateMessageChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.MessageChannelSummary> {
-    return $Call.ByID(991066093, meta, channelID);
+    return $Call.ByID(827738954, meta, channelID);
 }
 
 /**
  * AddContactTag 由客服给联系人添加标签。
  */
 export function AddContactTag(meta: $models.RequestMeta, contactID: string, tagID: string): $CancellablePromise<void> {
-    return $Call.ByID(324709989, meta, contactID, tagID);
+    return $Call.ByID(4221099540, meta, contactID, tagID);
 }
 
 /**
  * AddGroupConversationMembers 批量增加群聊成员。
  */
 export function AddGroupConversationMembers(meta: $models.RequestMeta, conversationID: string, input: $models.GroupConversationMembersInput): $CancellablePromise<$models.GroupConversation> {
-    return $Call.ByID(2648272946, meta, conversationID, input);
+    return $Call.ByID(3655040583, meta, conversationID, input);
 }
 
 /**
  * AddServiceIssueToEvaluation 把应转人工未转的问题会话以选定的客户消息为提问加入负责 AI 员工的评测。
  */
 export function AddServiceIssueToEvaluation(meta: $models.RequestMeta, serviceSessionID: string, input: $models.ServiceIssueEvaluationInput): $CancellablePromise<$models.AgentEvaluationCase> {
-    return $Call.ByID(2053102676, meta, serviceSessionID, input);
+    return $Call.ByID(2182724365, meta, serviceSessionID, input);
 }
 
 /**
  * AddTeamMembers 将企业身份批量加入团队。
  */
 export function AddTeamMembers(meta: $models.RequestMeta, teamID: string, input: $models.TeamMemberInput): $CancellablePromise<$models.Team> {
-    return $Call.ByID(1201335915, meta, teamID, input);
+    return $Call.ByID(1294545164, meta, teamID, input);
 }
 
 /**
  * AuthorizeAgentRunStreamAccess 校验当前成员对运行所属会话的阅读资格，原生端读取本机执行中运行的过程流前调用。
  */
 export function AuthorizeAgentRunStreamAccess(meta: $models.RequestMeta, runID: string): $CancellablePromise<void> {
-    return $Call.ByID(3380917493, meta, runID);
+    return $Call.ByID(3281157204, meta, runID);
 }
 
 /**
  * CancelFileUpload 将未发送的临时文件交给清理任务。
  */
 export function CancelFileUpload(meta: $models.RequestMeta, fileID: string): $CancellablePromise<void> {
-    return $Call.ByID(2213374235, meta, fileID);
+    return $Call.ByID(1984042192, meta, fileID);
 }
 
 /**
  * ChangePassword 核验当前账号的密码并保存新密码。
  */
 export function ChangePassword(meta: $models.RequestMeta, input: $models.ChangePasswordInput): $CancellablePromise<void> {
-    return $Call.ByID(3645111243, meta, input);
+    return $Call.ByID(1012022500, meta, input);
 }
 
 /**
  * CheckNotificationPermission 返回当前设备的系统通知授权状态。
  */
 export function CheckNotificationPermission(meta: $models.RequestMeta): $CancellablePromise<$models.NotificationPermissionStatus> {
-    return $Call.ByID(64653454, meta);
+    return $Call.ByID(2135692843, meta);
 }
 
 /**
  * ClaimServiceSession 领取或接管服务会话的当前周期。
  */
 export function ClaimServiceSession(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.ServiceSession> {
-    return $Call.ByID(104372695, meta, conversationID);
+    return $Call.ByID(694836610, meta, conversationID);
 }
 
 /**
  * CloseServiceSession 关闭服务会话的当前周期。
  */
 export function CloseServiceSession(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.ServiceSession> {
-    return $Call.ByID(3932400583, meta, conversationID);
+    return $Call.ByID(3553855934, meta, conversationID);
 }
 
 /**
  * CompleteFileUpload 核验并完成文件上传。
  */
 export function CompleteFileUpload(meta: $models.RequestMeta, fileID: string): $CancellablePromise<$models.File> {
-    return $Call.ByID(3172652722, meta, fileID);
+    return $Call.ByID(1282133329, meta, fileID);
 }
 
 /**
  * CompleteOfficialLogin 用授权码完成官方账号登录并建立登录会话。
  */
 export function CompleteOfficialLogin(meta: $models.RequestMeta, input: $models.OfficialLoginCompletion): $CancellablePromise<$models.Auth> {
-    return $Call.ByID(3284130297, meta, input);
+    return $Call.ByID(3005907884, meta, input);
 }
 
 /**
  * ConnectAgentRunStream 在原生端建立指定运行的过程流，运行过程事件与流结束经 Wails 事件投递。
  */
 export function ConnectAgentRunStream(meta: $models.RequestMeta, runID: string): $CancellablePromise<$models.RealtimeConnection> {
-    return $Call.ByID(1264735630, meta, runID);
+    return $Call.ByID(3508393015, meta, runID);
 }
 
 /**
  * ConnectRealtime 在原生端使用当前登录凭据建立实时事件流，服务端事件与事件流结束经 Wails 事件投递。
  */
 export function ConnectRealtime(meta: $models.RequestMeta): $CancellablePromise<$models.RealtimeConnection> {
-    return $Call.ByID(3104432381, meta);
+    return $Call.ByID(3594064084, meta);
 }
 
 /**
  * ConnectServer 验证并保存原生端企业服务器地址。
  */
 export function ConnectServer(meta: $models.RequestMeta, serverURL: string): $CancellablePromise<void> {
-    return $Call.ByID(1075777931, meta, serverURL);
+    return $Call.ByID(882039034, meta, serverURL);
 }
 
 /**
  * ConnectWorkspaceActivity 在原生端使用当前登录凭据建立工作区动态事件流，事件与流结束经 Wails 事件投递。
  */
 export function ConnectWorkspaceActivity(meta: $models.RequestMeta): $CancellablePromise<$models.RealtimeConnection> {
-    return $Call.ByID(355200628, meta);
+    return $Call.ByID(2661253875, meta);
 }
 
 /**
  * CreateAIProvider 创建模型服务供应商。
  */
 export function CreateAIProvider(meta: $models.RequestMeta, input: $models.AIProviderInput): $CancellablePromise<$models.AIProvider> {
-    return $Call.ByID(3165377185, meta, input);
+    return $Call.ByID(2785746482, meta, input);
 }
 
 /**
  * CreateAgent 创建企业 AI 员工。
  */
 export function CreateAgent(meta: $models.RequestMeta, input: $models.CreateAgentInput): $CancellablePromise<$models.Agent> {
-    return $Call.ByID(3052452131, meta, input);
+    return $Call.ByID(2090969602, meta, input);
 }
 
 /**
  * CreateAgentEvaluationCase 为 AI 员工新建手动评测用例。
  */
 export function CreateAgentEvaluationCase(meta: $models.RequestMeta, agentID: string, input: $models.AgentEvaluationCaseInput): $CancellablePromise<$models.AgentEvaluationCase> {
-    return $Call.ByID(2232114285, meta, agentID, input);
+    return $Call.ByID(2284737996, meta, agentID, input);
 }
 
 /**
  * CreateAssistant 在当前成员的电脑上创建助理。
  */
 export function CreateAssistant(meta: $models.RequestMeta, input: $models.CreateAssistantInput): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(1835123138, meta, input);
+    return $Call.ByID(3636175659, meta, input);
 }
 
 /**
  * CreateContact 创建联系人。
  */
 export function CreateContact(meta: $models.RequestMeta, input: $models.ContactInput): $CancellablePromise<$models.Contact> {
-    return $Call.ByID(2172055030, meta, input);
+    return $Call.ByID(1096691199, meta, input);
 }
 
 /**
  * CreateContactField 新增联系人字段。
  */
 export function CreateContactField(meta: $models.RequestMeta, input: $models.ContactFieldInput): $CancellablePromise<$models.ContactField> {
-    return $Call.ByID(2616093554, meta, input);
+    return $Call.ByID(2781237249, meta, input);
 }
 
 /**
  * CreateContactTag 新增联系人标签。
  */
 export function CreateContactTag(meta: $models.RequestMeta, input: $models.ContactTagInput): $CancellablePromise<$models.ContactTag> {
-    return $Call.ByID(1434219494, meta, input);
+    return $Call.ByID(3010738357, meta, input);
 }
 
 /**
  * CreateFilePartUpload 创建一个分片的直传请求。
  */
 export function CreateFilePartUpload(meta: $models.RequestMeta, fileID: string, input: $models.FilePartUploadInput): $CancellablePromise<$models.FileUploadRequest> {
-    return $Call.ByID(4242419644, meta, fileID, input);
+    return $Call.ByID(800793655, meta, fileID, input);
 }
 
 /**
  * CreateFileUpload 创建文件上传请求。
  */
 export function CreateFileUpload(meta: $models.RequestMeta, input: $models.FileUploadInput): $CancellablePromise<$models.FileUpload> {
-    return $Call.ByID(1790184161, meta, input);
+    return $Call.ByID(2671220754, meta, input);
 }
 
 /**
  * CreateGroupConversation 创建企业内部群聊。
  */
 export function CreateGroupConversation(meta: $models.RequestMeta, input: $models.GroupConversationInput): $CancellablePromise<$models.InboxConversation> {
-    return $Call.ByID(4060539042, meta, input);
+    return $Call.ByID(1417724007, meta, input);
 }
 
 /**
  * CreateInvitation 邀请账号加入当前工作区，返回只展示一次的邀请链接。
  */
 export function CreateInvitation(meta: $models.RequestMeta, input: $models.InvitationInput): $CancellablePromise<$models.InvitationCreated> {
-    return $Call.ByID(3643996037, meta, input);
+    return $Call.ByID(2715671442, meta, input);
 }
 
 /**
  * CreateKnowledgeBase 创建企业知识库。
  */
 export function CreateKnowledgeBase(meta: $models.RequestMeta, input: $models.KnowledgeBaseInput): $CancellablePromise<$models.KnowledgeBase> {
-    return $Call.ByID(1982019343, meta, input);
+    return $Call.ByID(3084377146, meta, input);
 }
 
 /**
  * CreateKnowledgeDocuments 保存最多十个已上传的文档原件。
  */
 export function CreateKnowledgeDocuments(meta: $models.RequestMeta, knowledgeBaseID: string, input: $models.KnowledgeDocumentBatchInput): $CancellablePromise<$models.KnowledgeDocumentBatch> {
-    return $Call.ByID(3320220084, meta, knowledgeBaseID, input);
+    return $Call.ByID(1372764947, meta, knowledgeBaseID, input);
 }
 
 /**
  * CreateKnowledgeQAEntry 创建本地问答。
  */
 export function CreateKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseID: string, input: $models.KnowledgeQAInput): $CancellablePromise<$models.KnowledgeQAEntry> {
-    return $Call.ByID(2807633900, meta, knowledgeBaseID, input);
+    return $Call.ByID(3790741639, meta, knowledgeBaseID, input);
 }
 
 /**
  * CreateKnowledgeTextDocument 创建在线编写的文档并安排索引。
  */
 export function CreateKnowledgeTextDocument(meta: $models.RequestMeta, knowledgeBaseID: string, input: $models.KnowledgeTextDocumentInput): $CancellablePromise<$models.KnowledgeDocument> {
-    return $Call.ByID(3003924288, meta, knowledgeBaseID, input);
+    return $Call.ByID(983517369, meta, knowledgeBaseID, input);
 }
 
 /**
  * CreateKnowledgeWebDocument 导入网页并安排首次抓取。
  */
 export function CreateKnowledgeWebDocument(meta: $models.RequestMeta, knowledgeBaseID: string, input: $models.KnowledgeWebDocumentInput): $CancellablePromise<$models.KnowledgeDocument> {
-    return $Call.ByID(1630833413, meta, knowledgeBaseID, input);
+    return $Call.ByID(3546947138, meta, knowledgeBaseID, input);
 }
 
 /**
  * CreateMCPServer 创建 MCP 服务。
  */
 export function CreateMCPServer(meta: $models.RequestMeta, input: $models.MCPServerInput): $CancellablePromise<$models.MCPServer> {
-    return $Call.ByID(1999587509, meta, input);
+    return $Call.ByID(1434561100, meta, input);
 }
 
 /**
  * CreateMessageChannel 创建消息渠道。
  */
 export function CreateMessageChannel(meta: $models.RequestMeta, input: $models.CreateMessageChannelInput): $CancellablePromise<$models.MessageChannelSummary> {
-    return $Call.ByID(3211569396, meta, input);
+    return $Call.ByID(2137558891, meta, input);
 }
 
 /**
  * CreateRole 创建自定义角色。
  */
 export function CreateRole(meta: $models.RequestMeta, input: $models.RoleInput): $CancellablePromise<$models.Role> {
-    return $Call.ByID(2598423454, meta, input);
+    return $Call.ByID(3308433013, meta, input);
 }
 
 /**
  * CreateServiceCategory 新增咨询分类。
  */
 export function CreateServiceCategory(meta: $models.RequestMeta, input: $models.ServiceCategoryInput): $CancellablePromise<$models.ServiceCategory> {
-    return $Call.ByID(3908878777, meta, input);
+    return $Call.ByID(2445344176, meta, input);
 }
 
 /**
  * CreateTeam 创建企业团队。
  */
 export function CreateTeam(meta: $models.RequestMeta, input: $models.TeamInput): $CancellablePromise<$models.Team> {
-    return $Call.ByID(3796040671, meta, input);
+    return $Call.ByID(980766648, meta, input);
 }
 
 /**
  * CreateWorkspace 创建工作区，当前账号成为首位管理员成员。
  */
 export function CreateWorkspace(meta: $models.RequestMeta, input: $models.WorkspaceInput): $CancellablePromise<$models.Workspace> {
-    return $Call.ByID(336490295, meta, input);
+    return $Call.ByID(133822874, meta, input);
 }
 
 /**
  * CurrentDevice 返回本机在当前企业服务器上的设备注册状态与 Agent 运行环境的准备状态；不注册设备的平台返回空设备编号且不含运行环境。
  */
 export function CurrentDevice(meta: $models.RequestMeta): $CancellablePromise<$models.LocalDevice> {
-    return $Call.ByID(4090697417, meta);
+    return $Call.ByID(2732025576, meta);
 }
 
 /**
  * DeactivateAgent 禁用企业 AI 员工账号。
  */
 export function DeactivateAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.Agent> {
-    return $Call.ByID(2542842753, meta, agentID);
+    return $Call.ByID(2979552940, meta, agentID);
 }
 
 /**
  * DeactivateAssistant 停用助理。
  */
 export function DeactivateAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(3181648544, meta, assistantID);
+    return $Call.ByID(1383227397, meta, assistantID);
 }
 
 /**
  * DeactivateMessageChannel 停用消息渠道。
  */
 export function DeactivateMessageChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.MessageChannelSummary> {
-    return $Call.ByID(3507355270, meta, channelID);
+    return $Call.ByID(3066563105, meta, channelID);
 }
 
 /**
  * DeactivateUser 禁用企业成员账号。
  */
 export function DeactivateUser(meta: $models.RequestMeta, userID: string): $CancellablePromise<$models.User> {
-    return $Call.ByID(3624391107, meta, userID);
+    return $Call.ByID(3125881748, meta, userID);
 }
 
 /**
  * DeleteAIProvider 删除模型服务供应商。
  */
 export function DeleteAIProvider(meta: $models.RequestMeta, providerID: string): $CancellablePromise<void> {
-    return $Call.ByID(1350701494, meta, providerID);
+    return $Call.ByID(3456920185, meta, providerID);
 }
 
 /**
  * DeleteAgentEvaluationCase 删除评测用例。
  */
 export function DeleteAgentEvaluationCase(meta: $models.RequestMeta, agentID: string, caseID: string): $CancellablePromise<void> {
-    return $Call.ByID(3090687704, meta, agentID, caseID);
+    return $Call.ByID(735868053, meta, agentID, caseID);
 }
 
 /**
  * DeleteAssistantMemory 删除当前成员名下助理的一条记忆。
  */
 export function DeleteAssistantMemory(meta: $models.RequestMeta, assistantID: string, memoryID: string): $CancellablePromise<void> {
-    return $Call.ByID(2449521704, meta, assistantID, memoryID);
+    return $Call.ByID(1854219973, meta, assistantID, memoryID);
 }
 
 /**
  * DeleteContact 将联系人移入回收站。
  */
 export function DeleteContact(meta: $models.RequestMeta, contactID: string): $CancellablePromise<void> {
-    return $Call.ByID(1228681067, meta, contactID);
+    return $Call.ByID(961986926, meta, contactID);
 }
 
 /**
  * DeleteContactField 删除联系人字段及其全部取值。
  */
 export function DeleteContactField(meta: $models.RequestMeta, fieldID: string): $CancellablePromise<void> {
-    return $Call.ByID(3857708885, meta, fieldID);
+    return $Call.ByID(3080623962, meta, fieldID);
 }
 
 /**
  * DeleteContactTag 删除联系人标签并从所有联系人上移除。
  */
 export function DeleteContactTag(meta: $models.RequestMeta, tagID: string): $CancellablePromise<void> {
-    return $Call.ByID(4153534457, meta, tagID);
+    return $Call.ByID(508869486, meta, tagID);
 }
 
 /**
  * DeleteKnowledgeBase 删除企业知识库。
  */
 export function DeleteKnowledgeBase(meta: $models.RequestMeta, knowledgeBaseID: string): $CancellablePromise<void> {
-    return $Call.ByID(541376414, meta, knowledgeBaseID);
+    return $Call.ByID(2497237991, meta, knowledgeBaseID);
 }
 
 /**
  * DeleteKnowledgeDocument 删除文档并释放原件。
  */
 export function DeleteKnowledgeDocument(meta: $models.RequestMeta, knowledgeBaseID: string, documentID: string): $CancellablePromise<void> {
-    return $Call.ByID(1875707654, meta, knowledgeBaseID, documentID);
+    return $Call.ByID(2325069239, meta, knowledgeBaseID, documentID);
 }
 
 /**
  * DeleteKnowledgeQAEntry 删除本地问答。
  */
 export function DeleteKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseID: string, entryID: string): $CancellablePromise<void> {
-    return $Call.ByID(3628287475, meta, knowledgeBaseID, entryID);
+    return $Call.ByID(838614868, meta, knowledgeBaseID, entryID);
 }
 
 /**
  * DeleteMCPServer 删除 MCP 服务。
  */
 export function DeleteMCPServer(meta: $models.RequestMeta, mcpServerID: string): $CancellablePromise<void> {
-    return $Call.ByID(4060692824, meta, mcpServerID);
+    return $Call.ByID(4252262845, meta, mcpServerID);
 }
 
 /**
  * DeleteRole 删除自定义角色。
  */
 export function DeleteRole(meta: $models.RequestMeta, roleID: string): $CancellablePromise<void> {
-    return $Call.ByID(3214219121, meta, roleID);
+    return $Call.ByID(3884219046, meta, roleID);
 }
 
 /**
  * DeleteServiceCategory 删除咨询分类，历史记录保留分类名称。
  */
 export function DeleteServiceCategory(meta: $models.RequestMeta, categoryID: string): $CancellablePromise<void> {
-    return $Call.ByID(1999679124, meta, categoryID);
+    return $Call.ByID(1157164257, meta, categoryID);
 }
 
 /**
  * DeleteTeam 删除企业团队及其成员关系。
  */
 export function DeleteTeam(meta: $models.RequestMeta, teamID: string): $CancellablePromise<void> {
-    return $Call.ByID(798533364, meta, teamID);
+    return $Call.ByID(2841832151, meta, teamID);
 }
 
 /**
  * DisconnectAgentRunStream 关闭原生端指定本地流编号的运行过程流。
  */
 export function DisconnectAgentRunStream(meta: $models.RequestMeta, connectionID: string): $CancellablePromise<void> {
-    return $Call.ByID(673139610, meta, connectionID);
+    return $Call.ByID(3352582313, meta, connectionID);
 }
 
 /**
  * DisconnectRealtime 关闭原生端指定编号的成员实时事件流及其所属窗口的全部运行过程流。
  */
 export function DisconnectRealtime(meta: $models.RequestMeta, connectionID: string): $CancellablePromise<void> {
-    return $Call.ByID(2251706905, meta, connectionID);
+    return $Call.ByID(933136674, meta, connectionID);
 }
 
 /**
  * DisconnectWorkspaceActivity 关闭原生端指定本地流编号的工作区动态事件流。
  */
 export function DisconnectWorkspaceActivity(meta: $models.RequestMeta, connectionID: string): $CancellablePromise<void> {
-    return $Call.ByID(1933855440, meta, connectionID);
+    return $Call.ByID(2413598025, meta, connectionID);
 }
 
 /**
  * DiscoverAIProviderModels 读取模型服务实例当前可用的模型目录。
  */
 export function DiscoverAIProviderModels(meta: $models.RequestMeta, input: $models.AIProviderConnectionInput): $CancellablePromise<$models.AIProviderModelList> {
-    return $Call.ByID(3575483944, meta, input);
+    return $Call.ByID(83071491, meta, input);
 }
 
 /**
  * DismissKnowledgeGap 忽略待补知识。
  */
 export function DismissKnowledgeGap(meta: $models.RequestMeta, gapID: string): $CancellablePromise<void> {
-    return $Call.ByID(877794558, meta, gapID);
+    return $Call.ByID(1177612791, meta, gapID);
 }
 
 /**
  * DissolveGroupConversation 解散群聊并保留当前成员的只读历史。
  */
 export function DissolveGroupConversation(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.GroupConversation> {
-    return $Call.ByID(3528011703, meta, conversationID);
+    return $Call.ByID(246828674, meta, conversationID);
 }
 
 /**
  * FindDirectConversation 按目标身份查找当前成员的活跃单聊。
  */
 export function FindDirectConversation(meta: $models.RequestMeta, targetIdentityID: string): $CancellablePromise<$models.DirectConversationLookup> {
-    return $Call.ByID(2365759803, meta, targetIdentityID);
+    return $Call.ByID(1380305584, meta, targetIdentityID);
 }
 
 /**
  * GenerateServiceReplySuggestions 使用 AI 员工为服务会话生成回复候选。
  */
 export function GenerateServiceReplySuggestions(meta: $models.RequestMeta, conversationID: string, input: $models.ServiceReplySuggestionsInput): $CancellablePromise<$models.ServiceReplySuggestions> {
-    return $Call.ByID(1139010405, meta, conversationID, input);
+    return $Call.ByID(4162908052, meta, conversationID, input);
 }
 
 /**
  * GetAIPerformanceReport 返回当前企业指定范围内的 AI 客服表现概览。
  */
 export function GetAIPerformanceReport(meta: $models.RequestMeta, input: $models.AIPerformanceReportInput): $CancellablePromise<$models.AIPerformanceReport> {
-    return $Call.ByID(3120646064, meta, input);
+    return $Call.ByID(504640907, meta, input);
 }
 
 /**
  * GetAIProvider 返回当前企业中的模型服务供应商详情。
  */
 export function GetAIProvider(meta: $models.RequestMeta, providerID: string): $CancellablePromise<$models.AIProvider> {
-    return $Call.ByID(3088524329, meta, providerID);
+    return $Call.ByID(3718764508, meta, providerID);
 }
 
 /**
  * GetAgent 返回企业 AI 员工详情。
  */
 export function GetAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.Agent> {
-    return $Call.ByID(1827547163, meta, agentID);
+    return $Call.ByID(879732776, meta, agentID);
 }
 
 /**
  * GetAgentEvaluation 返回 AI 员工评测页的最近两次运行与全部用例。
  */
 export function GetAgentEvaluation(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.AgentEvaluation> {
-    return $Call.ByID(2465708321, meta, agentID);
+    return $Call.ByID(838418346, meta, agentID);
 }
 
 /**
  * GetAgentEvaluationCase 返回评测用例与它在最近一次运行中的全部尝试。
  */
 export function GetAgentEvaluationCase(meta: $models.RequestMeta, agentID: string, caseID: string): $CancellablePromise<$models.AgentEvaluationCaseDetail> {
-    return $Call.ByID(37169989, meta, agentID, caseID);
+    return $Call.ByID(1851444854, meta, agentID, caseID);
 }
 
 /**
  * GetAgentRunProcess 返回一次已完成运行的有序过程内容和模型用量。
  */
 export function GetAgentRunProcess(meta: $models.RequestMeta, runID: string): $CancellablePromise<$models.AgentRunProcess> {
-    return $Call.ByID(1895048241, meta, runID);
+    return $Call.ByID(828356946, meta, runID);
 }
 
 /**
  * GetAssistant 返回当前成员名下的助理详情。
  */
 export function GetAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.AssistantDetail> {
-    return $Call.ByID(256912938, meta, assistantID);
+    return $Call.ByID(2051304201, meta, assistantID);
 }
 
 /**
  * GetAttachmentDownload 签发当前成员可见消息附件的下载地址。
  */
 export function GetAttachmentDownload(meta: $models.RequestMeta, conversationID: string, messageID: string): $CancellablePromise<$models.FileDownload> {
-    return $Call.ByID(2610529071, meta, conversationID, messageID);
+    return $Call.ByID(770460510, meta, conversationID, messageID);
 }
 
 /**
  * GetBusinessHours 读取当前企业的客服工作时间。
  */
 export function GetBusinessHours(meta: $models.RequestMeta): $CancellablePromise<$models.BusinessHours> {
-    return $Call.ByID(721308771, meta);
+    return $Call.ByID(3531496364, meta);
 }
 
 /**
  * GetContact 返回联系人详情。
  */
 export function GetContact(meta: $models.RequestMeta, contactID: string): $CancellablePromise<$models.Contact> {
-    return $Call.ByID(1550866366, meta, contactID);
+    return $Call.ByID(70654493, meta, contactID);
 }
 
 /**
  * GetConversationMessageContext 返回目标消息及其前后上下文。
  */
 export function GetConversationMessageContext(meta: $models.RequestMeta, conversationID: string, messageID: string): $CancellablePromise<$models.ConversationMessageList> {
-    return $Call.ByID(2207630407, meta, conversationID, messageID);
+    return $Call.ByID(3288560042, meta, conversationID, messageID);
 }
 
 /**
  * GetConversationNavigationState 返回群聊提及进度和最新可见消息。
  */
 export function GetConversationNavigationState(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.ConversationNavigationState> {
-    return $Call.ByID(56482708, meta, conversationID);
+    return $Call.ByID(2305791659, meta, conversationID);
 }
 
 /**
  * GetConversationTranslation 返回当前成员在客户会话中的翻译状态。
  */
 export function GetConversationTranslation(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.ConversationTranslation> {
-    return $Call.ByID(1973766316, meta, conversationID);
+    return $Call.ByID(1262483855, meta, conversationID);
 }
 
 /**
  * GetCustomerIdentitySecret 读取当前企业的客户身份密钥，未生成时为空。
  */
 export function GetCustomerIdentitySecret(meta: $models.RequestMeta): $CancellablePromise<$models.CustomerIdentitySecret> {
-    return $Call.ByID(3521433016, meta);
+    return $Call.ByID(1228279797, meta);
 }
 
 /**
  * GetGroupConversation 返回当前成员可见的群聊资料。
  */
 export function GetGroupConversation(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.GroupConversation> {
-    return $Call.ByID(2704575274, meta, conversationID);
+    return $Call.ByID(1246108897, meta, conversationID);
 }
 
 /**
  * GetInboxContext 返回会话锚点的当前资格和原位置邻域。
  */
 export function GetInboxContext(meta: $models.RequestMeta, input: $models.InboxContextInput): $CancellablePromise<$models.InboxContext> {
-    return $Call.ByID(3985152105, meta, input);
+    return $Call.ByID(3284884904, meta, input);
 }
 
 /**
  * GetInboxConversation 返回当前用户有权阅读的独立会话摘要。
  */
 export function GetInboxConversation(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.InboxConversation> {
-    return $Call.ByID(3164550357, meta, conversationID);
+    return $Call.ByID(894338794, meta, conversationID);
 }
 
 /**
  * GetKnowledgeBase 返回当前企业中的知识库详情。
  */
 export function GetKnowledgeBase(meta: $models.RequestMeta, knowledgeBaseID: string): $CancellablePromise<$models.KnowledgeBase> {
-    return $Call.ByID(3589389559, meta, knowledgeBaseID);
+    return $Call.ByID(2900413852, meta, knowledgeBaseID);
 }
 
 /**
  * GetKnowledgeDocument 返回文档详情。
  */
 export function GetKnowledgeDocument(meta: $models.RequestMeta, knowledgeBaseID: string, documentID: string): $CancellablePromise<$models.KnowledgeDocument> {
-    return $Call.ByID(593812391, meta, knowledgeBaseID, documentID);
+    return $Call.ByID(987375400, meta, knowledgeBaseID, documentID);
 }
 
 /**
  * GetKnowledgeDocumentContent 返回在线文档正文或网页抓取快照。
  */
 export function GetKnowledgeDocumentContent(meta: $models.RequestMeta, knowledgeBaseID: string, documentID: string): $CancellablePromise<$models.KnowledgeDocumentContent> {
-    return $Call.ByID(3035191824, meta, knowledgeBaseID, documentID);
+    return $Call.ByID(3932476205, meta, knowledgeBaseID, documentID);
 }
 
 /**
  * GetKnowledgeDocumentPreview 签发当前文档的原件预览请求。
  */
 export function GetKnowledgeDocumentPreview(meta: $models.RequestMeta, knowledgeBaseID: string, documentID: string): $CancellablePromise<$models.KnowledgeDocumentPreviewRequest> {
-    return $Call.ByID(2139314833, meta, knowledgeBaseID, documentID);
+    return $Call.ByID(4171104108, meta, knowledgeBaseID, documentID);
 }
 
 /**
  * GetKnowledgeGap 返回待补知识详情。
  */
 export function GetKnowledgeGap(meta: $models.RequestMeta, gapID: string): $CancellablePromise<$models.KnowledgeGap> {
-    return $Call.ByID(455973222, meta, gapID);
+    return $Call.ByID(1044784971, meta, gapID);
 }
 
 /**
  * GetKnowledgeQAEntry 返回完整的本地问答。
  */
 export function GetKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseID: string, entryID: string): $CancellablePromise<$models.KnowledgeQAEntry> {
-    return $Call.ByID(3966244004, meta, knowledgeBaseID, entryID);
+    return $Call.ByID(2040015149, meta, knowledgeBaseID, entryID);
 }
 
 /**
  * GetLocalEnvironment 返回本机为助理提供的运行环境、本地 MCP 服务与技能。
  */
 export function GetLocalEnvironment(meta: $models.RequestMeta): $CancellablePromise<$models.LocalEnvironment> {
-    return $Call.ByID(2566054506, meta);
+    return $Call.ByID(4163066327, meta);
 }
 
 /**
  * GetMCPServer 返回当前企业中的 MCP 服务详情。
  */
 export function GetMCPServer(meta: $models.RequestMeta, mcpServerID: string): $CancellablePromise<$models.MCPServer> {
-    return $Call.ByID(2191357229, meta, mcpServerID);
+    return $Call.ByID(195016062, meta, mcpServerID);
 }
 
 /**
  * GetMessageChannel 返回消息渠道基础信息。
  */
 export function GetMessageChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.MessageChannelSummary> {
-    return $Call.ByID(2590359100, meta, channelID);
+    return $Call.ByID(965519045, meta, channelID);
 }
 
 /**
  * GetRequesterProfile 返回服务会话发起人的资料；发起人是客户时给出客户身份与当前周期访客上下文。
  */
 export function GetRequesterProfile(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.RequesterProfile> {
-    return $Call.ByID(3991917669, meta, conversationID);
+    return $Call.ByID(1925233052, meta, conversationID);
 }
 
 /**
  * GetRole 返回当前企业的角色详情。
  */
 export function GetRole(meta: $models.RequestMeta, roleID: string): $CancellablePromise<$models.Role> {
-    return $Call.ByID(4002500470, meta, roleID);
+    return $Call.ByID(1980241983, meta, roleID);
 }
 
 /**
  * GetServiceIssue 返回客服周期的质检结论与对客沟通。
  */
 export function GetServiceIssue(meta: $models.RequestMeta, serviceSessionID: string): $CancellablePromise<$models.ServiceIssueDetail> {
-    return $Call.ByID(3186630400, meta, serviceSessionID);
+    return $Call.ByID(3450319925, meta, serviceSessionID);
 }
 
 /**
  * GetServiceSummaries 返回服务会话当前周期的交接摘要与同一发起人已关闭周期的小结。
  */
 export function GetServiceSummaries(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.ServiceSummaries> {
-    return $Call.ByID(1573268275, meta, conversationID);
+    return $Call.ByID(24338186, meta, conversationID);
 }
 
 /**
  * GetServiceSummarySettings 读取当前企业的周期小结设置。
  */
 export function GetServiceSummarySettings(meta: $models.RequestMeta): $CancellablePromise<$models.ServiceSummarySettings> {
-    return $Call.ByID(1036123262, meta);
+    return $Call.ByID(3318503007, meta);
 }
 
 /**
  * GetServiceTimeouts 读取当前企业的客服超时时长。
  */
 export function GetServiceTimeouts(meta: $models.RequestMeta): $CancellablePromise<$models.ServiceTimeouts> {
-    return $Call.ByID(3370316769, meta);
+    return $Call.ByID(2221013774, meta);
 }
 
 /**
  * GetSyncHeads 返回当前用户可见会话与身份资料的同步探针值。
  */
 export function GetSyncHeads(meta: $models.RequestMeta): $CancellablePromise<$models.SyncHeads> {
-    return $Call.ByID(2961676696, meta);
+    return $Call.ByID(4245927399, meta);
 }
 
 /**
  * GetTeam 返回团队详情。
  */
 export function GetTeam(meta: $models.RequestMeta, teamID: string): $CancellablePromise<$models.Team> {
-    return $Call.ByID(1981988775, meta, teamID);
+    return $Call.ByID(4081749458, meta, teamID);
 }
 
 /**
  * GetTeamPerformanceReport 返回当前企业指定范围内的真人客服表现概览。
  */
 export function GetTeamPerformanceReport(meta: $models.RequestMeta, input: $models.TeamPerformanceReportInput): $CancellablePromise<$models.TeamPerformanceReport> {
-    return $Call.ByID(1609541573, meta, input);
+    return $Call.ByID(3894417206, meta, input);
 }
 
 /**
  * GetTelegramChannel 返回 Telegram 渠道详情。
  */
 export function GetTelegramChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.TelegramChannel> {
-    return $Call.ByID(675085480, meta, channelID);
+    return $Call.ByID(1674561375, meta, channelID);
 }
 
 /**
  * GetTranslationSettings 读取当前企业的翻译设置。
  */
 export function GetTranslationSettings(meta: $models.RequestMeta): $CancellablePromise<$models.TranslationSettings> {
-    return $Call.ByID(2705727196, meta);
+    return $Call.ByID(2179949503, meta);
 }
 
 /**
  * GetUser 返回企业成员详情。
  */
 export function GetUser(meta: $models.RequestMeta, userID: string): $CancellablePromise<$models.User> {
-    return $Call.ByID(1862601569, meta, userID);
+    return $Call.ByID(3425251576, meta, userID);
 }
 
 /**
  * GetWebSearchSettings 读取当前企业的联网搜索设置。
  */
 export function GetWebSearchSettings(meta: $models.RequestMeta): $CancellablePromise<$models.WebSearchSettings> {
-    return $Call.ByID(408776057, meta);
+    return $Call.ByID(3037054758, meta);
 }
 
 /**
  * GetWebsiteChannel 返回网站渠道详情。
  */
 export function GetWebsiteChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.WebsiteChannel> {
-    return $Call.ByID(1239161594, meta, channelID);
+    return $Call.ByID(3821688195, meta, channelID);
 }
 
 /**
  * InstallLocalToolchain 重新安装已卸载的本机运行环境。
  */
 export function InstallLocalToolchain(meta: $models.RequestMeta): $CancellablePromise<void> {
-    return $Call.ByID(2703858987, meta);
+    return $Call.ByID(819267906, meta);
 }
 
 /**
  * InstallWorkspace 完成首次安装并返回部署管理员的登录会话。
  */
 export function InstallWorkspace(meta: $models.RequestMeta, input: $models.InstallWorkspaceInput): $CancellablePromise<$models.Auth> {
-    return $Call.ByID(3665964242, meta, input);
+    return $Call.ByID(1987182585, meta, input);
 }
 
 /**
  * InstallationStatus 返回部署名称、首次安装状态、注册开关和部署形态；登录方式由部署形态决定。
  */
 export function InstallationStatus(meta: $models.RequestMeta): $CancellablePromise<$models.InstallationStatus> {
-    return $Call.ByID(3480414020, meta);
+    return $Call.ByID(1778204715, meta);
 }
 
 /**
  * LeaveGroupConversation 退出普通成员参与的群聊。
  */
 export function LeaveGroupConversation(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<void> {
-    return $Call.ByID(43150167, meta, conversationID);
+    return $Call.ByID(4088195024, meta, conversationID);
 }
 
 /**
  * ListAIPerformanceBreakdowns 返回按渠道或咨询分类拆分的一页 AI 客服表现。
  */
 export function ListAIPerformanceBreakdowns(meta: $models.RequestMeta, input: $models.AIPerformanceBreakdownInput): $CancellablePromise<$models.AIPerformanceBreakdownList> {
-    return $Call.ByID(159368614, meta, input);
+    return $Call.ByID(3143867047, meta, input);
 }
 
 /**
  * ListAIPerformanceIssues 返回一页指定类型的 AI 表现问题会话。
  */
 export function ListAIPerformanceIssues(meta: $models.RequestMeta, input: $models.AIPerformanceIssueListInput): $CancellablePromise<$models.ServiceIssueList> {
-    return $Call.ByID(1258429902, meta, input);
+    return $Call.ByID(556084955, meta, input);
 }
 
 /**
  * ListAIProviders 返回当前企业的模型服务供应商列表。
  */
 export function ListAIProviders(meta: $models.RequestMeta): $CancellablePromise<$models.AIProviderList> {
-    return $Call.ByID(3759328446, meta);
+    return $Call.ByID(3804120807, meta);
 }
 
 /**
  * ListAgentMCPServerOptions 返回当前企业可配置的 MCP 服务。
  */
 export function ListAgentMCPServerOptions(meta: $models.RequestMeta): $CancellablePromise<$models.AgentMCPServerOptionList> {
-    return $Call.ByID(4205316032, meta);
+    return $Call.ByID(3556949509, meta);
 }
 
 /**
  * ListAgentModelOptions 返回 AI 员工可使用的对话模型。
  */
 export function ListAgentModelOptions(meta: $models.RequestMeta): $CancellablePromise<$models.AgentModelOptionList> {
-    return $Call.ByID(968800310, meta);
+    return $Call.ByID(1461747335, meta);
 }
 
 /**
  * ListAgentServiceSessions 返回 AI 员工接待的一页服务周期。
  */
 export function ListAgentServiceSessions(meta: $models.RequestMeta, agentID: string, input: $models.AgentServiceSessionListInput): $CancellablePromise<$models.AgentServiceSessionList> {
-    return $Call.ByID(3256861827, meta, agentID, input);
+    return $Call.ByID(1574524788, meta, agentID, input);
 }
 
 /**
  * ListAgents 返回企业 AI 员工目录。
  */
 export function ListAgents(meta: $models.RequestMeta, input: $models.AgentListInput): $CancellablePromise<$models.AgentList> {
-    return $Call.ByID(2544201800, meta, input);
+    return $Call.ByID(3637482415, meta, input);
 }
 
 /**
  * ListArchivedConversations 按最近活动倒序返回当前用户已归档的群聊、单聊与 AI 聊天。
  */
 export function ListArchivedConversations(meta: $models.RequestMeta, input: $models.ArchivedConversationListInput): $CancellablePromise<$models.ArchivedConversationList> {
-    return $Call.ByID(38379940, meta, input);
+    return $Call.ByID(1028818061, meta, input);
 }
 
 /**
  * ListAssistantMemories 返回当前成员名下助理的记忆，按最近更新排列。
  */
 export function ListAssistantMemories(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.AssistantMemoryList> {
-    return $Call.ByID(3059922681, meta, assistantID);
+    return $Call.ByID(3503531700, meta, assistantID);
 }
 
 /**
  * ListAssistants 返回当前成员名下的助理。
  */
 export function ListAssistants(meta: $models.RequestMeta): $CancellablePromise<$models.AssistantList> {
-    return $Call.ByID(1699852267, meta);
+    return $Call.ByID(3267784092, meta);
 }
 
 /**
  * ListAvailableAIModels 返回指定品牌的预设模型目录。
  */
 export function ListAvailableAIModels(meta: $models.RequestMeta, brand: $models.AIProviderBrand): $CancellablePromise<$models.AIProviderModelList> {
-    return $Call.ByID(3483353293, meta, brand);
+    return $Call.ByID(1860209648, meta, brand);
 }
 
 /**
  * ListChannelOptions 返回当前企业的渠道选择项。
  */
 export function ListChannelOptions(meta: $models.RequestMeta): $CancellablePromise<$models.ChannelOptionList> {
-    return $Call.ByID(1406137265, meta);
+    return $Call.ByID(1749564890, meta);
 }
 
 /**
  * ListColleagues 返回通讯录同事目录，服务台排在成员之前。
  */
 export function ListColleagues(meta: $models.RequestMeta, input: $models.ColleagueListInput): $CancellablePromise<$models.ColleagueList> {
-    return $Call.ByID(1246210430, meta, input);
+    return $Call.ByID(2744101365, meta, input);
 }
 
 /**
  * ListContactFields 返回当前企业的联系人字段。
  */
 export function ListContactFields(meta: $models.RequestMeta): $CancellablePromise<$models.ContactFieldList> {
-    return $Call.ByID(631794827, meta);
+    return $Call.ByID(3659022698, meta);
 }
 
 /**
  * ListContactTags 返回当前企业的联系人标签。
  */
 export function ListContactTags(meta: $models.RequestMeta): $CancellablePromise<$models.ContactTagList> {
-    return $Call.ByID(1424649639, meta);
+    return $Call.ByID(482564214, meta);
 }
 
 /**
  * ListContacts 返回联系人列表。
  */
 export function ListContacts(meta: $models.RequestMeta, input: $models.ContactListInput): $CancellablePromise<$models.ContactList> {
-    return $Call.ByID(1872706983, meta, input);
+    return $Call.ByID(3208424272, meta, input);
 }
 
 /**
  * ListConversationMessages 返回成员可见的会话消息。
  */
 export function ListConversationMessages(meta: $models.RequestMeta, conversationID: string, input: $models.ConversationMessageListInput): $CancellablePromise<$models.ConversationMessageList> {
-    return $Call.ByID(2470800485, meta, conversationID, input);
+    return $Call.ByID(2307643874, meta, conversationID, input);
 }
 
 /**
  * ListDevices 返回当前用户已注册的设备。
  */
 export function ListDevices(meta: $models.RequestMeta): $CancellablePromise<$models.DeviceList> {
-    return $Call.ByID(3085172233, meta);
+    return $Call.ByID(3779825248, meta);
 }
 
 /**
  * ListInboxChannels 返回收件箱渠道筛选候选，含已停用渠道。
  */
 export function ListInboxChannels(meta: $models.RequestMeta): $CancellablePromise<$models.InboxChannelList> {
-    return $Call.ByID(2469961758, meta);
+    return $Call.ByID(2885704467, meta);
 }
 
 /**
  * ListInvitations 返回当前工作区待接受的成员邀请。
  */
 export function ListInvitations(meta: $models.RequestMeta): $CancellablePromise<$models.InvitationList> {
-    return $Call.ByID(3118553850, meta);
+    return $Call.ByID(3861283703, meta);
 }
 
 /**
  * ListKnowledgeBaseAgents 返回当前配置版本绑定知识库的 AI 员工。
  */
 export function ListKnowledgeBaseAgents(meta: $models.RequestMeta, knowledgeBaseID: string): $CancellablePromise<$models.KnowledgeBaseAgentList> {
-    return $Call.ByID(3510805805, meta, knowledgeBaseID);
+    return $Call.ByID(1773648208, meta, knowledgeBaseID);
 }
 
 /**
  * ListKnowledgeBases 返回当前企业的知识库列表。
  */
 export function ListKnowledgeBases(meta: $models.RequestMeta): $CancellablePromise<$models.KnowledgeBaseList> {
-    return $Call.ByID(2416994044, meta);
+    return $Call.ByID(2702615487, meta);
 }
 
 /**
  * ListKnowledgeDocumentSegments 返回固定批次的分段页或锚点所在页。
  */
 export function ListKnowledgeDocumentSegments(meta: $models.RequestMeta, knowledgeBaseID: string, documentID: string, input: $models.KnowledgeDocumentSegmentInput): $CancellablePromise<$models.KnowledgeDocumentSegmentPage> {
-    return $Call.ByID(63381217, meta, knowledgeBaseID, documentID, input);
+    return $Call.ByID(904531244, meta, knowledgeBaseID, documentID, input);
 }
 
 /**
  * ListKnowledgeDocuments 返回当前分组的文档列表。
  */
 export function ListKnowledgeDocuments(meta: $models.RequestMeta, knowledgeBaseID: string, input: $models.KnowledgeDocumentListInput): $CancellablePromise<$models.KnowledgeDocumentList> {
-    return $Call.ByID(4195704972, meta, knowledgeBaseID, input);
+    return $Call.ByID(3736042023, meta, knowledgeBaseID, input);
 }
 
 /**
  * ListKnowledgeGaps 返回一页指定处理状态的待补知识。
  */
 export function ListKnowledgeGaps(meta: $models.RequestMeta, input: $models.KnowledgeGapListInput): $CancellablePromise<$models.KnowledgeGapList> {
-    return $Call.ByID(1789876127, meta, input);
+    return $Call.ByID(1999725578, meta, input);
 }
 
 /**
  * ListKnowledgeQAEntries 返回分组中的本地问答列表。
  */
 export function ListKnowledgeQAEntries(meta: $models.RequestMeta, knowledgeBaseID: string, input: $models.KnowledgeQAListInput): $CancellablePromise<$models.KnowledgeQAList> {
-    return $Call.ByID(3867410272, meta, knowledgeBaseID, input);
+    return $Call.ByID(3441160603, meta, knowledgeBaseID, input);
 }
 
 /**
  * ListMCPServers 返回当前企业配置的 MCP 服务。
  */
 export function ListMCPServers(meta: $models.RequestMeta): $CancellablePromise<$models.MCPServerList> {
-    return $Call.ByID(3249929290, meta);
+    return $Call.ByID(804302025, meta);
 }
 
 /**
  * ListMemberAssistants 返回指定成员名下的助理。
  */
 export function ListMemberAssistants(meta: $models.RequestMeta, userID: string): $CancellablePromise<$models.AssistantList> {
-    return $Call.ByID(2987372113, meta, userID);
+    return $Call.ByID(4195768694, meta, userID);
 }
 
 /**
  * ListMemberOptions 返回可分配的企业成员和 AI 员工。
  */
 export function ListMemberOptions(meta: $models.RequestMeta, input: $models.MemberOptionListInput): $CancellablePromise<$models.MemberOptionList> {
-    return $Call.ByID(386066486, meta, input);
+    return $Call.ByID(1847239127, meta, input);
 }
 
 /**
  * ListMessageChannels 返回消息渠道列表。
  */
 export function ListMessageChannels(meta: $models.RequestMeta): $CancellablePromise<$models.MessageChannelList> {
-    return $Call.ByID(2169861805, meta);
+    return $Call.ByID(2230652684, meta);
 }
 
 /**
  * ListPendingConversationMentions 返回本轮待查看提及目标。
  */
 export function ListPendingConversationMentions(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.PendingConversationMentions> {
-    return $Call.ByID(1362085509, meta, conversationID);
+    return $Call.ByID(683676760, meta, conversationID);
 }
 
 /**
  * ListRoles 返回当前企业的角色和预定义权限目录。
  */
 export function ListRoles(meta: $models.RequestMeta): $CancellablePromise<$models.RoleList> {
-    return $Call.ByID(3773953103, meta);
+    return $Call.ByID(3248166590, meta);
 }
 
 /**
  * ListServiceAssignees 返回可接待服务会话的有效真人和 AI 员工。
  */
 export function ListServiceAssignees(meta: $models.RequestMeta): $CancellablePromise<$models.ServiceAssigneeList> {
-    return $Call.ByID(1693884907, meta);
+    return $Call.ByID(3629280452, meta);
 }
 
 /**
  * ListServiceBusinessQueries 返回服务会话当前周期内 AI 员工查询业务系统的记录。
  */
 export function ListServiceBusinessQueries(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.ServiceBusinessQueryList> {
-    return $Call.ByID(262608741, meta, conversationID);
+    return $Call.ByID(3015045914, meta, conversationID);
 }
 
 /**
  * ListServiceCategories 返回当前企业的咨询分类目录。
  */
 export function ListServiceCategories(meta: $models.RequestMeta): $CancellablePromise<$models.ServiceCategoryList> {
-    return $Call.ByID(3774541533, meta);
+    return $Call.ByID(3693000264, meta);
 }
 
 /**
  * ListServiceCopilotThreads 返回服务会话的全部 Copilot 线程。
  */
 export function ListServiceCopilotThreads(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.ServiceCopilotThreadList> {
-    return $Call.ByID(3854168120, meta, conversationID);
+    return $Call.ByID(3492201941, meta, conversationID);
 }
 
 /**
  * ListServiceQueueTeams 返回可作为客服队列的团队，本人所在团队排在前面。
  */
 export function ListServiceQueueTeams(meta: $models.RequestMeta): $CancellablePromise<$models.ServiceQueueTeamList> {
-    return $Call.ByID(1365762758, meta);
+    return $Call.ByID(539098147, meta);
 }
 
 /**
  * ListServiceReplyAgents 返回可用于 AI 写回复的 AI 员工。
  */
 export function ListServiceReplyAgents(meta: $models.RequestMeta): $CancellablePromise<$models.ServiceReplyAgentList> {
-    return $Call.ByID(3926158525, meta);
+    return $Call.ByID(313603478, meta);
 }
 
 /**
  * ListTeamMemberCandidates 返回尚未加入团队的企业身份。
  */
 export function ListTeamMemberCandidates(meta: $models.RequestMeta, teamID: string, input: $models.TeamMemberCandidateInput): $CancellablePromise<$models.TeamMemberCandidateList> {
-    return $Call.ByID(1106825595, meta, teamID, input);
+    return $Call.ByID(542842132, meta, teamID, input);
 }
 
 /**
  * ListTeamMembers 返回团队成员列表。
  */
 export function ListTeamMembers(meta: $models.RequestMeta, teamID: string, input: $models.TeamMemberListInput): $CancellablePromise<$models.TeamMemberList> {
-    return $Call.ByID(3371434770, meta, teamID, input);
+    return $Call.ByID(3979565719, meta, teamID, input);
 }
 
 /**
  * ListTeamPerformanceBreakdowns 返回按渠道或咨询分类拆分的一页真人客服表现。
  */
 export function ListTeamPerformanceBreakdowns(meta: $models.RequestMeta, input: $models.TeamPerformanceBreakdownInput): $CancellablePromise<$models.TeamPerformanceBreakdownList> {
-    return $Call.ByID(2068555311, meta, input);
+    return $Call.ByID(687300518, meta, input);
 }
 
 /**
  * ListTeamPerformanceIssues 返回一页指定类型的真人接待问题会话。
  */
 export function ListTeamPerformanceIssues(meta: $models.RequestMeta, input: $models.TeamPerformanceIssueListInput): $CancellablePromise<$models.ServiceIssueList> {
-    return $Call.ByID(842612291, meta, input);
+    return $Call.ByID(3906213838, meta, input);
 }
 
 /**
  * ListTeamPerformanceMembers 返回按客服拆分的一页真人客服表现。
  */
 export function ListTeamPerformanceMembers(meta: $models.RequestMeta, input: $models.TeamPerformanceMemberListInput): $CancellablePromise<$models.TeamPerformanceMemberList> {
-    return $Call.ByID(1544513038, meta, input);
+    return $Call.ByID(1316248709, meta, input);
 }
 
 /**
  * ListTeams 返回企业团队列表。
  */
 export function ListTeams(meta: $models.RequestMeta, input: $models.TeamListInput): $CancellablePromise<$models.TeamList> {
-    return $Call.ByID(3776706348, meta, input);
+    return $Call.ByID(1339925709, meta, input);
 }
 
 /**
  * ListUsers 返回企业成员列表。
  */
 export function ListUsers(meta: $models.RequestMeta, input: $models.UserListInput): $CancellablePromise<$models.UserList> {
-    return $Call.ByID(1809185478, meta, input);
+    return $Call.ByID(1846566131, meta, input);
 }
 
 /**
  * ListWorkspaceAttention 返回当前账号在各工作区的提醒数量，工作区切换器与应用角标据此提示其他工作区的未读。
  */
 export function ListWorkspaceAttention(meta: $models.RequestMeta): $CancellablePromise<$models.WorkspaceAttentionList> {
-    return $Call.ByID(2047264899, meta);
+    return $Call.ByID(29506900, meta);
 }
 
 /**
  * ListWorkspaces 返回当前账号作为有效成员可进入的工作区。
  */
 export function ListWorkspaces(meta: $models.RequestMeta): $CancellablePromise<$models.WorkspaceList> {
-    return $Call.ByID(2951564948, meta);
+    return $Call.ByID(1070304639, meta);
 }
 
 /**
  * LoadAccount 返回当前登录账号。
  */
 export function LoadAccount(meta: $models.RequestMeta): $CancellablePromise<$models.Account> {
-    return $Call.ByID(2829234101, meta);
+    return $Call.ByID(1224921644, meta);
 }
 
 /**
  * LoadIdentity 返回当前账号在请求目标工作区中的成员身份。
  */
 export function LoadIdentity(meta: $models.RequestMeta): $CancellablePromise<$models.Identity> {
-    return $Call.ByID(430146704, meta);
+    return $Call.ByID(1315533867, meta);
 }
 
 /**
  * LoadInbox 返回当前用户的统一收件箱。
  */
 export function LoadInbox(meta: $models.RequestMeta, input: $models.LoadInboxInput): $CancellablePromise<$models.Inbox> {
-    return $Call.ByID(129302578, meta, input);
+    return $Call.ByID(3927841963, meta, input);
 }
 
 /**
  * LoadStartup 根据部署安装状态返回初始化、服务器连接或就绪入口和界面品牌；登录与工作区选择由后续身份加载决定。
  */
 export function LoadStartup(meta: $models.RequestMeta): $CancellablePromise<$models.Startup> {
-    return $Call.ByID(3512506751, meta);
+    return $Call.ByID(1164064250, meta);
 }
 
 /**
  * Login 校验账号密码并建立登录会话。
  */
 export function Login(meta: $models.RequestMeta, input: $models.LoginInput): $CancellablePromise<$models.Auth> {
-    return $Call.ByID(3058727111, meta, input);
+    return $Call.ByID(768307678, meta, input);
 }
 
 /**
  * Logout 退出当前登录会话。
  */
 export function Logout(meta: $models.RequestMeta): $CancellablePromise<void> {
-    return $Call.ByID(991463980, meta);
+    return $Call.ByID(3556495519, meta);
 }
 
 /**
  * MarkConversationMentionReviewed 确认已查看的群聊提及。
  */
 export function MarkConversationMentionReviewed(meta: $models.RequestMeta, conversationID: string, input: $models.MarkConversationMentionReviewedInput): $CancellablePromise<$models.ConversationMentionReview> {
-    return $Call.ByID(2481523975, meta, conversationID, input);
+    return $Call.ByID(884103954, meta, conversationID, input);
 }
 
 /**
  * MarkConversationRead 单调推进当前用户的会话已读水位。
  */
 export function MarkConversationRead(meta: $models.RequestMeta, conversationID: string, input: $models.MarkConversationReadInput): $CancellablePromise<$models.ConversationReadState> {
-    return $Call.ByID(3314752344, meta, conversationID, input);
+    return $Call.ByID(1701551423, meta, conversationID, input);
 }
 
 /**
  * MoveAssistant 把当前成员名下的助理换到指定电脑。
  */
 export function MoveAssistant(meta: $models.RequestMeta, assistantID: string, input: $models.AssistantDeviceInput): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(1751145261, meta, assistantID, input);
+    return $Call.ByID(1093256296, meta, assistantID, input);
 }
 
 /**
  * OpenConversationWindow 在桌面端独立窗口打开指定会话，同一会话已打开时聚焦现有窗口。
  */
 export function OpenConversationWindow(meta: $models.RequestMeta, input: $models.ConversationWindowInput): $CancellablePromise<void> {
-    return $Call.ByID(1941707737, meta, input);
+    return $Call.ByID(788888922, meta, input);
 }
 
 /**
  * OpenLocalToolchainFolder 在系统文件管理器中打开本机运行环境的安装位置。
  */
 export function OpenLocalToolchainFolder(meta: $models.RequestMeta): $CancellablePromise<void> {
-    return $Call.ByID(1638985388, meta);
+    return $Call.ByID(2072900347, meta);
 }
 
 /**
  * PauseAssistant 暂停当前成员名下的助理。
  */
 export function PauseAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(716182148, meta, assistantID);
+    return $Call.ByID(2687952635, meta, assistantID);
 }
 
 /**
  * PreviewCustomerReplyTranslation 把客服回复译为客户语言并回译为客服语言，供发送前核对。
  */
 export function PreviewCustomerReplyTranslation(meta: $models.RequestMeta, conversationID: string, input: $models.CustomerReplyTranslationInput): $CancellablePromise<$models.CustomerReplyTranslationPreview> {
-    return $Call.ByID(3180217957, meta, conversationID, input);
+    return $Call.ByID(1718535840, meta, conversationID, input);
 }
 
 /**
  * PreviewInvitation 按邀请令牌返回工作区名称、邀请人和掩码后的受邀邮箱。
  */
 export function PreviewInvitation(meta: $models.RequestMeta, input: $models.InvitationTokenInput): $CancellablePromise<$models.InvitationPreview> {
-    return $Call.ByID(384849613, meta, input);
+    return $Call.ByID(3303145124, meta, input);
 }
 
 /**
  * ProbeServer 检测企业服务器并返回公开企业名称。
  */
 export function ProbeServer(meta: $models.RequestMeta, serverURL: string): $CancellablePromise<$models.InstallationStatus> {
-    return $Call.ByID(885726575, meta, serverURL);
+    return $Call.ByID(3749765402, meta, serverURL);
 }
 
 /**
  * ReactivateAgent 恢复企业 AI 员工。
  */
 export function ReactivateAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.Agent> {
-    return $Call.ByID(2138582847, meta, agentID);
+    return $Call.ByID(345390430, meta, agentID);
 }
 
 /**
  * ReactivateAssistant 启用已停用的助理。
  */
 export function ReactivateAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(1649631158, meta, assistantID);
+    return $Call.ByID(86884527, meta, assistantID);
 }
 
 /**
  * ReactivateUser 恢复企业成员账号。
  */
 export function ReactivateUser(meta: $models.RequestMeta, userID: string): $CancellablePromise<$models.User> {
-    return $Call.ByID(2986051725, meta, userID);
+    return $Call.ByID(2967841354, meta, userID);
 }
 
 /**
  * ReadConversationAttention 返回会话摘要及已知消息之后计入本人提醒的未读消息，提醒口径与应用角标一致。
  */
 export function ReadConversationAttention(meta: $models.RequestMeta, conversationID: string, input: $models.ConversationAttentionInput): $CancellablePromise<$models.ConversationAttention> {
-    return $Call.ByID(3705452205, meta, conversationID, input);
+    return $Call.ByID(522245824, meta, conversationID, input);
 }
 
 /**
  * ReadConversationMessageWindow 重读已加载首尾游标之间的完整消息范围。
  */
 export function ReadConversationMessageWindow(meta: $models.RequestMeta, conversationID: string, input: $models.ConversationMessageWindowInput): $CancellablePromise<$models.ConversationMessageList> {
-    return $Call.ByID(902845340, meta, conversationID, input);
+    return $Call.ByID(2475931465, meta, conversationID, input);
 }
 
 /**
  * ReadInboxConversations 按 ID 批量返回会话摘要及当前筛选资格。
  */
 export function ReadInboxConversations(meta: $models.RequestMeta, input: $models.ReadInboxConversationsInput): $CancellablePromise<$models.InboxConversationResults> {
-    return $Call.ByID(2030324742, meta, input);
+    return $Call.ByID(156850369, meta, input);
 }
 
 /**
  * ReadInboxWindow 重读已加载双向边界之间的完整列表范围。
  */
 export function ReadInboxWindow(meta: $models.RequestMeta, input: $models.InboxWindowInput): $CancellablePromise<$models.InboxWindow> {
-    return $Call.ByID(2805575182, meta, input);
+    return $Call.ByID(2345799735, meta, input);
 }
 
 /**
  * RefetchKnowledgeDocument 重新抓取网页文档并重新索引。
  */
 export function RefetchKnowledgeDocument(meta: $models.RequestMeta, knowledgeBaseID: string, documentID: string, input: $models.KnowledgeDocumentRefetchInput): $CancellablePromise<void> {
-    return $Call.ByID(1596600466, meta, knowledgeBaseID, documentID, input);
+    return $Call.ByID(739471321, meta, knowledgeBaseID, documentID, input);
 }
 
 /**
  * RefreshMCPServerTools 提交当前企业的 MCP 工具更新任务。
  */
 export function RefreshMCPServerTools(meta: $models.RequestMeta): $CancellablePromise<void> {
-    return $Call.ByID(3429373167, meta);
+    return $Call.ByID(3543227790, meta);
 }
 
 /**
  * RegenerateCustomerIdentitySecret 生成或重新生成当前企业的客户身份密钥，旧密钥立即失效。
  */
 export function RegenerateCustomerIdentitySecret(meta: $models.RequestMeta): $CancellablePromise<$models.CustomerIdentitySecret> {
-    return $Call.ByID(2223815906, meta);
+    return $Call.ByID(4066842629, meta);
 }
 
 /**
  * RegenerateInvitation 撤销原邀请并以相同内容重新生成邀请链接。
  */
 export function RegenerateInvitation(meta: $models.RequestMeta, invitationID: string): $CancellablePromise<$models.InvitationCreated> {
-    return $Call.ByID(925529919, meta, invitationID);
+    return $Call.ByID(3868643676, meta, invitationID);
 }
 
 /**
  * Register 注册本地账号并建立登录会话。
  */
 export function Register(meta: $models.RequestMeta, input: $models.RegisterInput): $CancellablePromise<$models.Auth> {
-    return $Call.ByID(1187991099, meta, input);
+    return $Call.ByID(1963338676, meta, input);
 }
 
 /**
  * RegisterDevice 注册当前用户的本机设备。
  */
 export function RegisterDevice(meta: $models.RequestMeta, input: $models.DeviceRegistrationInput): $CancellablePromise<$models.Device> {
-    return $Call.ByID(2919513041, meta, input);
+    return $Call.ByID(2649582750, meta, input);
 }
 
 /**
  * RemoveContactTag 由客服移除联系人上的标签。
  */
 export function RemoveContactTag(meta: $models.RequestMeta, contactID: string, tagID: string): $CancellablePromise<void> {
-    return $Call.ByID(1315587958, meta, contactID, tagID);
+    return $Call.ByID(3393981621, meta, contactID, tagID);
 }
 
 /**
  * RemoveGroupConversationMember 移除单个群聊成员。
  */
 export function RemoveGroupConversationMember(meta: $models.RequestMeta, conversationID: string, input: $models.GroupConversationMemberInput): $CancellablePromise<$models.GroupConversation> {
-    return $Call.ByID(3264103052, meta, conversationID, input);
+    return $Call.ByID(709748869, meta, conversationID, input);
 }
 
 /**
  * RemoveLocalMCPServer 删除这台电脑上的本地 MCP 服务。
  */
 export function RemoveLocalMCPServer(meta: $models.RequestMeta, name: string): $CancellablePromise<void> {
-    return $Call.ByID(2665090536, meta, name);
+    return $Call.ByID(1883351579, meta, name);
 }
 
 /**
  * RemoveLocalSkill 删除助理安装在这台电脑上的技能。
  */
 export function RemoveLocalSkill(meta: $models.RequestMeta, name: string): $CancellablePromise<void> {
-    return $Call.ByID(2713561966, meta, name);
+    return $Call.ByID(1310496881, meta, name);
 }
 
 /**
  * RemoveTeamMembers 将企业身份批量移出团队。
  */
 export function RemoveTeamMembers(meta: $models.RequestMeta, teamID: string, input: $models.TeamMemberInput): $CancellablePromise<$models.Team> {
-    return $Call.ByID(3538693274, meta, teamID, input);
+    return $Call.ByID(523198427, meta, teamID, input);
 }
 
 /**
  * RenameKnowledgeDocument 修改在线文档或网页文档的名称。
  */
 export function RenameKnowledgeDocument(meta: $models.RequestMeta, knowledgeBaseID: string, documentID: string, input: $models.KnowledgeDocumentRenameInput): $CancellablePromise<$models.KnowledgeDocument> {
-    return $Call.ByID(870915057, meta, knowledgeBaseID, documentID, input);
+    return $Call.ByID(763153252, meta, knowledgeBaseID, documentID, input);
 }
 
 /**
  * ReopenServiceSession 重新打开服务会话的当前周期并分配给当前身份。
  */
 export function ReopenServiceSession(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.ServiceSession> {
-    return $Call.ByID(4025586058, meta, conversationID);
+    return $Call.ByID(1372256313, meta, conversationID);
 }
 
 /**
  * ReportConversationTyping 发布当前用户的输入状态：单聊与群聊发给其他真人成员，网站渠道客户会话发给该线程访客。
  */
 export function ReportConversationTyping(meta: $models.RequestMeta, conversationID: string, input: $models.ConversationTypingInput): $CancellablePromise<void> {
-    return $Call.ByID(494479584, meta, conversationID, input);
+    return $Call.ByID(3059999211, meta, conversationID, input);
 }
 
 /**
  * RequestNotificationPermission 请求当前设备允许发送系统通知。
  */
 export function RequestNotificationPermission(meta: $models.RequestMeta): $CancellablePromise<$models.NotificationPermissionStatus> {
-    return $Call.ByID(3018557431, meta);
+    return $Call.ByID(661970482, meta);
 }
 
 /**
  * RerunAgentEvaluationCase 在最近一次运行中重新运行一条用例。
  */
 export function RerunAgentEvaluationCase(meta: $models.RequestMeta, agentID: string, caseID: string): $CancellablePromise<void> {
-    return $Call.ByID(684491767, meta, agentID, caseID);
+    return $Call.ByID(3508234396, meta, agentID, caseID);
 }
 
 /**
  * ResolveCustomerMessageDelivery 人工处理失败或待确认的投递。
  */
 export function ResolveCustomerMessageDelivery(meta: $models.RequestMeta, conversationID: string, deliveryID: string, input: $models.CustomerDeliveryResolveInput): $CancellablePromise<void> {
-    return $Call.ByID(2639604801, meta, conversationID, deliveryID, input);
+    return $Call.ByID(2157772402, meta, conversationID, deliveryID, input);
 }
 
 /**
  * RestoreContact 恢复联系人。
  */
 export function RestoreContact(meta: $models.RequestMeta, contactID: string): $CancellablePromise<$models.Contact> {
-    return $Call.ByID(468810132, meta, contactID);
+    return $Call.ByID(1494618939, meta, contactID);
 }
 
 /**
  * ResumeAssistant 恢复当前成员名下已暂停的助理。
  */
 export function ResumeAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(1089828191, meta, assistantID);
+    return $Call.ByID(575761658, meta, assistantID);
 }
 
 /**
  * RetrieveKnowledgeBase 在指定知识库中执行检索测试，返回混合召回与重排后的分段。
  */
 export function RetrieveKnowledgeBase(meta: $models.RequestMeta, knowledgeBaseID: string, input: $models.KnowledgeRetrievalInput): $CancellablePromise<$models.KnowledgeRetrievalResult> {
-    return $Call.ByID(720738771, meta, knowledgeBaseID, input);
+    return $Call.ByID(2322737830, meta, knowledgeBaseID, input);
 }
 
 /**
  * RetryKnowledgeDocument 按当前配置重新处理文档。
  */
 export function RetryKnowledgeDocument(meta: $models.RequestMeta, knowledgeBaseID: string, documentID: string): $CancellablePromise<void> {
-    return $Call.ByID(1935547685, meta, knowledgeBaseID, documentID);
+    return $Call.ByID(417396334, meta, knowledgeBaseID, documentID);
 }
 
 /**
  * RetryKnowledgeQAEntry 按当前配置重新索引问答。
  */
 export function RetryKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseID: string, entryID: string): $CancellablePromise<void> {
-    return $Call.ByID(3560499234, meta, knowledgeBaseID, entryID);
+    return $Call.ByID(2055109947, meta, knowledgeBaseID, entryID);
 }
 
 /**
  * RevokeDevice 撤销当前用户的设备。
  */
 export function RevokeDevice(meta: $models.RequestMeta, deviceID: string): $CancellablePromise<void> {
-    return $Call.ByID(689496250, meta, deviceID);
+    return $Call.ByID(3380780173, meta, deviceID);
 }
 
 /**
  * RevokeInvitation 撤销待接受的邀请。
  */
 export function RevokeInvitation(meta: $models.RequestMeta, invitationID: string): $CancellablePromise<void> {
-    return $Call.ByID(970245527, meta, invitationID);
+    return $Call.ByID(2801002520, meta, invitationID);
 }
 
 /**
  * SaveTelegramChannelConnection 保存 Telegram 机器人和 Webhook 设置。
  */
 export function SaveTelegramChannelConnection(meta: $models.RequestMeta, channelID: string, input: $models.TelegramChannelConnectionInput): $CancellablePromise<$models.TelegramChannel> {
-    return $Call.ByID(857691531, meta, channelID, input);
+    return $Call.ByID(3315241146, meta, channelID, input);
 }
 
 /**
  * SearchInbox 按范围检索会话名称、消息正文与附件文件名、成员和外部联系人。
  */
 export function SearchInbox(meta: $models.RequestMeta, input: $models.InboxSearchInput): $CancellablePromise<$models.InboxSearchResult> {
-    return $Call.ByID(3192276034, meta, input);
+    return $Call.ByID(2384528603, meta, input);
 }
 
 /**
  * SelectImage 在原生端选择并读取图片。
  */
 export function SelectImage(meta: $models.RequestMeta): $CancellablePromise<$models.ImageFile> {
-    return $Call.ByID(1896757263, meta);
+    return $Call.ByID(2808156246, meta);
 }
 
 /**
  * SendAgentTextMessage 向已有 AI 会话发送文本消息。
  */
 export function SendAgentTextMessage(meta: $models.RequestMeta, conversationID: string, input: $models.AgentTextMessageInput): $CancellablePromise<$models.ConversationMessage> {
-    return $Call.ByID(1168206825, meta, conversationID, input);
+    return $Call.ByID(3157051758, meta, conversationID, input);
 }
 
 /**
  * SendAttachmentMessage 发送已上传的单聊、群聊或 AI 聊天附件消息，首发时创建会话。
  */
 export function SendAttachmentMessage(meta: $models.RequestMeta, input: $models.AttachmentMessageInput): $CancellablePromise<$models.AttachmentMessageResult> {
-    return $Call.ByID(115977132, meta, input);
+    return $Call.ByID(2276069813, meta, input);
 }
 
 /**
  * SendDirectTextMessage 发送内部单聊文本消息。
  */
 export function SendDirectTextMessage(meta: $models.RequestMeta, conversationID: string, input: $models.DirectTextMessageInput): $CancellablePromise<$models.ConversationMessage> {
-    return $Call.ByID(1058328585, meta, conversationID, input);
+    return $Call.ByID(2697423944, meta, conversationID, input);
 }
 
 /**
  * SendFirstAgentTextMessage 在首次发送时创建独立 AI 聊天。
  */
 export function SendFirstAgentTextMessage(meta: $models.RequestMeta, input: $models.FirstAgentTextMessageInput): $CancellablePromise<$models.FirstAgentTextMessageResult> {
-    return $Call.ByID(1367071003, meta, input);
+    return $Call.ByID(2143770794, meta, input);
 }
 
 /**
  * SendFirstDirectTextMessage 向目标身份发送首条单聊消息并按需创建长期会话。
  */
 export function SendFirstDirectTextMessage(meta: $models.RequestMeta, input: $models.FirstDirectTextMessageInput): $CancellablePromise<$models.FirstDirectTextMessageResult> {
-    return $Call.ByID(3790712855, meta, input);
+    return $Call.ByID(2317872724, meta, input);
 }
 
 /**
  * SendFirstServiceCopilotMessage 以首条提问创建服务会话的 Copilot 线程。
  */
 export function SendFirstServiceCopilotMessage(meta: $models.RequestMeta, conversationID: string, input: $models.FirstServiceCopilotMessageInput): $CancellablePromise<$models.FirstServiceCopilotMessageResult> {
-    return $Call.ByID(2550853178, meta, conversationID, input);
+    return $Call.ByID(378136137, meta, conversationID, input);
 }
 
 /**
  * SendGroupTextMessage 发送企业内部群聊文本消息。
  */
 export function SendGroupTextMessage(meta: $models.RequestMeta, conversationID: string, input: $models.GroupTextMessageInput): $CancellablePromise<$models.ConversationMessage> {
-    return $Call.ByID(4169063283, meta, conversationID, input);
+    return $Call.ByID(972362512, meta, conversationID, input);
 }
 
 /**
  * SendMessageNotification 在当前设备投递一条新消息系统通知。
  */
 export function SendMessageNotification(meta: $models.RequestMeta, input: $models.MessageNotificationInput): $CancellablePromise<void> {
-    return $Call.ByID(4158811544, meta, input);
+    return $Call.ByID(747211649, meta, input);
 }
 
 /**
  * SendServiceAttachmentMessage 在服务会话中发送附件回复。
  */
 export function SendServiceAttachmentMessage(meta: $models.RequestMeta, conversationID: string, input: $models.ServiceAttachmentMessageInput): $CancellablePromise<$models.ConversationMessage> {
-    return $Call.ByID(432515405, meta, conversationID, input);
+    return $Call.ByID(207967154, meta, conversationID, input);
 }
 
 /**
  * SendServiceCopilotTextMessage 向 Copilot 线程发送提问。
  */
 export function SendServiceCopilotTextMessage(meta: $models.RequestMeta, threadID: string, input: $models.ServiceCopilotTextMessageInput): $CancellablePromise<$models.ConversationMessage> {
-    return $Call.ByID(1062685473, meta, threadID, input);
+    return $Call.ByID(2323733012, meta, threadID, input);
 }
 
 /**
  * SendServiceTextMessage 在服务会话中发送回复或内部备注。
  */
 export function SendServiceTextMessage(meta: $models.RequestMeta, conversationID: string, input: $models.ServiceTextMessageInput): $CancellablePromise<$models.ConversationMessage> {
-    return $Call.ByID(3690382499, meta, conversationID, input);
+    return $Call.ByID(2345461340, meta, conversationID, input);
 }
 
 /**
  * ServerURL 返回原生端当前配置的企业服务器地址。
  */
 export function ServerURL(meta: $models.RequestMeta): $CancellablePromise<string> {
-    return $Call.ByID(791180750, meta);
+    return $Call.ByID(3665564719, meta);
 }
 
 /**
  * SetContactFieldValue 由客服填写或清空联系人字段。
  */
 export function SetContactFieldValue(meta: $models.RequestMeta, contactID: string, fieldID: string, input: $models.ContactFieldValueInput): $CancellablePromise<void> {
-    return $Call.ByID(4052343471, meta, contactID, fieldID, input);
+    return $Call.ByID(2088082192, meta, contactID, fieldID, input);
 }
 
 /**
  * StartAgentEvaluationRun 用 AI 员工当前生效的配置对全部用例发起一次评测运行。
  */
 export function StartAgentEvaluationRun(meta: $models.RequestMeta, agentID: string): $CancellablePromise<void> {
-    return $Call.ByID(2919275250, meta, agentID);
+    return $Call.ByID(3465701707, meta, agentID);
 }
 
 /**
  * StartOfficialLogin 登记官方账号登录尝试并返回授权地址。
  */
 export function StartOfficialLogin(meta: $models.RequestMeta, input: $models.OfficialLoginInput): $CancellablePromise<$models.OfficialLoginStart> {
-    return $Call.ByID(1128718072, meta, input);
+    return $Call.ByID(3206292403, meta, input);
 }
 
 /**
  * StopAgentReply 停止独立 AI 会话中指定的回复并返回实际运行状态。
  */
 export function StopAgentReply(meta: $models.RequestMeta, conversationID: string, runID: string): $CancellablePromise<$models.AgentRunStatus> {
-    return $Call.ByID(4044594473, meta, conversationID, runID);
+    return $Call.ByID(310470046, meta, conversationID, runID);
 }
 
 /**
  * StopGroupAgentReply 停止群聊中指定的 AI 员工回复并返回实际运行状态。
  */
 export function StopGroupAgentReply(meta: $models.RequestMeta, conversationID: string, runID: string): $CancellablePromise<$models.AgentRunStatus> {
-    return $Call.ByID(4078297554, meta, conversationID, runID);
+    return $Call.ByID(3989601131, meta, conversationID, runID);
 }
 
 /**
  * StopServiceCopilotReply 停止 Copilot 线程中指定的回复并返回实际运行状态。
  */
 export function StopServiceCopilotReply(meta: $models.RequestMeta, threadID: string, runID: string): $CancellablePromise<$models.AgentRunStatus> {
-    return $Call.ByID(1829042833, meta, threadID, runID);
+    return $Call.ByID(2061912188, meta, threadID, runID);
 }
 
 /**
  * TakeOpenedNotificationPath 返回并清除最近一次被点击的系统通知要打开的页面地址；没有待打开的页面或当前端不投递原生通知时返回空串。
  */
 export function TakeOpenedNotificationPath(meta: $models.RequestMeta): $CancellablePromise<string> {
-    return $Call.ByID(3621236932, meta);
+    return $Call.ByID(1220236187, meta);
 }
 
 /**
  * TakeOpenedServerLink 返回并清除最近一次唤起应用的连接链接携带的部署地址；没有待处理的链接或当前端不接收连接链接时返回空串。
  */
 export function TakeOpenedServerLink(meta: $models.RequestMeta): $CancellablePromise<string> {
-    return $Call.ByID(1520595699, meta);
+    return $Call.ByID(589086320, meta);
 }
 
 /**
  * TestAIProviderConnection 测试模型服务供应商草稿配置。
  */
 export function TestAIProviderConnection(meta: $models.RequestMeta, input: $models.AIProviderConnectionInput): $CancellablePromise<void> {
-    return $Call.ByID(840788545, meta, input);
+    return $Call.ByID(355621166, meta, input);
 }
 
 /**
  * TestMCPServerConnection 测试 MCP 草稿连接配置。
  */
 export function TestMCPServerConnection(meta: $models.RequestMeta, input: $models.MCPServerConnectionInput): $CancellablePromise<void> {
-    return $Call.ByID(2900402005, meta, input);
+    return $Call.ByID(1883541220, meta, input);
 }
 
 /**
  * TestSavedMCPServerConnection 测试已保存的 MCP 服务。
  */
 export function TestSavedMCPServerConnection(meta: $models.RequestMeta, mcpServerID: string): $CancellablePromise<void> {
-    return $Call.ByID(2055787012, meta, mcpServerID);
+    return $Call.ByID(1011617183, meta, mcpServerID);
 }
 
 /**
  * TestTelegramChannelConnection 测试 Telegram 草稿 Token。
  */
 export function TestTelegramChannelConnection(meta: $models.RequestMeta, channelID: string, input: $models.TelegramChannelConnectionTestInput): $CancellablePromise<void> {
-    return $Call.ByID(324699684, meta, channelID, input);
+    return $Call.ByID(1641208857, meta, channelID, input);
 }
 
 /**
  * TestWebSearchService 用草稿配置执行一次搜索，验证搜索服务可用。
  */
 export function TestWebSearchService(meta: $models.RequestMeta, input: $models.WebSearchService): $CancellablePromise<void> {
-    return $Call.ByID(3630947419, meta, input);
+    return $Call.ByID(3902743720, meta, input);
 }
 
 /**
  * TransferGroupConversationOwner 转让群主。
  */
 export function TransferGroupConversationOwner(meta: $models.RequestMeta, conversationID: string, input: $models.GroupConversationOwnerInput): $CancellablePromise<$models.GroupConversation> {
-    return $Call.ByID(637753570, meta, conversationID, input);
+    return $Call.ByID(3154951713, meta, conversationID, input);
 }
 
 /**
  * TransferServiceSession 把当前负责的处理周期转给成员、团队队列或公共队列。
  */
 export function TransferServiceSession(meta: $models.RequestMeta, conversationID: string, input: $models.TransferServiceSessionInput): $CancellablePromise<$models.ServiceSession> {
-    return $Call.ByID(2034510468, meta, conversationID, input);
+    return $Call.ByID(3150686531, meta, conversationID, input);
 }
 
 /**
  * TranslateConversationMessages 返回客户会话中指定对客消息面向当前成员语言的译文，尚无译文的消息即时翻译。
  */
 export function TranslateConversationMessages(meta: $models.RequestMeta, conversationID: string, input: $models.TranslateConversationMessagesInput): $CancellablePromise<$models.ConversationMessageTranslationList> {
-    return $Call.ByID(1848517295, meta, conversationID, input);
+    return $Call.ByID(1968036462, meta, conversationID, input);
 }
 
 /**
  * UninstallLocalToolchain 卸载本机运行环境，重新安装前不再自动安装。
  */
 export function UninstallLocalToolchain(meta: $models.RequestMeta): $CancellablePromise<void> {
-    return $Call.ByID(2589752874, meta);
+    return $Call.ByID(3748726543, meta);
 }
 
 /**
  * UpdateAIProvider 修改模型服务供应商。
  */
 export function UpdateAIProvider(meta: $models.RequestMeta, providerID: string, input: $models.AIProviderUpdateInput): $CancellablePromise<$models.AIProvider> {
-    return $Call.ByID(3982600252, meta, providerID, input);
+    return $Call.ByID(770780979, meta, providerID, input);
 }
 
 /**
  * UpdateAgent 修改企业 AI 员工。
  */
 export function UpdateAgent(meta: $models.RequestMeta, agentID: string, input: $models.UpdateAgentInput): $CancellablePromise<$models.Agent> {
-    return $Call.ByID(2196616072, meta, agentID, input);
+    return $Call.ByID(1538089881, meta, agentID, input);
 }
 
 /**
  * UpdateAgentEvaluationCase 修改评测用例。
  */
 export function UpdateAgentEvaluationCase(meta: $models.RequestMeta, agentID: string, caseID: string, input: $models.AgentEvaluationCaseInput): $CancellablePromise<$models.AgentEvaluationCase> {
-    return $Call.ByID(1057021014, meta, agentID, caseID, input);
+    return $Call.ByID(477397927, meta, agentID, caseID, input);
 }
 
 /**
  * UpdateAgentExecution 修改企业 AI 员工的执行配置。
  */
 export function UpdateAgentExecution(meta: $models.RequestMeta, agentID: string, input: $models.UpdateAgentExecutionInput): $CancellablePromise<$models.Agent> {
-    return $Call.ByID(3177846414, meta, agentID, input);
+    return $Call.ByID(2827895505, meta, agentID, input);
 }
 
 /**
  * UpdateAssistant 修改当前成员名下的助理。
  */
 export function UpdateAssistant(meta: $models.RequestMeta, assistantID: string, input: $models.AssistantInput): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(51035753, meta, assistantID, input);
+    return $Call.ByID(1125043144, meta, assistantID, input);
 }
 
 /**
  * UpdateAssistantMemory 修改当前成员名下助理的一条记忆。
  */
 export function UpdateAssistantMemory(meta: $models.RequestMeta, assistantID: string, memoryID: string, input: $models.AssistantMemoryInput): $CancellablePromise<$models.AssistantMemory> {
-    return $Call.ByID(489831426, meta, assistantID, memoryID, input);
+    return $Call.ByID(3622921035, meta, assistantID, memoryID, input);
 }
 
 /**
  * UpdateBusinessHours 修改当前企业的客服工作时间。
  */
 export function UpdateBusinessHours(meta: $models.RequestMeta, input: $models.BusinessHours): $CancellablePromise<$models.BusinessHours> {
-    return $Call.ByID(1348581964, meta, input);
+    return $Call.ByID(2134994969, meta, input);
 }
 
 /**
  * UpdateContact 修改联系人。
  */
 export function UpdateContact(meta: $models.RequestMeta, contactID: string, input: $models.ContactInput): $CancellablePromise<$models.Contact> {
-    return $Call.ByID(183062653, meta, contactID, input);
+    return $Call.ByID(3894584772, meta, contactID, input);
 }
 
 /**
  * UpdateContactField 修改联系人字段，被移除的单选选项对应的取值随之清空。
  */
 export function UpdateContactField(meta: $models.RequestMeta, fieldID: string, input: $models.ContactFieldInput): $CancellablePromise<$models.ContactField> {
-    return $Call.ByID(1792220879, meta, fieldID, input);
+    return $Call.ByID(907887672, meta, fieldID, input);
 }
 
 /**
  * UpdateContactTag 修改联系人标签。
  */
 export function UpdateContactTag(meta: $models.RequestMeta, tagID: string, input: $models.ContactTagInput): $CancellablePromise<$models.ContactTag> {
-    return $Call.ByID(1042831803, meta, tagID, input);
+    return $Call.ByID(580686188, meta, tagID, input);
 }
 
 /**
  * UpdateConversationArchive 保存当前用户对群聊、单聊或 AI 聊天的归档状态。
  */
 export function UpdateConversationArchive(meta: $models.RequestMeta, conversationID: string, input: $models.ConversationArchiveInput): $CancellablePromise<void> {
-    return $Call.ByID(544232890, meta, conversationID, input);
+    return $Call.ByID(2969149151, meta, conversationID, input);
 }
 
 /**
  * UpdateConversationNotificationSettings 保存当前用户的原生会话提醒设置。
  */
 export function UpdateConversationNotificationSettings(meta: $models.RequestMeta, conversationID: string, input: $models.ConversationNotificationSettingsInput): $CancellablePromise<$models.ConversationNotificationSettings> {
-    return $Call.ByID(379824806, meta, conversationID, input);
+    return $Call.ByID(285145117, meta, conversationID, input);
 }
 
 /**
  * UpdateConversationPin 保存当前用户的会话置顶事实与置顶顺序。
  */
 export function UpdateConversationPin(meta: $models.RequestMeta, conversationID: string, input: $models.ConversationPinInput): $CancellablePromise<$models.ConversationPinState> {
-    return $Call.ByID(617730515, meta, conversationID, input);
+    return $Call.ByID(819284518, meta, conversationID, input);
 }
 
 /**
  * UpdateConversationUnreadMark 保存当前用户独立于阅读水位的未读标记。
  */
 export function UpdateConversationUnreadMark(meta: $models.RequestMeta, conversationID: string, input: $models.ConversationUnreadMarkInput): $CancellablePromise<void> {
-    return $Call.ByID(1934573390, meta, conversationID, input);
+    return $Call.ByID(1595314733, meta, conversationID, input);
 }
 
 /**
  * UpdateCustomerReplyLanguage 锁定或解除客户会话的对客回复语言。
  */
 export function UpdateCustomerReplyLanguage(meta: $models.RequestMeta, conversationID: string, input: $models.CustomerReplyLanguageInput): $CancellablePromise<$models.ConversationTranslation> {
-    return $Call.ByID(2580009231, meta, conversationID, input);
+    return $Call.ByID(3341048574, meta, conversationID, input);
 }
 
 /**
  * UpdateGroupConversation 修改群聊资料。
  */
 export function UpdateGroupConversation(meta: $models.RequestMeta, conversationID: string, input: $models.GroupConversationProfileInput): $CancellablePromise<$models.GroupConversation> {
-    return $Call.ByID(1492390913, meta, conversationID, input);
+    return $Call.ByID(3048479140, meta, conversationID, input);
 }
 
 /**
  * UpdateKnowledgeBase 修改企业知识库。
  */
 export function UpdateKnowledgeBase(meta: $models.RequestMeta, knowledgeBaseID: string, input: $models.KnowledgeBaseInput): $CancellablePromise<$models.KnowledgeBase> {
-    return $Call.ByID(103390268, meta, knowledgeBaseID, input);
+    return $Call.ByID(3333464169, meta, knowledgeBaseID, input);
 }
 
 /**
  * UpdateKnowledgeDocumentContent 修改在线文档的名称与正文并安排索引。
  */
 export function UpdateKnowledgeDocumentContent(meta: $models.RequestMeta, knowledgeBaseID: string, documentID: string, input: $models.KnowledgeDocumentContentInput): $CancellablePromise<$models.KnowledgeDocument> {
-    return $Call.ByID(3457873805, meta, knowledgeBaseID, documentID, input);
+    return $Call.ByID(4268158634, meta, knowledgeBaseID, documentID, input);
 }
 
 /**
  * UpdateKnowledgeQAEntry 修改本地问答。
  */
 export function UpdateKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseID: string, entryID: string, input: $models.KnowledgeQAInput): $CancellablePromise<$models.KnowledgeQAEntry> {
-    return $Call.ByID(137278157, meta, knowledgeBaseID, entryID, input);
+    return $Call.ByID(3777743210, meta, knowledgeBaseID, entryID, input);
 }
 
 /**
  * UpdateLocalToolchain 把本机运行环境更新到下载源的最新版本。
  */
 export function UpdateLocalToolchain(meta: $models.RequestMeta): $CancellablePromise<$models.LocalToolchainUpdate> {
-    return $Call.ByID(2821157325, meta);
+    return $Call.ByID(3765738862, meta);
 }
 
 /**
  * UpdateMCPServer 修改 MCP 服务。
  */
 export function UpdateMCPServer(meta: $models.RequestMeta, mcpServerID: string, input: $models.MCPServerInput): $CancellablePromise<$models.MCPServer> {
-    return $Call.ByID(4046277534, meta, mcpServerID, input);
+    return $Call.ByID(2980503551, meta, mcpServerID, input);
 }
 
 /**
  * UpdateMCPToolPurpose 标记 MCP 服务中一个工具的用途。
  */
 export function UpdateMCPToolPurpose(meta: $models.RequestMeta, mcpServerID: string, input: $models.MCPToolPurposeInput): $CancellablePromise<$models.MCPServer> {
-    return $Call.ByID(3906705663, meta, mcpServerID, input);
+    return $Call.ByID(971878852, meta, mcpServerID, input);
 }
 
 /**
  * UpdateMessageChannel 修改消息渠道基础信息。
  */
 export function UpdateMessageChannel(meta: $models.RequestMeta, channelID: string, input: $models.MessageChannelBasicsInput): $CancellablePromise<$models.MessageChannelSummary> {
-    return $Call.ByID(4163765989, meta, channelID, input);
+    return $Call.ByID(3226480590, meta, channelID, input);
 }
 
 /**
  * UpdateMessageChannelReception 修改消息渠道接待设置。
  */
 export function UpdateMessageChannelReception(meta: $models.RequestMeta, channelID: string, input: $models.MessageChannelReceptionInput): $CancellablePromise<$models.MessageChannelSummary> {
-    return $Call.ByID(3135846814, meta, channelID, input);
+    return $Call.ByID(3404683199, meta, channelID, input);
 }
 
 /**
  * UpdateOrganization 修改当前工作区的名称。
  */
 export function UpdateOrganization(meta: $models.RequestMeta, input: $models.OrganizationInput): $CancellablePromise<$models.Organization> {
-    return $Call.ByID(272970364, meta, input);
+    return $Call.ByID(570896519, meta, input);
 }
 
 /**
  * UpdateProfile 修改当前成员的头像和姓名，以及所属账号的邮箱。
  */
 export function UpdateProfile(meta: $models.RequestMeta, input: $models.ProfileInput): $CancellablePromise<$models.CurrentUser> {
-    return $Call.ByID(1804531972, meta, input);
+    return $Call.ByID(3860215069, meta, input);
 }
 
 /**
  * UpdateRole 修改角色信息和权限。
  */
 export function UpdateRole(meta: $models.RequestMeta, roleID: string, input: $models.RoleInput): $CancellablePromise<$models.Role> {
-    return $Call.ByID(747750943, meta, roleID, input);
+    return $Call.ByID(1914997896, meta, roleID, input);
 }
 
 /**
  * UpdateRoleAssignments 在一个事务中批量调整成员角色。
  */
 export function UpdateRoleAssignments(meta: $models.RequestMeta, input: $models.RoleAssignmentsInput): $CancellablePromise<void> {
-    return $Call.ByID(2402672415, meta, input);
+    return $Call.ByID(3716418358, meta, input);
 }
 
 /**
  * UpdateServiceCategory 修改咨询分类。
  */
 export function UpdateServiceCategory(meta: $models.RequestMeta, categoryID: string, input: $models.ServiceCategoryInput): $CancellablePromise<$models.ServiceCategory> {
-    return $Call.ByID(314412950, meta, categoryID, input);
+    return $Call.ByID(2588454863, meta, categoryID, input);
 }
 
 /**
  * UpdateServiceSessionSummary 修改已关闭服务周期的小结、是否解决与咨询分类。
  */
 export function UpdateServiceSessionSummary(meta: $models.RequestMeta, serviceSessionID: string, input: $models.ServiceSessionSummaryInput): $CancellablePromise<$models.ServiceSessionSummary> {
-    return $Call.ByID(1427241630, meta, serviceSessionID, input);
+    return $Call.ByID(2093706915, meta, serviceSessionID, input);
 }
 
 /**
  * UpdateServiceSummarySettings 修改当前企业的周期小结设置。
  */
 export function UpdateServiceSummarySettings(meta: $models.RequestMeta, input: $models.ServiceSummarySettings): $CancellablePromise<$models.ServiceSummarySettings> {
-    return $Call.ByID(375121599, meta, input);
+    return $Call.ByID(1831293896, meta, input);
 }
 
 /**
  * UpdateServiceTimeouts 修改当前企业的客服超时时长。
  */
 export function UpdateServiceTimeouts(meta: $models.RequestMeta, input: $models.ServiceTimeouts): $CancellablePromise<$models.ServiceTimeouts> {
-    return $Call.ByID(3866699950, meta, input);
+    return $Call.ByID(2836959487, meta, input);
 }
 
 /**
  * UpdateTeam 修改企业团队。
  */
 export function UpdateTeam(meta: $models.RequestMeta, teamID: string, input: $models.TeamInput): $CancellablePromise<$models.Team> {
-    return $Call.ByID(2807681714, meta, teamID, input);
+    return $Call.ByID(2953147649, meta, teamID, input);
 }
 
 /**
  * UpdateTranslationSettings 修改当前企业的翻译设置。
  */
 export function UpdateTranslationSettings(meta: $models.RequestMeta, input: $models.TranslationSettings): $CancellablePromise<$models.TranslationSettings> {
-    return $Call.ByID(1886520031, meta, input);
+    return $Call.ByID(1649519094, meta, input);
 }
 
 /**
  * UpdateUnreadIndicator 更新当前设备的未读提示。
  */
 export function UpdateUnreadIndicator(meta: $models.RequestMeta, state: $models.UnreadIndicatorState): $CancellablePromise<void> {
-    return $Call.ByID(4142772673, meta, state);
+    return $Call.ByID(347921180, meta, state);
 }
 
 /**
  * UpdateUser 修改企业成员头像、资料、角色和所属团队。
  */
 export function UpdateUser(meta: $models.RequestMeta, userID: string, input: $models.UpdateUserInput): $CancellablePromise<$models.User> {
-    return $Call.ByID(2151183832, meta, userID, input);
+    return $Call.ByID(2374341243, meta, userID, input);
 }
 
 /**
  * UpdateUserPreferences 保存当前用户的偏好设置。
  */
 export function UpdateUserPreferences(meta: $models.RequestMeta, input: $models.UserPreferencesInput): $CancellablePromise<$models.CurrentUser> {
-    return $Call.ByID(3982988274, meta, input);
+    return $Call.ByID(1664967111, meta, input);
 }
 
 /**
  * UpdateUserWorkStatus 保存当前用户主动设置的工作状态。
  */
 export function UpdateUserWorkStatus(meta: $models.RequestMeta, input: $models.UserWorkStatusInput): $CancellablePromise<$models.CurrentUser> {
-    return $Call.ByID(1131036783, meta, input);
+    return $Call.ByID(2352760280, meta, input);
 }
 
 /**
  * UpdateWebSearchSettings 修改当前企业的联网搜索设置。
  */
 export function UpdateWebSearchSettings(meta: $models.RequestMeta, input: $models.WebSearchSettings): $CancellablePromise<$models.WebSearchSettings> {
-    return $Call.ByID(2275204870, meta, input);
+    return $Call.ByID(2394954043, meta, input);
 }
 
 /**
  * UpdateWebsiteChannelAccess 修改网站渠道允许使用的网站。
  */
 export function UpdateWebsiteChannelAccess(meta: $models.RequestMeta, channelID: string, input: $models.WebsiteChannelAccessInput): $CancellablePromise<$models.WebsiteChannelAccess> {
-    return $Call.ByID(1435471417, meta, channelID, input);
+    return $Call.ByID(4138570982, meta, channelID, input);
 }
 
 /**
  * UpdateWebsiteChannelChatInterface 修改网站渠道聊天窗口外观与对话功能。
  */
 export function UpdateWebsiteChannelChatInterface(meta: $models.RequestMeta, channelID: string, input: $models.WebsiteChannelChatInterfaceInput): $CancellablePromise<$models.WebsiteChannelChatInterface> {
-    return $Call.ByID(1443836536, meta, channelID, input);
+    return $Call.ByID(588000961, meta, channelID, input);
 }
 
 /**
  * UpdateWebsiteChannelHelpCenter 修改网站渠道帮助页签开关与发布的知识库。
  */
 export function UpdateWebsiteChannelHelpCenter(meta: $models.RequestMeta, channelID: string, input: $models.WebsiteChannelHelpCenterInput): $CancellablePromise<$models.WebsiteChannelHelpCenter> {
-    return $Call.ByID(462894841, meta, channelID, input);
+    return $Call.ByID(475992226, meta, channelID, input);
 }
 
 /**
  * UpdateWebsiteChannelHome 修改网站渠道 Messenger 首页。
  */
 export function UpdateWebsiteChannelHome(meta: $models.RequestMeta, channelID: string, input: $models.WebsiteChannelHomeInput): $CancellablePromise<$models.WebsiteChannelHome> {
-    return $Call.ByID(1908399152, meta, channelID, input);
+    return $Call.ByID(478706267, meta, channelID, input);
 }

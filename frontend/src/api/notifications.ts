@@ -7,7 +7,7 @@ import {
   SendMessageNotification,
   TakeOpenedNotificationPath,
   UpdateUnreadIndicator,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import { bind } from "@/api/client"
 
 /** 读取当前设备的通知权限状态。 */

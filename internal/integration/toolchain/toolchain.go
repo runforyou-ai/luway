@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/gofrs/flock"
-	"github.com/runforyou-ai/cervi/internal/common/brand"
-	"github.com/runforyou-ai/cervi/internal/integration/localworkspace"
+	"github.com/runforyou-ai/luway/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/integration/localworkspace"
 	"golang.org/x/mod/semver"
 )
 

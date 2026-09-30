@@ -12,7 +12,7 @@ import (
 	"github.com/cloudwego/eino/adk/filesystem"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestResolveAssignmentLocalTools 验证本机工具进入工具清单并在指令中说明，没有本机工具时不出现说明。

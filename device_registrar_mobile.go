@@ -3,8 +3,8 @@
 package main
 
 import (
-	"github.com/runforyou-ai/cervi/internal/apiproxy"
-	"github.com/runforyou-ai/cervi/internal/clientsession"
+	"github.com/runforyou-ai/luway/internal/apiproxy"
+	"github.com/runforyou-ai/luway/internal/clientsession"
 )
 
 // nativeStorage 组合移动端连接和登录凭据存储能力。

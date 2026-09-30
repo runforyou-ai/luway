@@ -2,7 +2,7 @@
 
 package device
 
-import servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+import servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 
 // recordFromModel 转换设备存储模型。
 func recordFromModel(input servermodels.Device) Record {

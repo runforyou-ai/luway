@@ -10,14 +10,14 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	groupchataction "github.com/runforyou-ai/cervi/internal/actions/groupchat"
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	"github.com/runforyou-ai/cervi/pkg/searchtext"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/searchtext"
 )
 
 // TestInboxSearch 验证消息拼音与编号检索、附件文件名、群名与成员、列表范围、会话范围和退群后的阅读边界。

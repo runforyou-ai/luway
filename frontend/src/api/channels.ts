@@ -16,12 +16,12 @@ import {
   UpdateWebsiteChannelChatInterface,
   UpdateWebsiteChannelHelpCenter,
   UpdateWebsiteChannelHome,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import type {
   WebsiteChannel as GeneratedWebsiteChannel,
   WebsiteChannelAccess as GeneratedWebsiteChannelAccess,
   WebsiteHomeBlockType,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind, isApiError } from "@/api/client"
 import type { NonNullArrays } from "@/api/normalize"
 

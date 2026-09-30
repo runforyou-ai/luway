@@ -6,11 +6,11 @@ package account
 import (
 	"errors"
 
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	commonemail "github.com/runforyou-ai/cervi/pkg/email"
-	commonpassword "github.com/runforyou-ai/cervi/pkg/password"
-	commontimezone "github.com/runforyou-ai/cervi/pkg/timezone"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	commonemail "github.com/runforyou-ai/luway/pkg/email"
+	commonpassword "github.com/runforyou-ai/luway/pkg/password"
+	commontimezone "github.com/runforyou-ai/luway/pkg/timezone"
 )
 
 // ValidationCode 标识账号字段的校验结果。

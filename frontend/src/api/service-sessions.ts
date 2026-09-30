@@ -14,8 +14,8 @@ import {
   StopServiceCopilotReply,
   TransferServiceSession,
   UpdateServiceSessionSummary,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
-import { ServiceSessionTargetKind } from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
+import { ServiceSessionTargetKind } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 
 /** 领取或接管客户会话最新处理周期。 */

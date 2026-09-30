@@ -7,17 +7,17 @@ import (
 	"testing"
 	"uuid"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	"github.com/runforyou-ai/cervi/internal/actions/customerservice"
-	servicesessionaction "github.com/runforyou-ai/cervi/internal/actions/servicesession"
-	translationaction "github.com/runforyou-ai/cervi/internal/actions/translation"
-	useraction "github.com/runforyou-ai/cervi/internal/actions/user"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/appservice/direct"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
+	useraction "github.com/runforyou-ai/luway/internal/actions/user"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // translationCaller 按顺序返回预设的模型正文，并记录调用次数。

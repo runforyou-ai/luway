@@ -5,7 +5,7 @@ package knowledgebase
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // QASimilarQuestion 定义带稳定编号的相似问题，新问题的编号为空。

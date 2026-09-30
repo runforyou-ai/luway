@@ -5,7 +5,7 @@ import (
 
 	"github.com/cloudwego/eino/components/tool"
 	toolutils "github.com/cloudwego/eino/components/tool/utils"
-	"github.com/runforyou-ai/cervi/internal/integration/knowledgeretrieval"
+	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
 )
 
 // KnowledgeToolName 是知识检索工具名，也是依据来源的登记名。

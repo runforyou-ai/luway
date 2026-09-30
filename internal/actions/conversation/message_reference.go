@@ -7,9 +7,9 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/runforyou-ai/cervi/internal/actions/contactname"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/storage/server/messagequery"
+	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
 	"github.com/uptrace/bun"
 )
 

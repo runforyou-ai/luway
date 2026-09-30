@@ -5,7 +5,7 @@ package direct
 import (
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 // TestWebsiteVisitorContext 验证页面地址只保留源与路径，并按请求头解析设备与国家代码。

@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	mcpintegration "github.com/runforyou-ai/cervi/internal/integration/mcp"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
 
 // deviceMCPHandshakeTimeout 限制代理设备连接企业 MCP 服务并读取工具目录的时间。

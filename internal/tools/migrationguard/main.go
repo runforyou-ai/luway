@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"os"
 
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	"github.com/uptrace/bun/driver/pgdriver"
 )
 

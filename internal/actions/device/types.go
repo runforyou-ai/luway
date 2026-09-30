@@ -6,7 +6,7 @@ package device
 import (
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // RegisterInput 定义设备注册上报的本机信息。

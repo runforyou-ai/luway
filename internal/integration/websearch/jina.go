@@ -3,7 +3,7 @@ package websearch
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // searchJina 调用 Jina Search API，只取摘要不抓取网页正文；Jina 不支持时间范围，由 recencyNotice 说明。

@@ -1,6 +1,6 @@
 package appservice
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // CustomerDeliveryStatus 表示客户消息的外部投递状态。
 type CustomerDeliveryStatus domain.CustomerDeliveryStatus

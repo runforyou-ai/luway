@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 
 	"github.com/nats-io/nats.go"
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // publishQueueSize 是等待发布的已提交事务批次上限。

@@ -18,8 +18,8 @@ import (
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/modelprovider"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
 	"github.com/volcengine/volcengine-go-sdk/service/arkruntime/model/responses"
 	"google.golang.org/genai"
 )

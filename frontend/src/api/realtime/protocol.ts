@@ -4,7 +4,7 @@ import type {
   AgentRunBlockKind,
   AgentToolCallStatus,
   SyncHeads,
-} from "../../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 
 /** 运行过程流内容块的已知类型，取值与 AgentRunBlockKind 一致。 */
 const blockKinds = new Set(["thinking", "content", "tool_call"])

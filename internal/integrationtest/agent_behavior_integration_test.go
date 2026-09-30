@@ -12,17 +12,17 @@ import (
 	"testing"
 	"uuid"
 
-	agentaction "github.com/runforyou-ai/cervi/internal/actions/agent"
-	agentrunaction "github.com/runforyou-ai/cervi/internal/actions/agentrun"
-	aiprovideraction "github.com/runforyou-ai/cervi/internal/actions/aiprovider"
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	directchataction "github.com/runforyou-ai/cervi/internal/actions/directchat"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	"github.com/runforyou-ai/cervi/internal/servertest"
-	serverstorage "github.com/runforyou-ai/cervi/internal/storage/server"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
+	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/servertest"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
 // TestAgentRoleBehavior 验证角色基线与场景规则的拼接、空企业指令的完整读写执行，以及运行行为快照的写入与沿用。

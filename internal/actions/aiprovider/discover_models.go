@@ -6,9 +6,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/modelprovider"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
 
 // discoveryTimeout 是一次模型发现的总时限，按模型逐个读取详情比单次连接探测慢。

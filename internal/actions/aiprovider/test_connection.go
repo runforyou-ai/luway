@@ -5,9 +5,9 @@ package aiprovider
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/modelprovider"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
 
 // TestConnectionAction 测试模型服务供应商草稿配置。

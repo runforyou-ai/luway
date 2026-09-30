@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	serverconfig "github.com/runforyou-ai/cervi/internal/config/server"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 )
 
 const (

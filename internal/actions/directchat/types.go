@@ -6,9 +6,9 @@ package directchat
 import (
 	"time"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	inboxaction "github.com/runforyou-ai/cervi/internal/actions/inbox"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // FirstDirectTextMessageInput 定义成员向目标身份发送的首条单聊消息。

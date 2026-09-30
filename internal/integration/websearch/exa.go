@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // searchExa 调用 Exa Search API，摘要取与查询最相关的句子。

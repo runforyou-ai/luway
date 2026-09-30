@@ -1,7 +1,7 @@
 /** 用假计时器与可控探针验证同步协调器的通知失效映射、合并窗口和兜底校验。 */
 import assert from "node:assert/strict"
 import { test, type TestContext } from "node:test"
-import type { SyncHeads } from "../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+import type { SyncHeads } from "../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { SyncCoordinator } from "../src/features/session/sync-coordinator.ts"
 
 const heads: SyncHeads = { conversationCount: 2, conversationChecksum: "11", identityProfileVersion: "3", pinOrderVersion: "4" }

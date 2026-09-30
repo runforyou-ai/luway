@@ -9,7 +9,7 @@ import {
   ListTeamPerformanceBreakdowns,
   ListTeamPerformanceIssues,
   ListTeamPerformanceMembers,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import type {
   AIPerformanceIssueListInput,
   AIPerformanceReport,
@@ -19,7 +19,7 @@ import type {
   ServiceIssueType,
   ServiceSessionSatisfaction,
   TeamPerformanceIssueListInput,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import type { ServiceTranscriptMessageData } from "@/api/knowledge-gaps"
 import type { NonNullArrays } from "@/api/normalize"

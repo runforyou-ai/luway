@@ -5,7 +5,7 @@ package mcpserver
 import (
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestNormalizeInput 验证 MCP 服务地址、传输类型和名称校验。

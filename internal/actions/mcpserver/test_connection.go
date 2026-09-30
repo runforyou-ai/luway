@@ -5,8 +5,8 @@ package mcpserver
 import (
 	"context"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	mcpintegration "github.com/runforyou-ai/cervi/internal/integration/mcp"
+	"github.com/runforyou-ai/luway/internal/domain"
+	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
 )
 
 // TestConnectionAction 测试 MCP 草稿配置的工具发现能力。

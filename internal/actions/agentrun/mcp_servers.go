@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/runforyou-ai/cervi/internal/actions/chatstate"
-	"github.com/runforyou-ai/cervi/internal/common/customeridentity"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	mcpintegration "github.com/runforyou-ai/cervi/internal/integration/mcp"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	"github.com/runforyou-ai/luway/internal/common/customeridentity"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

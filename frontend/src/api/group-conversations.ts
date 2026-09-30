@@ -9,8 +9,8 @@ import {
   SendGroupTextMessage,
   TransferGroupConversationOwner,
   UpdateGroupConversation,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
-import type { GroupConversation } from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
+import type { GroupConversation } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import type { NonNullArrays } from "@/api/normalize"
 

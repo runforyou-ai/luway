@@ -10,14 +10,14 @@ import (
 	"slices"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/actions/chatstate"
-	"github.com/runforyou-ai/cervi/internal/actions/contactprofile"
-	"github.com/runforyou-ai/cervi/internal/actions/servicesummary"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
-	serverfilecontent "github.com/runforyou-ai/cervi/internal/storage/server/filecontent"
-	"github.com/runforyou-ai/cervi/internal/storage/server/messagequery"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
+	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

@@ -9,7 +9,7 @@ import (
 	goi18n "github.com/nicksnyder/go-i18n/v2/i18n"
 	"golang.org/x/text/language"
 
-	"github.com/runforyou-ai/cervi/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/common/brand"
 )
 
 // Key 标识一条后端本地化文案。

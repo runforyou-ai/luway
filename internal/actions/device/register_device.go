@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	identityaction "github.com/runforyou-ai/cervi/internal/actions/identity"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 

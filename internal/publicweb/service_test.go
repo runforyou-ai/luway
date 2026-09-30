@@ -13,8 +13,8 @@ import (
 	"strings"
 	"testing"
 
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestChatServiceMarkdownAssets 验证企业服务端的正文资源路由、版本缓存、按编码区分的 ETag 和 gzip 协商。

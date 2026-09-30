@@ -12,7 +12,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/runforyou-ai/cervi/pkg/email"
+	"github.com/runforyou-ai/luway/pkg/email"
 )
 
 const (

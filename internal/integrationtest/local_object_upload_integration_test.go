@@ -7,9 +7,9 @@ import (
 	"errors"
 	"testing"
 
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	"github.com/runforyou-ai/cervi/internal/appservice/direct"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestLocalObjectUploadAuthorization 验证本地对象直传按凭据认证、校验文件归属与待写入状态，并按分片序号给出期望字节数。

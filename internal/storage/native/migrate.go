@@ -10,7 +10,7 @@ import (
 	"log/slog"
 
 	"github.com/pressly/goose/v3"
-	"github.com/runforyou-ai/cervi/pkg/goosecheck"
+	"github.com/runforyou-ai/luway/pkg/goosecheck"
 )
 
 // migrate 使用 files 中 migrations 目录下的迁移文件将 SQLite 升级到最新结构。

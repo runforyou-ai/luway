@@ -17,8 +17,8 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/mcp"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/mcp"
 )
 
 // newMCPTestServer 启动提供工单查询和与内置工具同名的 calculator 工具的 SSE 测试 MCP 服务。

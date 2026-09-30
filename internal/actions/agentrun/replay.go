@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/actions/servicecategory"
-	"github.com/runforyou-ai/cervi/internal/actions/servicesummary"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	"github.com/runforyou-ai/cervi/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/actions/servicecategory"
+	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	"github.com/uptrace/bun"
 )
 

@@ -7,10 +7,10 @@ import (
 	"errors"
 	"testing"
 
-	conversationaction "github.com/runforyou-ai/cervi/internal/actions/conversation"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/i18n"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
 // TestConversationMessageCursorRejectsAnotherConversation 验证消息游标的会话归属校验。

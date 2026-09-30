@@ -10,9 +10,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
-	customerchataction "github.com/runforyou-ai/cervi/internal/actions/customerchat"
-	"github.com/runforyou-ai/cervi/internal/integration/telegram"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	"github.com/runforyou-ai/luway/internal/integration/telegram"
 )
 
 const telegramWebhookBodyLimit = 64 << 10

@@ -5,11 +5,11 @@ package server_test
 import (
 	"context"
 	"errors"
-	mcpserveraction "github.com/runforyou-ai/cervi/internal/actions/mcpserver"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	mcpintegration "github.com/runforyou-ai/cervi/internal/integration/mcp"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
+	mcpserveraction "github.com/runforyou-ai/luway/internal/actions/mcpserver"
+	"github.com/runforyou-ai/luway/internal/domain"
+	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"testing"
 	"uuid"
 )

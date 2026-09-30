@@ -8,10 +8,10 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
-	mcpintegration "github.com/runforyou-ai/cervi/internal/integration/mcp"
-	servertask "github.com/runforyou-ai/cervi/internal/task/server"
-	"github.com/runforyou-ai/cervi/pkg/connectiontest"
+	"github.com/runforyou-ai/luway/internal/domain"
+	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 	"github.com/uptrace/bun"
 )
 

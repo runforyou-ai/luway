@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	channelaction "github.com/runforyou-ai/cervi/internal/actions/channel"
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 )
 
 var themeColorPattern = regexp.MustCompile(`^#[0-9A-Fa-f]{6}$`)

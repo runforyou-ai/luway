@@ -6,7 +6,7 @@ import {
   PreviewInvitation,
   RegenerateInvitation,
   RevokeInvitation,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import { bind } from "@/api/client"
 
 /** 读取当前工作区待接受的邀请。 */

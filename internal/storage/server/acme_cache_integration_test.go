@@ -8,7 +8,7 @@ import (
 	"errors"
 	"testing"
 
-	servertest "github.com/runforyou-ai/cervi/internal/servertest"
+	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	"golang.org/x/crypto/acme/autocert"
 )
 

@@ -7,14 +7,14 @@ import {
   ReactivateUser,
   UpdateUser,
   UpdateUserWorkStatus,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   UserStatus,
   type ColleagueList,
   type ColleagueListInput,
   type User,
   type UserListInput,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import type { NonNullArrays } from "@/api/normalize"
 

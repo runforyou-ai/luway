@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // Locale 表示应用支持的本地化语言。

@@ -1,6 +1,6 @@
 package appservice
 
-import "github.com/runforyou-ai/cervi/internal/domain"
+import "github.com/runforyou-ai/luway/internal/domain"
 
 // OrganizationIdentityType 表示工作区身份类型。
 type OrganizationIdentityType string

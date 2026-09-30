@@ -19,8 +19,8 @@ import {
   UpdateTranslationSettings,
   UpdateProfile,
   UpdateUserPreferences,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
-import type { BusinessHours } from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
+import type { BusinessHours } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import type { NonNullArrays } from "@/api/normalize"
 

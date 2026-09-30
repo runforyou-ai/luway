@@ -3,7 +3,7 @@ package systemlocale
 import (
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
 // TestResolve 验证系统语言值与应用语言的映射规则。

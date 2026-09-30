@@ -9,8 +9,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/runforyou-ai/cervi/internal/appservice"
-	"github.com/runforyou-ai/cervi/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
 // DeviceModelEndpoint 返回指定运行在企业服务器上的模型代理入口，以及为模型请求附加登录令牌与本机设备编号的传输层；meta 必须携带设备编号。

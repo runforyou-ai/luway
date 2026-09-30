@@ -1,11 +1,11 @@
 /** 读取启动入口、登录身份并提供会话状态路由。 */
-import { SessionState } from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/models"
+import { SessionState } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import {
   GetSyncHeads,
   InstallationStatus,
   LoadIdentity,
   LoadStartup,
-} from "../../bindings/github.com/runforyou-ai/cervi/internal/appservice/service"
+} from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import { bind } from "@/api/client"
 import { resolveAppPlatform } from "@/platform/app-platform"
 

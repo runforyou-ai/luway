@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	teamaction "github.com/runforyou-ai/cervi/internal/actions/team"
-	useraction "github.com/runforyou-ai/cervi/internal/actions/user"
-	"github.com/runforyou-ai/cervi/internal/common"
-	"github.com/runforyou-ai/cervi/internal/domain"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	useraction "github.com/runforyou-ai/luway/internal/actions/user"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/uptrace/bun"
 )
 

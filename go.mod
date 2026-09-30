@@ -1,4 +1,4 @@
-module github.com/runforyou-ai/cervi
+module github.com/runforyou-ai/luway
 
 go 1.27.1
 

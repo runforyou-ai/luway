@@ -5,7 +5,7 @@ package aiprovider
 import (
 	"testing"
 
-	"github.com/runforyou-ai/cervi/internal/domain"
+	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestNormalizeInputAcceptsCustomModels 验证自定义模型可保存并规范化文本字段。

@@ -9,11 +9,11 @@ import (
 	"time"
 	"uuid"
 
-	contactaction "github.com/runforyou-ai/cervi/internal/actions/contact"
-	fileaction "github.com/runforyou-ai/cervi/internal/actions/file"
-	useraction "github.com/runforyou-ai/cervi/internal/actions/user"
-	"github.com/runforyou-ai/cervi/internal/domain"
-	servermodels "github.com/runforyou-ai/cervi/internal/storage/server/models"
+	contactaction "github.com/runforyou-ai/luway/internal/actions/contact"
+	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	useraction "github.com/runforyou-ai/luway/internal/actions/user"
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 
