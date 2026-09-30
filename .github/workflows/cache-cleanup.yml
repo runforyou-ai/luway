@@ -1,0 +1,53 @@
+name: Cache Cleanup
+
+on:
+  schedule:
+    - cron: "0 18 * * *"
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  prune:
+    name: Prune
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      # 仓库缓存配额为 10 GB，超额后按最近访问时间驱逐，会让默认分支的 Go 缓存失效并触发全量重编。
+      - name: Prune caches outside the default branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/caches?per_page=100" \
+            --jq '.actions_caches[] | select(.ref != "refs/heads/main") | .id' \
+            | while read -r cache_id; do
+                echo "删除非默认分支缓存 ${cache_id}"
+                gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/caches/${cache_id}"
+              done
+
+      # Go 缓存键格式为 go-<任务>-<系统>-<go.sum 哈希>-<提交 SHA>，每个任务只保留最新一份。
+      - name: Keep only the newest Go cache per job
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/caches?per_page=100" \
+            --jq '.actions_caches[] | select(.key | startswith("go-")) | [(.key | sub("-[^-]+-[^-]+$"; "")), .created_at, (.id | tostring)] | @tsv' \
+            | sort -k1,1 -k2,2r \
+            | awk -F '\t' '$1 == previous { print $3 } { previous = $1 }' \
+            | while read -r cache_id; do
+                echo "删除过期 Go 缓存 ${cache_id}"
+                gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/caches/${cache_id}"
+              done

@@ -1,0 +1,45 @@
+package domain
+
+// ContactFieldType 定义联系人字段类型。
+type ContactFieldType string
+
+const (
+	ContactFieldTypeText   ContactFieldType = "text"
+	ContactFieldTypeNumber ContactFieldType = "number"
+	ContactFieldTypeDate   ContactFieldType = "date"
+	ContactFieldTypeSelect ContactFieldType = "select"
+)
+
+// ContactFieldOption 定义单选字段的一个选项；取值保存选项编号。
+type ContactFieldOption struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// ContactProfileSource 定义联系人字段取值和标签的来源。
+type ContactProfileSource string
+
+const (
+	ContactProfileSourceMember  ContactProfileSource = "member"
+	ContactProfileSourceAI      ContactProfileSource = "ai"
+	ContactProfileSourceWebsite ContactProfileSource = "website"
+)
+
+// WebsiteContactProfile 定义网站签名身份带入的联系人档案：Attributes 以字段名称为键，取值为空表示清除网站写入的取值；Tags 为 nil 表示载荷未提供标签。
+type WebsiteContactProfile struct {
+	Attributes map[string]string
+	Tags       []string
+}
+
+const (
+	// ContactFieldNameMaxLength 是联系人字段名称的最大字符数。
+	ContactFieldNameMaxLength = 50
+	// ContactFieldOptionNameMaxLength 是单选选项名称的最大字符数。
+	ContactFieldOptionNameMaxLength = 50
+	// ContactFieldValueMaxLength 是联系人字段取值的最大字符数。
+	ContactFieldValueMaxLength = 500
+	// ContactTagNameMaxLength 是联系人标签名称的最大字符数。
+	ContactTagNameMaxLength = 30
+	// ContactProfileAIInstructionMaxLength 是字段 AI 填写说明和标签 AI 添加条件的最大字符数。
+	ContactProfileAIInstructionMaxLength = 500
+)

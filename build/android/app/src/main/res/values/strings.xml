@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Luway</string>
+    <string name="notification_channel_messages">New messages</string>
+    <string name="notification_channel_messages_silent">New messages (silent)</string>
+</resources>

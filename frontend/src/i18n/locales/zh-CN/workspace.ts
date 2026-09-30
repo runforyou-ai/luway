@@ -1,0 +1,31 @@
+/** 简体中文·工作台文案。 */
+const workspace = {
+  navigationGroup: "工作台",
+  resizeNavigation: "调整导航栏宽度",
+  railClose: "收起导航栏",
+  railOpen: "展开导航栏",
+  historyBack: "后退",
+  historyForward: "前进",
+  inbox: "收件箱",
+  agents: "AI 员工",
+  responsibleGapCount: "{{count}} 条待补知识待处理",
+  contacts: "通讯录",
+  settings: "设置",
+  appVersion: "版本 {{version}}",
+  openUserMenu: "打开 {{name}} 的用户菜单",
+  openUserMenuWithUnread: "打开 {{name}} 的用户菜单，其他工作区有 {{count}} 条未读",
+  workStatus: "工作状态",
+  workStatusUpdateError: "切换工作状态失败，请重试。",
+  workStatusWorkingHint: "新的客户会话会自动分配给你",
+  logout: "退出登录",
+  loggingOut: "正在退出…",
+  logoutError: "退出登录失败，请重试。",
+  logoutTitle: "退出当前账号？",
+  logoutDescription: "退出后需要重新登录。",
+  logoutDescriptionClient: "退出后需要重新登录，服务器连接将保留。",
+  identityLoadError: "无法读取登录状态。",
+  pageNotFound: "页面不存在，已回到收件箱。",
+  inboxLoadError: "消息加载失败。",
+}
+
+export default workspace

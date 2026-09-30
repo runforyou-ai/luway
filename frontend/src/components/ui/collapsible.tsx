@@ -1,0 +1,8 @@
+/** shadcn 折叠面板。 */
+import { Collapsible as CollapsiblePrimitive } from "radix-ui"
+
+const Collapsible = CollapsiblePrimitive.Root
+const CollapsibleTrigger = CollapsiblePrimitive.Trigger
+const CollapsibleContent = CollapsiblePrimitive.Content
+
+export { Collapsible, CollapsibleContent, CollapsibleTrigger }

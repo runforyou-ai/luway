@@ -1,0 +1,50 @@
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    groups:
+      go-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Wails Go、CLI 与前端 runtime 必须按升级流程同步更新。
+      - dependency-name: github.com/wailsapp/wails/v3
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    groups:
+      npm-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+    ignore:
+      # Wails 前端运行时与 Go 模块同步升级。
+      - dependency-name: "@wailsio/runtime"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+
+  - package-ecosystem: docker
+    directory: /build/docker
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai

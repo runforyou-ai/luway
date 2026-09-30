@@ -1,0 +1,45 @@
+name: cervi
+
+services:
+  postgres:
+    container_name: cervi-postgres
+    image: cervi-postgres:18-vector0.8.6
+    build:
+      context: .
+      dockerfile: build/docker/Dockerfile.postgres
+    environment:
+      POSTGRES_DB: main
+      POSTGRES_USER: cervi
+      POSTGRES_PASSWORD: cervi
+    ports:
+      - "5432:5432"
+    volumes:
+      - cervi-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cervi -d main"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  nats:
+    container_name: cervi-nats
+    image: nats:2.14.5-alpine
+    command:
+      - --name=cervi-local
+      - --jetstream
+      - --store_dir=/data/jetstream
+      - --http_port=8222
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - cervi-nats-data:/data/jetstream
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "--quiet", "http://127.0.0.1:8222/healthz?js-enabled-only=true"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  cervi-postgres-data:
+  cervi-nats-data:

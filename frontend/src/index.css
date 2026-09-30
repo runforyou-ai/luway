@@ -1,0 +1,579 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+@custom-variant touch (&:is([data-platform="mobile"] *));
+
+@keyframes collapsible-down {
+  from { height: 0; }
+  to { height: var(--radix-collapsible-content-height); }
+}
+
+@keyframes collapsible-up {
+  from { height: var(--radix-collapsible-content-height); }
+  to { height: 0; }
+}
+
+/* 字号刻度整体收紧一档，正文基准 13px，用于管理界面的信息密度。 */
+@theme {
+    --text-xs: 0.6875rem;
+    --text-xs--line-height: 1rem;
+    --text-sm: 0.8125rem;
+    --text-sm--line-height: 1.25rem;
+    --text-base: 0.90625rem;
+    --text-base--line-height: 1.375rem;
+    --text-lg: 1rem;
+    --text-lg--line-height: 1.5rem;
+    --text-xl: 1.125rem;
+    --text-xl--line-height: 1.625rem;
+    --text-2xl: 1.25rem;
+    --text-2xl--line-height: 1.75rem;
+}
+
+@theme inline {
+    --font-sans: 'Inter Variable', Inter, 'PingFang SC', 'HarmonyOS Sans SC', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-secondary: var(--sidebar-secondary);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive: var(--destructive);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-note: var(--note);
+    --color-note-border: var(--note-border);
+    --color-note-foreground: var(--note-foreground);
+    --color-note-active: var(--note-active);
+    --color-note-active-foreground: var(--note-active-foreground);
+    --color-badge-website: var(--badge-website);
+    --color-badge-telegram: var(--badge-telegram);
+    --color-badge-wechat: var(--badge-wechat);
+    --color-file-pdf: var(--file-pdf);
+    --color-file-word: var(--file-word);
+    --color-file-sheet: var(--file-sheet);
+    --color-file-slide: var(--file-slide);
+    --color-file-code: var(--file-code);
+    --color-file-text: var(--file-text);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-primary-hover: var(--primary-hover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+  主题采用统一浅色层级：一级图标轨、二级导航和内容区通过轻微背景差、间距与阴影区分。
+  交互色统一使用品牌蓝，背景与边框保持中性灰阶。
+*/
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.141 0.005 285.823);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.141 0.005 285.823);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.141 0.005 285.823);
+
+    --primary: oklch(0.57 0.18 253.49);
+    --primary-hover: oklch(0.52 0.17 253.49);
+    --primary-foreground: oklch(1 0 0);
+
+    --secondary: oklch(0.967 0.001 286.375);
+    --secondary-foreground: oklch(0.21 0.006 285.885);
+    --muted: oklch(0.967 0.001 286.375);
+    --muted-foreground: oklch(0.52 0.016 285.938);
+
+    /* 通用组件的悬停态使用浅蓝。 */
+    --accent: oklch(0.94 0.03 253.49);
+    --accent-foreground: oklch(0.42 0.10 253.49);
+
+    --destructive: oklch(0.577 0.245 27.325);
+    --destructive-foreground: oklch(1 0 0);
+    --success: oklch(0.55 0.14 149.5);
+    --warning: oklch(0.56 0.15 65);
+
+    /* 内部备注：气泡与输入区底色、虚线边框、标签文字，以及备注模式开关的选中态。 */
+    --note: oklch(0.987 0.022 95.277);
+    --note-border: oklch(0.769 0.188 70.08 / 0.7);
+    --note-foreground: oklch(0.555 0.163 48.998);
+    --note-active: oklch(0.962 0.059 95.617);
+    --note-active-foreground: oklch(0.414 0.112 45.904);
+
+    /* 会话来源徽标色，按渠道类型区分。 */
+    --badge-website: oklch(0.55 0.18 285);
+    --badge-telegram: oklch(0.68 0.12 230);
+    --badge-wechat: oklch(0.62 0.15 149.5);
+
+    /* 知识库文档格式图标色，沿用常见办公文档的配色惯例。 */
+    --file-pdf: oklch(0.58 0.21 27);
+    --file-word: oklch(0.55 0.17 258);
+    --file-sheet: oklch(0.56 0.14 150);
+    --file-slide: oklch(0.64 0.17 45);
+    --file-code: oklch(0.55 0.17 300);
+    --file-text: oklch(0.55 0.016 286);
+
+    --border: oklch(0.90 0.004 286.32);
+    --input: oklch(0.90 0.004 286.32);
+    --ring: oklch(0.57 0.18 253.49);
+
+    --chart-1: oklch(0.57 0.18 253.49);
+    --chart-2: oklch(0.55 0.14 149.5);
+    --chart-3: oklch(0.6534 0 0);
+    --chart-4: oklch(0.7316 0 0);
+    --chart-5: oklch(0.8078 0 0);
+
+    --radius: 0.5rem;
+    --shadow-2xs: 0px 4px 8px -1px hsl(0 0% 0% / 0.05);
+    --shadow-xs: 0px 4px 8px -1px hsl(0 0% 0% / 0.05);
+    --shadow-sm: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 1px 2px -2px hsl(0 0% 0% / 0.10);
+    --shadow: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 1px 2px -2px hsl(0 0% 0% / 0.10);
+    --shadow-md: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 2px 4px -2px hsl(0 0% 0% / 0.10);
+    --shadow-lg: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 4px 6px -2px hsl(0 0% 0% / 0.10);
+    --shadow-xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.10), 0px 8px 10px -2px hsl(0 0% 0% / 0.10);
+    --shadow-2xl: 0px 4px 8px -1px hsl(0 0% 0% / 0.25);
+    /* 图标轨使用最浅一档灰。 */
+    --sidebar: oklch(0.972 0.002 286);
+    --sidebar-foreground: oklch(0.35 0.006 286);
+    --sidebar-primary: oklch(0.57 0.18 253.49);
+    --sidebar-primary-foreground: oklch(1 0 0);
+    --sidebar-accent: oklch(0.90 0.045 253.49);
+    --sidebar-accent-foreground: oklch(0.42 0.10 253.49);
+    --sidebar-border: oklch(0.88 0.004 286);
+    --sidebar-ring: oklch(0.57 0.18 253.49);
+
+    /* 二级导航比图标轨略亮，接近内容区。 */
+    --sidebar-secondary: oklch(0.99 0.001 286);
+}
+
+.dark {
+    --background: oklch(0.141 0.005 285.823);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.21 0.006 285.885);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.21 0.006 285.885);
+    --popover-foreground: oklch(0.985 0 0);
+
+    --primary: oklch(0.6578 0.1846 253.49);
+    --primary-hover: oklch(0.60 0.18 253.49);
+    --primary-foreground: oklch(0.985 0 0);
+
+    --secondary: oklch(0.274 0.006 286.033);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.274 0.006 286.033);
+    --muted-foreground: oklch(0.705 0.015 286.067);
+
+    --accent: oklch(0.30 0.06 253.49);
+    --accent-foreground: oklch(0.90 0.03 253.49);
+
+    --destructive: oklch(0.704 0.191 22.216);
+    --destructive-foreground: oklch(0.985 0 0);
+    --success: oklch(0.6800 0.1500 149.5);
+    --warning: oklch(0.78 0.15 75);
+
+    --note: oklch(0.279 0.077 45.635 / 0.4);
+    --note-border: oklch(0.769 0.188 70.08 / 0.7);
+    --note-foreground: oklch(0.828 0.189 84.429);
+    --note-active: oklch(0.279 0.077 45.635);
+    --note-active-foreground: oklch(0.924 0.12 95.746);
+
+    --badge-website: oklch(0.68 0.15 285);
+    --badge-telegram: oklch(0.68 0.12 230);
+    --badge-wechat: oklch(0.6800 0.1500 149.5);
+
+    --file-pdf: oklch(0.70 0.17 25);
+    --file-word: oklch(0.70 0.14 258);
+    --file-sheet: oklch(0.72 0.13 150);
+    --file-slide: oklch(0.75 0.14 55);
+    --file-code: oklch(0.72 0.14 300);
+    --file-text: oklch(0.72 0.015 286);
+
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.6578 0.1846 253.49);
+
+    --chart-1: oklch(0.6578 0.1846 253.49);
+    --chart-2: oklch(0.6800 0.1500 149.5);
+    --chart-3: oklch(0.5452 0 0);
+    --chart-4: oklch(0.4604 0 0);
+    --chart-5: oklch(0.3715 0 0);
+
+    --sidebar: oklch(0.21 0.006 285.885);
+    --sidebar-foreground: oklch(0.90 0.003 286);
+    --sidebar-primary: oklch(0.6578 0.1846 253.49);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.30 0.06 253.49);
+    --sidebar-accent-foreground: oklch(0.90 0.03 253.49);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.6578 0.1846 253.49);
+
+    --sidebar-secondary: oklch(0.25 0.006 286);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground text-sm;
+    }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+    }
+  html {
+    @apply font-sans;
+    }
+  code, kbd, samp, pre {
+    @apply font-mono;
+    }
+}
+
+@layer components {
+  .app-phone-input {
+    @apply h-9 w-full rounded-md border border-input bg-transparent shadow-xs transition-[color,box-shadow];
+  }
+
+  .app-phone-input:focus-within {
+    @apply border-ring;
+  }
+
+  .app-phone-input:has(.PhoneInputInput[aria-invalid="true"]) {
+    @apply border-destructive ring-destructive/20 dark:ring-destructive/40;
+  }
+
+  .app-phone-input.PhoneInput--disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .app-phone-input .PhoneInputCountry {
+    @apply m-0 border-r px-3;
+  }
+
+  .app-phone-input .PhoneInputCountryIcon {
+    --PhoneInputCountryFlag-height: 1rem;
+  }
+
+  .app-phone-input .PhoneInputCountrySelectArrow {
+    @apply text-muted-foreground;
+  }
+
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+/* macOS 隐藏标题栏后为窗口按钮保留顶部空间。 */
+[data-native-os="darwin"] {
+  --app-macos-titlebar-height: 28px;
+}
+
+.app-window-drag-region {
+  display: none;
+}
+
+/*
+  窗口拖动区域统一显示箭头：光标为 auto 时 WebKit 会把按住拖动识别为文本选择而显示输入光标，
+  原生应用的标题栏始终是箭头。拖动区域内的输入框恢复文本光标。
+*/
+[data-native-os="darwin"][data-window-fullscreen="false"] :is(
+    .app-window-drag-region,
+    .app-workspace-rail,
+    .app-workspace-titlebar-actions,
+    .app-workspace-top-drag-region
+  ) {
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-native-os="darwin"][data-window-fullscreen="false"] .app-workspace-rail :is(input, textarea) {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+[data-native-os="darwin"][data-window-fullscreen="false"] > .app-window-drag-region {
+  --wails-draggable: drag;
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 40;
+  display: block;
+  height: var(--app-macos-titlebar-height);
+}
+
+[data-native-os="darwin"]:has(.app-workspace-shell, .app-conversation-window) > .app-window-drag-region {
+  display: none;
+}
+
+/* 会话独立窗口在 macOS 隐藏标题栏后为窗口按钮保留可拖动的顶部空间：留白显示箭头，内容区恢复默认光标。 */
+[data-native-os="darwin"][data-window-fullscreen="false"] .app-conversation-window {
+  --wails-draggable: drag;
+  cursor: default;
+  padding-top: var(--app-macos-titlebar-height);
+}
+
+[data-native-os="darwin"][data-window-fullscreen="false"] .app-conversation-window > * {
+  cursor: auto;
+}
+
+[data-native-os="darwin"] .app-conversation-window > * {
+  --wails-draggable: no-drag;
+}
+
+/*
+  工作台底层顶部略深，向下过渡回一级栏底色。
+  顶部间距分两组：标题栏操作行的高度和左侧让位按该行自身的按钮尺寸取值；
+  一级栏上沿在此基础上让开该行。标题栏操作行始终位于一级栏内，主内容卡片
+  不受该行影响，上沿只随平台变化。此处是 Web 端取值，卡片四周留白一致。
+*/
+.app-workspace-shell {
+  --app-workspace-chrome-top: color-mix(in oklab, var(--sidebar), black 3.5%);
+  /* 底部与顶部对称加深，主内容卡片底边与消息输入区的浅灰底拉开对比。 */
+  --app-workspace-chrome-bottom: color-mix(in oklab, var(--sidebar), black 3.5%);
+  --app-workspace-rail-width: 220px;
+  --app-workspace-content-inset: 6px;
+  --app-workspace-content-gutter: 10px;
+  --app-workspace-content-top: var(--app-workspace-content-gutter);
+  --app-workspace-rail-collapsed-width: 44px;
+  --app-workspace-rail-top-expanded: var(--app-workspace-content-gutter);
+  --app-workspace-rail-top: var(--app-workspace-rail-top-expanded);
+  --app-workspace-titlebar-height: 36px;
+  --app-workspace-titlebar-inset: 8px;
+  background:
+    radial-gradient(
+      ellipse 240px 420px at left top,
+      color-mix(in oklab, var(--sidebar-primary) 6%, transparent) 0%,
+      transparent 100%
+    ),
+    linear-gradient(
+      180deg,
+      var(--app-workspace-chrome-top) 0px,
+      var(--sidebar) 120px,
+      var(--sidebar) calc(100% - 120px),
+      var(--app-workspace-chrome-bottom) 100%
+    );
+}
+
+.dark .app-workspace-shell {
+  --app-workspace-chrome-top: color-mix(in oklab, var(--sidebar), black 20%);
+  /* 深色主题下消息输入区比工作台底色更暗，底部保持侧栏色即可形成对比。 */
+  --app-workspace-chrome-bottom: var(--sidebar);
+}
+
+.app-workspace-rail {
+  width: var(--app-workspace-rail-width);
+  padding-top: var(--app-workspace-rail-top);
+}
+
+/* 主内容卡片上沿按平台取值，右侧与底部留白一致。 */
+.app-workspace-content-frame {
+  margin: var(--app-workspace-content-top) var(--app-workspace-content-gutter)
+    var(--app-workspace-content-gutter) var(--app-workspace-content-inset);
+}
+
+/* 分栏页面由左栏和主区各自作为圆角卡片铺底色：主内容卡片本身透明、无阴影，两栏之间的缝透出工作台底色。 */
+@media (min-width: 48rem) {
+  .app-workspace-content-frame:has([data-slot="page-split"]) {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+/* 标题栏操作与窗口按钮同一水平线，macOS 上向右让开窗口按钮。 */
+.app-workspace-titlebar-actions {
+  height: var(--app-workspace-titlebar-height);
+  padding-left: var(--app-workspace-titlebar-inset);
+}
+
+/* Windows 与 Linux 桌面端使用系统标题栏，标题栏操作行位于一级栏顶部，主内容卡片上沿与 Web 一致。 */
+[data-native-os="windows"] .app-workspace-shell,
+[data-native-os="linux"] .app-workspace-shell {
+  --app-workspace-rail-top-expanded: 40px;
+  --app-workspace-titlebar-height: 40px;
+}
+
+/* macOS 主窗口隐藏标题栏，窗口按钮位于标准位置，顶部按其所占高度留白，左侧让开窗口按钮。 */
+[data-native-os="darwin"][data-window-fullscreen="false"] .app-workspace-shell {
+  --app-workspace-content-top: 36px;
+  --app-workspace-rail-top-expanded: 41px;
+  --app-workspace-titlebar-height: 34px;
+  --app-workspace-titlebar-inset: 80px;
+}
+
+/* macOS 全屏后窗口按钮移出内容区，主内容卡片四周留白一致，顶部间距只由标题栏操作行决定。 */
+[data-native-os="darwin"][data-window-fullscreen="true"] .app-workspace-shell {
+  --app-workspace-content-top: var(--app-workspace-content-gutter);
+  --app-workspace-rail-top-expanded: 40px;
+  --app-workspace-titlebar-height: 40px;
+}
+
+/*
+  一级栏收起为仅图标窄栏，宽度固定且不可拖动调整。Web、Windows 与 Linux 的收起开关改由窄栏自身渲染，
+  顶部留白使其与主内容卡片首行的 48px 行居中对齐：卡片上沿加该行半高 24px，
+  再减开关半高 14px。
+*/
+.app-workspace-shell[data-rail-collapsed="true"] {
+  --app-workspace-rail-width: var(--app-workspace-rail-collapsed-width);
+  --app-workspace-rail-top: calc(var(--app-workspace-content-top) + 10px);
+}
+
+/* macOS 窄栏的收起开关留在标题栏操作行，窄栏内容上沿与展开时一致；全屏时主内容卡片让开标题栏操作行。 */
+[data-native-os="darwin"] .app-workspace-shell[data-rail-collapsed="true"] {
+  --app-workspace-rail-top: var(--app-workspace-rail-top-expanded);
+}
+
+[data-native-os="darwin"][data-window-fullscreen="true"] .app-workspace-shell[data-rail-collapsed="true"] {
+  --app-workspace-content-top: var(--app-workspace-titlebar-height);
+}
+
+/* 一级栏整体、覆盖在其顶部的标题栏操作行和主内容卡片上方的空白区域用于拖动窗口。 */
+[data-native-os="darwin"][data-window-fullscreen="false"] :is(
+    .app-workspace-rail,
+    .app-workspace-titlebar-actions
+  ) {
+  --wails-draggable: drag;
+}
+
+[data-native-os="darwin"] :is(
+    .app-workspace-rail,
+    .app-workspace-titlebar-actions
+  ) :is(a, button, input) {
+  --wails-draggable: no-drag;
+}
+
+.app-workspace-top-drag-region {
+  display: none;
+}
+
+[data-native-os="darwin"][data-window-fullscreen="false"]
+  .app-workspace-top-drag-region {
+  --wails-draggable: drag;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--app-workspace-rail-width);
+  z-index: 20;
+  display: block;
+  height: var(--app-workspace-content-top);
+}
+
+/*
+  消息气泡正文与时间的收尾排版。时间默认浮动在正文末行右端；
+  Markdown 正文以段落或列表结尾时改为贴气泡右下角，并在末行尾部插入等宽占位；
+  带译文标签时时间区宽度不定，保持浮动排版，末行放不下时换到下一行。
+*/
+.app-message-body {
+  --app-message-time-space: 3.2em;
+}
+
+.app-message-body[data-delivery="true"] {
+  --app-message-time-space: 5em;
+}
+
+.app-message-body:not([data-translation="true"]):has(
+    .message-markdown > p:last-child,
+    .message-markdown > :is(ul, ol):last-child > li:last-child
+  )
+  .app-message-time {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  float: none;
+  margin-left: 0;
+}
+
+.app-message-body:not([data-translation="true"])
+  :is(
+    .message-markdown > p:last-child,
+    .message-markdown > :is(ul, ol):last-child > li:last-child
+  )::after {
+  display: inline-block;
+  width: var(--app-message-time-space);
+  content: "";
+}
+
+@keyframes message-location-highlight {
+  0%, 20% { background-color: color-mix(in oklch, var(--primary) 20%, transparent); }
+  100% { background-color: transparent; }
+}
+
+.message-location-highlight {
+  animation: message-location-highlight 2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-location-highlight {
+    animation: none;
+    background-color: color-mix(in oklch, var(--primary) 16%, transparent);
+  }
+}
+
+/*
+  主内容区的水平留白：窗口变宽时左右留白同步增长，把标题、工具栏和内容收在同一列内居中。
+  需要更宽内容的页面在根元素覆盖 --page-max。
+*/
+.app-page-gutter {
+  padding-inline: max(0.875rem, calc((100% - var(--page-max, 900px)) / 2));
+}
+
+@media (min-width: 40rem) {
+  .app-page-gutter {
+    padding-inline: max(1.25rem, calc((100% - var(--page-max, 900px)) / 2));
+  }
+}
+
+/*
+  表单的统一字段样式：字段间距放宽，字段内的输入框、下拉框和多行文本框加高、加大圆角并带浅色底；电话输入以外层容器作为整体控件。
+  由表单页内容区和弹窗、侧滑面板容器启用；只作用于表单字段内的控件，列表、表格和工具栏里的输入框保持组件默认样式。
+*/
+.app-form [data-slot=field-group] {
+  gap: 1.5rem;
+}
+
+.app-form [data-slot=field] :is([data-slot=input]:not(.PhoneInputInput), .app-phone-input, [data-slot=native-select], [data-slot=select-trigger]) {
+  height: 2.75rem;
+}
+
+.app-form [data-slot=field] :is([data-slot=input]:not(.PhoneInputInput), .app-phone-input, [data-slot=native-select], [data-slot=select-trigger], [data-slot=textarea]) {
+  border-radius: var(--radius);
+  background-color: color-mix(in oklab, var(--muted) 60%, transparent);
+}
+
+.dark .app-form [data-slot=field] :is([data-slot=input]:not(.PhoneInputInput), .app-phone-input, [data-slot=native-select], [data-slot=select-trigger], [data-slot=textarea]) {
+  background-color: color-mix(in oklab, var(--muted) 50%, transparent);
+}

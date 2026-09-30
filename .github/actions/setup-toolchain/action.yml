@@ -1,0 +1,82 @@
+name: Setup toolchain
+description: 安装 Node.js、Go 与 wails3 CLI，并恢复指定任务的 Go 缓存。
+
+inputs:
+  go-cache:
+    description: Go 缓存名称，每个任务使用独立名称。
+    required: true
+
+outputs:
+  go-cache-key:
+    description: 本次提交对应的 Go 缓存键。
+    value: ${{ steps.toolchain.outputs.cache-key }}
+  go-cache-paths:
+    description: Go 模块缓存与构建缓存目录。
+    value: ${{ steps.toolchain.outputs.cache-paths }}
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      with:
+        node-version: "24"
+        cache: npm
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Setup Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+      with:
+        go-version-file: go.mod
+        cache: false
+
+    - name: Resolve Go toolchain paths
+      id: toolchain
+      shell: bash
+      env:
+        GO_CACHE_PREFIX: go-${{ inputs.go-cache }}-${{ runner.os }}-${{ hashFiles('go.sum') }}
+      run: |
+        {
+          echo "cache-prefix=${GO_CACHE_PREFIX}-"
+          echo "cache-key=${GO_CACHE_PREFIX}-${GITHUB_SHA}"
+          echo "cache-paths<<EOF"
+          go env GOMODCACHE
+          go env GOCACHE
+          echo "EOF"
+          echo "gobin=$(go env GOPATH)/bin"
+          echo "wails=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+        } >> "$GITHUB_OUTPUT"
+        echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+    # 缓存键带提交 SHA，按前缀恢复默认分支最近一次保存的构建缓存；保存只在默认分支进行。
+    - name: Restore Go cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.toolchain.outputs.cache-paths }}
+        key: ${{ steps.toolchain.outputs.cache-key }}
+        restore-keys: |
+          ${{ steps.toolchain.outputs.cache-prefix }}
+          go-${{ inputs.go-cache }}-${{ runner.os }}-
+
+    - name: Restore wails3 CLI
+      id: wails-cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.toolchain.outputs.gobin }}/wails3
+        key: wails3-static-${{ runner.os }}-${{ steps.toolchain.outputs.wails }}
+
+    # CLI 静态链接，不依赖桌面端系统库，服务端任务无需安装 GTK 与 WebKit。
+    - name: Install wails3 CLI
+      if: steps.wails-cache.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        CGO_ENABLED: "0"
+        WAILS_VERSION: ${{ steps.toolchain.outputs.wails }}
+      run: go install "github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION}"
+
+    - name: Save wails3 CLI
+      if: steps.wails-cache.outputs.cache-hit != 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.toolchain.outputs.gobin }}/wails3
+        key: wails3-static-${{ runner.os }}-${{ steps.toolchain.outputs.wails }}

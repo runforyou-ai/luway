@@ -1,0 +1,259 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  # Keep the required check available if a merge queue is enabled later.
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    name: Server
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # 依赖服务在后台构建与启动，与工具链准备和前端构建并行。
+      - name: Start integration test dependencies
+        shell: bash
+        run: |
+          cp .env.example .env
+          nohup docker compose up -d --wait postgres nats > "$RUNNER_TEMP/compose.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/compose.pid"
+
+      - name: Setup toolchain
+        id: toolchain
+        uses: ./.github/actions/setup-toolchain
+        with:
+          go-cache: server
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # 服务端 go:embed 只需要 Messenger 产物和非空的 frontend/dist；前端生产构建由 Desktop 任务检查。
+      - name: Prepare embedded frontend assets
+        run: |
+          mkdir -p frontend/dist
+          echo '<!doctype html><title>App</title>' > frontend/dist/index.html
+          wails3 task common:build:messenger
+
+      - name: Vet Go server build
+        env:
+          CGO_ENABLED: "0"
+        run: go vet -tags=server ./...
+
+      - name: Wait for integration test dependencies
+        shell: bash
+        run: |
+          compose_pid="$(cat "$RUNNER_TEMP/compose.pid")"
+          while kill -0 "$compose_pid" 2>/dev/null; do sleep 1; done
+          cat "$RUNNER_TEMP/compose.log"
+          docker compose up -d --wait postgres nats
+
+      - name: Test Go server build
+        run: wails3 task test:server
+
+      - name: Save Go cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.toolchain.outputs.go-cache-paths }}
+          key: ${{ steps.toolchain.outputs.go-cache-key }}
+
+  desktop:
+    name: Desktop
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup toolchain
+        id: toolchain
+        uses: ./.github/actions/setup-toolchain
+        with:
+          go-cache: desktop
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            pkg-config \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev
+
+      - name: Check Wails version alignment
+        shell: bash
+        run: |
+          go_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          go_version="${go_version#v}"
+          runtime_version="$(node -p "require('./frontend/package.json').dependencies['@wailsio/runtime']")"
+          if [[ "$runtime_version" != "$go_version" ]]; then
+            echo "Wails version mismatch: Go=$go_version, frontend=$runtime_version"
+            exit 1
+          fi
+
+      - name: Check generated application service adapters
+        shell: bash
+        run: |
+          go generate ./internal/appservice
+          generated_changes="$(git status --short --untracked-files=all -- \
+            internal/appservice/service_gen.go \
+            internal/api/service_gen.go \
+            internal/apiproxy/backend_gen.go)"
+          if [[ -n "$generated_changes" ]]; then
+            echo "Application service adapters are out of date:"
+            printf '%s\n' "$generated_changes"
+            git diff -- \
+              internal/appservice/service_gen.go \
+              internal/api/service_gen.go \
+              internal/apiproxy/backend_gen.go
+            exit 1
+          fi
+
+      - name: Check generated Wails bindings
+        shell: bash
+        run: |
+          wails3 generate bindings -clean=true -ts -i
+          git diff --exit-code -- go.mod go.sum frontend/bindings
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Test frontend message windows
+        run: wails3 task test:frontend
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Check Go formatting
+        shell: bash
+        run: |
+          mapfile -d '' files < <(git ls-files -z -- '*.go')
+          unformatted="$(gofmt -l "${files[@]}")"
+          if [[ -n "$unformatted" ]]; then
+            echo "These Go files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Verify Go modules
+        run: |
+          go mod verify
+          go mod tidy -diff
+
+      - name: Test Go Linux desktop build
+        run: wails3 task test:desktop
+
+      - name: Save Go cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.toolchain.outputs.go-cache-paths }}
+          key: ${{ steps.toolchain.outputs.go-cache-key }}
+
+  container:
+    name: Container
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Resolve Go cache key
+        id: go-cache
+        shell: bash
+        env:
+          GO_CACHE_PREFIX: go-container-${{ runner.os }}-${{ hashFiles('go.sum') }}
+        run: |
+          {
+            echo "prefix=${GO_CACHE_PREFIX}-"
+            echo "key=${GO_CACHE_PREFIX}-${GITHUB_SHA}"
+            echo "dir=${RUNNER_TEMP}/go-cache"
+          } >> "$GITHUB_OUTPUT"
+
+      # 缓存键带提交 SHA，按前缀恢复默认分支最近一次保存的镜像内 Go 缓存；保存只在默认分支进行。
+      - name: Restore Go cache
+        if: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.go-cache.outputs.dir }}
+          key: ${{ steps.go-cache.outputs.key }}
+          restore-keys: |
+            ${{ steps.go-cache.outputs.prefix }}
+            go-container-${{ runner.os }}-
+
+      # 默认分支在任务结束时保存缓存，保存发生在缓存挂载导出之后。
+      - name: Restore and save Go cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.go-cache.outputs.dir }}
+          key: ${{ steps.go-cache.outputs.key }}
+          restore-keys: |
+            ${{ steps.go-cache.outputs.prefix }}
+            go-container-${{ runner.os }}-
+
+      # 把 Go 缓存注入 BuildKit 缓存挂载；默认分支在任务结束时导出回缓存目录。
+      - name: Inject Go cache into BuildKit
+        uses: reproducible-containers/buildkit-cache-dance@5422eac04292c961a382e0f584ea0f03ad9da723 # v3.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          scratch-dir: ${{ runner.temp }}/buildkit-cache-dance
+          cache-map: |
+            {
+              "${{ steps.go-cache.outputs.dir }}/mod": "/go/pkg/mod",
+              "${{ steps.go-cache.outputs.dir }}/build": "/root/.cache/go-build"
+            }
+          skip-extraction: ${{ !(github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+
+      - name: Build server image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: build/docker/Dockerfile.server
+          push: false
+          tags: app:ci
+          cache-from: type=gha
+          cache-to: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'type=gha,mode=min,ignore-error=true' || '' }}

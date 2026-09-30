@@ -1,0 +1,26 @@
+.task
+.env
+bin
+frontend/dist
+frontend/node_modules
+internal/publicweb/dist
+/data/
+/experiments/
+build/linux/appimage/build
+build/darwin/Assets.car
+build/windows/nsis/MicrosoftEdgeWebview2Setup.exe
+# Mobile generated (per-machine; overlays hold absolute paths)
+build/ios/xcode/
+build/android/overlay.json
+build/android/gen/
+build/android/.gradle/
+build/android/build/
+build/android/app/build/
+build/android/app/src/main/jniLibs/
+.idea/
+.codex/
+
+# Python processing artifacts
+__pycache__/
+*.pyc
+/cervi

@@ -1,0 +1,4 @@
+# 固定 PostgreSQL 18、pgvector 0.8.6 和 Debian Bookworm 的多架构镜像。
+FROM pgvector/pgvector:0.8.6-pg18-bookworm@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+
+COPY build/docker/00-init-schemas.sql /docker-entrypoint-initdb.d/00-init-schemas.sql

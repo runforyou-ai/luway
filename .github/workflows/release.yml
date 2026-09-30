@@ -1,0 +1,650 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to build without publishing, for example 0.1.0
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      publish: ${{ steps.version.outputs.publish }}
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "push" ]]; then
+            tag="$GITHUB_REF_NAME"
+            publish=true
+            git fetch --no-tags origin main
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+              echo "Release tag must point to a commit on main: $GITHUB_SHA"
+              exit 1
+            fi
+          else
+            tag="v${INPUT_VERSION#v}"
+            publish=false
+          fi
+
+          if [[ ! "$tag" =~ ^v([0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?)$ ]]; then
+            echo "Version must be a semantic version such as v0.1.0 or v0.1.0-beta.1: $tag"
+            exit 1
+          fi
+
+          version="${tag#v}"
+          prerelease=false
+          if [[ "$version" == *-* ]]; then
+            prerelease=true
+          fi
+
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+  server-assets:
+    name: Server assets
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build server archives
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          slug="$(jq -r .slug internal/common/brand/brand.json)"
+          mkdir -p release-assets release-stage
+
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            target_os="${target%/*}"
+            target_arch="${target#*/}"
+            executable="${slug}-server"
+            if [[ "$target_os" == "windows" ]]; then
+              executable="${slug}-server.exe"
+            fi
+
+            rm -rf release-stage/*
+            CGO_ENABLED=0 GOOS="$target_os" GOARCH="$target_arch" go build \
+              -tags=server,production \
+              -trimpath \
+              -buildvcs=false \
+              -ldflags="-w -s" \
+              -o "release-stage/$executable" \
+              .
+
+            asset="${slug}-server_${VERSION}_${target_os}_${target_arch}"
+            if [[ "$target_os" == "windows" ]]; then
+              (cd release-stage && zip -q "../release-assets/${asset}.zip" "$executable")
+            else
+              tar -C release-stage -czf "release-assets/${asset}.tar.gz" "$executable"
+            fi
+          done
+
+      - name: Upload server assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: server-assets
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+  linux-desktop-assets:
+    name: Linux desktop assets
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install Linux packaging dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            libfuse2t64 \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev \
+            pkg-config \
+            rpm
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          wails_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@${wails_version}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Set package version
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: go run build/scripts/set_release_version.go "$VERSION" "$BUILD_NUMBER"
+
+      - name: Build Linux packages
+        env:
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GOARCH: amd64
+          VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          slug="$(jq -r .slug internal/common/brand/brand.json)"
+          wails3 task linux:package ARCH=amd64
+
+          mkdir -p release-assets release-stage
+          cp "bin/${slug}" "release-stage/${slug}"
+          tar -C release-stage -czf "release-assets/${slug}_${VERSION}_linux_amd64.tar.gz" "${slug}"
+
+          find bin -maxdepth 1 -type f ! -name "${slug}" -exec cp {} release-assets/ \;
+          test "$(find release-assets -maxdepth 1 -type f | wc -l)" -gt 1
+
+      - name: Upload Linux desktop assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: linux-desktop-assets
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+  windows-desktop-assets:
+    name: Windows ${{ matrix.arch }} desktop assets
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: windows-2025
+          - arch: arm64
+            runner: windows-11-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          $nsisDirectory = "${env:ProgramFiles(x86)}\NSIS"
+          if (-not (Test-Path "$nsisDirectory\makensis.exe")) {
+            choco install nsis --yes --no-progress
+          }
+          if (-not (Test-Path "$nsisDirectory\makensis.exe")) {
+            throw "makensis.exe was not found in $nsisDirectory"
+          }
+          $nsisDirectory | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          wails_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@${wails_version}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Set package version
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: go run build/scripts/set_release_version.go "$VERSION" "$BUILD_NUMBER"
+
+      - name: Build Windows installers
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          slug="$(jq -r .slug internal/common/brand/brand.json)"
+          arch="${{ matrix.arch }}"
+          if [[ "$arch" == "arm64" ]]; then
+            export CC=clang
+            export CXX=clang++
+          fi
+          wails3 task windows:package ARCH="$arch" INSTALL_SCOPE=user
+
+          mkdir -p release-assets
+          cp "bin/${slug}-${arch}-installer.exe" "release-assets/${slug}_${VERSION}_windows_${arch}-installer.exe"
+
+      - name: Upload Windows desktop assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: windows-${{ matrix.arch }}-desktop-assets
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+  darwin-desktop-assets:
+    name: macOS desktop assets
+    needs: prepare
+    runs-on: macos-15
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          wails_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@${wails_version}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Set package version
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: go run build/scripts/set_release_version.go "$VERSION" "$BUILD_NUMBER"
+
+      - name: Build universal macOS package
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          slug="$(jq -r .slug internal/common/brand/brand.json)"
+          wails3 task darwin:package:universal
+          wails3 task darwin:create:dmg
+
+          mkdir -p release-assets "${slug}_${VERSION}_darwin_universal"
+          cp -R "bin/${slug}.app" "${slug}_${VERSION}_darwin_universal/"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "${slug}_${VERSION}_darwin_universal" \
+            "release-assets/${slug}_${VERSION}_darwin_universal.zip"
+
+          dmg="$(find bin -maxdepth 1 -type f -name '*.dmg' -print -quit)"
+          test -n "$dmg"
+          cp "$dmg" "release-assets/${slug}_${VERSION}_darwin_universal.dmg"
+
+      - name: Upload macOS desktop assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: darwin-desktop-assets
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+  android-assets:
+    name: Android assets
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Setup Java
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            build/android/*.gradle
+            build/android/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev \
+            pkg-config
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          wails_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@${wails_version}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Set package version
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: go run build/scripts/set_release_version.go "$VERSION" "$BUILD_NUMBER"
+
+      - name: Build Android packages with debug keystore
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          slug="$(jq -r .slug internal/common/brand/brand.json)"
+          wails3 task android:package:fat
+          wails3 task android:assemble:aab:release
+
+          mkdir -p release-assets
+          cp "bin/${slug}.apk" "release-assets/${slug}_${VERSION}_android.apk"
+          cp "bin/${slug}.aab" "release-assets/${slug}_${VERSION}_android.aab"
+
+      - name: Upload Android assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: android-assets
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+  ios-assets:
+    name: iOS simulator assets
+    needs: prepare
+    runs-on: macos-15
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Install Wails CLI
+        shell: bash
+        run: |
+          wails_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          go install "github.com/wailsapp/wails/v3/cmd/wails3@${wails_version}"
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Set package version
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: go run build/scripts/set_release_version.go "$VERSION" "$BUILD_NUMBER"
+
+      - name: Build iOS simulator package
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          slug="$(jq -r .slug internal/common/brand/brand.json)"
+          wails3 task ios:package IOS_PLATFORM=simulator ARCH=arm64
+
+          mkdir -p release-assets "${slug}_${VERSION}_ios_simulator_arm64"
+          cp -R "bin/${slug}.app" "${slug}_${VERSION}_ios_simulator_arm64/"
+          ditto -c -k --sequesterRsrc --keepParent \
+            "${slug}_${VERSION}_ios_simulator_arm64" \
+            "release-assets/${slug}_${VERSION}_ios_simulator_arm64.zip"
+
+      - name: Upload iOS assets
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ios-assets
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+  container:
+    name: Server container
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Login to GitHub Container Registry
+        if: needs.prepare.outputs.publish == 'true'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare container metadata
+        id: metadata
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}-server
+          tags: |
+            type=raw,value=${{ needs.prepare.outputs.version }}
+            type=raw,value=latest,enable=${{ needs.prepare.outputs.prerelease == 'false' }}
+
+      - name: Build and optionally push container
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: build/docker/Dockerfile.server
+          platforms: linux/amd64,linux/arm64
+          push: ${{ needs.prepare.outputs.publish == 'true' }}
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+
+      - name: Attest published container
+        if: needs.prepare.outputs.publish == 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-name: ghcr.io/${{ github.repository }}-server
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  publish:
+    name: Publish GitHub release
+    if: needs.prepare.outputs.publish == 'true'
+    needs:
+      - prepare
+      - server-assets
+      - linux-desktop-assets
+      - windows-desktop-assets
+      - darwin-desktop-assets
+      - android-assets
+      - ios-assets
+      - container
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      attestations: write
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: "*-assets"
+          path: release-assets
+          merge-multiple: true
+
+      - name: Create checksums
+        working-directory: release-assets
+        run: sha256sum * > SHA256SUMS
+
+      - name: Attest release assets
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-path: release-assets/*
+
+      - name: Publish release
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        shell: bash
+        run: |
+          notes="$(cat <<'EOF'
+          当前尚未配置各平台的正式签名证书：Windows 安装程序未执行 Authenticode 签名，macOS 应用仅使用 ad-hoc 签名，Android 使用 debug keystore，iOS 资产仅适用于模拟器。
+          EOF
+          )"
+          args=(--verify-tag --generate-notes --notes "$notes")
+          if [[ "$PRERELEASE" == "true" ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$TAG" "${args[@]}" release-assets/*

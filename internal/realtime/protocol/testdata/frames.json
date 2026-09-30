@@ -1,0 +1,194 @@
+[
+  {
+    "name": "server_hello",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "server_hello", "data": {"connectionId": "conn-01", "syncHeads": {"conversationCount": 3, "conversationChecksum": "18446744073709551615", "identityProfileVersion": "9223372036854775807", "pinOrderVersion": "12"}}}
+  },
+  {
+    "name": "visitor_hello",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "visitor_hello", "data": {"connectionId": "conn-02"}}
+  },
+  {
+    "name": "ping",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "ping", "data": {}}
+  },
+  {
+    "name": "conversation_changed",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "conversation_changed", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "conversationType": "group", "version": "9223372036854775807", "changes": ["timeline", "participants"]}}
+  },
+  {
+    "name": "conversation_state_changed",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "conversation_state_changed", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "version": "42"}}
+  },
+  {
+    "name": "identity_profile_changed",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "identity_profile_changed", "data": {"version": "9007199254740993"}}
+  },
+  {
+    "name": "pin_order_changed",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "pin_order_changed", "data": {"version": "5"}}
+  },
+  {
+    "name": "service_attention",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "service_attention", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "serviceSessionId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8e", "reason": "assigned"}}
+  },
+  {
+    "name": "conversation_removed",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "conversation_removed", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b"}}
+  },
+  {
+    "name": "conversation_typing",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "conversation_typing", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "senderSubjectId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8d", "active": true}}
+  },
+  {
+    "name": "conversation_typing_stopped",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "conversation_typing", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "senderSubjectId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8d", "active": false}}
+  },
+  {
+    "name": "visitor_typing",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "visitor_typing", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "active": true}}
+  },
+  {
+    "name": "reception_changed",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "reception_changed", "data": {}}
+  },
+  {
+    "name": "knowledge_gaps_changed",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "knowledge_gaps_changed", "data": {}}
+  },
+  {
+    "name": "service_reports_changed",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "service_reports_changed", "data": {}}
+  },
+  {
+    "name": "conversation_typing_active_not_boolean",
+    "result": "invalid",
+    "wire": {"v": 1, "type": "conversation_typing", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "senderSubjectId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8d", "active": "true"}}
+  },
+  {
+    "name": "conversation_changed_extra_fields",
+    "result": "frame",
+    "wire": {"v": 1, "type": "conversation_changed", "trace": "t-1", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "conversationType": "channel", "version": "7", "preview": "ignored"}}
+  },
+  {
+    "name": "ping_without_data",
+    "result": "frame",
+    "wire": {"v": 1, "type": "ping"}
+  },
+  {
+    "name": "run_stream_snapshot",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "run_stream_snapshot", "data": {"runId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "streamId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8c", "attempt": 1, "sequence": "7", "part": 0, "partCount": 2, "candidateContent": "根据知识库的记录，", "plan": [{"id": "1", "subject": "核对退款政策", "activeForm": "正在核对退款政策", "status": "in_progress"}, {"id": "2", "subject": "整理答复", "status": "pending"}], "blocks": [{"id": "block-1", "position": "1", "kind": "thinking", "text": "先确认退款政策"}, {"id": "block-2", "position": "2", "kind": "tool_call", "toolCall": {"name": "search_knowledge", "status": "running", "startedAt": "2026-09-15T12:00:00Z"}}, {"id": "block-3", "position": "3", "kind": "tool_call", "toolCall": {"name": "agent", "status": "running", "startedAt": "2026-09-15T12:00:00Z", "description": "查询历史订单", "activity": "web_search"}}]}}
+  },
+  {
+    "name": "run_stream_snapshot_empty",
+    "result": "frame",
+    "wire": {"v": 1, "type": "run_stream_snapshot", "data": {"runId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "streamId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8c", "attempt": 1, "sequence": "0", "part": 0, "partCount": 1, "blocks": []}}
+  },
+  {
+    "name": "run_stream_delta",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "run_stream_delta", "data": {"runId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "streamId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8c", "attempt": 1, "baseSequence": "7", "sequence": "9", "operations": [{"kind": "append_block_text", "blockId": "block-1", "text": "，再给出答复"}, {"kind": "upsert_block", "block": {"id": "block-2", "position": "2", "kind": "tool_call", "toolCall": {"name": "search_knowledge", "status": "succeeded", "startedAt": "2026-09-15T12:00:00Z", "completedAt": "2026-09-15T12:00:03Z"}}}, {"kind": "remove_blocks", "blockIds": ["block-3"]}, {"kind": "clear_candidate"}, {"kind": "append_candidate", "text": "退款需要在 7 天内提交。"}, {"kind": "set_plan", "plan": [{"id": "1", "subject": "核对退款政策", "status": "completed"}]}]}}
+  },
+  {
+    "name": "run_stream_ended",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "run_stream_ended", "data": {"runId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b"}}
+  },
+  {
+    "name": "run_stream_sequence_unquoted",
+    "result": "invalid",
+    "wire": {"v": 1, "type": "run_stream_delta", "data": {"runId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "streamId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8c", "attempt": 1, "baseSequence": 7, "sequence": "9", "operations": []}}
+  },
+  {
+    "name": "unknown_type",
+    "result": "ignored",
+    "wire": {"v": 1, "type": "future_event", "data": {"id": "future-01"}}
+  },
+  {
+    "name": "unsupported_version",
+    "result": "unsupported_version",
+    "wire": {"v": 2, "type": "conversation_changed", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "version": "7"}}
+  },
+  {
+    "name": "missing_version",
+    "result": "unsupported_version",
+    "wire": {"type": "ping", "data": {}}
+  },
+  {
+    "name": "version_not_numeric",
+    "result": "invalid",
+    "wire": {"v": 1, "type": "conversation_changed", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "conversationType": "direct", "version": "abc"}}
+  },
+  {
+    "name": "version_overflow",
+    "result": "invalid",
+    "wire": {"v": 1, "type": "identity_profile_changed", "data": {"version": "9223372036854775808"}}
+  },
+  {
+    "name": "version_unquoted",
+    "result": "invalid",
+    "wire": {"v": 1, "type": "conversation_state_changed", "data": {"conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "version": 42}}
+  },
+  {
+    "name": "data_not_object",
+    "result": "invalid",
+    "wire": {"v": 1, "type": "conversation_removed", "data": ["0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b"]}
+  },
+  {
+    "name": "device_work_advanced",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "device_work_advanced", "data": {"deviceId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a90", "workSeq": "9223372036854775807"}}
+  },
+  {
+    "name": "assistant_memory_changed",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "assistant_memory_changed", "data": {"assistantId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a91"}}
+  },
+  {
+    "name": "workspace_activity",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "workspace_activity", "data": {"workspaceId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a92", "kind": "conversation_changed", "conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "changes": ["timeline"]}}
+  },
+  {
+    "name": "workspace_activity_service_attention",
+    "result": "frame",
+    "encode": true,
+    "wire": {"v": 1, "type": "workspace_activity", "data": {"workspaceId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a92", "kind": "service_attention", "conversationId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", "changes": [], "serviceSessionId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a93", "reason": "assigned"}}
+  }
+]

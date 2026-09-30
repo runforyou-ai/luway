@@ -1,0 +1,368 @@
+version: '3'
+
+dotenv:
+  - .env
+
+vars:
+  APP_NAME: "luway"
+  APP_DISPLAY_NAME: "Luway"
+  APP_DESCRIPTION: "Luway is an open-source AI customer support teammate platform."
+  BIN_DIR: "bin"
+  CGO_ENABLED: "1"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  GOOS: '{{.GOOS | default OS}}'
+
+includes:
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+  ios: ./build/ios/Taskfile.yml
+  android: ./build/android/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{.GOOS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{.GOOS}}:package"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{.GOOS}}:run"
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  dev:mcp:
+    summary: Runs the application in development mode with desktop MCP enabled
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+    env:
+      WAILS_MCP: "1"
+
+  env:check:
+    silent: true
+    summary: 校验当前工作区开发环境
+    deps:
+      - env:check:server
+
+  env:check:database:
+    silent: true
+    run: once
+    summary: 校验当前工作区数据库环境
+    preconditions:
+      - sh: '{{if .POSTGRES_HOST}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 POSTGRES_HOST"
+      - sh: '{{if regexMatch "^[1-9][0-9]{0,4}$" .POSTGRES_PORT}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置有效的 POSTGRES_PORT"
+      - sh: '{{if .POSTGRES_USER}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 POSTGRES_USER"
+      - sh: '{{if .POSTGRES_PASSWORD}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 POSTGRES_PASSWORD"
+      - sh: '{{if regexMatch "^[a-z][a-z0-9_]{0,57}$" .POSTGRES_DB}}true{{else}}false{{end}}'
+        msg: "POSTGRES_DB 必须以小写字母开头，只包含小写字母、数字和下划线，且不超过 58 个字符"
+      - sh: '{{if regexMatch "_test$" .POSTGRES_DB}}false{{else}}true{{end}}'
+        msg: "POSTGRES_DB 不得以 _test 结尾，该后缀保留给当前工作区测试数据库"
+      - sh: '{{if regexMatch "^(disable|allow|prefer|require|verify-ca|verify-full)$" .POSTGRES_SSLMODE}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置有效的 POSTGRES_SSLMODE"
+    cmds:
+      - 'echo "PostgreSQL {{.POSTGRES_HOST}}:{{.POSTGRES_PORT}}/{{.POSTGRES_DB}}"'
+
+  env:check:server:
+    silent: true
+    summary: 校验当前工作区服务端环境
+    deps:
+      - env:check:database
+    preconditions:
+      - sh: '{{if .WAILS_SERVER_PORT}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 WAILS_SERVER_PORT"
+      - sh: '{{if .NATS_URL}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 NATS_URL"
+      - sh: '{{if regexMatch "^[a-z0-9][a-z0-9_-]*$" .NATS_NAMESPACE}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置有效的 NATS_NAMESPACE"
+    cmds:
+      - 'echo "Server {{.WAILS_SERVER_PORT}}，NATS {{.NATS_NAMESPACE}}"'
+
+  db:ensure:
+    silent: true
+    summary: 确保当前工作区数据库已创建
+    deps:
+      - env:check:database
+    preconditions:
+      - sh: docker info >/dev/null 2>&1
+        msg: "Docker 未运行，无法连接 PostgreSQL 容器"
+    cmds:
+      - |
+        set -euo pipefail
+        exists=$(docker compose exec -T postgres \
+          psql -U "{{.POSTGRES_USER}}" -d postgres -tAc \
+          "SELECT 1 FROM pg_database WHERE datname = '{{.POSTGRES_DB}}'")
+        if [ "$exists" = "1" ]; then
+          echo "数据库 {{.POSTGRES_DB}} 已存在"
+        else
+          docker compose exec -T postgres \
+            createdb -U "{{.POSTGRES_USER}}" "{{.POSTGRES_DB}}"
+          echo "已创建数据库 {{.POSTGRES_DB}}"
+        fi
+
+  db:test:reset:
+    internal: true
+    silent: true
+    summary: 重建当前工作区测试数据库
+    deps:
+      - env:check:database
+    preconditions:
+      - sh: docker info >/dev/null 2>&1
+        msg: "Docker 未运行，无法连接 PostgreSQL 容器"
+    cmds:
+      - |
+        set -euo pipefail
+        test_database="{{.POSTGRES_DB}}_test"
+        docker compose exec -T postgres \
+          dropdb --force --if-exists -U "{{.POSTGRES_USER}}" \
+          --maintenance-db postgres "$test_database"
+        docker compose exec -T postgres \
+          createdb -U "{{.POSTGRES_USER}}" \
+          --maintenance-db postgres "$test_database"
+        echo "已重建测试数据库 $test_database"
+
+  db:list:
+    silent: true
+    summary: 查看共享 PostgreSQL 中的数据库
+    deps:
+      - env:check:database
+    preconditions:
+      - sh: docker info >/dev/null 2>&1
+        msg: "Docker 未运行，无法连接 PostgreSQL 容器"
+    cmds:
+      - docker compose exec -T postgres psql -U "{{.POSTGRES_USER}}" -d postgres -c '\l'
+
+  setup:docker:
+    summary: Builds Docker image for cross-compilation (~800MB download)
+    cmds:
+      - task: common:setup:docker
+
+  build:server:
+    summary: Builds the application in server mode (no GUI, HTTP server only)
+    cmds:
+      - task: common:build:server
+
+  run:server:
+    summary: Runs the application in server mode
+    deps:
+      - env:check:server
+    cmds:
+      - task: common:run:server
+
+  brand:apply:
+    summary: 把构建品牌同步到各平台打包元数据；PROFILE 指向品牌目录时先替换品牌文件和图标
+    cmds:
+      - go run ./build/scripts/applybrand {{.PROFILE}}
+
+  generate:appservice:
+    summary: 生成应用服务、HTTP 和代理适配层
+    cmds:
+      - go generate ./internal/appservice
+
+  build:docker:
+    summary: Builds a Docker image for server mode deployment
+    cmds:
+      - task: common:build:docker
+
+  run:docker:
+    summary: Builds and runs the Docker image
+    cmds:
+      - task: common:run:docker
+
+  test:
+    summary: 运行前端、服务端和当前平台桌面端测试
+    cmds:
+      - task: test:frontend
+      - task: test:server
+      - task: test:desktop
+
+  test:frontend:
+    summary: 验证消息窗口、Markdown 和流式正文行为
+    deps:
+      - common:build:messenger
+    cmds:
+      - node --test frontend/tests/*.test.ts
+
+  test:server:
+    silent: true
+    summary: 使用当前工作区测试数据库运行服务端测试
+    deps:
+      - check:pkg
+      - check:deps
+      - db:test:reset
+      - common:build:messenger
+    preconditions:
+      - sh: '{{if .NATS_URL}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 NATS_URL"
+    cmds:
+      - go test -count=1 -parallel=8 -tags=server,testhash ./...
+    env:
+      CGO_ENABLED: "0"
+      TEST_POSTGRES_HOST: "{{.POSTGRES_HOST}}"
+      TEST_POSTGRES_PORT: "{{.POSTGRES_PORT}}"
+      TEST_POSTGRES_USER: "{{.POSTGRES_USER}}"
+      TEST_POSTGRES_PASSWORD: "{{.POSTGRES_PASSWORD}}"
+      TEST_POSTGRES_DB: "{{.POSTGRES_DB}}_test"
+      TEST_POSTGRES_SSLMODE: "{{.POSTGRES_SSLMODE}}"
+      TEST_NATS_URL: "{{.NATS_URL}}"
+
+  test:desktop:
+    silent: true
+    summary: 运行当前平台桌面端测试
+    deps:
+      - check:pkg
+      - check:deps
+    cmds:
+      - go test -count=1 -tags=testhash ./...
+    env:
+      CGO_ENABLED: "1"
+
+  check:pkg:
+    silent: true
+    summary: 校验 pkg 下的包及其测试在各构建标签组合下不依赖 internal
+    cmds:
+      - |
+        for tags in "" testhash server server,testhash; do
+          packages=$(go list -deps -test -tags="$tags" ./pkg/...) || exit 1
+          deps=$(echo "$packages" | grep '^github.com/runforyou-ai/cervi/internal/' || true)
+          if [ -n "$deps" ]; then
+            echo "pkg 不得依赖 internal（tags=$tags）：$deps"
+            exit 1
+          fi
+        done
+
+  check:deps:
+    silent: true
+    summary: 校验原生端构建不依赖服务端实现，移动端构建不依赖本机 Agent 运行能力
+    cmds:
+      - |
+        server='^github.com/runforyou-ai/cervi/internal/(appservice/direct|actions|api|storage/server|task|ingress|config/server|publicweb|realtime|realtime/gateway|servertest|integrationtest)(/|$)'
+        mobile='^github.com/runforyou-ai/cervi/internal/(devicehost|integration/(agentruntime|toolchain|localmcp|localskill|localworkspace|mcp|websearch|knowledgeretrieval))(/|$)'
+        for target in darwin: windows: linux: ios:ios android:android; do
+          goos=${target%%:*}
+          tags=${target#*:}
+          packages=$(GOOS=$goos GOARCH=arm64 CGO_ENABLED=1 go list -deps -tags="$tags" .) || exit 1
+          # realtime/protocol 是跨端事件契约，runstream 是跨端运行流类型，原生端均可依赖。
+          deps=$(echo "$packages" | grep -E "$server" | grep -v '/internal/realtime/protocol$' || true)
+          if [ "$goos" = ios ] || [ "$goos" = android ]; then
+            deps="$deps$(echo "$packages" | grep -E "$mobile" | grep -v '/internal/integration/agentruntime/runstream$' || true)"
+          fi
+          if [ -n "$deps" ]; then
+            echo "原生端构建引入了不应依赖的包（GOOS=$goos tags=$tags）：$deps"
+            exit 1
+          fi
+        done
+
+  migrate:
+    summary: 执行待运行的服务端迁移
+    desc: |
+      执行所有待运行的服务端迁移。服务端启动时也会自动执行。
+    deps:
+      - db:ensure
+    cmds:
+      - task: migrate:run
+        vars:
+          GOOSE_CMD: up
+          GOOSE_FLAGS: -allow-missing
+
+  migrate:status:
+    summary: 查看服务端迁移状态
+    desc: 查看每条迁移是否已执行。
+    deps:
+      - db:ensure
+    cmds:
+      - task: migrate:run
+        vars:
+          GOOSE_CMD: status
+
+  migrate:rollback:
+    summary: 回滚服务端迁移
+    desc: |
+      回滚最近一次迁移。
+      回滚多步：wails3 task migrate:rollback STEP=3
+      回滚到指定版本：wails3 task migrate:rollback VERSION=20260818032701
+      回滚前请先停止服务端，避免启动时再次自动 up。
+    deps:
+      - db:ensure
+    preconditions:
+      - sh: '{{if .STEP}}{{if regexMatch "^[1-9][0-9]*$" .STEP}}true{{else}}false{{end}}{{else}}true{{end}}'
+        msg: "STEP 必须是正整数，例如：wails3 task migrate:rollback STEP=3"
+      - sh: '{{if .VERSION}}{{if regexMatch "^[0-9]+$" .VERSION}}true{{else}}false{{end}}{{else}}true{{end}}'
+        msg: "VERSION 必须是迁移时间戳，例如：wails3 task migrate:rollback VERSION=20260818032701"
+    cmds:
+      - task: migrate:run
+        vars:
+          GOOSE_CMD: '{{if .VERSION}}down-to {{.VERSION}}{{else}}down{{end}}'
+          GOOSE_REPEAT: '{{if .VERSION}}1{{else}}{{.STEP | default 1}}{{end}}'
+
+  migrate:reset:
+    summary: 回滚全部服务端迁移后重新执行
+    desc: |
+      使用 Goose reset 回滚全部迁移，再执行 up。
+      执行前请先停止服务端。
+    deps:
+      - db:ensure
+    cmds:
+      - task: migrate:run
+        vars:
+          GOOSE_CMD: reset
+      - task: migrate
+
+  make:migration:
+    silent: true
+    summary: 创建服务端迁移文件
+    desc: |
+      在 internal/storage/server/migrations 下创建空迁移文件。
+      用法：wails3 task make:migration NAME=create_example_table
+    vars:
+      SERVER_MIGRATIONS_DIR: internal/storage/server/migrations
+    preconditions:
+      - sh: '{{if .NAME}}true{{else}}false{{end}}'
+        msg: "请指定 NAME，例如：wails3 task make:migration NAME=create_example_table"
+      - sh: '{{if .NAME}}{{if regexMatch "^[A-Za-z0-9_]+$" .NAME}}true{{else}}false{{end}}{{else}}true{{end}}'
+        msg: "NAME 只能包含字母、数字和下划线"
+    cmds:
+      - |
+        set -euo pipefail
+        file="{{.SERVER_MIGRATIONS_DIR}}/$(date +%Y%m%d%H%M%S)_{{.NAME}}.sql"
+        printf '%s\n' '-- +goose Up' '' '-- +goose Down' '' > "$file"
+        echo "Created $file"
+
+  migrate:run:
+    internal: true
+    silent: true
+    summary: 对服务端 PostgreSQL 执行 Goose 命令
+    vars:
+      SERVER_MIGRATIONS_DIR: internal/storage/server/migrations
+      POSTGRES_URL: 'postgres://{{.POSTGRES_USER}}:{{.POSTGRES_PASSWORD}}@{{.POSTGRES_HOST}}:{{.POSTGRES_PORT}}/{{.POSTGRES_DB}}?sslmode={{.POSTGRES_SSLMODE}}'
+      GOOSE_REPEAT: '{{.GOOSE_REPEAT | default 1}}'
+      GOOSE_VERSION:
+        sh: go list -m -f '{{"{{.Version}}"}}' github.com/pressly/goose/v3
+    cmds:
+      - |
+        set -euo pipefail
+        {{if eq .GOOSE_CMD "up"}}go run -tags server ./internal/tools/migrationguard "{{.POSTGRES_URL}}"{{end}}
+        i=0
+        while [ "$i" -lt "{{.GOOSE_REPEAT}}" ]; do
+          go run github.com/pressly/goose/v3/cmd/goose@{{.GOOSE_VERSION}} \
+            {{.GOOSE_FLAGS}} \
+            -dir {{.SERVER_MIGRATIONS_DIR}} \
+            postgres \
+            "{{.POSTGRES_URL}}" \
+            {{.GOOSE_CMD}}
+          i=$((i+1))
+        done
