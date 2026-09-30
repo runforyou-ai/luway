@@ -93,7 +93,7 @@ wails3 task android:bundle:fat
 - `darwin:build`、`windows:build` 和 `linux:build` 按宿主环境选择原生或 Docker 工具链。交叉编译只生成二进制或未签名应用包；正式桌面安装包在目标系统或同平台 Runner 构建。
 - Linux 不支持异架构桌面端交叉编译，Windows 宿主不支持交叉构建其他平台，WSL 按 Linux 处理。
 - macOS 的 DMG、签名和公证在 macOS 完成；Windows 安装包在原生 Windows 或 Windows Runner 完成；iOS 在 macOS 完成。
-- 服务端多平台归档由 `.github/workflows/release.yml` 的 `server-assets` 作业生成，部署说明维护在 luway-manage 仓库的 `docs/server-deployment.md`。
+- 服务端多平台归档由 `.github/workflows/release.yml` 的 `server-assets` 作业生成。
 
 ## 代码组织
 
