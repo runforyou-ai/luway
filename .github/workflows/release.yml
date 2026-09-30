@@ -10,12 +10,31 @@ on:
         description: Version to build without publishing, for example 0.1.0
         required: true
         type: string
+  # 白标仓库按品牌调用：构建指定源码版本，产物只上传到调用方的运行记录，不发布。
+  workflow_call:
+    inputs:
+      version:
+        description: Version to build, for example 0.1.0
+        required: true
+        type: string
+      profile:
+        description: Brand profile directory in the caller repository, for example brands/acme
+        required: true
+        type: string
+      source-repository:
+        description: Source repository to build, for example owner/repo
+        required: true
+        type: string
+      source-ref:
+        description: Source ref to build, for example v0.1.0
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.ref }}-${{ inputs.profile }}
   cancel-in-progress: false
 
 jobs:
@@ -24,13 +43,18 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
+      artifact-prefix: ${{ steps.version.outputs.artifact-prefix }}
       prerelease: ${{ steps.version.outputs.prerelease }}
+      profile: ${{ steps.version.outputs.profile }}
       publish: ${{ steps.version.outputs.publish }}
+      source-ref: ${{ steps.version.outputs.source-ref }}
+      source-repository: ${{ steps.version.outputs.source-repository }}
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
 
     steps:
       - name: Checkout
+        if: inputs.profile == ''
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -41,11 +65,28 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_VERSION: ${{ inputs.version }}
+          PROFILE: ${{ inputs.profile }}
+          SOURCE_REF: ${{ inputs.source-ref }}
+          SOURCE_REPOSITORY: ${{ inputs.source-repository }}
         shell: bash
         run: |
           set -euo pipefail
 
-          if [[ "$EVENT_NAME" == "push" ]]; then
+          source_repository="$GITHUB_REPOSITORY"
+          source_ref="$GITHUB_SHA"
+          artifact_prefix=""
+          # 白标构建以品牌目录名区分同一次运行中各品牌的产物。
+          if [[ -n "$PROFILE" ]]; then
+            if [[ ! "$PROFILE" =~ ^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$ ]]; then
+              echo "Brand profile must be a relative directory path: $PROFILE"
+              exit 1
+            fi
+            tag="v${INPUT_VERSION#v}"
+            publish=false
+            source_repository="$SOURCE_REPOSITORY"
+            source_ref="$SOURCE_REF"
+            artifact_prefix="${PROFILE##*/}-"
+          elif [[ "$EVENT_NAME" == "push" ]]; then
             tag="$GITHUB_REF_NAME"
             publish=true
             git fetch --no-tags origin main
@@ -69,21 +110,32 @@ jobs:
             prerelease=true
           fi
 
+          echo "artifact-prefix=$artifact_prefix" >> "$GITHUB_OUTPUT"
           echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
           echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          echo "source-ref=$source_ref" >> "$GITHUB_OUTPUT"
+          echo "source-repository=$source_repository" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
   server-assets:
-    name: Server assets
+    name: Server ${{ matrix.os }} ${{ matrix.arch }} assets
     needs: prepare
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [linux, darwin, windows]
+        arch: [amd64, arm64]
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ needs.prepare.outputs.source-repository }}
+          ref: ${{ needs.prepare.outputs.source-ref }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -100,14 +152,22 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      - name: Apply brand profile
+        if: needs.prepare.outputs.profile != ''
+        uses: ./.github/actions/apply-brand
+        with:
+          profile: ${{ needs.prepare.outputs.profile }}
+
       - name: Build frontend
         working-directory: frontend
         run: |
           npm ci
           npm run build
 
-      - name: Build server archives
+      - name: Build server archive
         env:
+          TARGET_ARCH: ${{ matrix.arch }}
+          TARGET_OS: ${{ matrix.os }}
           VERSION: ${{ needs.prepare.outputs.version }}
         shell: bash
         run: |
@@ -115,35 +175,30 @@ jobs:
           slug="$(jq -r .slug internal/common/brand/brand.json)"
           mkdir -p release-assets release-stage
 
-          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
-            target_os="${target%/*}"
-            target_arch="${target#*/}"
-            executable="${slug}-server"
-            if [[ "$target_os" == "windows" ]]; then
-              executable="${slug}-server.exe"
-            fi
+          executable="${slug}-server"
+          if [[ "$TARGET_OS" == "windows" ]]; then
+            executable="${slug}-server.exe"
+          fi
 
-            rm -rf release-stage/*
-            CGO_ENABLED=0 GOOS="$target_os" GOARCH="$target_arch" go build \
-              -tags=server,production \
-              -trimpath \
-              -buildvcs=false \
-              -ldflags="-w -s" \
-              -o "release-stage/$executable" \
-              .
+          CGO_ENABLED=0 GOOS="$TARGET_OS" GOARCH="$TARGET_ARCH" go build \
+            -tags=server,production \
+            -trimpath \
+            -buildvcs=false \
+            -ldflags="-w -s" \
+            -o "release-stage/$executable" \
+            .
 
-            asset="${slug}-server_${VERSION}_${target_os}_${target_arch}"
-            if [[ "$target_os" == "windows" ]]; then
-              (cd release-stage && zip -q "../release-assets/${asset}.zip" "$executable")
-            else
-              tar -C release-stage -czf "release-assets/${asset}.tar.gz" "$executable"
-            fi
-          done
+          asset="${slug}-server_${VERSION}_${TARGET_OS}_${TARGET_ARCH}"
+          if [[ "$TARGET_OS" == "windows" ]]; then
+            (cd release-stage && zip -q "../release-assets/${asset}.zip" "$executable")
+          else
+            tar -C release-stage -czf "release-assets/${asset}.tar.gz" "$executable"
+          fi
 
       - name: Upload server assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: server-assets
+          name: ${{ needs.prepare.outputs.artifact-prefix }}server-${{ matrix.os }}-${{ matrix.arch }}-assets
           path: release-assets/*
           if-no-files-found: error
           retention-days: 7
@@ -158,6 +213,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ needs.prepare.outputs.source-repository }}
+          ref: ${{ needs.prepare.outputs.source-ref }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -173,6 +230,12 @@ jobs:
           go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
+
+      - name: Apply brand profile
+        if: needs.prepare.outputs.profile != ''
+        uses: ./.github/actions/apply-brand
+        with:
+          profile: ${{ needs.prepare.outputs.profile }}
 
       - name: Install Linux packaging dependencies
         run: |
@@ -220,7 +283,7 @@ jobs:
       - name: Upload Linux desktop assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: linux-desktop-assets
+          name: ${{ needs.prepare.outputs.artifact-prefix }}linux-desktop-assets
           path: release-assets/*
           if-no-files-found: error
           retention-days: 7
@@ -243,6 +306,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ needs.prepare.outputs.source-repository }}
+          ref: ${{ needs.prepare.outputs.source-ref }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -258,6 +323,12 @@ jobs:
           go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
+
+      - name: Apply brand profile
+        if: needs.prepare.outputs.profile != ''
+        uses: ./.github/actions/apply-brand
+        with:
+          profile: ${{ needs.prepare.outputs.profile }}
 
       - name: Install NSIS
         shell: pwsh
@@ -305,7 +376,7 @@ jobs:
       - name: Upload Windows desktop assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: windows-${{ matrix.arch }}-desktop-assets
+          name: ${{ needs.prepare.outputs.artifact-prefix }}windows-${{ matrix.arch }}-desktop-assets
           path: release-assets/*
           if-no-files-found: error
           retention-days: 7
@@ -320,6 +391,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ needs.prepare.outputs.source-repository }}
+          ref: ${{ needs.prepare.outputs.source-ref }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -335,6 +408,12 @@ jobs:
           go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
+
+      - name: Apply brand profile
+        if: needs.prepare.outputs.profile != ''
+        uses: ./.github/actions/apply-brand
+        with:
+          profile: ${{ needs.prepare.outputs.profile }}
 
       - name: Install Wails CLI
         shell: bash
@@ -372,7 +451,7 @@ jobs:
       - name: Upload macOS desktop assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: darwin-desktop-assets
+          name: ${{ needs.prepare.outputs.artifact-prefix }}darwin-desktop-assets
           path: release-assets/*
           if-no-files-found: error
           retention-days: 7
@@ -387,6 +466,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ needs.prepare.outputs.source-repository }}
+          ref: ${{ needs.prepare.outputs.source-ref }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -402,6 +483,12 @@ jobs:
           go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
+
+      - name: Apply brand profile
+        if: needs.prepare.outputs.profile != ''
+        uses: ./.github/actions/apply-brand
+        with:
+          profile: ${{ needs.prepare.outputs.profile }}
 
       - name: Setup Java
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
@@ -452,7 +539,7 @@ jobs:
       - name: Upload Android assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: android-assets
+          name: ${{ needs.prepare.outputs.artifact-prefix }}android-assets
           path: release-assets/*
           if-no-files-found: error
           retention-days: 7
@@ -467,6 +554,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ needs.prepare.outputs.source-repository }}
+          ref: ${{ needs.prepare.outputs.source-ref }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -482,6 +571,12 @@ jobs:
           go-version-file: go.mod
           cache: true
           cache-dependency-path: go.sum
+
+      - name: Apply brand profile
+        if: needs.prepare.outputs.profile != ''
+        uses: ./.github/actions/apply-brand
+        with:
+          profile: ${{ needs.prepare.outputs.profile }}
 
       - name: Install Wails CLI
         shell: bash
@@ -514,7 +609,7 @@ jobs:
       - name: Upload iOS assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: ios-assets
+          name: ${{ needs.prepare.outputs.artifact-prefix }}ios-assets
           path: release-assets/*
           if-no-files-found: error
           retention-days: 7
@@ -534,6 +629,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ${{ needs.prepare.outputs.source-repository }}
+          ref: ${{ needs.prepare.outputs.source-ref }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -542,6 +639,20 @@ jobs:
           node-version: "24"
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Go
+        if: needs.prepare.outputs.profile != ''
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version-file: go.mod
+          cache: true
+          cache-dependency-path: go.sum
+
+      - name: Apply brand profile
+        if: needs.prepare.outputs.profile != ''
+        uses: ./.github/actions/apply-brand
+        with:
+          profile: ${{ needs.prepare.outputs.profile }}
 
       - name: Build frontend
         working-directory: frontend
@@ -582,8 +693,8 @@ jobs:
           push: ${{ needs.prepare.outputs.publish == 'true' }}
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ needs.prepare.outputs.artifact-prefix }}server
+          cache-to: type=gha,mode=max,scope=${{ needs.prepare.outputs.artifact-prefix }}server
           provenance: mode=max
           sbom: true
 

@@ -20,8 +20,11 @@ ARG RUNTIME_IMAGE=gcr.io/distroless/static-debian12
 ARG CGO_ENABLED=0
 
 # Build stage
-FROM ${GO_IMAGE} AS builder
+# 构建阶段运行在构建机平台，按 TARGETOS/TARGETARCH 交叉编译；CGO_ENABLED=1 时目标平台须与构建机一致。
+FROM --platform=${BUILDPLATFORM} ${GO_IMAGE} AS builder
 ARG CGO_ENABLED
+ARG TARGETOS
+ARG TARGETARCH
 
 WORKDIR /app
 
@@ -44,7 +47,7 @@ COPY . .
 # 模块缓存与构建缓存使用 BuildKit 缓存挂载，跨次构建复用。
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=${CGO_ENABLED} go build -tags server,production -trimpath -buildvcs=false -ldflags="-s -w" -o server .
+    CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -tags server,production -trimpath -buildvcs=false -ldflags="-s -w" -o server .
 
 # Runtime stage - minimal image
 FROM ${RUNTIME_IMAGE}
