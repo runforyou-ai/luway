@@ -11,12 +11,12 @@ require (
 	github.com/bmatcuk/doublestar/v4 v4.10.2
 	github.com/cloudwego/eino v0.10.0-alpha.35
 	github.com/cloudwego/eino-ext/components/model/agenticark v0.2.5
-	github.com/cloudwego/eino-ext/components/model/agenticclaude v0.1.6
+	github.com/cloudwego/eino-ext/components/model/agenticclaude v0.1.7
 	github.com/cloudwego/eino-ext/components/model/agenticdeepseek v0.1.1
-	github.com/cloudwego/eino-ext/components/model/agenticgemini v0.2.4
-	github.com/cloudwego/eino-ext/components/model/agenticopenai v0.2.3
-	github.com/cloudwego/eino-ext/components/model/agenticqwen v0.1.1
-	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.18-0.20260923024851-c21d73d93527
+	github.com/cloudwego/eino-ext/components/model/agenticgemini v0.2.5
+	github.com/cloudwego/eino-ext/components/model/agenticopenai v0.2.4
+	github.com/cloudwego/eino-ext/components/model/agenticqwen v0.1.2
+	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.18-0.20260924031408-10df7cac3f6d
 	github.com/coder/acp-go-sdk v0.13.5
 	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/eino-contrib/jsonschema v1.0.3
