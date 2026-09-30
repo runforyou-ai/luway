@@ -194,7 +194,7 @@ jobs:
             -tags=server,production \
             -trimpath \
             -buildvcs=false \
-            -ldflags="-w -s" \
+            -ldflags="-w -s -X github.com/runforyou-ai/luway/internal/common/buildinfo.Version=${VERSION}" \
             -o "release-stage/$executable" \
             .
 
@@ -702,6 +702,8 @@ jobs:
         with:
           context: .
           file: build/docker/Dockerfile.server
+          build-args: |
+            APP_VERSION=${{ needs.prepare.outputs.version }}
           platforms: linux/amd64,linux/arm64
           push: ${{ needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.profile == '' }}
           tags: ${{ steps.metadata.outputs.tags }}

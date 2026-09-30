@@ -25,6 +25,8 @@ FROM --platform=${BUILDPLATFORM} ${GO_IMAGE} AS builder
 ARG CGO_ENABLED
 ARG TARGETOS
 ARG TARGETARCH
+# 写入程序的版本号。
+ARG APP_VERSION=dev
 
 WORKDIR /app
 
@@ -47,7 +49,7 @@ COPY . .
 # 模块缓存与构建缓存使用 BuildKit 缓存挂载，跨次构建复用。
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -tags server,production -trimpath -buildvcs=false -ldflags="-s -w" -o server .
+    CGO_ENABLED=${CGO_ENABLED} GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -tags server,production -trimpath -buildvcs=false -ldflags="-s -w -X github.com/runforyou-ai/luway/internal/common/buildinfo.Version=${APP_VERSION}" -o server .
 
 # Runtime stage - minimal image
 FROM ${RUNTIME_IMAGE}

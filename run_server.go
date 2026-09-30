@@ -14,6 +14,7 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/common/brand"
+	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"github.com/runforyou-ai/luway/internal/storage"
 	"github.com/runforyou-ai/luway/internal/webasset"
@@ -26,6 +27,7 @@ func run(arguments []string) error {
 	flags.SetOutput(os.Stderr)
 	configPath := flags.String("config", "", "显式指定 YAML 配置文件")
 	checkConfig := flags.Bool("check-config", false, "校验配置后退出")
+	showVersion := flags.Bool("version", false, "输出版本号后退出")
 	if err := flags.Parse(arguments); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
@@ -34,6 +36,10 @@ func run(arguments []string) error {
 	}
 	if flags.NArg() != 0 {
 		return fmt.Errorf("unexpected positional argument %q", flags.Arg(0))
+	}
+	if *showVersion {
+		_, err := fmt.Fprintln(os.Stdout, buildinfo.Version)
+		return err
 	}
 
 	config, err := serverconfig.Load(*configPath)
@@ -102,7 +108,7 @@ func run(arguments []string) error {
 		},
 	})
 
-	slog.Info("启动服务端", "host", config.Server.Host, "port", config.Server.Port, "tls_mode", config.TLS.Mode)
+	slog.Info("启动服务端", "version", buildinfo.Version, "host", config.Server.Host, "port", config.Server.Port, "tls_mode", config.TLS.Mode)
 	runErr := app.Run()
 	// Run 返回后同步执行应用清理。
 	app.Quit()
