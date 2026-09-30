@@ -287,8 +287,10 @@ jobs:
           cp "bin/${slug}" "release-stage/${slug}"
           tar -C release-stage -czf "release-assets/${slug}_${VERSION}_linux_amd64.tar.gz" "${slug}"
 
-          find bin -maxdepth 1 -type f ! -name "${slug}" -exec cp {} release-assets/ \;
-          test "$(find release-assets -maxdepth 1 -type f | wc -l)" -gt 1
+          cp "bin/${slug}-x86_64.AppImage" "release-assets/${slug}_${VERSION}_linux_amd64.AppImage"
+          cp "bin/${slug}.deb" "release-assets/${slug}_${VERSION}_linux_amd64.deb"
+          cp "bin/${slug}.rpm" "release-assets/${slug}_${VERSION}_linux_amd64.rpm"
+          cp "bin/${slug}.pkg.tar.zst" "release-assets/${slug}_${VERSION}_linux_amd64.pkg.tar.zst"
 
       - name: Upload Linux desktop assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
