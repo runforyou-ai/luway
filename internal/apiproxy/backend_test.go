@@ -148,7 +148,7 @@ func TestBackendConnectsAndUsesBearerToken(t *testing.T) {
 				http.Error(writer, "installation status must not use login state", http.StatusBadRequest)
 				return
 			}
-			writeTestJSON(writer, http.StatusOK, map[string]any{"installed": true, "registrationOpen": true, "deploymentMode": "self_hosted"})
+			writeTestJSON(writer, http.StatusOK, map[string]any{"installed": true, "registrationOpen": true})
 		case "/api/auth/identity":
 			if request.Header.Get("Authorization") != "Bearer test-token" || request.Header.Get(appservice.WorkspaceHeader) != "organization-1" {
 				http.Error(writer, "identity requires token and workspace", http.StatusBadRequest)
@@ -204,7 +204,7 @@ func TestBackendConnectsAndUsesBearerToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !status.Installed || !status.RegistrationOpen || status.DeploymentMode != appservice.DeploymentModeSelfHosted {
+	if !status.Installed || !status.RegistrationOpen {
 		t.Fatalf("probe status = %#v", status)
 	}
 	if store.serverURL != "" {
@@ -223,7 +223,7 @@ func TestBackendConnectsAndUsesBearerToken(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !status.Installed || status.DeploymentMode != appservice.DeploymentModeSelfHosted {
+	if !status.Installed {
 		t.Fatalf("status = %#v", status)
 	}
 	configuredServerURL, err := backend.ServerURL(context.Background(), meta)
@@ -325,7 +325,7 @@ func TestBackendClearsCredentialWhenChangingServer(t *testing.T) {
 			http.NotFound(writer, request)
 			return
 		}
-		writeTestJSON(writer, http.StatusOK, map[string]any{"installed": true, "deploymentMode": "self_hosted"})
+		writeTestJSON(writer, http.StatusOK, map[string]any{"installed": true})
 	}))
 	defer remote.Close()
 

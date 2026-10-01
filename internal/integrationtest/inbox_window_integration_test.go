@@ -56,7 +56,7 @@ func TestInboxContextDeepWindow(t *testing.T) {
 		}
 	}
 	login := loginMember(t, f.db, f.owner.Organization.ID, f.memberEmail, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 	meta := appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID}
 	filter := appservice.InboxQuery{Scope: appservice.InboxScopeChat}
 	all, err := backend.LoadInbox(ctx, meta, appservice.LoadInboxInput{Scope: filter.Scope, Limit: 300})
@@ -203,7 +203,7 @@ func TestInboxContextUnavailable(t *testing.T) {
 	f := newNavigationFixture(t)
 	ctx := context.Background()
 	login := loginMember(t, f.db, f.owner.Organization.ID, f.memberEmail, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 	meta := appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID}
 	filter := appservice.InboxQuery{Scope: appservice.InboxScopeChat}
 	located, err := backend.GetInboxContext(ctx, meta, appservice.InboxContextInput{Query: filter, AnchorID: f.groupID})

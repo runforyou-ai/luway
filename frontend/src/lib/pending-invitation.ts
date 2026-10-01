@@ -1,4 +1,4 @@
-/** 未登录时打开的邀请：登录、注册或官方账号授权完成后回到邀请页。 */
+/** 未登录时打开的邀请：登录或注册完成后回到邀请页。 */
 
 const pendingInvitationStorageKey = "app.pendingInvitation"
 

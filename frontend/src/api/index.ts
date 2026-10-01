@@ -2,17 +2,14 @@
 export * from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 export { ApiError, callInWorkspace, isApiError, isNotFoundApiError } from "@/api/client"
 export {
-  completeOfficialLogin,
   connectServer,
   getServerURL,
   install,
   login,
   logout,
-  OfficialLoginStateError,
   onServerLinkOpened,
   probeServer,
   register,
-  startOfficialLogin,
   takeOpenedServerLink,
 } from "@/api/auth"
 export { getSyncHeads, loadIdentity, loadInstallationStatus, loadStartup, sessionPath } from "@/api/session"

@@ -115,13 +115,6 @@ export function CompleteFileUpload(meta: $models.RequestMeta, fileID: string): $
 }
 
 /**
- * CompleteOfficialLogin 用授权码完成官方账号登录并建立登录会话。
- */
-export function CompleteOfficialLogin(meta: $models.RequestMeta, input: $models.OfficialLoginCompletion): $CancellablePromise<$models.Auth> {
-    return $Call.ByID(3005907884, meta, input);
-}
-
-/**
  * ConnectAgentRunStream 在原生端建立指定运行的过程流，运行过程事件与流结束经 Wails 事件投递。
  */
 export function ConnectAgentRunStream(meta: $models.RequestMeta, runID: string): $CancellablePromise<$models.RealtimeConnection> {
@@ -780,7 +773,7 @@ export function InstallWorkspace(meta: $models.RequestMeta, input: $models.Insta
 }
 
 /**
- * InstallationStatus 返回部署名称、首次安装状态、注册开关和部署形态；登录方式由部署形态决定。
+ * InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
  */
 export function InstallationStatus(meta: $models.RequestMeta): $CancellablePromise<$models.InstallationStatus> {
     return $Call.ByID(1778204715, meta);
@@ -1561,13 +1554,6 @@ export function SetContactFieldValue(meta: $models.RequestMeta, contactID: strin
  */
 export function StartAgentEvaluationRun(meta: $models.RequestMeta, agentID: string): $CancellablePromise<void> {
     return $Call.ByID(3465701707, meta, agentID);
-}
-
-/**
- * StartOfficialLogin 登记官方账号登录尝试并返回授权地址。
- */
-export function StartOfficialLogin(meta: $models.RequestMeta, input: $models.OfficialLoginInput): $CancellablePromise<$models.OfficialLoginStart> {
-    return $Call.ByID(3206292403, meta, input);
 }
 
 /**

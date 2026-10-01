@@ -73,11 +73,6 @@ func (b *Backend) Register(ctx context.Context, meta appservice.RequestMeta, inp
 	return b.establishSession(ctx, meta, "/auth/register", input)
 }
 
-// CompleteOfficialLogin 用授权码完成官方账号登录并建立原生端登录会话。
-func (b *Backend) CompleteOfficialLogin(ctx context.Context, meta appservice.RequestMeta, input appservice.OfficialLoginCompletion) (appservice.Auth, error) {
-	return b.establishSession(ctx, meta, "/auth/official/complete", input)
-}
-
 // establishSession 调用登录接口并保存原生端登录凭据，返回给前端的结果不含令牌。
 func (b *Backend) establishSession(ctx context.Context, meta appservice.RequestMeta, path string, input any) (appservice.Auth, error) {
 	b.sessionMu.Lock()
@@ -139,7 +134,7 @@ func (b *Backend) ProbeServer(ctx context.Context, meta appservice.RequestMeta, 
 	if err != nil {
 		return appservice.InstallationStatus{}, err
 	}
-	slog.Info("已检测到服务器", "server_url", state.baseURL.String(), "deployment_mode", status.DeploymentMode)
+	slog.Info("已检测到服务器", "server_url", state.baseURL.String())
 	return status, nil
 }
 
@@ -193,7 +188,7 @@ func (b *Backend) inspectServer(ctx context.Context, meta appservice.RequestMeta
 		slog.Warn("验证服务器失败", "server_url", parsed.String(), "error", err)
 		return nil, appservice.InstallationStatus{}, appservice.UnavailableError(meta, i18n.ErrorServerUnavailable, map[string]i18n.Key{"serverUrl": i18n.FieldServerURLUnrecognized})
 	}
-	if !status.Installed && status.DeploymentMode != appservice.DeploymentModeManaged {
+	if !status.Installed {
 		slog.Info("服务器尚未完成首次安装", "server_url", parsed.String())
 		return nil, appservice.InstallationStatus{}, appservice.InvalidError(meta, i18n.ErrorServerInitializationRequired, nil)
 	}

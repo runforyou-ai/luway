@@ -11,7 +11,6 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
-	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -52,7 +51,7 @@ func newAccountTestBackend(db *bun.DB) *direct.Backend {
 
 // newRegistrationTestBackend 创建按指定注册开关配置的自托管直接后端。
 func newRegistrationTestBackend(db *bun.DB, registrationOpen bool) *direct.Backend {
-	return direct.New(db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted, PublicURL: testPublicURL, RegistrationOpen: registrationOpen},
+	return direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL, RegistrationOpen: registrationOpen},
 		nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 }
 

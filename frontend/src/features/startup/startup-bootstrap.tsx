@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Navigate, useLocation } from "react-router"
 
-import { DeploymentMode, SessionState, type Startup } from "@/api"
+import { SessionState, type Startup } from "@/api"
 import { PageLoading } from "@/components/page-loading"
 import { PageLoadError } from "@/components/page-load-error"
 import { StartupProvider } from "@/contexts/startup-context"
@@ -32,7 +32,6 @@ export function StartupBootstrap({ children }: { children: React.ReactNode }) {
 
   const content = (
     <StartupProvider
-      usesOfficialLogin={startup?.deploymentMode === DeploymentMode.DeploymentModeManaged}
       connected={startup?.state === SessionState.SessionStateReady}
       connectReason={startup?.state === SessionState.SessionStateConnect && startup.connectReason ? startup.connectReason : null}
       completeStartup={completeStartup}

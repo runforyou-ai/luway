@@ -21,7 +21,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
-	"github.com/runforyou-ai/luway/internal/domain"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -223,7 +222,7 @@ func TestWebsiteClientMessageAssociation(t *testing.T) {
 // assertClientAssociationHTTP 验证登录会话之间的公开响应隔离且不泄露内部幂等键。
 func assertClientAssociationHTTP(t *testing.T, f navigationFixture, conversationID, visitorMessageID, memberMessageID, clientID string) {
 	t.Helper()
-	service := api.NewService(appservice.New(direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)))
+	service := api.NewService(appservice.New(direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)))
 	// 两次独立登录验证本人关联不绑定某个登录令牌。
 	ownerEmail := f.owner.Account.Email
 	for _, email := range []string{ownerEmail, ownerEmail, f.member.Account.Email} {

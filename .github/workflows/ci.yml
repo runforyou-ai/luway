@@ -27,22 +27,25 @@ jobs:
         with:
           persist-credentials: false
 
-      # CI 容器提供 PostgreSQL 与 NATS JetStream。
+      # 依赖容器在后台运行，健康检查与工具链准备和前端构建并行。
       - name: Start integration test dependencies
         shell: bash
         run: |
           cp .env.example .env
           docker run --detach --name luway-postgres \
+            --env POSTGRES_DB=main \
+            --env POSTGRES_USER=luway \
+            --env POSTGRES_PASSWORD=luway \
             --publish 5432:5432 \
-            --env POSTGRES_DB=main --env POSTGRES_USER=luway --env POSTGRES_PASSWORD=luway \
-            --health-cmd="pg_isready -U luway -d main" \
+            --health-cmd='pg_isready -U luway -d main' \
             --health-interval=2s --health-timeout=5s --health-retries=15 \
             pgvector/pgvector:0.8.6-pg18-bookworm@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
           docker run --detach --name luway-nats \
             --publish 4222:4222 --publish 8222:8222 \
-            --health-cmd="wget --spider --quiet 'http://127.0.0.1:8222/healthz?js-enabled-only=true'" \
+            --health-cmd='wget --spider --quiet http://127.0.0.1:8222/healthz?js-enabled-only=true' \
             --health-interval=2s --health-timeout=5s --health-retries=15 \
-            nats:2.14.5-alpine --jetstream --store_dir=/data/jetstream --http_port=8222
+            nats:2.14.5-alpine \
+            --name=luway-ci --jetstream --store_dir=/data/jetstream --http_port=8222
 
       - name: Setup toolchain
         id: toolchain
@@ -71,15 +74,20 @@ jobs:
         run: |
           for container in luway-postgres luway-nats; do
             for attempt in {1..30}; do
-              status=$(docker inspect --format '{{.State.Health.Status}}' "$container")
-              if [ "$status" = healthy ] || [ "$status" = unhealthy ]; then break; fi
+              status="$(docker inspect --format '{{.State.Health.Status}}' "$container")"
+              if [[ "$status" == healthy || "$status" == unhealthy ]]; then break; fi
               sleep 2
             done
-            if [ "$status" != healthy ]; then
+            if [[ "$status" != healthy ]]; then
               docker logs "$container"
-              echo "Dependency $container is $status"
+              echo "Integration test dependency $container is $status"
               exit 1
             fi
+          done
+          # 新建的测试库从 template1 继承数据库扩展。
+          for database in main template1; do
+            docker exec luway-postgres psql -v ON_ERROR_STOP=1 -U luway -d "$database" \
+              -c 'CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public; CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;'
           done
 
       - name: Test Go server build

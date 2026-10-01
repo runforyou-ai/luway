@@ -16,8 +16,6 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/installation/status", s.installationStatus)
 	router.POST("/auth/login", s.login)
 	router.POST("/auth/register", s.register)
-	router.POST("/auth/official/start", s.startOfficialLogin)
-	router.POST("/auth/official/complete", s.completeOfficialLogin)
 	router.POST("/auth/logout", s.logout)
 	router.GET("/account", s.loadAccount)
 	router.GET("/workspaces", s.listWorkspaces)
@@ -267,7 +265,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.DELETE("/devices/:deviceID", s.revokeDevice)
 }
 
-// installationStatus 返回部署名称、首次安装状态、注册开关和部署形态；登录方式由部署形态决定。
+// installationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
 func (s *Service) installationStatus(c *gin.Context) {
 	output, err := s.application.InstallationStatus(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -290,26 +288,6 @@ func (s *Service) register(c *gin.Context) {
 		return
 	}
 	output, err := s.application.Register(c.Request.Context(), requestMeta(c), input)
-	writeResult(c, http.StatusOK, output, err)
-}
-
-// startOfficialLogin 登记官方账号登录尝试并返回授权地址。
-func (s *Service) startOfficialLogin(c *gin.Context) {
-	var input appservice.OfficialLoginInput
-	if !bindJSON(c, &input) {
-		return
-	}
-	output, err := s.application.StartOfficialLogin(c.Request.Context(), requestMeta(c), input)
-	writeResult(c, http.StatusOK, output, err)
-}
-
-// completeOfficialLogin 用授权码完成官方账号登录并建立登录会话。
-func (s *Service) completeOfficialLogin(c *gin.Context) {
-	var input appservice.OfficialLoginCompletion
-	if !bindJSON(c, &input) {
-		return
-	}
-	output, err := s.application.CompleteOfficialLogin(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 

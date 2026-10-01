@@ -12,13 +12,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
-// StartOfficialLogin 登记官方账号登录尝试并返回授权地址。
-func (b *Backend) StartOfficialLogin(ctx context.Context, meta appservice.RequestMeta, input appservice.OfficialLoginInput) (appservice.OfficialLoginStart, error) {
-	var output appservice.OfficialLoginStart
-	err := b.do(ctx, meta, http.MethodPost, "/auth/official/start", nil, input, &output)
-	return output, err
-}
-
 // LoadAccount 返回当前登录账号。
 func (b *Backend) LoadAccount(ctx context.Context, meta appservice.RequestMeta) (appservice.Account, error) {
 	var output appservice.Account

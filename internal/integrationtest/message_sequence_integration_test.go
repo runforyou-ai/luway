@@ -186,7 +186,7 @@ func TestMessageSequenceHTTPContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	login := loginMember(t, f.db, f.owner.Organization.ID, f.owner.Account.Email, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 	service := api.NewService(appservice.New(backend))
 	for _, route := range []string{"messages", "read"} {
 		t.Run(route, func(t *testing.T) {

@@ -36,15 +36,3 @@ type AccountSession struct {
 	CreatedAt time.Time `bun:"created_at"`
 	UpdatedAt time.Time `bun:"updated_at,nullzero,default:now()"`
 }
-
-// AccountExternalIdentity 表示账号与官方身份服务账号的绑定。
-type AccountExternalIdentity struct {
-	bun.BaseModel `bun:"table:account_external_identities,alias:aei"`
-
-	ID        string    `bun:"id,pk"`
-	AccountID string    `bun:"account_id"`
-	Issuer    string    `bun:"issuer"`
-	Subject   string    `bun:"subject"`
-	CreatedAt time.Time `bun:"created_at"`
-	UpdatedAt time.Time `bun:"updated_at"`
-}
