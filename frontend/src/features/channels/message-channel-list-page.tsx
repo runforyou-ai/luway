@@ -27,6 +27,7 @@ import { useDateTime } from "@/hooks/use-date-time"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 import { useResource } from "@/hooks/use-resource"
 import { cn } from "@/lib/utils"
+import { useReturnLink } from "@/hooks/use-return-to"
 
 type ChannelEnabledStatus = "enabled" | "disabled"
 
@@ -37,6 +38,7 @@ export function MessageChannelListPage() {
   const navigate = useNavigate()
   const [choosingType, setChoosingType] = useState(false)
   const [searchParams, setSearchParams] = useSearchParams()
+  const returnLink = useReturnLink()
   // 状态筛选记在 URL 中，从编辑页返回时保留。
   const enabledStatus: ChannelEnabledStatus =
     searchParams.get("status") === "disabled" ? "disabled" : "enabled"
@@ -154,9 +156,7 @@ export function MessageChannelListPage() {
               : t("list.emptyFiltered")
           }
           onRowActivate={(channel) =>
-            navigate(
-              `/channels/${channel.type}/${channel.id}${enabledStatus === "enabled" ? "" : "?status=disabled"}`,
-            )
+            navigate(returnLink(`/channels/${channel.type}/${channel.id}`))
           }
           rowActions={(channel) => [
             {

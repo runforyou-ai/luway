@@ -27,6 +27,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useDateTime } from "@/hooks/use-date-time"
 import { formatFileSize } from "@/lib/file-size"
 import { cn } from "@/lib/utils"
+import { useReturnLink } from "@/hooks/use-return-to"
 import { KnowledgeIndexStatus } from "./knowledge-index-status"
 
 /** 各格式文档在行首显示的彩色图标，未列出的格式使用灰色通用文件图标。 */
@@ -66,7 +67,6 @@ export function KnowledgeDocumentTable({
   documents,
   more,
   listPath,
-  search,
   filtered,
   refreshing,
   onDelete,
@@ -75,7 +75,6 @@ export function KnowledgeDocumentTable({
   documents: readonly KnowledgeDocumentData[]
   more: PagedResourceMore
   listPath: string
-  search: string
   filtered: boolean
   refreshing: boolean
   onDelete: (document: KnowledgeDocumentData) => void
@@ -84,6 +83,7 @@ export function KnowledgeDocumentTable({
   const { formatDateTime } = useDateTime()
   const invalidate = useResourceInvalidator()
   const navigate = useNavigate()
+  const returnLink = useReturnLink()
   const retrying = usePendingIds()
 
   /** 提交重试或重新抓取，并在结束后刷新列表和详情中的文档状态。 */
@@ -171,8 +171,8 @@ export function KnowledgeDocumentTable({
         onRowActivate={(document) =>
           navigate(
             document.sourceKind === KnowledgeDocumentSourceKind.KnowledgeDocumentSourceText
-              ? `${listPath}/${document.id}/edit${search}`
-              : `${listPath}/${document.id}${search}`,
+              ? returnLink(`${listPath}/${document.id}/edit`)
+              : returnLink(`${listPath}/${document.id}`),
           )
         }
         // 网页来源的文档额外提供重新抓取。

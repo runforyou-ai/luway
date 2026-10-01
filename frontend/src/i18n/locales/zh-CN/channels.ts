@@ -69,6 +69,7 @@ const channels = {
   create: {
     title: "添加{{type}}渠道",
     description: "填写渠道信息并完成接入",
+    success: "渠道已添加",
   },
   edit: {
     title: "{{type}}渠道设置",

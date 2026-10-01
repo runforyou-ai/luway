@@ -75,7 +75,7 @@ func TestContextSummaryKeepsLatestInput(t *testing.T) {
 		return assistantReply("算完了"), nil
 	}}
 	chatModel := &summaryModel{AgenticModel: main}
-	calculator, err := newCalculatorTool()
+	echoTool, err := newEchoTool()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestContextSummaryKeepsLatestInput(t *testing.T) {
 			configs = append(configs, config)
 			return chatModel, nil
 		},
-		tools: []tool.BaseTool{calculator},
+		tools: []tool.BaseTool{echoTool},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -130,7 +130,7 @@ func TestContextSummaryCompactsWithinTurn(t *testing.T) {
 		switch len(inputs) {
 		case 1, 2:
 			return assistantReply(long, &schema.FunctionToolCall{
-				CallID: fmt.Sprint("call-", len(inputs)), Name: "calculator", Arguments: `{"operation":"add","left":1,"right":1}`,
+				CallID: fmt.Sprint("call-", len(inputs)), Name: "echo", Arguments: `{"text":"3"}`,
 			}), nil
 		case 3:
 			feed.appendUser("再来")
@@ -138,13 +138,13 @@ func TestContextSummaryCompactsWithinTurn(t *testing.T) {
 		return assistantReply("算完了"), nil
 	}}
 	chatModel := &summaryModel{AgenticModel: main}
-	calculator, err := newCalculatorTool()
+	echoTool, err := newEchoTool()
 	if err != nil {
 		t.Fatal(err)
 	}
 	runtime := &EinoRuntime{
 		newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil },
-		tools:    []tool.BaseTool{calculator},
+		tools:    []tool.BaseTool{echoTool},
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -157,10 +157,10 @@ func TestContextSummaryCompactsWithinTurn(t *testing.T) {
 		t.Fatalf("result = %#v, err = %v, summaries = %d, calls = %d", result, err, len(chatModel.summaries), len(inputs))
 	}
 	summary := summaryPreamble + "\n\n<summary>用户先让计算，已给出长篇说明</summary>"
-	if got := conversation(inputs[2]); !slices.Equal(got, []string{summary, "开始计算", long, `{"result":2}`}) || toolCalls(inputs[2][len(inputs[2])-2])[0].CallID != "call-2" {
+	if got := conversation(inputs[2]); !slices.Equal(got, []string{summary, "开始计算", long, `{"text":"3"}`}) || toolCalls(inputs[2][len(inputs[2])-2])[0].CallID != "call-2" {
 		t.Fatalf("input after summary = %q", got)
 	}
-	if got := conversation(inputs[3]); !slices.Equal(got, []string{summary, "开始计算", long, `{"result":2}`, "算完了", "再来"}) {
+	if got := conversation(inputs[3]); !slices.Equal(got, []string{summary, "开始计算", long, `{"text":"3"}`, "算完了", "再来"}) {
 		t.Fatalf("next turn input = %q", got)
 	}
 }
@@ -184,7 +184,7 @@ func TestContextSummaryPairsPreemptedToolCalls(t *testing.T) {
 		if err := execution.inputs.poll(ctx, true); err != nil {
 			return nil, err
 		}
-		return assistantReply(strings.Repeat("长", 3000), &schema.FunctionToolCall{CallID: "skipped", Name: "calculator"}), nil
+		return assistantReply(strings.Repeat("长", 3000), &schema.FunctionToolCall{CallID: "skipped", Name: "echo"}), nil
 	}}}
 	summarizer, err := newContextSummarizer(ctx, chatModel, ModelConfig{ContextWindow: 4000}, SceneAgentChat, &Usage{})
 	if err != nil {
@@ -194,14 +194,14 @@ func TestContextSummaryPairsPreemptedToolCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	calculator, err := newCalculatorTool()
+	echoTool, err := newEchoTool()
 	if err != nil {
 		t.Fatal(err)
 	}
 	execution.summarizer = summarizer
 	agent, err := adk.NewTypedChatModelAgent(ctx, &adk.TypedChatModelAgentConfig[*schema.AgenticMessage]{
 		Name: "test", Model: chatModel, Handlers: []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]{execution.recorder, &toolArgumentsNormalizer{}, patch, summarizer},
-		ToolsConfig: adk.ToolsConfig{ToolsNodeConfig: compose.ToolsNodeConfig{Tools: []tool.BaseTool{calculator}}},
+		ToolsConfig: adk.ToolsConfig{ToolsNodeConfig: compose.ToolsNodeConfig{Tools: []tool.BaseTool{echoTool}}},
 	})
 	if err != nil {
 		t.Fatal(err)

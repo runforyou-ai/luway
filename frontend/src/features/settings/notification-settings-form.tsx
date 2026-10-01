@@ -7,7 +7,7 @@ import {
   updateUserPreferences,
   type CurrentUser,
 } from "@/api"
-import { SwitchCardField } from "@/components/form/switch-card-field"
+import { SwitchField } from "@/components/form/switch-field"
 import { FieldGroup } from "@/components/ui/field"
 import { NotificationPermissionSettings } from "@/components/notification-permission-settings"
 import {
@@ -83,7 +83,7 @@ export function NotificationSettingsForm({ user }: { user: CurrentUser }) {
           name="messageNotificationsEnabled"
           control={form.control}
           render={({ field }) => (
-            <SwitchCardField
+            <SwitchField
               id={field.name}
               name={field.name}
               label={t("notifications.newMessages")}
@@ -99,7 +99,7 @@ export function NotificationSettingsForm({ user }: { user: CurrentUser }) {
           name="notificationSoundEnabled"
           control={form.control}
           render={({ field }) => (
-            <SwitchCardField
+            <SwitchField
               id={field.name}
               name={field.name}
               label={t("notifications.sound")}

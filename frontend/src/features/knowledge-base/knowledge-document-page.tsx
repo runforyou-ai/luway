@@ -1,7 +1,7 @@
 /** 本地知识文档预览页面，保留列表返回位置。 */
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { useLocation, useParams } from "react-router"
+import { useParams } from "react-router"
 import {
   getKnowledgeDocument,
   getKnowledgeDocumentContent,
@@ -14,6 +14,7 @@ import { ResourceContent } from "@/components/resource-content"
 import { Button } from "@/components/ui/button"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource } from "@/hooks/use-resource"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { KnowledgeSegmentsDialog } from "./knowledge-segments-dialog"
 import { KnowledgeDocumentPreview } from "./knowledge-document-preview"
 
@@ -21,7 +22,7 @@ import { KnowledgeDocumentPreview } from "./knowledge-document-preview"
 export function KnowledgeDocumentPage() {
   const { t } = useTranslation(["knowledgeBase", "common"])
   const { knowledgeBaseId = "", documentId = "" } = useParams()
-  const location = useLocation()
+  const { returnTo } = useReturnTo(`/knowledge-bases/${knowledgeBaseId}/documents`)
   // 保存弹窗打开时的分段批次。
   const [segmentBatchId, setSegmentBatchId] = useState("")
   const trigger = useRef<HTMLButtonElement>(null)
@@ -49,7 +50,7 @@ export function KnowledgeDocumentPage() {
       <PageHeader
         title={document.data?.name ?? t("documents.title")}
         description={t("documentDetail.description")}
-        backTo={`/knowledge-bases/${knowledgeBaseId}/documents${location.search}`}
+        backTo={returnTo}
       >
         <Button ref={trigger} variant="outline" size="sm" disabled={!document.data?.segmentBatchId} onClick={() => setSegmentBatchId(document.data?.segmentBatchId ?? "")}>
           {t("documentDetail.viewSegments")}

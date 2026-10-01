@@ -2,16 +2,16 @@
 import { useState } from "react"
 import { PlusIcon, UsersIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { useLocation, useNavigate } from "react-router"
+import { useNavigate } from "react-router"
 
 import { deleteTeam, listTeams, type Team } from "@/api"
 import { ListToolbarSearch, ListToolbarTotal } from "@/components/list-toolbar"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable } from "@/components/resource-table"
+import { UnsavedDialog } from "@/components/unsaved-dialog"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -25,13 +25,14 @@ import { resourceKeys } from "@/hooks/resource-keys"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 import { useDateTime } from "@/hooks/use-date-time"
 import { usePagedResource } from "@/hooks/use-resource"
+import { useReturnLink } from "@/hooks/use-return-to"
 
 /** 列出企业团队并提供团队维护入口。 */
 export function TeamListPanel() {
   const { t } = useTranslation(["contacts", "common"])
   const { formatDateTime } = useDateTime()
   const navigate = useNavigate()
-  const location = useLocation()
+  const returnLink = useReturnLink({ omitSearchParams: ["newTeam"] })
   const { searchParams, setParameters, query, search, setSearch } =
     useContactSearch()
   const [editingTeam, setEditingTeam] = useState<Team | null>(null)
@@ -109,7 +110,7 @@ export function TeamListPanel() {
           empty={query ? t("teams.emptyFiltered") : t("teams.empty")}
           onRowActivate={(team) =>
             navigate(
-              `/contacts/teams/${team.id}?returnTo=${encodeURIComponent(location.pathname + location.search)}`,
+              returnLink(`/contacts/teams/${team.id}`),
             )
           }
           rowActions={(team) => [
@@ -129,7 +130,7 @@ export function TeamListPanel() {
         />
       </ContactListSection>
 
-      <Dialog
+      <UnsavedDialog
         open={creatingTeam}
         onOpenChange={(open) => !open && setParameters({ newTeam: null })}
       >
@@ -140,14 +141,14 @@ export function TeamListPanel() {
           </DialogHeader>
           <TeamForm
             onSaved={(team) => {
-              navigate(`/contacts/teams/${team.id}`, { replace: true })
+              navigate(returnLink(`/contacts/teams/${team.id}`), { replace: true })
             }}
             onCancel={() => setParameters({ newTeam: null })}
           />
         </DialogContent>
-      </Dialog>
+      </UnsavedDialog>
 
-      <Dialog
+      <UnsavedDialog
         open={editingTeam !== null}
         onOpenChange={(open) => !open && setEditingTeam(null)}
       >
@@ -166,7 +167,7 @@ export function TeamListPanel() {
             />
           ) : null}
         </DialogContent>
-      </Dialog>
+      </UnsavedDialog>
 
       <ConfirmationDialog
         {...teamDeletion.dialog}

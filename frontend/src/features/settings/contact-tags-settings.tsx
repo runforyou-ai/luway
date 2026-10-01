@@ -22,6 +22,7 @@ import { ResourceContent } from "@/components/resource-content"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { useFormLifetime } from "@/hooks/use-form-lifetime"
 import { useResource } from "@/hooks/use-resource"
 import { apiErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
@@ -107,6 +108,8 @@ function ContactTagForm({
     shouldUseNativeValidation: true,
     defaultValues: { name: tag?.name ?? "", aiInstruction: tag?.aiInstruction ?? "" },
   })
+  // 登记未保存状态，弹窗关闭前确认放弃修改。
+  useFormLifetime(form.formState.isDirty)
   useEffect(() => {
     form.setFocus("name")
   }, [form])

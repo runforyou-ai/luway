@@ -3,7 +3,6 @@ package agentruntime
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -133,7 +132,7 @@ func (m *steeringChatModel) Generate(_ context.Context, input []*schema.AgenticM
 	if m.calls == 1 {
 		close(m.firstCall)
 		return assistantReply("先计算一加二", &schema.FunctionToolCall{
-			CallID: "calculator-call-1", Name: "calculator", Arguments: `{"operation":"add","left":1,"right":2,"delayMilliseconds":500}`,
+			CallID: "echo-call-1", Name: "echo", Arguments: `{"text":"3","delayMilliseconds":500}`,
 		}), nil
 	}
 	userMessages := 0
@@ -205,7 +204,7 @@ func TestEinoRuntimeSteersBeforeNextModelCall(t *testing.T) {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logOutput, nil)))
 	t.Cleanup(func() { slog.SetDefault(originalLogger) })
 
-	calculator, err := newCalculatorTool()
+	echoTool, err := newEchoTool()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,10 +213,10 @@ func TestEinoRuntimeSteersBeforeNextModelCall(t *testing.T) {
 		newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) {
 			return chatModel, nil
 		},
-		tools: []tool.BaseTool{calculator},
+		tools: []tool.BaseTool{echoTool},
 	}
 	feed := &testInputFeed{}
-	feed.appendUser("calculate one plus two")
+	feed.appendUser("echo three")
 
 	go func() {
 		<-chatModel.firstCall
@@ -251,17 +250,17 @@ func TestEinoRuntimeSteersBeforeNextModelCall(t *testing.T) {
 		t.Fatalf("steered message kinds = %v", kinds)
 	}
 	messages := chatModel.lastInput[len(chatModel.lastInput)-4:]
-	if messageText(messages[1]) != "先计算一加二" || toolCalls(messages[1])[0].CallID != "calculator-call-1" ||
-		toolResult(messages[2]).CallID != "calculator-call-1" || messageText(messages[2]) != `{"result":3}` {
+	if messageText(messages[1]) != "先计算一加二" || toolCalls(messages[1])[0].CallID != "echo-call-1" ||
+		toolResult(messages[2]).CallID != "echo-call-1" || messageText(messages[2]) != `{"text":"3"}` {
 		t.Fatalf("steered tool exchange = %#v / %#v", messages[1], messages[2])
 	}
 	logs := logOutput.String()
-	for _, expected := range []string{`"msg":"Agent Tool 调用开始"`, `"msg":"Calculator Tool 执行配置"`, `"msg":"Agent Tool 调用成功"`, `"agent_run_id":"test-run-id"`, `"tool_name":"calculator"`, `"tool_call_id":"calculator-call-1"`, `"operation":"add"`, `"delay_ms":500`, `"duration_ms":`} {
+	for _, expected := range []string{`"msg":"Agent Tool 调用开始"`, `"msg":"Agent Tool 调用成功"`, `"agent_run_id":"test-run-id"`, `"tool_name":"echo"`, `"tool_call_id":"echo-call-1"`, `"duration_ms":`} {
 		if !strings.Contains(logs, expected) {
 			t.Fatalf("tool logs do not contain %q: %s", expected, logs)
 		}
 	}
-	if strings.Contains(logs, "delayMilliseconds") || strings.Contains(logs, `"left"`) || strings.Contains(logs, `"right"`) || strings.Contains(logs, `"arguments"`) {
+	if strings.Contains(logs, "delayMilliseconds") || strings.Contains(logs, `"text":"3"`) || strings.Contains(logs, `"arguments"`) {
 		t.Fatalf("tool logs contain call arguments: %s", logs)
 	}
 }
@@ -283,31 +282,5 @@ func TestEinoRuntimeIgnoresWatcherCancellationAfterSuccess(t *testing.T) {
 	}
 	if result.Content != "final response" || result.EndSeq != 1 {
 		t.Fatalf("result = %#v", result)
-	}
-}
-
-// TestCalculate 验证计算器 Tool 的四则运算与除零保护。
-func TestCalculate(t *testing.T) {
-	result, err := calculate(context.Background(), calculatorInput{Operation: "multiply", Left: 6, Right: 7})
-	if err != nil || result.Result != 42 {
-		t.Fatalf("calculate result = %#v, error = %v", result, err)
-	}
-	if _, err := calculate(context.Background(), calculatorInput{Operation: "divide", Left: 1, Right: 0}); err == nil {
-		t.Fatal("divide by zero should fail")
-	}
-	startedAt := time.Now()
-	if _, err := calculate(context.Background(), calculatorInput{Operation: "add", Left: 1, Right: 2, DelayMilliseconds: 30}); err != nil {
-		t.Fatal(err)
-	}
-	if elapsed := time.Since(startedAt); elapsed < 20*time.Millisecond {
-		t.Fatalf("calculator delay elapsed = %s", elapsed)
-	}
-	if _, err := calculate(context.Background(), calculatorInput{Operation: "add", DelayMilliseconds: 30001}); err == nil {
-		t.Fatal("calculator delay above the limit should fail")
-	}
-	cancelledContext, cancel := context.WithCancel(context.Background())
-	cancel()
-	if _, err := calculate(cancelledContext, calculatorInput{Operation: "add", DelayMilliseconds: 1000}); !errors.Is(err, context.Canceled) {
-		t.Fatalf("cancelled calculator error = %v", err)
 	}
 }

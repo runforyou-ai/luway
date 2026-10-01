@@ -2,7 +2,7 @@
 import { useState } from "react"
 import { PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { useLocation, useNavigate } from "react-router"
+import { useNavigate } from "react-router"
 
 import {
   InvitationStatus,
@@ -41,6 +41,7 @@ import { resourceKeys } from "@/hooks/resource-keys"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 import { useDateTime } from "@/hooks/use-date-time"
 import { usePagedResource, useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { useReturnLink } from "@/hooks/use-return-to"
 import { roleDisplayName } from "@/lib/role-labels"
 import { optionalWailsEnum } from "@/lib/wails-enum"
 
@@ -55,15 +56,11 @@ export function MemberListPage() {
   const { t: tCommon } = useTranslation("common")
   const { identity } = useWorkspace()
   const navigate = useNavigate()
-  const location = useLocation()
   const { searchParams, setParameters, query, search, setSearch } =
     useContactSearch()
   const invalidate = useResourceInvalidator()
   const [inviting, setInviting] = useState(false)
-  // 编辑页返回时恢复当前筛选和滚动位置。
-  const returnQuery = new URLSearchParams({
-    returnTo: location.pathname + location.search,
-  }).toString()
+  const returnLink = useReturnLink()
   const showInvitations = searchParams.get("status") === invitedFilter
   const status =
     optionalWailsEnum(UserStatus, searchParams.get("status")) ??
@@ -264,7 +261,7 @@ export function MemberListPage() {
           rows={users}
           rowKey={(user) => user.id}
           empty={tSettings("members.empty")}
-          onRowActivate={(user) => navigate(`/settings/members/${user.id}?${returnQuery}`)}
+          onRowActivate={(user) => navigate(returnLink(`/settings/members/${user.id}`))}
           rowActions={(user) => [statusToggle.rowAction(user)]}
         />
       </ResourceListLayout>

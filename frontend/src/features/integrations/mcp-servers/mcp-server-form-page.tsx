@@ -15,7 +15,7 @@ import {
 } from "@/api"
 import { FormActions } from "@/components/form/form-actions"
 import { FormInputField } from "@/components/form/form-input-field"
-import { SwitchCardField } from "@/components/form/switch-card-field"
+import { SwitchField } from "@/components/form/switch-field"
 import { ResourceContent } from "@/components/resource-content"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
@@ -215,7 +215,7 @@ export function MCPServerFormPage({ mode }: { mode: "create" | "edit" }) {
                 name="customerScoped"
                 control={form.control}
                 render={({ field }) => (
-                  <SwitchCardField
+                  <SwitchField
                     id="mcp-server-customer-scoped"
                     name={field.name}
                     label={t("mcpServer.form.customerScoped")}

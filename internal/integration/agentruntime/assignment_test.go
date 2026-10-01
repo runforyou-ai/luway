@@ -103,7 +103,7 @@ func TestResolveAssignment(t *testing.T) {
 		len(assignment.Model.InputModalities) != 1 || len(assignment.MCPServers) != 1 {
 		t.Fatalf("有效配置元数据 = %+v", assignment)
 	}
-	// 客服场景注册知识检索与终止工具，不注册开发期计算器。
+	// 客服场景注册知识检索与终止工具。
 	if strings.Join(assignment.Tools, ",") != "search_knowledge,ask_customer,handoff_to_human,resolve_conversation" {
 		t.Fatalf("客服工具清单 = %v", assignment.Tools)
 	}
@@ -114,7 +114,7 @@ func TestResolveAssignment(t *testing.T) {
 		t.Fatalf("客户历史有效配置 = %+v", history)
 	}
 	internal := ResolveAssignment(AssignmentFacts{Scene: SceneContext{Scene: SceneAgentChat}}, Capabilities{})
-	if strings.Join(internal.Tools, ",") != "calculator,TaskCreate,TaskGet,TaskUpdate,TaskList,agent" || internal.Grounding != "" {
+	if strings.Join(internal.Tools, ",") != "TaskCreate,TaskGet,TaskUpdate,TaskList,agent" || internal.Grounding != "" {
 		t.Fatalf("内部场景有效配置 = %+v", internal)
 	}
 	if internal.InstructionSHA256 == assignment.InstructionSHA256 {

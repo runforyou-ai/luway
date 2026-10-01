@@ -10,7 +10,7 @@ import {
   type MemberOption,
 } from "@/api"
 import type { MobileAgentLocationState } from "@/apps/mobile/mobile-agent-chat-page"
-import { MobileDirectDraft } from "@/apps/mobile/mobile-employee-chat-page"
+import type { MobileIndividualLocationState } from "@/apps/mobile/mobile-individual-conversation-page"
 import { useMobileBack } from "@/apps/mobile/mobile-navigation"
 import {
   MobilePageHeader,
@@ -116,9 +116,8 @@ function MobileNewChatTarget({ identityID }: { identityID: string }) {
   const navigate = useNavigate()
   const location = useLocation()
   const back = useMobileBack("/chats")
-  const [draft, setDraft] = useState<MemberOption | null>(null)
 
-  /** 已有单聊直接打开，同事无单聊时就地展示草稿，AI 对象带着已解析目标进入 AI 对话。 */
+  /** 已有单聊直接打开，同事无单聊时进入真人单聊草稿，AI 对象带着已解析目标进入 AI 对话。 */
   function openTarget(
     member: MemberOption,
     conversation: DirectInboxConversationData | null,
@@ -129,7 +128,13 @@ function MobileNewChatTarget({ identityID }: { identityID: string }) {
         state: { ...location.state, conversation },
       })
     } else if (member.type === OrganizationIdentityType.OrganizationIdentityTypeUser) {
-      setDraft(member)
+      void navigate(`/chats/direct/${crypto.randomUUID()}`, {
+        replace: true,
+        state: {
+          ...location.state,
+          draftPeer: { identityId: member.id, displayName: member.displayName },
+        } satisfies MobileIndividualLocationState,
+      })
     } else {
       void navigate(`/chats/agent/${crypto.randomUUID()}`, {
         replace: true,
@@ -144,24 +149,18 @@ function MobileNewChatTarget({ identityID }: { identityID: string }) {
   return (
     <section className="flex h-full min-h-0 flex-col">
       <MobilePageHeader
-        title={draft?.displayName ?? t("newDirectConversation")}
+        title={t("newDirectConversation")}
         backTo="/chats"
       />
-      {draft ? (
-        <MobileDirectDraft identityID={draft.id} />
-      ) : (
-        <>
-          <LoadingIndicator className="min-h-0 flex-1 justify-center">
-            {t("common:status.loading")}
-          </LoadingIndicator>
-          <InboxConversationTarget
-            identityId={identityID}
-            currentIdentityId={identity.user.identityId}
-            onSelected={openTarget}
-            onFailed={back}
-          />
-        </>
-      )}
+      <LoadingIndicator className="min-h-0 flex-1 justify-center">
+        {t("common:status.loading")}
+      </LoadingIndicator>
+      <InboxConversationTarget
+        identityId={identityID}
+        currentIdentityId={identity.user.identityId}
+        onSelected={openTarget}
+        onFailed={back}
+      />
     </section>
   )
 }

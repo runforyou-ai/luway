@@ -1,12 +1,7 @@
 /** AI 员工独立创建页和详情页：详情页分概览、待补知识、问题会话、评测、服务记录、基本资料与运行配置七个与地址同步的页签，没有服务对象的 AI 员工不显示评测。 */
 import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
-import {
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router"
+import { useParams, useSearchParams } from "react-router"
 
 import {
   getAIPerformanceReport,
@@ -20,7 +15,6 @@ import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { ResourceContent } from "@/components/resource-content"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { agentReturnPath } from "@/features/agents/agent-navigation"
 import { AgentForm } from "@/features/agents/agent-form"
 import { AgentProfileForm } from "@/features/agents/agent-profile-form"
 import { AgentExecutionForm } from "@/features/agents/agent-execution-form"
@@ -34,6 +28,7 @@ import { AIPerformanceOverview } from "@/features/agents/ai-performance-overview
 import { useContactInvalidator } from "@/hooks/use-contact-invalidator"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { cn } from "@/lib/utils"
 
 /** 详情页签，第一个为默认值。 */
@@ -60,8 +55,6 @@ export function AgentFormPage({ mode }: { mode: "create" | "edit" }) {
   const { t } = useTranslation(["agents", "common"])
   const { agentId = "" } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
-  const location = useLocation()
   const detail = useResource(
     resourceKeys.agent(agentId),
     () => getAgent(agentId),
@@ -69,7 +62,12 @@ export function AgentFormPage({ mode }: { mode: "create" | "edit" }) {
   )
   const agent = detail.data
   const tab = detailTabs.find((value) => value === searchParams.get("tab")) ?? detailTabs[0]
-  const returnTo = agentReturnPath(location.pathname, location.search)
+  // 返回来源 AI 员工列表或团队页。
+  const { returnTo, leave } = useReturnTo("/ai-employees", {
+    allowed: (path) => /^\/contacts\/teams\/[^/]+$/.test(path),
+    notFound: mode === "edit" && isNotFoundApiError(detail.error),
+    logFields: { agent_id: agentId },
+  })
   const teamId = searchParams.get("teamId")
 
   // 无效页签改写为有效页签，缺省时表示默认页签。
@@ -80,13 +78,6 @@ export function AgentFormPage({ mode }: { mode: "create" | "edit" }) {
     next.set("tab", tab)
     setSearchParams(next, { replace: true })
   }, [mode, searchParams, setSearchParams, tab])
-
-  // 员工不存在时返回来源列表。
-  useEffect(() => {
-    if (mode !== "edit" || !isNotFoundApiError(detail.error)) return
-    console.warn("AI 员工不存在", { agent_id: agentId })
-    navigate(returnTo, { replace: true })
-  }, [agentId, detail.error, mode, navigate, returnTo])
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -99,8 +90,8 @@ export function AgentFormPage({ mode }: { mode: "create" | "edit" }) {
         <PageContent variant="form">
           <AgentForm
             defaultTeamIds={teamId ? [teamId] : []}
-            onCancel={() => navigate(returnTo)}
-            onSaved={() => navigate(returnTo, { replace: true })}
+            onCancel={() => leave()}
+            onSaved={() => leave({ replace: true })}
           />
         </PageContent>
       ) : (

@@ -33,17 +33,13 @@ type EinoRuntime struct {
 	tools    []tool.BaseTool
 }
 
-// New 创建带计算器 Tool 的 Eino Runtime。
+// New 创建 Eino Runtime。
 func New() (*EinoRuntime, error) {
 	// 框架内置提示与本项目面向模型的提示统一使用中文。
 	if err := adk.SetLanguage(adk.LanguageChinese); err != nil {
 		return nil, fmt.Errorf("set agent runtime language: %w", err)
 	}
-	calculator, err := newCalculatorTool()
-	if err != nil {
-		return nil, fmt.Errorf("create calculator tool: %w", err)
-	}
-	return &EinoRuntime{newModel: newAgenticModel, tools: []tool.BaseTool{calculator}}, nil
+	return &EinoRuntime{newModel: newAgenticModel}, nil
 }
 
 // Run 执行受迭代上限和 context 控制的 TurnLoop，并在安全点吸收后续输入。
@@ -353,7 +349,7 @@ func (m *modelRetry) shouldRetry(ctx context.Context, attempt *adk.TypedRetryCon
 	return decision
 }
 
-// assembleTools 按场景与请求装配本次运行的工具：开发期计算器只在内部场景注册，终止工具只在客服场景注册，MCP 工具在内置工具之后按服务顺序连接，跳过名称与已注册工具重复的工具。
+// assembleTools 按场景与请求装配本次运行的工具：Runtime 基础工具只在内部场景注册，终止工具只在客服场景注册，MCP 工具在内置工具之后按服务顺序连接，跳过名称与已注册工具重复的工具。
 // 工具集合由本次运行注入的依赖决定，调用方必须让注入的依赖与有效配置中的工具清单一致。
 func (r *EinoRuntime) assembleTools(ctx context.Context, request RunRequest, terminal *terminalTools, workspace workspaceTools) ([]tool.BaseTool, func(), error) {
 	tools := make([]tool.BaseTool, 0, len(r.tools)+6+len(workspace.tools))

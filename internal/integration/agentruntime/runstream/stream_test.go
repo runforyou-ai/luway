@@ -53,8 +53,8 @@ func testStreamOperations() []Operation {
 		{Kind: OperationAppendCandidate, Text: "我"},
 		{Kind: OperationAppendCandidate, Text: "来"},
 		{Kind: OperationClearCandidate},
-		{Kind: OperationUpsertBlock, Block: &Block{ID: "tool", Position: 2, Kind: domain.AgentRunBlockToolCall, ToolCall: &ToolCall{CallID: "call", Name: "calculator", Status: domain.AgentToolCallQueued}}},
-		{Kind: OperationUpsertBlock, Block: &Block{ID: "tool", Position: 2, Kind: domain.AgentRunBlockToolCall, ToolCall: &ToolCall{CallID: "call", Name: "calculator", Status: domain.AgentToolCallRunning}}},
+		{Kind: OperationUpsertBlock, Block: &Block{ID: "tool", Position: 2, Kind: domain.AgentRunBlockToolCall, ToolCall: &ToolCall{CallID: "call", Name: "echo", Status: domain.AgentToolCallQueued}}},
+		{Kind: OperationUpsertBlock, Block: &Block{ID: "tool", Position: 2, Kind: domain.AgentRunBlockToolCall, ToolCall: &ToolCall{CallID: "call", Name: "echo", Status: domain.AgentToolCallRunning}}},
 	}
 }
 

@@ -17,6 +17,7 @@ import {
 import { InlineEditField } from "@/components/form/inline-edit-field"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Button } from "@/components/ui/button"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { resolveServerURL } from "@/lib/server-url"
 import {
   createTelegramChannelConnectionSchema,
@@ -38,6 +39,7 @@ export function TelegramChannelConnectionForm({
 }) {
   const { t } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
+  const { leave } = useReturnTo("/channels")
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [pendingBotReuse, setPendingBotReuse] =
@@ -77,7 +79,7 @@ export function TelegramChannelConnectionForm({
       if (recoverSession(error, navigate)) return
       if (isNotFoundApiError(error)) {
         console.warn("Telegram 渠道不存在", { channel_id: channel.id })
-        navigate("/channels", { replace: true })
+        leave({ replace: true })
         return
       }
       if (!confirmBotReuse && isTelegramBotReuseConfirmationError(error)) {
@@ -120,7 +122,7 @@ export function TelegramChannelConnectionForm({
       if (recoverSession(error, navigate)) return
       if (isNotFoundApiError(error)) {
         console.warn("Telegram 渠道不存在", { channel_id: channel.id })
-        navigate("/channels", { replace: true })
+        leave({ replace: true })
         return
       }
       console.warn("测试 Telegram 连接失败", {

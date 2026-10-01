@@ -1,7 +1,7 @@
 /** 本地知识问答的列表、搜索和删除操作。 */
 import { PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { Link, useLocation } from "react-router"
+import { Link } from "react-router"
 
 import {
   KnowledgeBaseCategory,
@@ -13,6 +13,7 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Button } from "@/components/ui/button"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { useReturnLink } from "@/hooks/use-return-to"
 import { KnowledgeQATable } from "@/features/knowledge-base/knowledge-qa-table"
 import {
   KnowledgeContentListShell,
@@ -36,7 +37,7 @@ function KnowledgeQAList({
   knowledgeBaseId: string
 }) {
   const { t } = useTranslation(["knowledgeBase", "common"])
-  const location = useLocation()
+  const returnLink = useReturnLink()
   const list = useKnowledgeContentList({
     knowledgeBaseId,
     section: "qa",
@@ -69,7 +70,7 @@ function KnowledgeQAList({
         actions={
           <Button variant="subtle" size="icon-sm" asChild>
             <Link
-              to={`${list.listPath}/new${location.search}`}
+              to={returnLink(`${list.listPath}/new`)}
               aria-label={t("qa.create")}
               title={t("qa.create")}
             >
@@ -84,7 +85,6 @@ function KnowledgeQAList({
           more={list.list.more}
           loading={list.list.isPlaceholderData || list.list.refreshing}
           listPath={list.listPath}
-          search={location.search}
           filtered={list.query !== ""}
           onDelete={deletion.select}
         />

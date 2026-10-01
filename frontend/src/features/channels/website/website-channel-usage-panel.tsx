@@ -17,6 +17,7 @@ import { resourceKeys } from "@/hooks/resource-keys"
 import { useAutoSave } from "@/hooks/use-auto-save"
 import { useQRCode } from "@/hooks/use-qr-code"
 import { useResource } from "@/hooks/use-resource"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { recoverSession } from "@/lib/session-navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -164,6 +165,7 @@ export function WebsiteChannelUsagePanel({
 }) {
   const { t } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
+  const { leave } = useReturnTo("/channels")
   const formId = useId()
   const { copied, copy } = useCopyFeedback<"snippet" | "link">()
   const [copyFailed, setCopyFailed] = useState(false)
@@ -227,7 +229,7 @@ export function WebsiteChannelUsagePanel({
       if (recoverSession(submitError, navigate)) return false
       if (isNotFoundApiError(submitError)) {
         console.warn("网站渠道不存在", { channel_id: channel.id })
-        navigate("/channels", { replace: true })
+        leave({ replace: true })
         return false
       }
       console.warn("保存网站渠道允许使用的网站失败", submitError)

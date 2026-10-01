@@ -21,7 +21,7 @@ import {
   type WebsiteHomeBlockTypeId,
 } from "@/api"
 import { FormInputField } from "@/components/form/form-input-field"
-import { SwitchCardField } from "@/components/form/switch-card-field"
+import { SwitchField } from "@/components/form/switch-field"
 import { Button } from "@/components/ui/button"
 import { FieldDescription, FieldGroup } from "@/components/ui/field"
 import { Label } from "@/components/ui/label"
@@ -32,6 +32,7 @@ import {
   type WebsiteChannelHomeFormValues,
 } from "@/features/channels/website/website-channel-home-schema"
 import { useAutoSave } from "@/hooks/use-auto-save"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { requestErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
 import { zodResolver } from "@/lib/zod-resolver"
@@ -73,6 +74,7 @@ export function WebsiteChannelHomeForm({
 }) {
   const { t } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
+  const { leave } = useReturnTo("/channels")
   const formId = useId()
   const schema = useMemo(
     () =>
@@ -137,7 +139,7 @@ export function WebsiteChannelHomeForm({
       }
       if (isNotFoundApiError(error)) {
         console.warn("网站渠道不存在", { channel_id: channel.id })
-        navigate("/channels", { replace: true })
+        leave({ replace: true })
         return false
       }
       console.warn("保存网站渠道聊天窗口首页失败", error)
@@ -157,7 +159,7 @@ export function WebsiteChannelHomeForm({
           name="enabled"
           control={form.control}
           render={({ field }) => (
-            <SwitchCardField
+            <SwitchField
               id={`${formId}-${field.name}`}
               name={field.name}
               label={t("home.form.enabled")}

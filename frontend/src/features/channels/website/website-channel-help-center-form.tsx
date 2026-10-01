@@ -13,7 +13,7 @@ import {
   type WebsiteChannelData,
 } from "@/api"
 import { AgentResourcePickerField } from "@/components/agent-fields/agent-resource-picker-field"
-import { SwitchCardField } from "@/components/form/switch-card-field"
+import { SwitchField } from "@/components/form/switch-field"
 import {
   Field,
   FieldDescription,
@@ -23,6 +23,7 @@ import {
 import type { WebsiteHelpCenterPreviewDraft } from "@/features/channels/website/website-chat-preview"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useAutoSave } from "@/hooks/use-auto-save"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { requestErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
 import { zodResolver } from "@/lib/zod-resolver"
@@ -46,6 +47,7 @@ export function WebsiteChannelHelpCenterForm({
 }) {
   const { t } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
+  const { leave } = useReturnTo("/channels")
   const formId = useId()
   const form = useForm<WebsiteChannelHelpCenterFormValues>({
     resolver: zodResolver(helpCenterSchema),
@@ -89,7 +91,7 @@ export function WebsiteChannelHelpCenterForm({
       }
       if (isNotFoundApiError(error)) {
         console.warn("网站渠道不存在", { channel_id: channel.id })
-        navigate("/channels", { replace: true })
+        leave({ replace: true })
         return false
       }
       console.warn("保存网站渠道帮助中心失败", error)
@@ -109,7 +111,7 @@ export function WebsiteChannelHelpCenterForm({
           name="enabled"
           control={form.control}
           render={({ field }) => (
-            <SwitchCardField
+            <SwitchField
               id={`${formId}-${field.name}`}
               name={field.name}
               label={t("helpCenter.enabled")}
