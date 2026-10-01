@@ -39,14 +39,6 @@ const (
 	SessionStateWorkspace SessionState = "workspace"
 )
 
-// DeploymentMode 表示服务端部署形态。
-type DeploymentMode string
-
-const (
-	DeploymentModeSelfHosted DeploymentMode = DeploymentMode(domain.DeploymentModeSelfHosted)
-	DeploymentModeManaged    DeploymentMode = DeploymentMode(domain.DeploymentModeManaged)
-)
-
 // ErrorKind 表示业务失败种类。
 type ErrorKind string
 
@@ -78,12 +70,11 @@ const (
 	ConnectReasonNotInstalled ConnectReason = "not_installed"
 )
 
-// Startup 表示应用启动入口、服务端部署形态和界面使用的产品品牌，登录页按部署形态选择登录方式；原生端已保存服务器仍进入连接页时 ConnectReason 说明原因。
+// Startup 表示应用启动入口和界面使用的产品品牌；原生端已保存服务器仍进入连接页时 ConnectReason 说明原因。
 type Startup struct {
-	State          SessionState   `json:"state"`
-	DeploymentMode DeploymentMode `json:"deploymentMode,omitempty"`
-	Brand          Brand          `json:"brand"`
-	ConnectReason  ConnectReason  `json:"connectReason,omitempty"`
+	State         SessionState  `json:"state"`
+	Brand         Brand         `json:"brand"`
+	ConnectReason ConnectReason `json:"connectReason,omitempty"`
 }
 
 // Brand 定义界面展示的产品品牌。
@@ -111,13 +102,12 @@ type RequestMeta struct {
 	DeviceID    string `json:"-"`
 }
 
-// InstallationStatus 定义部署名称、部署是否已完成首次安装、是否开放注册、服务端部署形态和部署使用的产品品牌。
+// InstallationStatus 定义部署名称、部署是否已完成首次安装、是否开放注册和部署使用的产品品牌。
 type InstallationStatus struct {
-	DeploymentName   string         `json:"deploymentName"`
-	Installed        bool           `json:"installed"`
-	RegistrationOpen bool           `json:"registrationOpen"`
-	DeploymentMode   DeploymentMode `json:"deploymentMode"`
-	Brand            Brand          `json:"brand"`
+	DeploymentName   string `json:"deploymentName"`
+	Installed        bool   `json:"installed"`
+	RegistrationOpen bool   `json:"registrationOpen"`
+	Brand            Brand  `json:"brand"`
 }
 
 // InstallWorkspaceInput 定义首次安装输入：部署管理员账号和第一个工作区。
@@ -145,26 +135,6 @@ type RegisterInput struct {
 type LoginInput struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
-}
-
-// OfficialLoginInput 定义发起官方账号登录的输入；state、nonce 与 PKCE verifier 由客户端生成并保存。
-type OfficialLoginInput struct {
-	State         string `json:"state"`
-	Nonce         string `json:"nonce"`
-	CodeChallenge string `json:"codeChallenge"`
-}
-
-// OfficialLoginStart 返回官方账号登录尝试编号和授权地址。
-type OfficialLoginStart struct {
-	AttemptID        string `json:"attemptId"`
-	AuthorizationURL string `json:"authorizationUrl"`
-}
-
-// OfficialLoginCompletion 定义用授权码完成官方账号登录的输入。
-type OfficialLoginCompletion struct {
-	AttemptID    string `json:"attemptId"`
-	Code         string `json:"code"`
-	CodeVerifier string `json:"codeVerifier"`
 }
 
 // Auth 包含登录账号和会话令牌。

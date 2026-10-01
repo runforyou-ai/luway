@@ -87,7 +87,6 @@ type startupBackend struct {
 	Backend
 	installed        bool
 	registrationOpen bool
-	deploymentMode   DeploymentMode
 	statusErr        error
 	identityCalls    int
 }
@@ -97,7 +96,7 @@ func (b *startupBackend) InstallationStatus(context.Context, RequestMeta) (Insta
 	if b.statusErr != nil {
 		return InstallationStatus{}, b.statusErr
 	}
-	return InstallationStatus{Installed: b.installed, RegistrationOpen: b.registrationOpen, DeploymentMode: b.deploymentMode}, nil
+	return InstallationStatus{Installed: b.installed, RegistrationOpen: b.registrationOpen}, nil
 }
 
 // LoadIdentity 返回空身份并累计调用次数。
@@ -135,23 +134,14 @@ func TestLoadStartupResolvesWebEntry(t *testing.T) {
 		t.Fatalf("uninstalled startup = %+v, err = %v", startup, err)
 	}
 
-	backend = &startupBackend{installed: true, registrationOpen: true, deploymentMode: DeploymentModeSelfHosted}
+	backend = &startupBackend{installed: true, registrationOpen: true}
 	service = New(backend)
 	startup, err = service.LoadStartup(context.Background(), RequestMeta{Token: "ignored"})
-	if err != nil || startup.State != SessionStateReady || startup.DeploymentMode != DeploymentModeSelfHosted {
+	if err != nil || startup.State != SessionStateReady {
 		t.Fatalf("ready startup = %+v, err = %v", startup, err)
 	}
 	if calls := backend.identityCalls; calls != 0 {
 		t.Fatalf("web startup identity calls = %d, want 0", calls)
-	}
-}
-
-// TestLoadStartupResolvesManagedWebEntry 验证托管部署没有初始化入口，尚无账号时也直接就绪。
-func TestLoadStartupResolvesManagedWebEntry(t *testing.T) {
-	backend := &startupBackend{deploymentMode: DeploymentModeManaged}
-	startup, err := New(backend).LoadStartup(context.Background(), RequestMeta{})
-	if err != nil || startup.State != SessionStateReady || startup.DeploymentMode != DeploymentModeManaged {
-		t.Fatalf("managed startup = %+v, err = %v", startup, err)
 	}
 }
 

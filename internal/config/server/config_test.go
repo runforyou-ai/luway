@@ -7,8 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // TestLoadMergesFileAndEnvironment 验证环境变量覆盖显式配置文件。
@@ -115,8 +113,7 @@ func clearServerEnvironment(t *testing.T) {
 		"S3_ENABLED", "S3_ENDPOINT", "S3_PUBLIC_BASE_URL", "S3_REGION", "S3_BUCKET",
 		"S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_FORCE_PATH_STYLE",
 		"SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_SECURITY", "SMTP_FROM_ADDRESS",
-		"PUBLIC_URL", "DEPLOYMENT_NAME", "REGISTRATION_OPEN", "DEPLOYMENT_MODE", "OPERATOR_CREDENTIAL", "OFFICIAL_IDENTITY_ISSUER",
-		"OFFICIAL_IDENTITY_WEB_CLIENT_ID", "OFFICIAL_IDENTITY_WEB_CLIENT_SECRET",
+		"PUBLIC_URL", "DEPLOYMENT_NAME", "REGISTRATION_OPEN",
 		"BRAND_NAME", "BRAND_SDK_NAME", "BRAND_ICON_PATH",
 	} {
 		t.Setenv(name, "")
@@ -237,62 +234,7 @@ func TestValidationRequiresCompleteS3Setting(t *testing.T) {
 	}
 }
 
-// TestDeploymentDefaultsToSelfHosted 验证未配置部署形态时使用自托管，且不接受托管专用字段。
-func TestDeploymentDefaultsToSelfHosted(t *testing.T) {
-	config := validTestConfig()
-	config.normalize()
-	if err := config.validate(); err != nil {
-		t.Fatal(err)
-	}
-	if config.Deployment.Mode != domain.DeploymentModeSelfHosted {
-		t.Fatalf("默认部署形态不是自托管: %q", config.Deployment.Mode)
-	}
-	config.Deployment.OperatorCredential = strings.Repeat("c", 32)
-	if err := config.validate(); err == nil {
-		t.Fatal("自托管模式接受了运营凭据")
-	}
-}
-
-// TestManagedDeploymentValidation 验证托管部署的 HTTPS 部署地址、运营凭据和官方身份 issuer 校验。
-func TestManagedDeploymentValidation(t *testing.T) {
-	valid := func() Config {
-		config := validTestConfig()
-		config.Deployment = DeploymentConfig{
-			Mode:                            domain.DeploymentModeManaged,
-			OperatorCredential:              strings.Repeat("c", 32),
-			OfficialIdentityIssuer:          "https://account.runforyou.app",
-			OfficialIdentityWebClientID:     "web-client",
-			OfficialIdentityWebClientSecret: "web-secret",
-		}
-		return config
-	}
-	config := valid()
-	config.normalize()
-	if err := config.validate(); err != nil {
-		t.Fatal(err)
-	}
-
-	for name, mutate := range map[string]func(*Config){
-		"部署地址非 HTTPS":       func(c *Config) { c.Server.PublicURL = "http://app.example.com" },
-		"开放本地注册":            func(c *Config) { c.Deployment.RegistrationOpen = true },
-		"运营凭据过短":            func(c *Config) { c.Deployment.OperatorCredential = strings.Repeat("c", 31) },
-		"部署形态取值无效":          func(c *Config) { c.Deployment.Mode = "hosted" },
-		"缺少身份 issuer":       func(c *Config) { c.Deployment.OfficialIdentityIssuer = "" },
-		"身份 issuer 非 HTTPS": func(c *Config) { c.Deployment.OfficialIdentityIssuer = "http://account.runforyou.app" },
-		"身份 issuer 带查询":     func(c *Config) { c.Deployment.OfficialIdentityIssuer = "https://account.runforyou.app?x=1" },
-		"缺少 Web 客户端 ID":     func(c *Config) { c.Deployment.OfficialIdentityWebClientID = "" },
-		"缺少 Web 客户端密钥":      func(c *Config) { c.Deployment.OfficialIdentityWebClientSecret = "" },
-	} {
-		config := valid()
-		mutate(&config)
-		config.normalize()
-		if err := config.validate(); err == nil {
-			t.Fatalf("%s 的配置通过了校验", name)
-		}
-	}
-}
-
-// TestDeploymentEnvironment 验证部署配置的环境变量覆盖与大小写规范化。
+// TestDeploymentEnvironment 验证部署名称和注册开关的环境变量覆盖。
 func TestDeploymentEnvironment(t *testing.T) {
 	clearServerEnvironment(t)
 	t.Setenv("PUBLIC_URL", "https://app.example.com/")
@@ -304,24 +246,18 @@ func TestDeploymentEnvironment(t *testing.T) {
 	t.Setenv("POSTGRES_SSLMODE", "disable")
 	t.Setenv("NATS_URL", "nats://127.0.0.1:4222")
 	t.Setenv("NATS_NAMESPACE", "app")
-	t.Setenv("DEPLOYMENT_MODE", "Managed")
-	t.Setenv("OPERATOR_CREDENTIAL", strings.Repeat("c", 40))
-	t.Setenv("OFFICIAL_IDENTITY_ISSUER", " https://account.runforyou.app ")
-	t.Setenv("OFFICIAL_IDENTITY_WEB_CLIENT_ID", " web-client ")
-	t.Setenv("OFFICIAL_IDENTITY_WEB_CLIENT_SECRET", " web-secret ")
+	t.Setenv("DEPLOYMENT_NAME", " 总部 ")
+	t.Setenv("REGISTRATION_OPEN", "true")
 
 	config, err := Load("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if config.Deployment.Mode != domain.DeploymentModeManaged {
-		t.Fatalf("部署形态未按环境变量覆盖: %q", config.Deployment.Mode)
+	if config.Deployment.Name != "总部" {
+		t.Fatalf("部署名称未按环境变量覆盖: %q", config.Deployment.Name)
 	}
-	if config.Deployment.OfficialIdentityIssuer != "https://account.runforyou.app" {
-		t.Fatalf("身份 issuer 未按环境变量覆盖: %q", config.Deployment.OfficialIdentityIssuer)
-	}
-	if config.Deployment.OfficialIdentityWebClientID != "web-client" || config.Deployment.OfficialIdentityWebClientSecret != "web-secret" {
-		t.Fatalf("Web 客户端凭据未按环境变量覆盖: %q %q", config.Deployment.OfficialIdentityWebClientID, config.Deployment.OfficialIdentityWebClientSecret)
+	if !config.Deployment.RegistrationOpen {
+		t.Fatal("注册开关未按环境变量覆盖")
 	}
 }
 

@@ -146,7 +146,7 @@ func TestCustomerConversationTranslation(t *testing.T) {
 
 	// 预览发送成功后回复语言改变，同一发送编号的重试仍返回已保存的消息。
 	login := loginMember(t, f.db, f.owner.Organization.ID, f.ownerEmail, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, translator)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, translator)
 	requestCtx, meta := ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID}
 	previewInput := appservice.ServiceTextMessageInput{
 		ClientMessageID: uuid.NewV7().String(), Body: "马上为您查询。",

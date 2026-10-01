@@ -16,7 +16,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/ingress"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
-	"github.com/runforyou-ai/luway/internal/integration/officialidentity"
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
 	"github.com/runforyou-ai/luway/internal/publicweb"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -117,17 +116,6 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewServiceWithOptions(publicweb.NewEmbedService(publicLookup), application.ServiceOptions{Route: "/embed"}),
 		application.NewServiceWithOptions(publicweb.NewChatService(publicLookup), application.ServiceOptions{Route: "/chat/"}),
 	}
-	// 运营接口只在托管部署注册，凭据认证是其唯一访问控制手段。
-	if config.Deployment.Mode.Managed() {
-		operatorBackend := direct.NewOperatorBackend(db, direct.OperatorConfig{
-			Deployment: appservice.OperatorDeployment{
-				Mode:      appservice.DeploymentMode(config.Deployment.Mode),
-				PublicURL: config.Server.PublicURL,
-			},
-			Credential: config.Deployment.OperatorCredential,
-		})
-		services = append(services, application.NewServiceWithOptions(api.NewOperatorService(operatorBackend), application.ServiceOptions{Route: "/operator/v1"}))
-	}
 	return services, realtimeGateway.Middleware, nil
 }
 
@@ -140,18 +128,10 @@ func fileContentS3Config(config serverconfig.S3Config) serverfilecontent.S3Confi
 	}
 }
 
-// directDeploymentConfig 返回成员业务入口的部署配置，托管部署通过官方身份服务登录，自托管部署只使用本地密码登录。
+// directDeploymentConfig 返回成员业务入口的部署配置。
 func directDeploymentConfig(config serverconfig.Config, invitationMailer customernotify.Sender) direct.DeploymentConfig {
-	deployment := direct.DeploymentConfig{
-		Name: config.Deployment.Name, Mode: config.Deployment.Mode, PublicURL: config.Server.PublicURL, RegistrationOpen: config.Deployment.RegistrationOpen,
+	return direct.DeploymentConfig{
+		Name: config.Deployment.Name, PublicURL: config.Server.PublicURL, RegistrationOpen: config.Deployment.RegistrationOpen,
 		InvitationMailer: invitationMailer,
 	}
-	if config.Deployment.Mode.Managed() {
-		deployment.OfficialIdentity = officialidentity.NewClient(officialidentity.Config{
-			Issuer:          config.Deployment.OfficialIdentityIssuer,
-			WebClientID:     config.Deployment.OfficialIdentityWebClientID,
-			WebClientSecret: config.Deployment.OfficialIdentityWebClientSecret,
-		})
-	}
-	return deployment
 }

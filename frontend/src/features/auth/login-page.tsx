@@ -1,4 +1,4 @@
-/** 登录页，托管部署在 Web 端使用官方账号登录，自托管部署开放注册时提供注册入口。 */
+/** 登录页，部署开放注册时提供注册入口。 */
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, Navigate, useNavigate } from "react-router"
@@ -6,15 +6,12 @@ import { Link, Navigate, useNavigate } from "react-router"
 import { loadInstallationStatus } from "@/api"
 import { PageLoading } from "@/components/page-loading"
 import { LoginForm } from "@/features/auth/login-form"
-import { OfficialLoginCard, OfficialLoginUnsupported } from "@/features/auth/official-login-card"
-import { useStartup } from "@/contexts/startup-context"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useAccountSession } from "@/hooks/use-account-session"
 import { useResource } from "@/hooks/use-resource"
 import { useBrandName } from "@/lib/brand"
 import { clearSessionExpiredNotice, sessionExpiredNoticePending } from "@/lib/login-return"
 import { resolveServerURL } from "@/lib/server-url"
-import { resolveAppPlatform } from "@/platform/app-platform"
 
 /** 已登录时进入工作区入口，否则展示登录方式。 */
 export function LoginPage({
@@ -25,7 +22,6 @@ export function LoginPage({
   const { t } = useTranslation("auth")
   const navigate = useNavigate()
   const productName = useBrandName()
-  const { usesOfficialLogin } = useStartup()
   const installation = useResource(resourceKeys.installationStatus(), (signal) => loadInstallationStatus(signal), {
     staleTime: 0,
   })
@@ -72,12 +68,8 @@ export function LoginPage({
             {t("sessionExpired")}
           </p>
         ) : null}
-        {usesOfficialLogin ? (
-          resolveAppPlatform() === "web" ? <OfficialLoginCard /> : <OfficialLoginUnsupported />
-        ) : (
-          <LoginForm />
-        )}
-        {!usesOfficialLogin && registrationOpen ? (
+        <LoginForm />
+        {registrationOpen ? (
           <p className="mt-6 text-center text-sm text-muted-foreground">
             {t("registerPrompt")}{" "}
             <Link to="/register" className="font-medium text-foreground underline-offset-4 hover:underline">

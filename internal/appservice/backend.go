@@ -18,7 +18,7 @@ import "context"
 // 交给业务实现，业务实现不重复处理认证。只需要登录账号的方法标记 auth=account，
 // 无需登录的方法标记 auth=public。
 type Backend interface {
-	// InstallationStatus 返回部署名称、首次安装状态、注册开关和部署形态；登录方式由部署形态决定。
+	// InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
 	//appservice:route GET /installation/status auth=public manual=proxy
 	InstallationStatus(context.Context, RequestMeta) (InstallationStatus, error)
 	// Login 校验账号密码并建立登录会话。
@@ -27,12 +27,6 @@ type Backend interface {
 	// Register 在部署配置开放注册时注册本地账号并建立登录会话。
 	//appservice:route POST /auth/register auth=public manual=service,proxy
 	Register(context.Context, RequestMeta, RegisterInput) (Auth, error)
-	// StartOfficialLogin 登记官方账号登录尝试并返回授权地址。
-	//appservice:route POST /auth/official/start auth=public
-	StartOfficialLogin(context.Context, RequestMeta, OfficialLoginInput) (OfficialLoginStart, error)
-	// CompleteOfficialLogin 用授权码完成官方账号登录并建立登录会话。
-	//appservice:route POST /auth/official/complete auth=public manual=service,proxy
-	CompleteOfficialLogin(context.Context, RequestMeta, OfficialLoginCompletion) (Auth, error)
 	// Logout 退出当前登录会话。
 	//appservice:route POST /auth/logout auth=account manual=proxy
 	Logout(context.Context, RequestMeta) error

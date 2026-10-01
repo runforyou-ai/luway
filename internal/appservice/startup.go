@@ -14,13 +14,13 @@ func (s *Service) LoadStartup(ctx context.Context, meta RequestMeta) (Startup, e
 	if connector, ok := s.backend.(ServerConnector); ok {
 		startup, err = s.loadNativeStartup(ctx, meta, connector)
 	} else {
-		// 托管部署没有初始化入口，自托管部署尚无账号时进入初始化页。
+		// 部署尚无账号时进入初始化页。
 		status, statusErr := s.backend.InstallationStatus(ctx, meta)
 		if statusErr != nil {
 			return Startup{}, statusErr
 		}
-		startup = Startup{State: SessionStateReady, DeploymentMode: status.DeploymentMode, Brand: status.Brand}
-		if !status.Installed && status.DeploymentMode != DeploymentModeManaged {
+		startup = Startup{State: SessionStateReady, Brand: status.Brand}
+		if !status.Installed {
 			startup.State = SessionStateSetup
 		}
 	}
@@ -50,10 +50,10 @@ func (s *Service) loadNativeStartup(ctx context.Context, meta RequestMeta, conne
 		connect.ConnectReason = ConnectReasonUnreachable
 		return connect, nil
 	}
-	if !status.Installed && status.DeploymentMode != DeploymentModeManaged {
+	if !status.Installed {
 		slog.Info("服务器尚未完成首次安装，进入连接页", "server_url", serverURL)
 		connect.ConnectReason = ConnectReasonNotInstalled
 		return connect, nil
 	}
-	return Startup{State: SessionStateReady, DeploymentMode: status.DeploymentMode, Brand: status.Brand}, nil
+	return Startup{State: SessionStateReady, Brand: status.Brand}, nil
 }
