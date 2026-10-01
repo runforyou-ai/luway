@@ -16,7 +16,6 @@ import (
 	"github.com/goccy/go-yaml"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/brand"
-	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/pkg/email"
 )
 
@@ -24,9 +23,6 @@ var natsNamespacePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9_-]*$`)
 
 // deploymentNameMaxLength 是部署名称的最大字符数。
 const deploymentNameMaxLength = 64
-
-// operatorCredentialMinLength 是运营凭据的最小长度，运营接口经公网可达，凭据是其唯一访问控制手段。
-const operatorCredentialMinLength = 32
 
 // Config 定义服务端运行配置。
 type Config struct {
@@ -40,17 +36,12 @@ type Config struct {
 	Email      EmailConfig      `yaml:"email"`
 }
 
-// DeploymentConfig 定义部署名称与形态、自托管的注册开关，以及官方托管所需的运营凭据、可信官方身份服务和 Web 客户端凭据。
+// DeploymentConfig 定义部署名称和注册开关。
 type DeploymentConfig struct {
 	// Name 是展示给连接者的部署名称，桌面端与移动端连接服务器后据此确认连对了部署；为空时界面展示部署地址。
-	Name string                `yaml:"name"`
-	Mode domain.DeploymentMode `yaml:"mode"`
-	// RegistrationOpen 表示自托管部署是否允许任何人在登录页注册本地账号。
-	RegistrationOpen                bool   `yaml:"registrationOpen"`
-	OperatorCredential              string `yaml:"operatorCredential"`
-	OfficialIdentityIssuer          string `yaml:"officialIdentityIssuer"`
-	OfficialIdentityWebClientID     string `yaml:"officialIdentityWebClientId"`
-	OfficialIdentityWebClientSecret string `yaml:"officialIdentityWebClientSecret"`
+	Name string `yaml:"name"`
+	// RegistrationOpen 表示部署是否允许任何人在登录页注册本地账号。
+	RegistrationOpen bool `yaml:"registrationOpen"`
 }
 
 // BrandingConfig 定义部署级品牌覆盖，留空的字段沿用构建品牌。
@@ -162,11 +153,6 @@ func Load(path string) (Config, error) {
 
 // normalize 统一配置中的枚举和空白字符。
 func (config *Config) normalize() {
-	config.Deployment.Mode = domain.DeploymentMode(strings.ToLower(strings.TrimSpace(string(config.Deployment.Mode))))
-	config.Deployment.OperatorCredential = strings.TrimSpace(config.Deployment.OperatorCredential)
-	config.Deployment.OfficialIdentityIssuer = strings.TrimSpace(config.Deployment.OfficialIdentityIssuer)
-	config.Deployment.OfficialIdentityWebClientID = strings.TrimSpace(config.Deployment.OfficialIdentityWebClientID)
-	config.Deployment.OfficialIdentityWebClientSecret = strings.TrimSpace(config.Deployment.OfficialIdentityWebClientSecret)
 	for locale, name := range config.Branding.Names {
 		config.Branding.Names[locale] = strings.TrimSpace(name)
 	}
@@ -200,7 +186,6 @@ func (config *Config) normalize() {
 // defaultConfig 返回服务端默认配置。
 func defaultConfig() Config {
 	return Config{
-		Deployment: DeploymentConfig{Mode: domain.DeploymentModeSelfHosted},
 		Server: ServerConfig{
 			Host: "127.0.0.1",
 			Port: 8080,
@@ -215,11 +200,6 @@ func defaultConfig() Config {
 
 // applyEnvironment 使用已设置的环境变量覆盖文件配置。
 func applyEnvironment(config *Config) error {
-	applyDeploymentModeEnvironment("DEPLOYMENT_MODE", &config.Deployment.Mode)
-	applyStringEnvironment("OPERATOR_CREDENTIAL", &config.Deployment.OperatorCredential)
-	applyStringEnvironment("OFFICIAL_IDENTITY_ISSUER", &config.Deployment.OfficialIdentityIssuer)
-	applyStringEnvironment("OFFICIAL_IDENTITY_WEB_CLIENT_ID", &config.Deployment.OfficialIdentityWebClientID)
-	applyStringEnvironment("OFFICIAL_IDENTITY_WEB_CLIENT_SECRET", &config.Deployment.OfficialIdentityWebClientSecret)
 	applyStringEnvironment("PUBLIC_URL", &config.Server.PublicURL)
 	applyStringEnvironment("DEPLOYMENT_NAME", &config.Deployment.Name)
 	applyBrandNameEnvironment("BRAND_NAME", &config.Branding.Names)
@@ -284,14 +264,11 @@ func (config Config) validate() error {
 	if err := config.Branding.validate(); err != nil {
 		return err
 	}
-	// 部署地址是不带路径、查询、片段和凭据的完整 HTTP 地址，托管部署必须使用 HTTPS。
+	// 部署地址是不带路径、查询、片段和凭据的完整 HTTP 地址。
 	publicURL, err := url.Parse(config.Server.PublicURL)
 	if err != nil || (publicURL.Scheme != "https" && publicURL.Scheme != "http") || publicURL.Host == "" ||
 		publicURL.User != nil || publicURL.Path != "" || publicURL.RawQuery != "" || publicURL.Fragment != "" {
 		return fmt.Errorf("必须配置 server.publicURL 或 PUBLIC_URL，且为不带路径的完整 HTTP 地址")
-	}
-	if config.Deployment.Mode.Managed() && publicURL.Scheme != "https" {
-		return fmt.Errorf("managed 模式下 server.publicURL 必须是 HTTPS 地址")
 	}
 	// 校验监听主机名、IPv4 地址和带方括号的 IPv6 地址。
 	host := config.Server.Host
@@ -401,45 +378,12 @@ func (config BrandingConfig) validate() error {
 	return nil
 }
 
-// validate 校验部署名称、部署形态及托管部署必需的配置。
+// validate 校验部署名称。
 func (config DeploymentConfig) validate() error {
 	if config.Name != strings.TrimSpace(config.Name) || len([]rune(config.Name)) > deploymentNameMaxLength {
 		return fmt.Errorf("deployment.name 不能以空白开头或结尾，且不超过 %d 个字符", deploymentNameMaxLength)
 	}
-	if !config.Mode.Valid() {
-		return fmt.Errorf("deployment.mode 必须是 self_hosted 或 managed")
-	}
-	if !config.Mode.Managed() {
-		if config.OperatorCredential != "" || config.OfficialIdentityIssuer != "" ||
-			config.OfficialIdentityWebClientID != "" || config.OfficialIdentityWebClientSecret != "" {
-			return fmt.Errorf("deployment.operatorCredential 和 deployment.officialIdentity* 只在 managed 模式下使用")
-		}
-		return nil
-	}
-	// 托管部署的账号来自官方身份服务，不提供本地注册。
-	if config.RegistrationOpen {
-		return fmt.Errorf("deployment.registrationOpen 只在 self_hosted 模式下使用")
-	}
-	if len([]rune(config.OperatorCredential)) < operatorCredentialMinLength {
-		return fmt.Errorf("deployment.operatorCredential 至少需要 %d 个字符", operatorCredentialMinLength)
-	}
-	// 官方身份服务的 issuer 是不带凭据、查询和片段的 HTTPS 地址，按原样与 ID Token 的 iss 比对。
-	issuer, err := url.Parse(config.OfficialIdentityIssuer)
-	if err != nil || issuer.Scheme != "https" || issuer.Host == "" || issuer.User != nil || issuer.RawQuery != "" || issuer.Fragment != "" {
-		return fmt.Errorf("deployment.officialIdentityIssuer 必须是完整的 HTTPS 地址")
-	}
-	if config.OfficialIdentityWebClientID == "" || config.OfficialIdentityWebClientSecret == "" {
-		return fmt.Errorf("deployment.officialIdentityWebClientId 和 deployment.officialIdentityWebClientSecret 不能为空")
-	}
 	return nil
-}
-
-// applyDeploymentModeEnvironment 覆盖非空部署形态环境变量。
-func applyDeploymentModeEnvironment(name string, target *domain.DeploymentMode) {
-	value, ok := os.LookupEnv(name)
-	if ok && strings.TrimSpace(value) != "" {
-		*target = domain.DeploymentMode(strings.TrimSpace(value))
-	}
 }
 
 // applyStringEnvironment 覆盖非空字符串环境变量。

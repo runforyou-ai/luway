@@ -10,7 +10,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
-// InstallationStatus 返回部署名称、首次安装状态、注册开关和部署形态；登录方式由部署形态决定。
+// InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
 func (b *Backend) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
 	return b.ops.InstallationStatus(ctx, meta)
 }
@@ -23,16 +23,6 @@ func (b *Backend) Login(ctx context.Context, meta appservice.RequestMeta, input 
 // Register 在部署配置开放注册时注册本地账号并建立登录会话。
 func (b *Backend) Register(ctx context.Context, meta appservice.RequestMeta, input appservice.RegisterInput) (appservice.Auth, error) {
 	return b.ops.Register(ctx, meta, input)
-}
-
-// StartOfficialLogin 登记官方账号登录尝试并返回授权地址。
-func (b *Backend) StartOfficialLogin(ctx context.Context, meta appservice.RequestMeta, input appservice.OfficialLoginInput) (appservice.OfficialLoginStart, error) {
-	return b.ops.StartOfficialLogin(ctx, meta, input)
-}
-
-// CompleteOfficialLogin 用授权码完成官方账号登录并建立登录会话。
-func (b *Backend) CompleteOfficialLogin(ctx context.Context, meta appservice.RequestMeta, input appservice.OfficialLoginCompletion) (appservice.Auth, error) {
-	return b.ops.CompleteOfficialLogin(ctx, meta, input)
 }
 
 // Logout 退出当前登录会话。

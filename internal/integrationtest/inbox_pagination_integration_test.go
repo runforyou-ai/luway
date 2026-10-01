@@ -265,7 +265,7 @@ func TestInboxPaginationBoundaries(t *testing.T) {
 				t.Fatalf("empty tail=%+v err=%v", empty, err)
 			}
 			login := loginMember(t, f.db, f.owner.Organization.ID, f.member.Account.Email, "password123")
-			backend := direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+			backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 			meta := appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID}
 			for _, request := range []appservice.LoadInboxInput{
 				{Scope: appservice.InboxScopePending, Cursor: input.Cursor},

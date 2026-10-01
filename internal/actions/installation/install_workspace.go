@@ -1,6 +1,6 @@
 //go:build server
 
-// Package installation 实现自托管部署首次安装的应用操作。
+// Package installation 实现部署首次安装的应用操作。
 package installation
 
 import (

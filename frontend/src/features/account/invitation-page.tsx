@@ -15,7 +15,6 @@ import {
 import { PageLoading } from "@/components/page-loading"
 import { PageLoadError } from "@/components/page-load-error"
 import { Button } from "@/components/ui/button"
-import { useStartup } from "@/contexts/startup-context"
 import { AccountShell } from "@/features/account/account-shell"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useAccountSession } from "@/hooks/use-account-session"
@@ -30,7 +29,6 @@ export function InvitationPage() {
   const { token = "" } = useParams()
   const navigate = useNavigate()
   const invalidate = useResourceInvalidator()
-  const { usesOfficialLogin } = useStartup()
   const [accepting, setAccepting] = useState(false)
   const [switching, setSwitching] = useState(false)
   const [alreadyMember, setAlreadyMember] = useState(false)
@@ -142,11 +140,9 @@ export function InvitationPage() {
           <Button className="w-full" asChild>
             <Link to="/login">{t("invitation.login")}</Link>
           </Button>
-          {usesOfficialLogin ? null : (
-            <Button variant="outline" className="w-full" asChild>
-              <Link to={`/register?invitation=${encodeURIComponent(token)}`}>{t("invitation.register")}</Link>
-            </Button>
-          )}
+          <Button variant="outline" className="w-full" asChild>
+            <Link to={`/register?invitation=${encodeURIComponent(token)}`}>{t("invitation.register")}</Link>
+          </Button>
         </div>
       )}
     </AccountShell>

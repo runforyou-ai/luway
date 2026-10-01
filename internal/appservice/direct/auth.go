@@ -19,29 +19,26 @@ import (
 	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
-	"github.com/runforyou-ai/luway/internal/integration/officialidentity"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 
-// authOps 持有首次安装、账号会话和工作区列表的 Action 和 Query；官方账号登录只在配置官方身份服务时可用。
+// authOps 持有首次安装、账号会话和工作区列表的 Action 和 Query。
 type authOps struct {
-	deploymentName        string
-	registrationOpen      bool
-	installWorkspace      *installationaction.InstallWorkspaceAction
-	login                 *authaction.LoginAction
-	register              *accountaction.RegisterAction
-	logout                *authaction.LogoutAction
-	changePassword        *accountaction.ChangePasswordAction
-	startOfficialLogin    *authaction.StartOfficialLoginAction
-	completeOfficialLogin *authaction.CompleteOfficialLoginAction
-	listWorkspaces        *organizationaction.ListAccountWorkspacesQuery
-	createWorkspace       *organizationaction.CreateWorkspaceAction
+	deploymentName   string
+	registrationOpen bool
+	installWorkspace *installationaction.InstallWorkspaceAction
+	login            *authaction.LoginAction
+	register         *accountaction.RegisterAction
+	logout           *authaction.LogoutAction
+	changePassword   *accountaction.ChangePasswordAction
+	listWorkspaces   *organizationaction.ListAccountWorkspacesQuery
+	createWorkspace  *organizationaction.CreateWorkspaceAction
 }
 
 // newAuthOps 创建首次安装、账号会话和工作区入口的业务实现依赖，注册开关取自部署配置。
 func newAuthOps(db *bun.DB, deployment DeploymentConfig) authOps {
-	ops := authOps{
+	return authOps{
 		deploymentName:   deployment.Name,
 		registrationOpen: deployment.RegistrationOpen,
 		installWorkspace: installationaction.NewInstallWorkspaceAction(db),
@@ -52,12 +49,6 @@ func newAuthOps(db *bun.DB, deployment DeploymentConfig) authOps {
 		listWorkspaces:   organizationaction.NewListAccountWorkspacesQuery(db),
 		createWorkspace:  organizationaction.NewCreateWorkspaceAction(db),
 	}
-	if deployment.OfficialIdentity != nil {
-		redirectURI := deployment.PublicURL + authaction.OfficialLoginCallbackPath
-		ops.startOfficialLogin = authaction.NewStartOfficialLoginAction(db, deployment.OfficialIdentity, redirectURI)
-		ops.completeOfficialLogin = authaction.NewCompleteOfficialLoginAction(db, deployment.OfficialIdentity)
-	}
-	return ops
 }
 
 // authFromSession 把新签发的登录会话转换为应用契约。
@@ -65,7 +56,7 @@ func authFromSession(output authaction.SessionOutput) appservice.Auth {
 	return appservice.Auth{Account: accountFromModel(*output.Account), Token: output.Token, ExpiresAt: output.ExpiresAt}
 }
 
-// InstallationStatus 返回部署名称、首次安装状态、注册开关和部署形态；登录方式由部署形态决定。
+// InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
 func (o *directOperations) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
 	installed, err := o.installationStatus.Execute(ctx)
 	if err != nil {
@@ -77,16 +68,13 @@ func (o *directOperations) InstallationStatus(ctx context.Context, meta appservi
 	}
 	current := brand.Current()
 	return appservice.InstallationStatus{
-		DeploymentName: o.deploymentName, Installed: installed, RegistrationOpen: o.registrationOpen, DeploymentMode: appservice.DeploymentMode(o.deploymentMode),
+		DeploymentName: o.deploymentName, Installed: installed, RegistrationOpen: o.registrationOpen,
 		Brand: appservice.Brand{Names: current.Names, SDKName: current.SDKName, LinkScheme: current.Slug},
 	}, nil
 }
 
-// InstallWorkspace 在自托管部署尚无账号时创建部署管理员和第一个工作区，并返回登录会话。
+// InstallWorkspace 在部署尚无账号时创建部署管理员和第一个工作区，并返回登录会话。
 func (o *directOperations) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (appservice.Auth, error) {
-	if o.deploymentMode.Managed() {
-		return appservice.Auth{}, appservice.InvalidError(meta, i18n.ErrorInstallationNotAvailable, nil)
-	}
 	output, err := o.installWorkspace.Execute(ctx, installationaction.InstallWorkspaceInput{
 		WorkspaceName: input.WorkspaceName,
 		WorkspaceSlug: input.WorkspaceSlug,
@@ -116,9 +104,6 @@ func (o *directOperations) InstallWorkspace(ctx context.Context, meta appservice
 
 // Login 校验账号密码并返回登录会话。
 func (o *directOperations) Login(ctx context.Context, meta appservice.RequestMeta, input appservice.LoginInput) (appservice.Auth, error) {
-	if o.deploymentMode.Managed() {
-		return appservice.Auth{}, appservice.InvalidError(meta, i18n.ErrorInvalidCredentials, nil)
-	}
 	output, err := o.login.Execute(ctx, authaction.LoginInput{Email: input.Email, Password: input.Password})
 	if errors.Is(err, authaction.ErrInvalidCredentials) {
 		return appservice.Auth{}, appservice.InvalidError(meta, i18n.ErrorInvalidCredentials, nil)
@@ -134,11 +119,8 @@ func (o *directOperations) Login(ctx context.Context, meta appservice.RequestMet
 	return authFromSession(output), nil
 }
 
-// Register 在自托管部署开放注册时注册本地账号并返回登录会话。
+// Register 在部署开放注册时注册本地账号并返回登录会话。
 func (o *directOperations) Register(ctx context.Context, meta appservice.RequestMeta, input appservice.RegisterInput) (appservice.Auth, error) {
-	if o.deploymentMode.Managed() {
-		return appservice.Auth{}, appservice.InvalidError(meta, i18n.ErrorRegistrationClosed, nil)
-	}
 	output, err := o.register.Execute(ctx, accountaction.NewAccountInput{
 		DisplayName: input.DisplayName,
 		Email:       input.Email,
@@ -170,63 +152,6 @@ func (o *directOperations) Register(ctx context.Context, meta appservice.Request
 	}
 	slog.Info("账号注册成功", "account_id", output.Account.ID)
 	return authFromSession(output), nil
-}
-
-// StartOfficialLogin 登记官方账号登录尝试并返回授权地址。
-func (o *directOperations) StartOfficialLogin(ctx context.Context, meta appservice.RequestMeta, input appservice.OfficialLoginInput) (appservice.OfficialLoginStart, error) {
-	if o.startOfficialLogin == nil {
-		return appservice.OfficialLoginStart{}, appservice.InvalidError(meta, i18n.ErrorOfficialLoginNotAvailable, nil)
-	}
-	output, err := o.startOfficialLogin.Execute(ctx, authaction.StartOfficialLoginInput{
-		State:         input.State,
-		Nonce:         input.Nonce,
-		CodeChallenge: input.CodeChallenge,
-	})
-	if err != nil {
-		return appservice.OfficialLoginStart{}, officialLoginError(ctx, meta, "发起官方账号登录失败", err)
-	}
-	return appservice.OfficialLoginStart{AttemptID: output.AttemptID, AuthorizationURL: output.AuthorizationURL}, nil
-}
-
-// CompleteOfficialLogin 用授权码完成官方账号登录并返回登录会话。
-func (o *directOperations) CompleteOfficialLogin(ctx context.Context, meta appservice.RequestMeta, input appservice.OfficialLoginCompletion) (appservice.Auth, error) {
-	if o.completeOfficialLogin == nil {
-		return appservice.Auth{}, appservice.InvalidError(meta, i18n.ErrorOfficialLoginNotAvailable, nil)
-	}
-	output, err := o.completeOfficialLogin.Execute(ctx, authaction.CompleteOfficialLoginInput{
-		AttemptID:    input.AttemptID,
-		Code:         input.Code,
-		CodeVerifier: input.CodeVerifier,
-		Locale:       domain.Locale(meta.Locale),
-	})
-	if err != nil {
-		return appservice.Auth{}, officialLoginError(ctx, meta, "完成官方账号登录失败", err)
-	}
-	slog.Info("官方账号登录成功", "account_id", output.Account.ID)
-	return authFromSession(output), nil
-}
-
-// officialLoginError 把官方账号登录的 Action 错误转成本地化业务错误。
-func officialLoginError(ctx context.Context, meta appservice.RequestMeta, message string, err error) error {
-	switch {
-	case errors.Is(err, authaction.ErrOfficialLoginInputInvalid):
-		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
-	case errors.Is(err, authaction.ErrLoginAttemptInvalid):
-		return appservice.InvalidError(meta, i18n.ErrorOfficialLoginExpired, nil)
-	case errors.Is(err, authaction.ErrOfficialAccountUnavailable):
-		return appservice.InvalidError(meta, i18n.ErrorOfficialAccountUnavailable, nil)
-	case errors.Is(err, officialidentity.ErrRejected):
-		slog.Warn(message, "error", err)
-		return appservice.InvalidError(meta, i18n.ErrorOfficialLoginRejected, nil)
-	case errors.Is(err, officialidentity.ErrUnavailable):
-		slog.Warn(message, "error", err)
-		return appservice.UnavailableError(meta, i18n.ErrorOfficialIdentityUnavailable, nil)
-	case ctx.Err() != nil:
-		return ctx.Err()
-	default:
-		slog.Warn(message, "error", err)
-		return appservice.FailedError(meta, i18n.ErrorLoginFailed)
-	}
 }
 
 // Logout 删除当前登录会话。

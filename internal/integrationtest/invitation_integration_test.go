@@ -4,6 +4,7 @@ package integrationtest
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -59,6 +60,16 @@ func (f invitationFixture) invite(t *testing.T, email, displayName string) (apps
 		t.Fatalf("invitation link = %q", created.Link)
 	}
 	return created, token
+}
+
+// requireErrorKey 断言错误是使用指定文案键的业务错误。
+func requireErrorKey(t *testing.T, err error, key i18n.Key) {
+	t.Helper()
+	expected, _ := i18n.Localize("", key)
+	var appError *appservice.Error
+	if !errors.As(err, &appError) || appError.Message != expected {
+		t.Fatalf("错误应为 %s（%s），实际为 %v", key, expected, err)
+	}
 }
 
 // TestInvitationAcceptance 验证预览、邮箱一致校验、接受后加入工作区，以及同一邀请不能再次使用。

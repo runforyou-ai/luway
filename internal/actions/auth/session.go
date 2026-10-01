@@ -1,6 +1,6 @@
 //go:build server
 
-// Package auth 实现本地与官方账号登录、登录会话和请求身份解析。
+// Package auth 实现账号登录、登录会话和请求身份解析。
 package auth
 
 import (

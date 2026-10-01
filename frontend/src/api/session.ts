@@ -9,7 +9,7 @@ import {
 import { bind } from "@/api/client"
 import { resolveAppPlatform } from "@/platform/app-platform"
 
-/** 读取部署的安装状态、注册开关和部署形态。 */
+/** 读取部署的安装状态和注册开关。 */
 export const loadInstallationStatus = bind(InstallationStatus)
 
 /** 读取初始化、服务器连接或就绪入口。 */
