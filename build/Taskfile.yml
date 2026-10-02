@@ -169,6 +169,48 @@ tasks:
         vars:
           SCRIPT: build:messenger
 
+  install:docs:deps:
+    summary: 安装产品文档站点依赖
+    run: once
+    dir: docs
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules
+    cmds:
+      - npm install --no-audit
+
+  build:docs:
+    summary: 构建内置到服务端的产品文档站点，并校验站内链接
+    run: once
+    dir: docs
+    deps:
+      - task: install:docs:deps
+    sources:
+      - astro.config.mjs
+      - package.json
+      - package-lock.json
+      - src/**/*
+      - ../frontend/public/**/*
+      - ../internal/common/brand/brand.json
+    generates:
+      - ../internal/productdocs/dist/site/**/*
+    cmds:
+      - npm run build
+    env:
+      ASTRO_TELEMETRY_DISABLED: "1"
+
+  dev:docs:
+    summary: 以开发模式预览产品文档站点
+    dir: docs
+    deps:
+      - task: install:docs:deps
+    cmds:
+      - npm run dev -- --port {{.DOCS_PORT}}
+    env:
+      ASTRO_TELEMETRY_DISABLED: "1"
+
   dev:frontend:
     summary: Runs the frontend in development mode
     deps:
@@ -222,6 +264,7 @@ tasks:
             ref: .BUILD_FLAGS
           OBFUSCATED:
             ref: .OBFUSCATED
+      - task: build:docs
     preconditions:
       - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
         msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
@@ -257,6 +300,7 @@ tasks:
       - task: build:frontend
         vars:
           BUILD_FLAGS: "-tags server,production"
+      - task: build:docs
     cmds:
       - >-
         docker build

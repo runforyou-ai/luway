@@ -9,11 +9,13 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"os"
 
 	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
+	"github.com/runforyou-ai/luway/internal/productdocs"
 	"github.com/runforyou-ai/luway/internal/storage"
 	"github.com/runforyou-ai/luway/internal/webasset"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -75,12 +77,17 @@ func run(arguments []string) error {
 	if err != nil {
 		return err
 	}
+	var icon []byte
 	if config.Branding.IconPath != "" {
-		icon, err := os.ReadFile(config.Branding.IconPath)
+		icon, err = os.ReadFile(config.Branding.IconPath)
 		if err != nil {
 			return fmt.Errorf("read branding icon: %w", err)
 		}
 		assetServer.Replace("favicon.png", icon)
+	}
+	docsMiddleware, err := productdocs.Middleware(icon)
+	if err != nil {
+		return err
 	}
 
 	app := application.New(application.Options{
@@ -91,8 +98,10 @@ func run(arguments []string) error {
 		DisableDefaultSignalHandler: true,
 		Assets: application.AssetOptions{
 			Handler: assetServer,
-			// 实时事件流在 Wails 资源服务之前处理。
-			Middleware: realtimeMiddleware,
+			// 实时事件流与产品文档在 Wails 资源服务之前处理。
+			Middleware: func(next http.Handler) http.Handler {
+				return docsMiddleware(realtimeMiddleware(next))
+			},
 		},
 		Server: application.ServerOptions{
 			Host: config.Server.Host,

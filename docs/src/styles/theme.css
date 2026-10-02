@@ -1,0 +1,35 @@
+/* 文档站主题：字体、品牌蓝与中性灰阶取自 Web 端 frontend/src/index.css。 */
+:root {
+  --sl-font: "Inter Variable", Inter, "PingFang SC", "HarmonyOS Sans SC", system-ui, sans-serif;
+  --sl-font-mono: "JetBrains Mono Variable", "JetBrains Mono", monospace;
+
+  /* 深色主题。 */
+  --sl-color-white: oklch(0.985 0 0);
+  --sl-color-gray-1: oklch(0.92 0.004 286.32);
+  --sl-color-gray-2: oklch(0.871 0.006 286.286);
+  --sl-color-gray-3: oklch(0.705 0.015 286.067);
+  --sl-color-gray-4: oklch(0.552 0.016 285.938);
+  --sl-color-gray-5: oklch(0.37 0.013 285.805);
+  --sl-color-gray-6: oklch(0.21 0.006 285.885);
+  --sl-color-black: oklch(0.141 0.005 285.823);
+
+  --sl-color-accent-low: oklch(0.3 0.06 253.49);
+  --sl-color-accent: oklch(0.6578 0.1846 253.49);
+  --sl-color-accent-high: oklch(0.85 0.08 253.49);
+}
+
+:root[data-theme="light"] {
+  --sl-color-white: oklch(0.141 0.005 285.823);
+  --sl-color-gray-1: oklch(0.21 0.006 285.885);
+  --sl-color-gray-2: oklch(0.274 0.006 286.033);
+  --sl-color-gray-3: oklch(0.442 0.017 285.786);
+  --sl-color-gray-4: oklch(0.552 0.016 285.938);
+  --sl-color-gray-5: oklch(0.871 0.006 286.286);
+  --sl-color-gray-6: oklch(0.967 0.001 286.375);
+  --sl-color-gray-7: oklch(0.985 0 0);
+  --sl-color-black: oklch(1 0 0);
+
+  --sl-color-accent-low: oklch(0.94 0.03 253.49);
+  --sl-color-accent: oklch(0.57 0.18 253.49);
+  --sl-color-accent-high: oklch(0.42 0.1 253.49);
+}

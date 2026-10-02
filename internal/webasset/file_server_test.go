@@ -11,7 +11,7 @@ import (
 	"testing/fstest"
 )
 
-// TestFileServerCachePolicy 验证缓存策略、gzip 协商、固定响应类型、路径规范化和错误响应。
+// TestFileServerCachePolicy 验证缓存策略、gzip 协商、固定响应类型、目录索引、路径规范化和错误响应。
 func TestFileServerCachePolicy(t *testing.T) {
 	script := []byte(strings.Repeat("console.log('app');\n", 200))
 	server, err := NewFileServer(fstest.MapFS{
@@ -21,6 +21,9 @@ func TestFileServerCachePolicy(t *testing.T) {
 		"assets/worker-abc.mjs": {Data: []byte("export {}")},
 		"assets/font-abc.woff2": {Data: []byte("wOF2")},
 		"pdfjs/LICENSE":         {Data: []byte("license text")},
+		"guide/index.html":      {Data: []byte("<!doctype html><title>Guide</title>")},
+		"assets/index.html":     {Data: []byte("<!doctype html><title>Assets</title>")},
+		"404.html":              {Data: []byte("<!doctype html><title>Missing</title>")},
 	}, "assets")
 	if err != nil {
 		t.Fatal(err)
@@ -72,6 +75,32 @@ func TestFileServerCachePolicy(t *testing.T) {
 		if got := serve(http.MethodGet, target, nil).Header().Get("Content-Type"); got != want {
 			t.Fatalf("%s content type = %q, want %q", target, got, want)
 		}
+	}
+	// 目录路径返回该目录下的 index.html。
+	for _, target := range []string{"/guide/", "/guide"} {
+		if directory := serve(http.MethodGet, target, nil); directory.Code != http.StatusOK || directory.Body.String() != "<!doctype html><title>Guide</title>" {
+			t.Fatalf("%s: status=%d body=%q", target, directory.Code, directory.Body.String())
+		}
+	}
+	// 目录索引按实际命中的文件选择缓存策略。
+	if directory := serve(http.MethodGet, "/assets", nil); directory.Code != http.StatusOK || directory.Header().Get("Cache-Control") != ImmutableCache {
+		t.Fatalf("/assets: status=%d headers=%v", directory.Code, directory.Header())
+	}
+
+	// 目录下没有 index.html 时返回 404。
+	if directory := serve(http.MethodGet, "/pdfjs/", nil); directory.Code != http.StatusNotFound {
+		t.Fatalf("/pdfjs/: status=%d", directory.Code)
+	}
+
+	// 设置 404 内容后，未命中路径返回该内容与 404 状态。
+	if err := server.SetNotFound("404.html"); err != nil {
+		t.Fatal(err)
+	}
+	if missing := serve(http.MethodGet, "/missing", nil); missing.Code != http.StatusNotFound || missing.Body.String() != "<!doctype html><title>Missing</title>" || missing.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("not found page: status=%d headers=%v body=%q", missing.Code, missing.Header(), missing.Body.String())
+	}
+	if err := server.SetNotFound("absent.html"); err == nil {
+		t.Fatal("setting an absent not found page must fail")
 	}
 	if cleaned := serve(http.MethodGet, "//assets/./x/../index-abc.js", nil); cleaned.Code != http.StatusOK {
 		t.Fatalf("uncleaned path status = %d", cleaned.Code)
