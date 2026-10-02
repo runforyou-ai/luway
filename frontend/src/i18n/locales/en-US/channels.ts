@@ -121,6 +121,7 @@ const channels = {
   },
   telegramConnection: {
     form: {
+      connectionMode: "Connection",
       botToken: "Bot token",
       test: "Test connection",
       testing: "Testing…",
@@ -133,6 +134,19 @@ const channels = {
       description:
         "This bot is already used by another channel. Continuing will switch its Telegram webhook to this channel, and the previous channel will stop receiving updates.",
     },
+    mode: {
+      direct: "Direct connection",
+      gateway: "Business system forwarding",
+      directHelp: "Telegram delivers messages here directly.",
+      gatewayHelp: "Your business system's bot receives messages and forwards them here, optionally with the customer's signed-in identity.",
+    },
+    gatewaySecret: {
+      regenerate: "Regenerate forwarding secret",
+      confirmTitle: "Regenerate the forwarding secret?",
+      confirmDescription: "The current secret stops working immediately. Your business system must switch to the new secret to keep forwarding messages.",
+      regenerated: "Forwarding secret regenerated.",
+      regenerateError: "Could not regenerate the forwarding secret. Try again.",
+    },
     info: {
       title: "Connection information",
       botDisplayName: "Bot name",
@@ -141,6 +155,9 @@ const channels = {
       webhookUrl: "Webhook URL",
       webhookSecret: "Secret token",
       webhookStatus: "Webhook status",
+      forwardUrl: "Forwarding URL",
+      forwardSecret: "Forwarding secret",
+      forwardStatus: "Forwarding status",
     },
     status: {
       waiting: "Waiting for connection",

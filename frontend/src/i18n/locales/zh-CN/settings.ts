@@ -258,7 +258,7 @@ const settings = {
     identity: {
       loadError: "客户身份密钥加载失败。",
       secret: "客户身份密钥",
-      secretHelp: "网站服务端用该密钥签发已登录客户的身份，AI 客服据此识别客户并查询其业务数据。密钥只能保存在服务端。",
+      secretHelp: "网站或业务系统的服务端用该密钥签发已登录客户的身份，用于网站聊天和 Telegram 业务系统转发，AI 客服据此识别客户并查询其业务数据。密钥只能保存在服务端。",
       copyError: "复制失败，请手动选择密钥复制。",
       generate: "生成密钥",
       generating: "正在生成…",
@@ -268,7 +268,7 @@ const settings = {
       regenerateTitle: "重新生成客户身份密钥？",
       regenerateDescription: "旧密钥立即失效，已登录客户需要重新登录。重新生成后请立即更新网站配置。",
       signing: "签发身份",
-      signingHelp: "sub 填写客户在网站中的用户编号字符串，有效期最长 24 小时；name、email、attributes 和 tags 可选。attributes 以客户资料字段名称为键，单选字段填写选项名称，null 或空字符串撤销网站同步的值；tags 列出客户应有的全部标签，只增删网站同步的标签，客服添加的标签保留。未定义的字段、不合法的值和不存在的标签会被跳过。同步的资料只读。密钥按字符串原文签名，无需解码。",
+      signingHelp: "sub 填写客户在网站中的用户编号字符串，有效期最长 24 小时；name、email、attributes 和 tags 可选。attributes 以客户资料字段名称为键，单选字段填写选项名称，null 或空字符串撤销同步的值；tags 列出客户应有的全部标签，只增删同步的标签，客服添加的标签保留。未定义的字段、不合法的值和不存在的标签会被跳过。同步的资料只读。密钥按字符串原文签名，无需解码。",
       widget: "传入网站聊天",
       widgetHelp: "页面加载前设置 {{sdkSettings}}，或在客户登录后调用 {{sdkGlobal}}.login；客户退出时调用 {{sdkGlobal}}.logout，身份过期时重新签发。",
     },

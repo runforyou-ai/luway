@@ -951,7 +951,7 @@ func TestRealtimeCustomerDeliveryNotifications(t *testing.T) {
 	feed.expect(t, changed(0))
 
 	// 更换机器人推进渠道内客户会话版本并通知一次。
-	if _, err := channelaction.NewSaveTelegramConnectionAction(f.db, runner, api).Execute(ctx, f.owner, f.channelID, channelaction.TelegramChannelConnectionInput{BotToken: "456:new_token", WebhookBaseURL: "https://example.com"}); err != nil {
+	if _, err := channelaction.NewSaveTelegramConnectionAction(f.db, runner, api).Execute(ctx, f.owner, f.channelID, channelaction.TelegramChannelConnectionInput{ConnectionMode: domain.TelegramConnectionDirect, BotToken: "456:new_token", WebhookBaseURL: "https://example.com"}); err != nil {
 		t.Fatal(err)
 	}
 	feed.expect(t, changed(0))
@@ -961,7 +961,7 @@ func TestRealtimeCustomerDeliveryNotifications(t *testing.T) {
 	// 没有待发送投递和在途运行的会话同样推进版本，旧机器人消息的回复资格随之刷新。
 	version = loadConversationVersion(t, f.db, f.conversationID)
 	api.bot = telegramintegration.Bot{ID: 789, IsBot: true, FirstName: "第三个机器人", Username: "third_delivery_bot"}
-	if _, err := channelaction.NewSaveTelegramConnectionAction(f.db, runner, api).Execute(ctx, f.owner, f.channelID, channelaction.TelegramChannelConnectionInput{BotToken: "789:third_token", WebhookBaseURL: "https://example.com"}); err != nil {
+	if _, err := channelaction.NewSaveTelegramConnectionAction(f.db, runner, api).Execute(ctx, f.owner, f.channelID, channelaction.TelegramChannelConnectionInput{ConnectionMode: domain.TelegramConnectionDirect, BotToken: "789:third_token", WebhookBaseURL: "https://example.com"}); err != nil {
 		t.Fatal(err)
 	}
 	feed.expect(t, changed(0))

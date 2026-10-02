@@ -28,7 +28,7 @@ type SetFieldValueAction struct{ db *bun.DB }
 // NewSetFieldValueAction 创建联系人字段取值编辑操作。
 func NewSetFieldValueAction(db *bun.DB) *SetFieldValueAction { return &SetFieldValueAction{db: db} }
 
-// Execute 按字段类型校验并保存取值，来源记为客服并覆盖 AI 写入的取值；取值为空时删除该字段的取值；网站同步的取值返回 ErrSyncedFromWebsite；取值实际变化时更新联系人并通知客户端。
+// Execute 按字段类型校验并保存取值，来源记为客服并覆盖 AI 写入的取值；取值为空时删除该字段的取值；签名身份同步的取值返回 ErrSyncedFromSignedIdentity；取值实际变化时更新联系人并通知客户端。
 func (a *SetFieldValueAction) Execute(ctx context.Context, identity *servermodels.Identity, contactID, fieldID, value string) error {
 	if !common.ValidUUID(fieldID) {
 		return ErrFieldNotFound
@@ -55,11 +55,11 @@ func (a *SetFieldValueAction) Execute(ctx context.Context, identity *servermodel
 		if code != "" {
 			return &common.FieldError{Fields: map[string]common.FieldCode{"value": code}}
 		}
-		// 网站同步的取值只由网站维护，写入条件排除网站来源。
+		// 签名身份同步的取值只由签名身份维护，写入条件排除该来源。
 		var result sql.Result
 		if normalized == "" {
 			result, err = tx.NewDelete().Model((*servermodels.ContactFieldValue)(nil)).
-				Where("organization_id = ? AND contact_id = ? AND field_id = ? AND source <> ?", identity.Organization.ID, contactID, fieldID, domain.ContactProfileSourceWebsite).
+				Where("organization_id = ? AND contact_id = ? AND field_id = ? AND source <> ?", identity.Organization.ID, contactID, fieldID, domain.ContactProfileSourceSignedIdentity).
 				Exec(ctx)
 		} else {
 			userID := identity.User.ID
@@ -70,7 +70,7 @@ func (a *SetFieldValueAction) Execute(ctx context.Context, identity *servermodel
 				Column("organization_id", "contact_id", "field_id", "value", "source", "source_user_id").
 				On("CONFLICT (contact_id, field_id) DO UPDATE").
 				Set("value = EXCLUDED.value, source = EXCLUDED.source, source_user_id = EXCLUDED.source_user_id, source_service_session_id = NULL, source_session_closed_at = NULL, updated_at = now()").
-				Where("cfv.source <> ? AND (cfv.value, cfv.source, cfv.source_user_id) IS DISTINCT FROM (EXCLUDED.value, EXCLUDED.source, EXCLUDED.source_user_id)", domain.ContactProfileSourceWebsite).
+				Where("cfv.source <> ? AND (cfv.value, cfv.source, cfv.source_user_id) IS DISTINCT FROM (EXCLUDED.value, EXCLUDED.source, EXCLUDED.source_user_id)", domain.ContactProfileSourceSignedIdentity).
 				Exec(ctx)
 		}
 		if err != nil {
@@ -81,7 +81,7 @@ func (a *SetFieldValueAction) Execute(ctx context.Context, identity *servermodel
 			return err
 		}
 		if !ok {
-			return syncedFromWebsite(ctx, tx.NewSelect().Model((*servermodels.ContactFieldValue)(nil)).
+			return syncedFromSignedIdentity(ctx, tx.NewSelect().Model((*servermodels.ContactFieldValue)(nil)).
 				Where("cfv.organization_id = ? AND cfv.contact_id = ? AND cfv.field_id = ?", identity.Organization.ID, contactID, fieldID))
 		}
 		return touchContact(ctx, tx, identity.Organization.ID, contactID)
@@ -149,7 +149,7 @@ type RemoveTagAction struct{ db *bun.DB }
 // NewRemoveTagAction 创建联系人标签移除操作。
 func NewRemoveTagAction(db *bun.DB) *RemoveTagAction { return &RemoveTagAction{db: db} }
 
-// Execute 移除联系人上的标签并更新联系人、通知客户端；联系人没有该标签时不做改动，网站同步的标签返回 ErrSyncedFromWebsite。
+// Execute 移除联系人上的标签并更新联系人、通知客户端；联系人没有该标签时不做改动，签名身份同步的标签返回 ErrSyncedFromSignedIdentity。
 func (a *RemoveTagAction) Execute(ctx context.Context, identity *servermodels.Identity, contactID, tagID string) error {
 	if !common.ValidUUID(tagID) {
 		return ErrTagNotFound
@@ -161,9 +161,9 @@ func (a *RemoveTagAction) Execute(ctx context.Context, identity *servermodels.Id
 		if err := lockContact(ctx, tx, identity.Organization.ID, contactID); err != nil {
 			return err
 		}
-		// 网站同步的标签只由网站维护，删除条件排除网站来源。
+		// 签名身份同步的标签只由签名身份维护，删除条件排除该来源。
 		result, err := tx.NewDelete().Model((*servermodels.ContactTagAssignment)(nil)).
-			Where("organization_id = ? AND contact_id = ? AND tag_id = ? AND source <> ?", identity.Organization.ID, contactID, tagID, domain.ContactProfileSourceWebsite).
+			Where("organization_id = ? AND contact_id = ? AND tag_id = ? AND source <> ?", identity.Organization.ID, contactID, tagID, domain.ContactProfileSourceSignedIdentity).
 			Exec(ctx)
 		if err != nil {
 			return err
@@ -173,7 +173,7 @@ func (a *RemoveTagAction) Execute(ctx context.Context, identity *servermodels.Id
 			return err
 		}
 		if !ok {
-			return syncedFromWebsite(ctx, tx.NewSelect().Model((*servermodels.ContactTagAssignment)(nil)).
+			return syncedFromSignedIdentity(ctx, tx.NewSelect().Model((*servermodels.ContactTagAssignment)(nil)).
 				Where("cta.organization_id = ? AND cta.contact_id = ? AND cta.tag_id = ?", identity.Organization.ID, contactID, tagID))
 		}
 		return touchContact(ctx, tx, identity.Organization.ID, contactID)

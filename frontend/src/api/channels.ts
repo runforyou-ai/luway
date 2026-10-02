@@ -8,6 +8,7 @@ import {
   GetWebsiteChannel,
   ListChannelOptions,
   ListMessageChannels,
+  RegenerateTelegramGatewaySecret,
   SaveTelegramChannelConnection,
   TestTelegramChannelConnection,
   UpdateMessageChannel,
@@ -61,9 +62,14 @@ export const testTelegramChannelConnection = bind(
   TestTelegramChannelConnection,
 )
 
-/** 保存 Telegram 机器人和 Webhook 设置。 */
+/** 保存 Telegram 接入方式、机器人和回调设置。 */
 export const saveTelegramChannelConnection = bind(
   SaveTelegramChannelConnection,
+)
+
+/** 重新生成业务系统转发 Telegram 消息使用的转发密钥。 */
+export const regenerateTelegramGatewaySecret = bind(
+  RegenerateTelegramGatewaySecret,
 )
 
 /** 判断保存是否需要用户确认复用其他渠道的 Telegram Bot。 */

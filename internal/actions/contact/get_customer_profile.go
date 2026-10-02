@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/runforyou-ai/luway/internal/common"
-	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -41,14 +40,13 @@ func (q *GetCustomerProfileQuery) Execute(ctx context.Context, identity *serverm
 	}
 	row := struct {
 		ContactID      string                 `bun:"contact_id"`
-		ExternalID     string                 `bun:"external_id"`
-		ExternalUserID *string                `bun:"external_user_id"`
+		VerifiedUserID *string                `bun:"verified_user_id"`
 		Email          *string                `bun:"email"`
 		VisitorContext *domain.VisitorContext `bun:"visitor_context,type:jsonb"`
 	}{}
 	err := q.db.NewSelect().
 		TableExpr("channel_conversations AS cc").
-		ColumnExpr("c.id::text AS contact_id, cci.external_id, c.external_user_id, ss.visitor_context").
+		ColumnExpr("c.id::text AS contact_id, cci.verified_user_id, ss.visitor_context").
 		ColumnExpr("(SELECT cm.value FROM contact_methods AS cm WHERE cm.organization_id = c.organization_id AND cm.contact_id = c.id AND cm.type = ? AND cm.is_primary) AS email", domain.ContactMethodTypeEmail).
 		Join("JOIN contact_channel_identities AS cci ON cci.id = cc.contact_channel_identity_id AND cci.organization_id = cc.organization_id").
 		Join("JOIN contacts AS c ON c.id = cci.contact_id AND c.organization_id = cci.organization_id").
@@ -64,8 +62,8 @@ func (q *GetCustomerProfileQuery) Execute(ctx context.Context, identity *serverm
 		return CustomerProfile{}, fmt.Errorf("get customer profile: %w", err)
 	}
 	profile := CustomerProfile{ContactID: row.ContactID, VisitorContext: row.VisitorContext}
-	if row.ExternalUserID != nil && customeridentity.IsCustomerExternalID(row.ExternalID) {
-		profile.IdentityVerified, profile.ExternalUserID = true, *row.ExternalUserID
+	if row.VerifiedUserID != nil {
+		profile.IdentityVerified, profile.ExternalUserID = true, *row.VerifiedUserID
 	}
 	if row.Email != nil {
 		profile.Email = *row.Email

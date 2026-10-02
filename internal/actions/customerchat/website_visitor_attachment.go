@@ -57,9 +57,12 @@ func (a *CreateWebsiteVisitorUploadAction) Execute(ctx context.Context, input We
 			ContactID: ids.contact, IdentityID: ids.channelIdentity,
 		}
 		if input.Customer != nil {
-			identityInput.ExternalUserID, identityInput.Email = input.Customer.UserID, input.Customer.Email
+			identityInput.VerifiedUserID, identityInput.Email = input.Customer.UserID, input.Customer.Email
 		}
 		ensured, identityErr := contactaction.EnsureChannelIdentity(ctx, tx, identityInput)
+		if identityErr == nil {
+			ensured, identityErr = contactaction.SyncChannelIdentity(ctx, tx, identityInput, ensured)
+		}
 		if identityErr != nil {
 			return identityErr
 		}

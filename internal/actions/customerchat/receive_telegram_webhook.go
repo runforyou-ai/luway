@@ -31,10 +31,12 @@ var ErrTelegramWebhookUnauthorized = errors.New("Telegram webhook unauthorized")
 
 // TelegramWebhookInput 定义公开回调完成认证和状态更新所需字段。
 type TelegramWebhookInput struct {
-	Secret       string
-	UpdateID     int64
-	MyChatMember bool
-	Message      *telegram.InboundMessage
+	Secret string
+	// CustomerToken 是业务系统转发时附带的客户签名身份原文，只在网关转发接入时采用。
+	CustomerToken string
+	UpdateID      int64
+	MyChatMember  bool
+	Message       *telegram.InboundMessage
 }
 
 // ReceiveTelegramWebhookAction 认证 Telegram 回调并更新连接状态。
@@ -78,6 +80,15 @@ func (a *ReceiveTelegramWebhookAction) Execute(ctx context.Context, channelID st
 		if err := authorizeTelegramWebhook(setting, input.Secret); err != nil {
 			return err
 		}
+		// 网关转发附带的签名身份验签通过后作为发送者的核验身份，未附带时发送者为未核验。
+		var customer *SignedCustomer
+		if input.Message != nil && input.CustomerToken != "" && setting.ConnectionMode == string(domain.TelegramConnectionGateway) {
+			signed, _, err := verifyCustomerToken(ctx, tx, setting.OrganizationID, input.CustomerToken)
+			if err != nil {
+				return err
+			}
+			customer = &signed
+		}
 		if input.Message != nil {
 			channel := &servermodels.Channel{}
 			if err := tx.NewSelect().Model(channel).
@@ -101,6 +112,9 @@ func (a *ReceiveTelegramWebhookAction) Execute(ctx context.Context, channelID st
 				SingleConversation: true, Body: input.Message.Body,
 				IdempotencyKey: "chmsg:" + channelID + ":tg:" + strconv.FormatInt(*setting.BotID, 10) + ":" + strconv.FormatInt(input.Message.ChatID, 10) + ":" + strconv.FormatInt(input.Message.MessageID, 10),
 				OriginatedAt:   input.Message.OriginatedAt, SourceOrder: input.Message.MessageID,
+			}
+			if customer != nil {
+				inbound.VerifiedUserID, inbound.Email, inbound.SignedProfile = customer.UserID, customer.Email, &customer.Profile
 			}
 			// 媒体按企业当前存储配置建立取回中的文件记录，内容由取回任务写入。
 			if media := input.Message.Media; media != nil {

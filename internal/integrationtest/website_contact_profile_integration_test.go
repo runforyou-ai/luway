@@ -147,11 +147,11 @@ func TestWebsiteContactProfile(t *testing.T) {
 		t.Fatalf("网站同步后 fields=%+v", fields)
 	}
 	for fieldID, value := range want {
-		if got := fields[fieldID]; got.Value != value || got.Source != domain.ContactProfileSourceWebsite || got.SourceSession != nil {
+		if got := fields[fieldID]; got.Value != value || got.Source != domain.ContactProfileSourceSignedIdentity || got.SourceSession != nil {
 			t.Fatalf("字段 %s = %+v, want %q", fieldID, got, value)
 		}
 	}
-	if len(tags) != 3 || tags[vip.ID].Source != domain.ContactProfileSourceWebsite || tags[returning.ID].Source != domain.ContactProfileSourceWebsite ||
+	if len(tags) != 3 || tags[vip.ID].Source != domain.ContactProfileSourceSignedIdentity || tags[returning.ID].Source != domain.ContactProfileSourceSignedIdentity ||
 		tags[manual.ID].Source != domain.ContactProfileSourceMember {
 		t.Fatalf("网站同步后 tags=%+v", tags)
 	}
@@ -170,14 +170,14 @@ func TestWebsiteContactProfile(t *testing.T) {
 	}
 
 	// 客服不能修改网站同步的取值与标签，AI 也不覆盖。
-	if err := contactprofileaction.NewSetFieldValueAction(f.db).Execute(ctx, f.member, contactID, company.ID, "Other"); !errors.Is(err, contactprofileaction.ErrSyncedFromWebsite) {
+	if err := contactprofileaction.NewSetFieldValueAction(f.db).Execute(ctx, f.member, contactID, company.ID, "Other"); !errors.Is(err, contactprofileaction.ErrSyncedFromSignedIdentity) {
 		t.Fatalf("客服修改网站取值 err = %v", err)
 	}
-	if err := contactprofileaction.NewRemoveTagAction(f.db).Execute(ctx, f.member, contactID, vip.ID); !errors.Is(err, contactprofileaction.ErrSyncedFromWebsite) {
+	if err := contactprofileaction.NewRemoveTagAction(f.db).Execute(ctx, f.member, contactID, vip.ID); !errors.Is(err, contactprofileaction.ErrSyncedFromSignedIdentity) {
 		t.Fatalf("客服移除网站标签 err = %v", err)
 	}
 	applyAI("广州")
-	if fields, _ := load(contactID); fields[city.ID].Value != "上海" || fields[city.ID].Source != domain.ContactProfileSourceWebsite {
+	if fields, _ := load(contactID); fields[city.ID].Value != "上海" || fields[city.ID].Source != domain.ContactProfileSourceSignedIdentity {
 		t.Fatalf("AI 覆盖网站取值 fields=%+v", fields)
 	}
 
@@ -200,7 +200,7 @@ func TestWebsiteContactProfile(t *testing.T) {
 	if _, ok := fields[company.ID]; ok || fields[plan.ID].Value != plan.Options[1].ID {
 		t.Fatalf("清除后 fields=%+v", fields)
 	}
-	if len(tags) != 2 || tags[vip.ID].Source != domain.ContactProfileSourceWebsite || tags[manual.ID].Source != domain.ContactProfileSourceMember {
+	if len(tags) != 2 || tags[vip.ID].Source != domain.ContactProfileSourceSignedIdentity || tags[manual.ID].Source != domain.ContactProfileSourceMember {
 		t.Fatalf("移除后 tags=%+v", tags)
 	}
 
@@ -228,7 +228,7 @@ func TestWebsiteContactProfile(t *testing.T) {
 	websiteDone, memberDone := make(chan error, 1), make(chan error, 2)
 	go func() {
 		websiteDone <- realtime.RunInTx(ctx, f.db, func(ctx context.Context, tx bun.Tx) error {
-			err := contactprofileaction.ApplyWebsiteProfile(ctx, tx, f.owner.Organization.ID, contactID, domain.WebsiteContactProfile{
+			err := contactprofileaction.ApplySignedProfile(ctx, tx, f.owner.Organization.ID, contactID, domain.SignedContactProfile{
 				Attributes: map[string]string{"公司": "Acme"}, Tags: []string{"VIP"},
 			})
 			close(applied)
@@ -253,12 +253,12 @@ func TestWebsiteContactProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	for range 2 {
-		if err := <-memberDone; !errors.Is(err, contactprofileaction.ErrSyncedFromWebsite) {
+		if err := <-memberDone; !errors.Is(err, contactprofileaction.ErrSyncedFromSignedIdentity) {
 			t.Fatalf("并发客服编辑 err = %v", err)
 		}
 	}
 	fields, tags = load(contactID)
-	if fields[company.ID].Value != "Acme" || fields[company.ID].Source != domain.ContactProfileSourceWebsite || tags[vip.ID].Source != domain.ContactProfileSourceWebsite {
+	if fields[company.ID].Value != "Acme" || fields[company.ID].Source != domain.ContactProfileSourceSignedIdentity || tags[vip.ID].Source != domain.ContactProfileSourceSignedIdentity {
 		t.Fatalf("并发后 fields=%+v tags=%+v", fields, tags)
 	}
 }

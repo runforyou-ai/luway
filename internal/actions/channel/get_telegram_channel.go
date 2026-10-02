@@ -70,6 +70,7 @@ func loadTelegramChannelDetail(ctx context.Context, db bun.IDB, organizationID, 
 	}
 	// 把 Telegram 设置存储模型转换为传输结构。
 	connection := TelegramChannelSettingRecord{
+		ConnectionMode:     setting.ConnectionMode,
 		BotToken:           optionalStringValue(setting.BotToken),
 		BotID:              setting.BotID,
 		BotUsername:        setting.BotUsername,

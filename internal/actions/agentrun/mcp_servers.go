@@ -8,7 +8,6 @@ import (
 	"slices"
 
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
-	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
@@ -119,13 +118,12 @@ type ServiceSessionCustomer struct {
 // LoadServiceSessionCustomer 读取渠道来源客服周期的渠道身份对应的已验证客户与其主要邮箱，判定与客户上下文消息一致。
 func LoadServiceSessionCustomer(ctx context.Context, db bun.IDB, organizationID, serviceSessionID string) (ServiceSessionCustomer, error) {
 	row := struct {
-		ExternalID     string  `bun:"external_id"`
-		ExternalUserID *string `bun:"external_user_id"`
+		VerifiedUserID *string `bun:"verified_user_id"`
 		Email          *string `bun:"email"`
 	}{}
 	if err := db.NewSelect().
 		TableExpr("service_sessions AS ss").
-		ColumnExpr("cci.external_id, c.external_user_id").
+		ColumnExpr("cci.verified_user_id").
 		ColumnExpr("(SELECT cm.value FROM contact_methods AS cm WHERE cm.organization_id = c.organization_id AND cm.contact_id = c.id AND cm.type = ? AND cm.is_primary) AS email", domain.ContactMethodTypeEmail).
 		Join("JOIN channel_conversations AS cc ON cc.organization_id = ss.organization_id AND cc.conversation_id = ss.conversation_id").
 		Join("JOIN contact_channel_identities AS cci ON cci.id = cc.contact_channel_identity_id AND cci.organization_id = cc.organization_id").
@@ -136,8 +134,8 @@ func LoadServiceSessionCustomer(ctx context.Context, db bun.IDB, organizationID,
 		return ServiceSessionCustomer{}, fmt.Errorf("load service session customer: %w", err)
 	}
 	customer := ServiceSessionCustomer{}
-	if row.ExternalUserID != nil && customeridentity.IsCustomerExternalID(row.ExternalID) {
-		customer.UserID = *row.ExternalUserID
+	if row.VerifiedUserID != nil {
+		customer.UserID = *row.VerifiedUserID
 		if row.Email != nil {
 			customer.Email = *row.Email
 		}

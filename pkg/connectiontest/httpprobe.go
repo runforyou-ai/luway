@@ -13,8 +13,12 @@ import (
 	"time"
 )
 
-// maxLoggedBodyBytes 是外部 HTTP 请求与响应日志中请求体和响应体的字节上限。
-const maxLoggedBodyBytes = 2 << 10
+const (
+	// maxLoggedBodyBytes 是外部 HTTP 请求与响应日志中请求体和响应体的字节上限。
+	maxLoggedBodyBytes = 2 << 10
+	// maxResponseBytes 是外部 HTTP 响应允许读取的最大字节数。
+	maxResponseBytes = 16 << 20
+)
 
 // HTTPDoer 定义外部 HTTP 请求需要的最小客户端契约。
 type HTTPDoer interface {
@@ -52,9 +56,12 @@ func ReadHTTPResponse(ctx context.Context, client HTTPDoer, request *http.Reques
 		return ClassifyTransportError(StageConnect, err)
 	}
 	defer response.Body.Close()
-	responseBody, err := io.ReadAll(response.Body)
+	responseBody, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil {
 		return NewError(StageCapability, FailureProtocol, err)
+	}
+	if len(responseBody) > maxResponseBytes {
+		return NewError(StageCapability, FailureProtocol, errors.New("response too large"))
 	}
 	responseAttributes := []any{
 		"method", request.Method,

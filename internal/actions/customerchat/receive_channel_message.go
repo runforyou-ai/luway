@@ -31,9 +31,9 @@ type InboundCustomerMessageInput struct {
 	ExternalMedia           *InboundExternalMedia
 	ReplyToMessageID        string
 	ExternalID              string
-	ExternalUserID          string
+	VerifiedUserID          string
 	Email                   string
-	WebsiteProfile          *domain.WebsiteContactProfile
+	SignedProfile           *domain.SignedContactProfile
 	VisitorContext          *domain.VisitorContext
 	DisplayName             *string
 	RequestedConversationID *string
@@ -137,15 +137,16 @@ func ReceiveInboundCustomerMessage(ctx context.Context, db bun.IDB, enqueuer ser
 
 // receiveInboundCustomerMessage 执行一次入站写入；route 为空且需要开启新周期时返回 errNewSessionRouteRequired。
 func receiveInboundCustomerMessage(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, channel *servermodels.Channel, input InboundCustomerMessageInput, ids generatedIDs, route *chatstate.RouteSnapshot) (InboundCustomerMessageResult, error) {
-	ensured, err := contactaction.EnsureChannelIdentity(ctx, db, contactaction.EnsureChannelIdentityInput{
+	identityInput := contactaction.EnsureChannelIdentityInput{
 		OrganizationID: channel.OrganizationID,
 		ChannelID:      channel.ID,
 		ExternalID:     input.ExternalID,
 		ContactID:      ids.contact,
 		IdentityID:     ids.channelIdentity,
-		ExternalUserID: input.ExternalUserID,
+		VerifiedUserID: input.VerifiedUserID,
 		Email:          input.Email,
-	})
+	}
+	ensured, err := contactaction.EnsureChannelIdentity(ctx, db, identityInput)
 	if err != nil {
 		return InboundCustomerMessageResult{}, err
 	}
@@ -172,9 +173,13 @@ func receiveInboundCustomerMessage(ctx context.Context, db bun.IDB, enqueuer ser
 	if saved, found, err := loadInboundCustomerMessage(ctx, db, channel, identity, input); err != nil || found {
 		return saved, err
 	}
-	// 网站带入的档案只随新写入的消息更新，重放不再写入。
-	if input.WebsiteProfile != nil {
-		if err := contactprofileaction.ApplyWebsiteProfile(ctx, db, channel.OrganizationID, ensured.Contact.ID, *input.WebsiteProfile); err != nil {
+	// 新消息按本次签名身份同步渠道身份的核验状态、所属联系人与邮箱，重放的消息不改变身份。
+	if ensured, err = contactaction.SyncChannelIdentity(ctx, db, identityInput, ensured); err != nil {
+		return InboundCustomerMessageResult{}, err
+	}
+	// 签名身份带入的档案只随新写入的消息更新，重放不再写入。
+	if input.SignedProfile != nil {
+		if err := contactprofileaction.ApplySignedProfile(ctx, db, channel.OrganizationID, ensured.Contact.ID, *input.SignedProfile); err != nil {
 			return InboundCustomerMessageResult{}, err
 		}
 	}

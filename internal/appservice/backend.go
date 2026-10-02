@@ -282,6 +282,9 @@ type Backend interface {
 	// SaveTelegramChannelConnection 保存 Telegram 机器人和 Webhook 设置。
 	//appservice:route PUT /channels/telegram/:channelID/connection
 	SaveTelegramChannelConnection(context.Context, RequestMeta, string, TelegramChannelConnectionInput) (TelegramChannel, error)
+	// RegenerateTelegramGatewaySecret 重新生成业务系统转发 Telegram 消息使用的转发密钥。
+	//appservice:route POST /channels/telegram/:channelID/connection/gateway-secret
+	RegenerateTelegramGatewaySecret(context.Context, RequestMeta, string) (TelegramChannel, error)
 	// GetMessageChannel 返回消息渠道基础信息。
 	//appservice:route GET /channels/:channelID
 	GetMessageChannel(context.Context, RequestMeta, string) (MessageChannelSummary, error)

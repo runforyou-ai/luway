@@ -12,6 +12,7 @@ import (
 	"time"
 
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/integration/telegram"
 )
@@ -21,6 +22,7 @@ func TestTelegramWebhook(t *testing.T) {
 	tests := []struct {
 		name          string
 		secret        string
+		customerToken string
 		body          string
 		preflightErr  error
 		executeErr    error
@@ -40,6 +42,7 @@ func TestTelegramWebhook(t *testing.T) {
 		{name: "ignored group message", secret: "secret", body: `{"update_id":1,"message":{"message_id":2,"date":1725000000,"chat":{"id":-1,"type":"group"}}}`, status: http.StatusNoContent, executeCalled: true},
 		{name: "ignored private non-text", secret: "secret", body: `{"update_id":1,"message":{"message_id":2,"date":1725000000,"chat":{"id":3,"type":"private"},"from":{"id":3,"first_name":"Demo"}}}`, status: http.StatusNoContent, executeCalled: true},
 		{name: "ignored cursor overflow date", secret: "secret", body: `{"update_id":1,"message":{"message_id":2,"date":9223372037,"text":"hello","chat":{"id":3,"type":"private"},"from":{"id":3,"first_name":"Demo"}}}`, status: http.StatusNoContent, executeCalled: true},
+		{name: "invalid customer identity", secret: "secret", customerToken: "signed", body: `{"update_id":1,"callback_query":{}}`, executeErr: conversationaction.ErrCustomerIdentityInvalid, status: http.StatusForbidden, executeCalled: true},
 		{name: "temporary execute failure", secret: "secret", body: `{"update_id":1,"callback_query":{}}`, executeErr: errors.New("database unavailable"), status: http.StatusServiceUnavailable, executeCalled: true},
 		{
 			name: "valid private text", secret: "secret",
@@ -65,6 +68,7 @@ func TestTelegramWebhook(t *testing.T) {
 				strings.NewReader(test.body),
 			)
 			request.Header.Set("X-Telegram-Bot-Api-Secret-Token", test.secret)
+			request.Header.Set("X-Customer-Token", test.customerToken)
 			response := httptest.NewRecorder()
 
 			service.ServeHTTP(response, request)
@@ -74,6 +78,9 @@ func TestTelegramWebhook(t *testing.T) {
 			}
 			if receiver.executeCalled != test.executeCalled {
 				t.Fatalf("execute called = %t, want %t", receiver.executeCalled, test.executeCalled)
+			}
+			if receiver.executeCalled && receiver.input.CustomerToken != test.customerToken {
+				t.Fatalf("customer token = %q, want %q", receiver.input.CustomerToken, test.customerToken)
 			}
 			if receiver.executeCalled && receiver.input.MyChatMember != test.myChatMember {
 				t.Fatalf("my_chat_member = %t, want %t", receiver.input.MyChatMember, test.myChatMember)

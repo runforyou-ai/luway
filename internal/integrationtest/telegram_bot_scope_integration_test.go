@@ -36,7 +36,7 @@ func TestTelegramBotReuseScope(t *testing.T) {
 	runner := connectiontest.NewRunner(time.Second)
 	saveTelegram := channelaction.NewSaveTelegramConnectionAction(db, runner, telegramAPI)
 	updateStatus := channelaction.NewUpdateTelegramChannelStatusAction(db, runner, telegramAPI)
-	connection := channelaction.TelegramChannelConnectionInput{BotToken: sharedToken, WebhookBaseURL: "http://127.0.0.1:34115/app"}
+	connection := channelaction.TelegramChannelConnectionInput{ConnectionMode: domain.TelegramConnectionDirect, BotToken: sharedToken, WebhookBaseURL: "http://127.0.0.1:34115/app"}
 
 	first := newTelegramScopeOrganization(t, db, "第一企业")
 	second := newTelegramScopeOrganization(t, db, "第二企业")

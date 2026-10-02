@@ -61,6 +61,9 @@ const (
 // AgentRunErrorCodeAgentUnavailable 表示 AI 员工被停用或失去接客资格，由管理操作取消运行。
 const AgentRunErrorCodeAgentUnavailable AgentRunErrorCode = "agent_unavailable"
 
+// AgentRunErrorCodeCustomerIdentityChanged 表示客户渠道身份的核验身份或所属联系人已变化，按原身份装配的运行不再继续。
+const AgentRunErrorCodeCustomerIdentityChanged AgentRunErrorCode = "customer_identity_changed"
+
 // AgentRunOutcome 定义一次 Agent 运行的结束方式。
 type AgentRunOutcome string
 

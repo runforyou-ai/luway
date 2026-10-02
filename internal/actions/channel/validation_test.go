@@ -128,6 +128,7 @@ func TestNormalizeWebsiteChannelAccessInput(t *testing.T) {
 // TestNormalizeTelegramConnectionInput 验证本地、内网和带路径的回调基础地址可保存。
 func TestNormalizeTelegramConnectionInput(t *testing.T) {
 	normalized, fields := normalizeTelegramConnectionInput(TelegramChannelConnectionInput{
+		ConnectionMode: domain.TelegramConnectionGateway,
 		BotToken:       " 123456:test_token ",
 		WebhookBaseURL: " http://127.0.0.1:34115/app/ ",
 	})
@@ -158,11 +159,24 @@ func TestNormalizeTelegramConnectionInputRejectsUnsafeBaseURL(t *testing.T) {
 	}
 	for _, baseURL := range tests {
 		_, fields := normalizeTelegramConnectionInput(TelegramChannelConnectionInput{
+			ConnectionMode: domain.TelegramConnectionDirect,
 			BotToken:       "123456:test_token",
 			WebhookBaseURL: baseURL,
 		})
 		if fields["webhookBaseURL"] != ValidationTelegramBaseURLInvalid {
 			t.Fatalf("base URL %q validation = %#v", baseURL, fields)
+		}
+	}
+}
+
+// TestNormalizeTelegramConnectionInputRejectsUnknownMode 验证接入方式只接受直连与网关转发。
+func TestNormalizeTelegramConnectionInputRejectsUnknownMode(t *testing.T) {
+	for _, mode := range []domain.TelegramConnectionMode{"", "polling"} {
+		_, fields := normalizeTelegramConnectionInput(TelegramChannelConnectionInput{
+			ConnectionMode: mode, BotToken: "123456:test_token", WebhookBaseURL: "https://example.com",
+		})
+		if fields["connectionMode"] != ValidationTelegramModeInvalid {
+			t.Fatalf("mode %q validation = %#v", mode, fields)
 		}
 	}
 }

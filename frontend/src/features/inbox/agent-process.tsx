@@ -280,7 +280,9 @@ export function AgentRunState({ run, incoming, conversationID, group, copilot, o
           ? t("agentRunAgentRemoved")
           : run.errorCode === "agent_unavailable"
             ? t("agentUnavailable")
-            : run.lastError
+            : run.errorCode === "customer_identity_changed"
+              ? t("agentRunCustomerIdentityChanged")
+              : run.lastError
   return (
     <div
       className={cn("mt-3 flex min-w-0 text-xs text-muted-foreground", incoming ? "justify-start" : "justify-end")}

@@ -7,7 +7,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react"
-import { GlobeIcon, PlusIcon, SparklesIcon, XIcon } from "lucide-react"
+import { BadgeCheckIcon, PlusIcon, SparklesIcon, XIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -92,9 +92,12 @@ export function ContactProfileEditor({
     contact.profile.fields.map((value) => [value.fieldId, value]),
   )
   const assigned = new Set(contact.profile.tags.map((tag) => tag.id))
-  const websiteTags = new Set(
+  const signedTags = new Set(
     contact.profile.tags
-      .filter((tag) => tag.source === ContactProfileSource.ContactProfileSourceWebsite)
+      .filter(
+        (tag) =>
+          tag.source === ContactProfileSource.ContactProfileSourceSignedIdentity,
+      )
       .map((tag) => tag.id),
   )
   const definitions = fields.data?.fields ?? []
@@ -163,11 +166,11 @@ export function ContactProfileEditor({
                   label={t("profile.aiTagged")}
                 />
               ) : null}
-              {websiteTags.has(tag.id) ? (
-                <WebsiteSourceMark label={t("profile.websiteSynced")} />
+              {signedTags.has(tag.id) ? (
+                <SignedIdentitySourceMark label={t("profile.signedIdentitySynced")} />
               ) : null}
               <span className="min-w-0 truncate">{tag.name}</span>
-              {websiteTags.has(tag.id) ? (
+              {signedTags.has(tag.id) ? (
                 <span className="w-1.5 shrink-0" />
               ) : (
                 <button
@@ -203,7 +206,7 @@ export function ContactProfileEditor({
                   <DropdownMenuCheckboxItem
                     key={tag.id}
                     checked={assigned.has(tag.id)}
-                    disabled={websiteTags.has(tag.id)}
+                    disabled={signedTags.has(tag.id)}
                     onSelect={(event) => event.preventDefault()}
                     onCheckedChange={(checked) =>
                       void mutate(() =>
@@ -224,7 +227,7 @@ export function ContactProfileEditor({
       {shownFields.map((field) => {
         const stored = values.get(field.id)
         const synced =
-          stored?.source === ContactProfileSource.ContactProfileSourceWebsite
+          stored?.source === ContactProfileSource.ContactProfileSourceSignedIdentity
         return (
           <Row key={field.id} label={field.name}>
             <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -249,7 +252,7 @@ export function ContactProfileEditor({
                 />
               ) : null}
               {synced ? (
-                <WebsiteSourceMark label={t("profile.websiteSynced")} />
+                <SignedIdentitySourceMark label={t("profile.signedIdentitySynced")} />
               ) : null}
             </div>
           </Row>
@@ -332,8 +335,8 @@ function AISourceButton({
   )
 }
 
-/** 网站来源标记：悬停说明由网站登录信息同步。 */
-function WebsiteSourceMark({ label }: { label: string }) {
+/** 签名身份来源标记：悬停说明由客户登录身份同步。 */
+function SignedIdentitySourceMark({ label }: { label: string }) {
   return (
     <span
       role="img"
@@ -341,7 +344,7 @@ function WebsiteSourceMark({ label }: { label: string }) {
       aria-label={label}
       title={label}
     >
-      <GlobeIcon className="size-3" />
+      <BadgeCheckIcon className="size-3" />
     </span>
   )
 }

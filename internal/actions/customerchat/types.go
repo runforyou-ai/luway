@@ -40,16 +40,16 @@ type WebsiteCustomerTextMessageInput struct {
 	ConversationID   *string
 	ClientMessageID  string
 	Body             string
-	Customer         *WebsiteCustomer
+	Customer         *SignedCustomer
 	VisitorContext   *domain.VisitorContext
 }
 
-// WebsiteCustomer 表示验签通过的网站登录用户，外部编号由 customeridentity.CustomerExternalID 生成；Profile 是签名身份带入的联系人档案。
-type WebsiteCustomer struct {
+// SignedCustomer 表示客户签名身份验签通过的企业用户；Profile 是签名身份带入的联系人档案。
+type SignedCustomer struct {
 	UserID  string
 	Name    string
 	Email   string
-	Profile domain.WebsiteContactProfile
+	Profile domain.SignedContactProfile
 }
 
 // WebsiteCustomerAttachmentMessageInput 定义网站访客发送的附件消息。
@@ -63,7 +63,7 @@ type WebsiteCustomerAttachmentMessageInput struct {
 	Body             string
 	ImageWidth       int
 	ImageHeight      int
-	Customer         *WebsiteCustomer
+	Customer         *SignedCustomer
 	VisitorContext   *domain.VisitorContext
 }
 
@@ -74,7 +74,7 @@ type WebsiteVisitorUploadInput struct {
 	FileName    string
 	ContentType string
 	ByteSize    int64
-	Customer    *WebsiteCustomer
+	Customer    *SignedCustomer
 }
 
 // ConversationSummary 定义访客可见会话摘要。

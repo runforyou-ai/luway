@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -25,6 +26,9 @@ const (
 	// ProtocolDashScope 是阿里云 DashScope 原生重排接口格式。
 	ProtocolDashScope Protocol = "dashscope"
 )
+
+// maxResponseBytes 是重排响应允许读取的最大字节数。
+const maxResponseBytes = 4 << 20
 
 // Credential 提供访问重排模型所需的接口格式、接口地址和密钥。
 type Credential struct {
@@ -121,7 +125,7 @@ func (c *Client) Rerank(ctx context.Context, credential Credential, model, query
 			TotalTokens int `json:"total_tokens"`
 		} `json:"usage"`
 	}
-	if err := json.NewDecoder(response.Body).Decode(&decoded); err != nil {
+	if err := json.NewDecoder(io.LimitReader(response.Body, maxResponseBytes)).Decode(&decoded); err != nil {
 		return Result{}, &Error{Code: "rerank_failed"}
 	}
 	results := decoded.Results
