@@ -107,7 +107,7 @@ func TestInboxChannelFilter(t *testing.T) {
 		t.Fatalf("disabled channel=%v err=%v", conversationIDs(closedPage.Conversations), err)
 	}
 	login := loginMember(t, f.db, f.owner.Organization.ID, f.owner.Account.Email, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 	candidates, err := backend.ListInboxChannels(ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID})
 	if err != nil || len(candidates.Channels) != 2 {
 		t.Fatalf("channel candidates=%+v err=%v", candidates.Channels, err)

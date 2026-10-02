@@ -2240,19 +2240,6 @@ export interface CustomerVisit {
 }
 
 /**
- * DeploymentMode 表示服务端部署形态。
- */
-export enum DeploymentMode {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    DeploymentModeSelfHosted = "self_hosted",
-    DeploymentModeManaged = "managed",
-};
-
-/**
  * Device 定义成员注册到企业的本机设备，LocalAgents 是设备上报的已安装且可用的本机 Agent。
  */
 export interface Device {
@@ -2972,13 +2959,12 @@ export interface InstallWorkspaceInput {
 }
 
 /**
- * InstallationStatus 定义部署名称、部署是否已完成首次安装、是否开放注册、服务端部署形态和部署使用的产品品牌。
+ * InstallationStatus 定义部署名称、部署是否已完成首次安装、是否开放注册和部署使用的产品品牌。
  */
 export interface InstallationStatus {
     "deploymentName": string;
     "installed": boolean;
     "registrationOpen": boolean;
-    "deploymentMode": DeploymentMode;
     "brand": Brand;
 }
 
@@ -4023,32 +4009,6 @@ export enum NotificationPermissionStatus {
 };
 
 /**
- * OfficialLoginCompletion 定义用授权码完成官方账号登录的输入。
- */
-export interface OfficialLoginCompletion {
-    "attemptId": string;
-    "code": string;
-    "codeVerifier": string;
-}
-
-/**
- * OfficialLoginInput 定义发起官方账号登录的输入；state、nonce 与 PKCE verifier 由客户端生成并保存。
- */
-export interface OfficialLoginInput {
-    "state": string;
-    "nonce": string;
-    "codeChallenge": string;
-}
-
-/**
- * OfficialLoginStart 返回官方账号登录尝试编号和授权地址。
- */
-export interface OfficialLoginStart {
-    "attemptId": string;
-    "authorizationUrl": string;
-}
-
-/**
  * Organization 定义当前工作区及其通用设置。
  */
 export interface Organization {
@@ -4908,11 +4868,10 @@ export enum SessionState {
 };
 
 /**
- * Startup 表示应用启动入口、服务端部署形态和界面使用的产品品牌，登录页按部署形态选择登录方式；原生端已保存服务器仍进入连接页时 ConnectReason 说明原因。
+ * Startup 表示应用启动入口和界面使用的产品品牌；原生端已保存服务器仍进入连接页时 ConnectReason 说明原因。
  */
 export interface Startup {
     "state": SessionState;
-    "deploymentMode"?: DeploymentMode;
     "brand": Brand;
     "connectReason"?: ConnectReason;
 }

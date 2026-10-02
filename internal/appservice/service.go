@@ -119,16 +119,6 @@ func (s *Service) Register(ctx context.Context, meta RequestMeta, input Register
 	return WithNormalizedSlices(auth, nil)
 }
 
-// CompleteOfficialLogin 用授权码完成官方账号登录并建立登录会话。
-func (s *Service) CompleteOfficialLogin(ctx context.Context, meta RequestMeta, input OfficialLoginCompletion) (Auth, error) {
-	auth, err := s.backend.CompleteOfficialLogin(ctx, meta, input)
-	if err != nil {
-		return Auth{}, err
-	}
-	s.setNativeLocale(auth.Account.Locale)
-	return WithNormalizedSlices(auth, nil)
-}
-
 // LoadIdentity 返回当前账号在请求目标工作区中的成员身份。
 func (s *Service) LoadIdentity(ctx context.Context, meta RequestMeta) (Identity, error) {
 	identity, err := s.backend.LoadIdentity(ctx, meta)

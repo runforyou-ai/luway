@@ -14,7 +14,7 @@ import {
   type UserData,
 } from "@/api"
 import { FormInputField } from "@/components/form/form-input-field"
-import { SwitchCardField } from "@/components/form/switch-card-field"
+import { SwitchField } from "@/components/form/switch-field"
 import { ImagePicker } from "@/components/image-picker"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { useAutoSave } from "@/hooks/use-auto-save"
@@ -206,7 +206,7 @@ export function MemberForm({
           name="handlesServiceRequests"
           control={form.control}
           render={({ field }) => (
-            <SwitchCardField
+            <SwitchField
               id={field.name}
               name={field.name}
               label={t("members.form.handlesServiceRequests")}

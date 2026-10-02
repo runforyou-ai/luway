@@ -34,6 +34,7 @@ import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useResource } from "@/hooks/use-resource"
+import { useReturnLink } from "@/hooks/use-return-to"
 import { optionalWailsEnum } from "@/lib/wails-enum"
 
 /** 显示当前成员名下的助理并提供编辑、换电脑、暂停和启停操作。 */
@@ -41,6 +42,7 @@ export function AssistantsPanel() {
   const { t } = useTranslation(["contacts", "common"])
   const { formatDateTime } = useDateTime()
   const navigate = useNavigate()
+  const returnLink = useReturnLink()
   const { searchParams, setParameters, search, setSearch } = useContactSearch()
   const status =
     optionalWailsEnum(UserStatus, searchParams.get("status")) ??
@@ -81,7 +83,7 @@ export function AssistantsPanel() {
         headerActions={
           localDeviceID ? (
             <Button variant="subtle" size="icon-sm" asChild>
-              <Link to="/contacts/assistants/new" aria-label={createLabel} title={createLabel}>
+              <Link to={returnLink("/contacts/assistants/new")} aria-label={createLabel} title={createLabel}>
                 <PlusIcon />
               </Link>
             </Button>
@@ -150,7 +152,7 @@ export function AssistantsPanel() {
               ? "assistants.emptyFiltered"
               : "assistants.empty",
           )}
-          onRowActivate={(assistant) => navigate(`/contacts/assistants/${assistant.id}`)}
+          onRowActivate={(assistant) => navigate(returnLink(`/contacts/assistants/${assistant.id}`))}
           rowActions={(assistant) => {
             const active = assistant.status === UserStatus.UserStatusActive
             const paused = assistant.presence === AssistantPresence.AssistantPresencePaused
@@ -164,7 +166,7 @@ export function AssistantsPanel() {
               {
                 key: "edit",
                 label: t("common:actions.edit"),
-                onSelect: () => navigate(`/contacts/assistants/${assistant.id}`),
+                onSelect: () => navigate(returnLink(`/contacts/assistants/${assistant.id}`)),
               },
               // 换到这台电脑只在桌面端出现。
               ...(localDeviceID
@@ -193,6 +195,7 @@ export function AssistantsPanel() {
         title={t("assistants.move.title", { name: move.item?.displayName ?? "" })}
         description={t("assistants.move.description")}
         pendingLabel={t("assistants.move.saving")}
+        destructive={false}
       />
       <ConfirmationDialog {...statusToggle.dialog} />
     </>

@@ -30,9 +30,9 @@ import {
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable } from "@/components/resource-table"
+import { UnsavedDialog } from "@/components/unsaved-dialog"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -268,7 +268,7 @@ export function ExternalContactsPanel() {
         onNotFound={refreshAndClose}
       />
 
-      <Dialog
+      <UnsavedDialog
         open={searchParams.get("new") === "1"}
         onOpenChange={(open) => !open && setParameters({ new: null })}
       >
@@ -285,7 +285,7 @@ export function ExternalContactsPanel() {
             onCancel={() => setParameters({ new: null })}
           />
         </DialogContent>
-      </Dialog>
+      </UnsavedDialog>
 
       <ConfirmationDialog
         {...deletion.dialog}

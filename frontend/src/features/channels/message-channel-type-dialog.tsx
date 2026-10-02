@@ -15,6 +15,7 @@ import {
   plannedChannelDefinitions,
 } from "@/lib/message-channel-types"
 import { cn } from "@/lib/utils"
+import { useReturnLink } from "@/hooks/use-return-to"
 
 const cardClassName =
   "flex min-w-0 items-center gap-3 rounded-lg border bg-card p-4"
@@ -30,6 +31,7 @@ export function MessageChannelTypeDialog({
   onOpenChange: (open: boolean) => void
 }) {
   const { t } = useTranslation(["channels", "common"])
+  const returnLink = useReturnLink()
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,7 +44,7 @@ export function MessageChannelTypeDialog({
           {messageChannelTypeDefinitions.map((definition) => (
             <Link
               key={definition.type}
-              to={`/channels/${definition.type}/new`}
+              to={returnLink(`/channels/${definition.type}/new`)}
               className={cn(
                 cardClassName,
                 "transition-colors hover:bg-accent/50 focus-visible:border-primary focus-visible:outline-hidden",

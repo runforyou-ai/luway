@@ -9,6 +9,9 @@ Luway 是开源、以自托管为主的 AI 原生企业协作产品，使用 Go�
 - 代码审查结果、Git 提交信息以及 PR 的标题和描述使用中文。
 - 需求、范围或实现方式存在不确定或歧义时，先向用户说明待确认内容并获得确认，不自行假定。
 - 执行修改前尽量先说明任务范围并询问用户是否开始；用户已明确要求立即执行或已确认该范围时，不重复询问。
+- 让 codex cli 做review的提示词：“对当前工作区的改动做review和可视化验证” 或者 “对当前工作区提交的pr：https://xxxxxx 做review和可视化验证”。
+- 让 pi cli 做review的提示词：“对当前工作区的改动做review” 或者 “对当前工作区提交的pr：https://xxxxxx 做review”。
+- 让 codex cli 和 pi cli做了review并修复之后应该分别让他们做复核，提示词是：“改好了，看下”。
 
 ## 命令与工作区
 
@@ -179,8 +182,6 @@ wails3 task build:server
 - Gin 只输出 Backend 给出的状态和错误体，不定义前端业务类型和主要调用契约。
 - `Service` 的每个带结果方法都对结果调用 `normalizeSlices`，nil 切片输出为空数组；`manual=service` 的手写方法同样遵守。
 - `appservice/backend.go` 的 `Backend` 接口是业务调用的唯一契约源，每个方法必须带 `appservice:route` 指令。`Service` 委托、服务端认证分发、Gin 路由与 Handler、API Proxy 转发由 `go generate ./internal/appservice` 生成到各包的 `*_gen.go`，禁止手改。
-- `appservice/operator_backend.go` 的 `OperatorBackend` 接口是官方托管运营调用的契约源，同一条生成命令按其指令生成运营认证分发和 Gin 适配，不生成 `Service` 委托、API Proxy 和 Wails 绑定。`Backend` 面向各端客户端，`OperatorBackend` 面向 SaaS 后端的服务间调用，新增方法按消费者归入其中一个，不跨契约暴露。
-- 运营指令不接受 `auth` 和 `manual` 选项：分发层一律先校验运营服务凭据，再把运营身份交给 `operatorOperations` 中的业务实现。运营错误使用带稳定错误码的 `OperatorError`，目标工作区只取自路径或请求体中显式给出的工作区编号。
 - 新增业务方法：在 `Backend` 补方法与指令（GET 的查询结构体在 `types.go` 为每个字段显式加 `query` 标签，不传输的字段用 `query:"-"`），运行生成器，然后只手写 `appservice/direct` 中的 `directOperations` 实现和 Action。无法按统一模式生成的层用 `manual=service,api,proxy` 标记并在对应包手写。服务端经 `filecontent.Links` 生成文件地址，本地存储返回服务端相对路径；API Proxy 在统一解码处把字段名以 `URL` 结尾的本地存储相对路径补全为当前连接地址，不重复切片归一化。
 - 认证由 `appservice/direct/backend_gen.go` 生成的分发层统一处理：`auth` 默认 `member`，先解析账号会话在目标工作区中的成员身份再调用业务实现；只需要登录账号的方法（账号资料、工作区列表与创建、部署设置等）标记 `auth=account`，无需登录的方法标记 `auth=public`。
 - `directOperations` 直接接收已解析的 `identity`，不重复认证，只负责把 Action 返回的语言无关错误码转成结构化、本地化错误并调用 Action。其 Action 与 Query 字段按业务域分组在 `<域>Ops` 结构体中，新增依赖只改对应实现文件。

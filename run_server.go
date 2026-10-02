@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
@@ -102,13 +101,9 @@ func run(arguments []string) error {
 		DisableDefaultSignalHandler: true,
 		Assets: application.AssetOptions{
 			Handler: assetServer,
-			// 实时事件流与产品文档在 Wails 资源服务之前处理；托管部署另外接收官方账号登录回调。
+			// 实时事件流与产品文档在 Wails 资源服务之前处理。
 			Middleware: func(next http.Handler) http.Handler {
-				handler := docsMiddleware(realtimeMiddleware(next))
-				if config.Deployment.Mode.Managed() {
-					handler = api.OfficialLoginCallbackMiddleware(handler)
-				}
-				return handler
+				return docsMiddleware(realtimeMiddleware(next))
 			},
 		},
 		Server: application.ServerOptions{

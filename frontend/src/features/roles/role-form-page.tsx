@@ -23,7 +23,14 @@ import { FormInputField } from "@/components/form/form-input-field"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldTitle,
+} from "@/components/ui/field"
 import { ResourceContent, resourceStatus } from "@/components/resource-content"
 import { ResourceListFrame } from "@/components/resource-list"
 import {
@@ -326,26 +333,25 @@ export function RoleFormPage({ mode }: { mode: "create" | "detail" }) {
                     </Field>
                   )}
                 />
+                {memberTargetRole ? (
+                  <Field orientation="horizontal">
+                    <FieldContent>
+                      <FieldTitle>{t("roles.members.sectionTitle")}</FieldTitle>
+                      <FieldDescription>
+                        {t("roles.members.count", { count: memberCount })}
+                      </FieldDescription>
+                    </FieldContent>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setMemberDialogOpen(true)}
+                    >
+                      {t("roles.members.configure")}
+                    </Button>
+                  </Field>
+                ) : null}
               </FieldGroup>
-
-              {memberTargetRole ? (
-                <section className="flex items-center justify-between gap-4 rounded-lg border bg-card p-4">
-                  <div>
-                    <h3 className="font-medium">{t("roles.members.sectionTitle")}</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {t("roles.members.count", { count: memberCount })}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setMemberDialogOpen(true)}
-                  >
-                    {t("roles.members.configure")}
-                  </Button>
-                </section>
-              ) : null}
 
               <section>
                 <div className="mb-3">

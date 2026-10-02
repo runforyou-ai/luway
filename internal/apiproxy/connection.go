@@ -122,7 +122,7 @@ func parseServerURL(value string) (*url.URL, error) {
 	return parsed, nil
 }
 
-// probeServer 读取服务器的部署名称、安装状态、注册开关、部署形态和产品品牌。
+// probeServer 读取服务器的部署名称、安装状态、注册开关和产品品牌。
 func probeServer(ctx context.Context, state *remoteState) (appservice.InstallationStatus, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, remoteEndpoint(state.baseURL, "/installation/status", ""), nil)
 	if err != nil {
@@ -137,11 +137,10 @@ func probeServer(ctx context.Context, state *remoteState) (appservice.Installati
 		return appservice.InstallationStatus{}, fmt.Errorf("server returned HTTP %d", response.StatusCode)
 	}
 	var payload struct {
-		DeploymentName   string                    `json:"deploymentName"`
-		Installed        *bool                     `json:"installed"`
-		RegistrationOpen bool                      `json:"registrationOpen"`
-		DeploymentMode   appservice.DeploymentMode `json:"deploymentMode"`
-		Brand            appservice.Brand          `json:"brand"`
+		DeploymentName   string           `json:"deploymentName"`
+		Installed        *bool            `json:"installed"`
+		RegistrationOpen bool             `json:"registrationOpen"`
+		Brand            appservice.Brand `json:"brand"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, maxResponseBytes)).Decode(&payload); err != nil {
 		return appservice.InstallationStatus{}, fmt.Errorf("decode installation status response: %w", err)
@@ -153,7 +152,6 @@ func probeServer(ctx context.Context, state *remoteState) (appservice.Installati
 		DeploymentName:   payload.DeploymentName,
 		Installed:        *payload.Installed,
 		RegistrationOpen: payload.RegistrationOpen,
-		DeploymentMode:   payload.DeploymentMode,
 		Brand:            payload.Brand,
 	}, nil
 }

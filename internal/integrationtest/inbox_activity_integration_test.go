@@ -139,7 +139,7 @@ func TestInboxSnapshot(t *testing.T) {
 	defer cancel()
 	first := f.send(t, f.owner, "快照前", false)
 	login := loginMember(t, f.db, f.owner.Organization.ID, f.member.Account.Email, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 	f.db.AddQueryHook(chatQueryHook{})
 	gate := newChatQueryGate(t, false, 1, func(event *bun.QueryEvent) bool {
 		return event.Operation() == "SELECT" && strings.Contains(event.Query, "AS candidates") && strings.Contains(event.Query, "LIMIT 50")

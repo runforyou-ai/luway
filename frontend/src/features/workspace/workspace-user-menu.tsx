@@ -38,7 +38,6 @@ import { CountBadge } from "@/components/count-badge"
 import { WorkStatusDot, WorkStatusPicker } from "@/components/work-status"
 import { UserAvatar } from "@/components/user-avatar"
 import { cn } from "@/lib/utils"
-import { useStartup } from "@/contexts/startup-context"
 
 /** 展示当前成员头像与工作区，展开后切换工作状态、进入设置、打开帮助文档、切换工作区或确认后退出登录。 */
 export function WorkspaceUserMenu({
@@ -53,7 +52,6 @@ export function WorkspaceUserMenu({
   onLogout: () => void
 }) {
   const { t, i18n } = useTranslation(["workspace", "account", "connection", "common"])
-  const { usesOfficialLogin } = useStartup()
   const workspaceScope = useWorkspaceScope()
   const workspaceAttention = useWorkspaceAttention(workspaceScope.current.id)
   const navigate = useNavigate()
@@ -167,8 +165,8 @@ export function WorkspaceUserMenu({
             <SettingsIcon />
             {t("settings")}
           </DropdownMenuItem>
-          {/* 自托管部署的 Web 端提供唤起桌面端和移动端的入口；客户端内与官方托管部署不展示，托管部署的客户端尚不支持官方账号登录。 */}
-          {resolveAppPlatform() === "web" && !usesOfficialLogin ? (
+          {/* Web 端提供唤起桌面端和移动端的入口，客户端内不展示。 */}
+          {resolveAppPlatform() === "web" ? (
             <DropdownMenuItem onSelect={() => setClientLinkOpen(true)}>
               <MonitorSmartphoneIcon />
               {t("connection:clientLink.title")}

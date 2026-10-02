@@ -21,8 +21,6 @@ const settings = {
     roles: "Roles and permissions",
     modelServices: "Model services",
     webSearch: "Web search",
-    webhooks: "Webhooks",
-    openApi: "Developer API",
   },
   profile: {
     title: "Profile",

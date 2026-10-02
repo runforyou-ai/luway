@@ -1,6 +1,5 @@
 /** 标准知识库文档列表、上传和原地管理。 */
 import { useTranslation } from "react-i18next"
-import { useLocation } from "react-router"
 import { deleteKnowledgeDocument, KnowledgeBaseCategory, listKnowledgeDocuments, type KnowledgeDocumentData } from "@/api"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
@@ -29,7 +28,6 @@ function KnowledgeDocumentList({
   knowledgeBaseId: string
 }) {
   const { t } = useTranslation(["knowledgeBase", "common"])
-  const location = useLocation()
   const list = useKnowledgeContentList({
     knowledgeBaseId,
     section: "documents",
@@ -67,7 +65,6 @@ function KnowledgeDocumentList({
           documents={list.list.data?.items ?? []}
           more={list.list.more}
           listPath={list.listPath}
-          search={location.search}
           filtered={Boolean(list.query)}
           refreshing={list.list.isPlaceholderData}
           onDelete={deletion.select}

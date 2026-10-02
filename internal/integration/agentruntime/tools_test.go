@@ -8,21 +8,21 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 )
 
-// TestAssembleToolsByScene 验证开发期计算器只在内部场景注册，客服场景只保留业务工具和终止工具。
+// TestAssembleToolsByScene 验证 Runtime 基础工具只在内部场景注册，客服场景只保留业务工具和终止工具。
 func TestAssembleToolsByScene(t *testing.T) {
-	calculator, err := newCalculatorTool()
+	echoTool, err := newEchoTool()
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime := &EinoRuntime{tools: []tool.BaseTool{calculator}}
+	runtime := &EinoRuntime{tools: []tool.BaseTool{echoTool}}
 	history := func(context.Context, string) (CustomerHistoryResult, error) { return CustomerHistoryResult{}, nil }
 	for _, scenario := range []struct {
 		scene Scene
 		want  []string
 	}{
 		{SceneCustomer, []string{"search_customer_history", "ask_customer", "handoff_to_human", "resolve_conversation"}},
-		{SceneAgentChat, []string{"calculator", "search_customer_history"}},
-		{SceneGroup, []string{"calculator", "search_customer_history"}},
+		{SceneAgentChat, []string{"echo", "search_customer_history"}},
+		{SceneGroup, []string{"echo", "search_customer_history"}},
 	} {
 		t.Run(string(scenario.scene), func(t *testing.T) {
 			var terminal *terminalTools

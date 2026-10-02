@@ -20,7 +20,7 @@ type testBackend struct {
 }
 
 func (b *testBackend) InstallationStatus(context.Context, appservice.RequestMeta) (appservice.InstallationStatus, error) {
-	return appservice.InstallationStatus{Installed: true, RegistrationOpen: true, DeploymentMode: appservice.DeploymentModeSelfHosted}, nil
+	return appservice.InstallationStatus{Installed: true, RegistrationOpen: true}, nil
 }
 
 func (b *testBackend) Login(_ context.Context, meta appservice.RequestMeta, input appservice.LoginInput) (appservice.Auth, error) {
@@ -96,7 +96,7 @@ func TestInstallationStatusIsPublic(t *testing.T) {
 	if err := json.NewDecoder(response.Body).Decode(&status); err != nil {
 		t.Fatal(err)
 	}
-	if !status.Installed || !status.RegistrationOpen || status.DeploymentMode != appservice.DeploymentModeSelfHosted {
+	if !status.Installed || !status.RegistrationOpen {
 		t.Fatalf("status = %#v", status)
 	}
 }

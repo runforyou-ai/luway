@@ -20,7 +20,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
-	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	"github.com/runforyou-ai/luway/internal/realtime/gateway"
 	"github.com/runforyou-ai/luway/internal/realtime/protocol"
@@ -56,7 +55,7 @@ func startVisitorRealtime(t *testing.T, f customerReadFixture, options gateway.O
 
 	scheduler := agentrunaction.NewScheduler(newTestTasks(f.db))
 	visitorBackend := direct.NewWebsiteVisitorBackend(f.db, scheduler, newTestTasks(f.db), nil, serverfilecontent.S3Config{}, nil, nil)
-	memberBackend := direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	memberBackend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 	realtimeGateway := gateway.New(memberBackend, visitorBackend, config.Namespace, options)
 	realtimeGateway.Start(publisher.Connection())
 	t.Cleanup(realtimeGateway.Shutdown)

@@ -28,6 +28,7 @@ import { useAutoSave } from "@/hooks/use-auto-save"
 import { useFormLifetime } from "@/hooks/use-form-lifetime"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResourceInvalidator } from "@/hooks/use-resource"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { requestErrorMessage } from "@/lib/form-errors"
 import { languageDisplayName } from "@/lib/languages"
 import { recoverSession } from "@/lib/session-navigation"
@@ -47,6 +48,7 @@ export function MessageChannelForm({
 }) {
   const { t, i18n } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
+  const { returnTo, leave } = useReturnTo("/channels")
   const invalidateResource = useResourceInvalidator()
   const schema = useMemo(
     () =>
@@ -120,8 +122,9 @@ export function MessageChannelForm({
       if (!mounted.current) return true
       dirty.current = false
       form.reset(values)
+      toast.success(t("create.success"))
       navigate(
-        `/channels/${created.type}/${created.id}?tab=basic`,
+        `/channels/${created.type}/${created.id}?${new URLSearchParams({ tab: "basic", returnTo })}`,
         { replace: true },
       )
       return true
@@ -132,7 +135,7 @@ export function MessageChannelForm({
       }
       if (channel && isNotFoundApiError(error)) {
         console.warn("消息渠道不存在", { channel_id: channel.id })
-        navigate("/channels", { replace: true })
+        leave({ replace: true })
         return false
       }
       console.warn("保存消息渠道失败", error)
@@ -221,7 +224,7 @@ export function MessageChannelForm({
 
       </FieldGroup>
       {channel ? null : (
-        <FormActions saving={isSubmitting} cancelTo="/channels" />
+        <FormActions saving={isSubmitting} cancelTo={returnTo} />
       )}
     </form>
   )

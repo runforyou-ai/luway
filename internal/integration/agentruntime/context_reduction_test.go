@@ -31,7 +31,7 @@ type repeatedToolChatModel struct {
 	latestSeen   string
 }
 
-// Generate 反复调用计算器，并记录最后一次规划时最早与最近的工具结果内容。
+// Generate 反复调用回显工具，并记录最后一次规划时最早与最近的工具结果内容。
 func (m *repeatedToolChatModel) Generate(_ context.Context, input []*schema.AgenticMessage, _ ...model.Option) (*schema.AgenticMessage, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -50,7 +50,7 @@ func (m *repeatedToolChatModel) Generate(_ context.Context, input []*schema.Agen
 	}
 	// 每轮说明占八千字，第五次规划时上下文超过清理阈值、低于摘要阈值。
 	return assistantReply(strings.Repeat("算", 8000), &schema.FunctionToolCall{
-		CallID: "calculator-call-" + string(rune('a'+m.calls)), Name: "calculator", Arguments: `{"operation":"add","left":1,"right":1}`,
+		CallID: "echo-call-" + string(rune('a'+m.calls)), Name: "echo", Arguments: `{"text":"3"}`,
 	}), nil
 }
 
@@ -61,14 +61,14 @@ func (m *repeatedToolChatModel) Stream(ctx context.Context, input []*schema.Agen
 
 // TestContextClearsOldToolResults 验证上下文超过模型窗口预算后清理较早的工具结果，并保留最近两轮。
 func TestContextClearsOldToolResults(t *testing.T) {
-	calculator, err := newCalculatorTool()
+	echoTool, err := newEchoTool()
 	if err != nil {
 		t.Fatal(err)
 	}
 	chatModel := &repeatedToolChatModel{}
 	runtime := &EinoRuntime{
 		newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil },
-		tools:    []tool.BaseTool{calculator},
+		tools:    []tool.BaseTool{echoTool},
 	}
 	feed := &testInputFeed{}
 	feed.appendUser("一直算")
@@ -83,10 +83,10 @@ func TestContextClearsOldToolResults(t *testing.T) {
 	}
 	chatModel.mu.Lock()
 	defer chatModel.mu.Unlock()
-	if chatModel.earliestSeen == `{"result":2}` {
+	if chatModel.earliestSeen == `{"text":"3"}` {
 		t.Fatalf("earliest tool result was not cleared: %q", chatModel.earliestSeen)
 	}
-	if chatModel.latestSeen != `{"result":2}` {
+	if chatModel.latestSeen != `{"text":"3"}` {
 		t.Fatalf("latest tool result was cleared: %q", chatModel.latestSeen)
 	}
 }

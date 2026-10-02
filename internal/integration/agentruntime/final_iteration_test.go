@@ -34,9 +34,9 @@ func (m *toolHungryChatModel) Generate(_ context.Context, input []*schema.Agenti
 			m.lastUserText = messageText(message)
 		}
 	}
-	if slices.Contains(m.lastTools, "calculator") {
+	if slices.Contains(m.lastTools, "echo") {
 		return assistantReply("继续算", &schema.FunctionToolCall{
-			CallID: "calculator-call", Name: "calculator", Arguments: `{"operation":"add","left":1,"right":1}`,
+			CallID: "echo-call", Name: "echo", Arguments: `{"text":"3"}`,
 		}), nil
 	}
 	return assistantReply("按已有资料回答"), nil
@@ -49,14 +49,14 @@ func (m *toolHungryChatModel) Stream(ctx context.Context, input []*schema.Agenti
 
 // TestFinalIterationAnswersWithoutTools 验证到达迭代上限时移除工具，本轮以最终回答收尾。
 func TestFinalIterationAnswersWithoutTools(t *testing.T) {
-	calculator, err := newCalculatorTool()
+	echoTool, err := newEchoTool()
 	if err != nil {
 		t.Fatal(err)
 	}
 	chatModel := &toolHungryChatModel{}
 	runtime := &EinoRuntime{
 		newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil },
-		tools:    []tool.BaseTool{calculator},
+		tools:    []tool.BaseTool{echoTool},
 	}
 	feed := &testInputFeed{}
 	feed.appendUser("帮我查一下")
@@ -71,7 +71,7 @@ func TestFinalIterationAnswersWithoutTools(t *testing.T) {
 	}
 	chatModel.mu.Lock()
 	defer chatModel.mu.Unlock()
-	if len(chatModel.toolsByCall) != 3 || !slices.Contains(chatModel.toolsByCall[1], "calculator") ||
+	if len(chatModel.toolsByCall) != 3 || !slices.Contains(chatModel.toolsByCall[1], "echo") ||
 		len(chatModel.toolsByCall[2]) != 0 {
 		t.Fatalf("tools by iteration = %v", chatModel.toolsByCall)
 	}

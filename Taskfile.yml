@@ -103,13 +103,13 @@ tasks:
     cmds:
       - |
         set -euo pipefail
-        exists=$(docker compose exec -T postgres \
+        exists=$(docker exec luway-postgres \
           psql -U "{{.POSTGRES_USER}}" -d postgres -tAc \
           "SELECT 1 FROM pg_database WHERE datname = '{{.POSTGRES_DB}}'")
         if [ "$exists" = "1" ]; then
           echo "数据库 {{.POSTGRES_DB}} 已存在"
         else
-          docker compose exec -T postgres \
+          docker exec luway-postgres \
             createdb -U "{{.POSTGRES_USER}}" "{{.POSTGRES_DB}}"
           echo "已创建数据库 {{.POSTGRES_DB}}"
         fi
@@ -127,24 +127,13 @@ tasks:
       - |
         set -euo pipefail
         test_database="{{.POSTGRES_DB}}_test"
-        docker compose exec -T postgres \
+        docker exec luway-postgres \
           dropdb --force --if-exists -U "{{.POSTGRES_USER}}" \
           --maintenance-db postgres "$test_database"
-        docker compose exec -T postgres \
+        docker exec luway-postgres \
           createdb -U "{{.POSTGRES_USER}}" \
           --maintenance-db postgres "$test_database"
         echo "已重建测试数据库 $test_database"
-
-  db:list:
-    silent: true
-    summary: 查看共享 PostgreSQL 中的数据库
-    deps:
-      - env:check:database
-    preconditions:
-      - sh: docker info >/dev/null 2>&1
-        msg: "Docker 未运行，无法连接 PostgreSQL 容器"
-    cmds:
-      - docker compose exec -T postgres psql -U "{{.POSTGRES_USER}}" -d postgres -c '\l'
 
   setup:docker:
     summary: Builds Docker image for cross-compilation (~800MB download)

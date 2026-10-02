@@ -146,7 +146,7 @@ func TestCustomerInternalNotes(t *testing.T) {
 
 	t.Run("对客引用资格排除内部备注", func(t *testing.T) {
 		login := loginMember(t, f.db, f.owner.Organization.ID, f.member.Account.Email, "password123")
-		backend := direct.New(f.db, direct.DeploymentConfig{Mode: domain.DeploymentModeSelfHosted}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+		backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 		window, err := backend.ListConversationMessages(ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID}, f.conversationID, appservice.ConversationMessageListInput{})
 		if err != nil {
 			t.Fatal(err)

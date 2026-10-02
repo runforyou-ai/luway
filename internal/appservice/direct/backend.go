@@ -18,7 +18,6 @@ import (
 	mcpserveraction "github.com/runforyou-ai/luway/internal/actions/mcpserver"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	"github.com/runforyou-ai/luway/internal/appservice"
-	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
@@ -39,7 +38,6 @@ var (
 // sessionGuard 校验登录会话并解析请求目标工作区中的成员身份。
 type sessionGuard struct {
 	db                 *bun.DB
-	deploymentMode     domain.DeploymentMode
 	installationStatus *installationaction.StatusQuery
 	resolveAccount     *authaction.ResolveAccountQuery
 	resolveIdentity    *authaction.ResolveIdentityQuery
@@ -79,14 +77,12 @@ type directOperations struct {
 	invitationOps
 }
 
-// DeploymentConfig 定义直接后端的部署名称与形态、部署地址、注册开关、邀请邮件发送和官方身份服务；官方身份服务只在托管部署设置，邮件发送只在配置了 SMTP 时设置。
+// DeploymentConfig 定义直接后端的部署名称、部署地址、注册开关和邀请邮件发送；邮件发送只在配置了 SMTP 时设置。
 type DeploymentConfig struct {
 	Name             string
-	Mode             domain.DeploymentMode
 	PublicURL        string
 	RegistrationOpen bool
 	InvitationMailer invitationaction.Mailer
-	OfficialIdentity authaction.OfficialIdentityProvider
 }
 
 // New 创建直接访问服务端存储的应用后端。
@@ -97,7 +93,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 	telegramAPI := telegram.NewClient(connectionClient)
 	mcpTest := mcpserveraction.NewTestConnectionAction(mcpintegration.NewClient())
 	mcpScheduler := mcpserveraction.NewToolsScheduler(taskEnqueuer)
-	guard := sessionGuard{db: db, deploymentMode: deployment.Mode, installationStatus: installationaction.NewStatusQuery(db), resolveAccount: authaction.NewResolveAccountQuery(db), resolveIdentity: authaction.NewResolveIdentityQuery(db)}
+	guard := sessionGuard{db: db, installationStatus: installationaction.NewStatusQuery(db), resolveAccount: authaction.NewResolveAccountQuery(db), resolveIdentity: authaction.NewResolveIdentityQuery(db)}
 	documentQuery := knowledgebaseaction.NewDocumentQuery(db)
 	ops := &directOperations{
 		sessionGuard:       guard,
@@ -222,20 +218,18 @@ func (g sessionGuard) authenticate(ctx context.Context, meta appservice.RequestM
 	return identity, nil
 }
 
-// loginRequired 返回需要登录的会话错误；自托管部署尚未完成首次安装时返回初始化入口。
+// loginRequired 返回需要登录的会话错误；部署尚未完成首次安装时返回初始化入口。
 func (g sessionGuard) loginRequired(ctx context.Context, meta appservice.RequestMeta) error {
-	if !g.deploymentMode.Managed() {
-		installed, err := g.installationStatus.Execute(ctx)
-		if err != nil {
-			if ctx.Err() != nil {
-				return ctx.Err()
-			}
-			slog.Warn("读取安装状态失败", "error", err)
-			return appservice.FailedError(meta, i18n.ErrorInstallationStatusReadFailed)
+	installed, err := g.installationStatus.Execute(ctx)
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
 		}
-		if !installed {
-			return appservice.SessionError(meta, appservice.SessionStateSetup, i18n.ErrorInstallationRequired)
-		}
+		slog.Warn("读取安装状态失败", "error", err)
+		return appservice.FailedError(meta, i18n.ErrorInstallationStatusReadFailed)
+	}
+	if !installed {
+		return appservice.SessionError(meta, appservice.SessionStateSetup, i18n.ErrorInstallationRequired)
 	}
 	return appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 }

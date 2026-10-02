@@ -145,12 +145,9 @@ func mcpServerNames(capabilities Capabilities) []string {
 	return names
 }
 
-// builtinToolNames 按注册顺序列出本次运行的内置工具，开发期计算器、任务清单与委派工具只在内部场景注册，本机工具只在设备执行时注册，客户历史检索只在关联客户会话时注册，终止工具只在服务场景注册。
+// builtinToolNames 按注册顺序列出本次运行的内置工具，任务清单与委派工具只在内部场景注册，本机工具只在设备执行时注册，客户历史检索只在关联客户会话时注册，终止工具只在服务场景注册。
 func builtinToolNames(scene Scene, capabilities Capabilities) []string {
-	names := make([]string, 0, 7+len(capabilities.LocalTools))
-	if !scene.Service() {
-		names = append(names, "calculator")
-	}
+	names := make([]string, 0, 6+len(capabilities.LocalTools))
 	if capabilities.Knowledge {
 		names = append(names, KnowledgeToolName)
 	}

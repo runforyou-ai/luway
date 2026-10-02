@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { CircleHelpIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
+  useLocation,
   useNavigate,
   useParams,
   useSearchParams,
@@ -49,6 +50,7 @@ import {
 } from "@/features/channels/website/website-chat-preview"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { openProductDocs } from "@/platform/product-docs"
 
 type EditTab =
@@ -383,10 +385,8 @@ export function MessageChannelFormPage({
 }) {
   const { t, i18n } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
+  const location = useLocation()
   const { channelId = "", channelType = "" } = useParams()
-  const [pageSearchParams] = useSearchParams()
-  // 来源列表的状态筛选，返回时带回。
-  const listStatus = pageSearchParams.get("status")
   const [telegramConnectionSaving, setTelegramConnectionSaving] =
     useState(false)
   const editable = mode === "edit" && isMessageChannelType(channelType)
@@ -412,32 +412,27 @@ export function MessageChannelFormPage({
     detail.data && detail.data.type === channelType ? detail.data : null
   const invalidateResource = useResourceInvalidator()
 
-  /** 拦截无效的渠道类型参数，回到渠道列表。 */
+  // 渠道不存在时回到来源列表。
+  const { returnTo, leave } = useReturnTo("/channels", {
+    notFound: Boolean(detail.error && isNotFoundApiError(detail.error)),
+    logFields: { channel_id: channelId, channel_type: channelType },
+  })
+
+  /** 拦截无效的渠道类型参数，回到来源列表。 */
   useEffect(() => {
     if (!isMessageChannelType(channelType)) {
-      navigate("/channels", { replace: true })
+      leave({ replace: true })
     }
-  }, [channelType, navigate])
+  }, [channelType, leave])
 
   /** 详情类型与地址不一致时校正地址。 */
   const loadedChannel = detail.data
   useEffect(() => {
     if (!loadedChannel || loadedChannel.type === channelType) return
-    navigate(`/channels/${loadedChannel.type}/${loadedChannel.id}`, {
+    navigate(`/channels/${loadedChannel.type}/${loadedChannel.id}${location.search}`, {
       replace: true,
     })
-  }, [channelType, loadedChannel, navigate])
-
-  /** 渠道不存在时回到渠道列表。 */
-  useEffect(() => {
-    if (detail.error && isNotFoundApiError(detail.error)) {
-      console.warn("消息渠道不存在", {
-        channel_id: channelId,
-        channel_type: channelType,
-      })
-      navigate("/channels", { replace: true })
-    }
-  }, [channelId, channelType, detail.error, navigate])
+  }, [channelType, loadedChannel, location.search, navigate])
 
   /** 子表单保存后重新读取服务端详情。 */
   function handleChannelChange() {
@@ -470,7 +465,7 @@ export function MessageChannelFormPage({
         description={t(
           mode === "create" ? "create.description" : "edit.description",
         )}
-        backTo={mode === "edit" ? `/channels${listStatus === "disabled" ? "?status=disabled" : ""}` : undefined}
+        backTo={mode === "edit" ? returnTo : undefined}
       >
         {docsPage ? (
           <Button

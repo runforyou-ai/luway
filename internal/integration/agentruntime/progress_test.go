@@ -24,8 +24,8 @@ type processChatModel struct {
 func TestRecorderDropsSkippedTools(t *testing.T) {
 	recorder := newProcessRecorder(RunRequest{RunID: "run"})
 	message := withReasoning(assistantReply("准备计算",
-		&schema.FunctionToolCall{CallID: "skipped-1", Name: "calculator", Arguments: "{}"},
-		&schema.FunctionToolCall{CallID: "skipped-2", Name: "calculator", Arguments: "{}"},
+		&schema.FunctionToolCall{CallID: "skipped-1", Name: "echo", Arguments: "{}"},
+		&schema.FunctionToolCall{CallID: "skipped-2", Name: "echo", Arguments: "{}"},
 	), "先分析旧问题")
 	state := &adk.TypedChatModelAgentState[*schema.AgenticMessage]{Messages: []*schema.AgenticMessage{message}}
 	if _, _, err := recorder.AfterModelRewriteState(context.Background(), state, nil); err != nil {
@@ -78,7 +78,7 @@ func TestRecorderKeepsStreamedBlockIDs(t *testing.T) {
 		{Role: schema.AgenticRoleTypeAssistant, ContentBlocks: []*schema.ContentBlock{schema.NewContentBlockChunk(&schema.Reasoning{Text: "想"}, &schema.StreamingMeta{Index: 0})}},
 		{Role: schema.AgenticRoleTypeAssistant, ContentBlocks: []*schema.ContentBlock{schema.NewContentBlockChunk(&schema.AssistantGenText{Text: "说明一"}, &schema.StreamingMeta{Index: 1})}},
 		{Role: schema.AgenticRoleTypeAssistant, ContentBlocks: []*schema.ContentBlock{schema.NewContentBlockChunk(&schema.AssistantGenText{Text: "说明二"}, &schema.StreamingMeta{Index: 2})}},
-		{Role: schema.AgenticRoleTypeAssistant, ContentBlocks: []*schema.ContentBlock{schema.NewContentBlockChunk(&schema.FunctionToolCall{CallID: "call", Name: "calculator", Arguments: "{}"}, &schema.StreamingMeta{Index: 3})}},
+		{Role: schema.AgenticRoleTypeAssistant, ContentBlocks: []*schema.ContentBlock{schema.NewContentBlockChunk(&schema.FunctionToolCall{CallID: "call", Name: "echo", Arguments: "{}"}, &schema.StreamingMeta{Index: 3})}},
 	}
 	recorder.mu.Lock()
 	recorder.beginCallLocked()
@@ -119,7 +119,7 @@ func (m *processChatModel) Stream(ctx context.Context, input []*schema.AgenticMe
 
 // TestRunRecordsToolCorrection 验证工具乱序完成、参数修正和成功过程的完整顺序。
 func TestRunRecordsToolCorrection(t *testing.T) {
-	runtime, err := New()
+	runtime, err := newEchoRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,8 +129,8 @@ func TestRunRecordsToolCorrection(t *testing.T) {
 		switch modelCalls {
 		case 1:
 			return withReasoning(assistantReply("先计算两个结果",
-				&schema.FunctionToolCall{CallID: "slow", Name: "calculator", Arguments: `{"operation":"add","left":1,"right":2,"delayMilliseconds":300}`},
-				&schema.FunctionToolCall{CallID: "invalid", Name: "calculator", Arguments: `{"operation":`},
+				&schema.FunctionToolCall{CallID: "slow", Name: "echo", Arguments: `{"text":"3","delayMilliseconds":300}`},
+				&schema.FunctionToolCall{CallID: "invalid", Name: "echo", Arguments: `{"text":`},
 			), "需要分两步计算"), nil
 		case 2:
 			foundError := false
@@ -143,7 +143,7 @@ func TestRunRecordsToolCorrection(t *testing.T) {
 				return nil, errors.New("model did not receive tool error")
 			}
 			return assistantReply("修正参数再试一次",
-				&schema.FunctionToolCall{CallID: "corrected", Name: "calculator", Arguments: `{"operation":"multiply","left":3,"right":4}`},
+				&schema.FunctionToolCall{CallID: "corrected", Name: "echo", Arguments: `{"text":"12"}`},
 			), nil
 		default:
 			return withReasoning(assistantReply("最终结果为 12"), "两个步骤均已完成"), nil
@@ -169,7 +169,7 @@ func TestRunRecordsToolCorrection(t *testing.T) {
 		}
 	}
 	failed, corrected := result.Blocks[3].Payload.ToolCall, result.Blocks[5].Payload.ToolCall
-	if failed.Status != domain.AgentToolCallFailed || failed.Arguments != `{"operation":` || failed.Error == nil || *failed.Error == "" || failed.Result != nil {
+	if failed.Status != domain.AgentToolCallFailed || failed.Arguments != `{"text":` || failed.Error == nil || *failed.Error == "" || failed.Result != nil {
 		t.Fatalf("failed call = %#v", failed)
 	}
 	if corrected.Status != domain.AgentToolCallSucceeded || corrected.Result == nil || !strings.Contains(*corrected.Result, "12") || corrected.Error != nil {
@@ -218,7 +218,7 @@ func (m *chunkedChatModel) Stream(context.Context, []*schema.AgenticMessage, ...
 
 // TestRunStreamsModelChunks 验证模型调用尚未结束时已发布增量，定稿后块编号不变且工具参数不进入运行流。
 func TestRunStreamsModelChunks(t *testing.T) {
-	runtime, err := New()
+	runtime, err := newEchoRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,8 +247,8 @@ func TestRunStreamsModelChunks(t *testing.T) {
 		case <-ctx.Done():
 			return
 		}
-		writer.Send(chunk(schema.NewContentBlockChunk(&schema.FunctionToolCall{CallID: "add", Name: "calculator", Arguments: `{"operation":"add",`}, &schema.StreamingMeta{Index: 2})), nil)
-		writer.Send(chunk(schema.NewContentBlockChunk(&schema.FunctionToolCall{Arguments: `"left":1,"right":2}`}, &schema.StreamingMeta{Index: 2})), nil)
+		writer.Send(chunk(schema.NewContentBlockChunk(&schema.FunctionToolCall{CallID: "add", Name: "echo", Arguments: `{"text":`}, &schema.StreamingMeta{Index: 2})), nil)
+		writer.Send(chunk(schema.NewContentBlockChunk(&schema.FunctionToolCall{Arguments: `"3"}`}, &schema.StreamingMeta{Index: 2})), nil)
 	}}
 	runtime.newModel = func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }
 	feed := &testInputFeed{}
@@ -271,7 +271,7 @@ func TestRunStreamsModelChunks(t *testing.T) {
 		t.Fatalf("result = %#v", result)
 	}
 	thinking, content, toolCall := result.Blocks[0], result.Blocks[1], result.Blocks[2]
-	if thinking.Payload.Text != "先想想" || content.Payload.Text != "我来算" || toolCall.Payload.ToolCall.Arguments != `{"operation":"add","left":1,"right":2}` || toolCall.Payload.ToolCall.Status != domain.AgentToolCallSucceeded {
+	if thinking.Payload.Text != "先想想" || content.Payload.Text != "我来算" || toolCall.Payload.ToolCall.Arguments != `{"text":"3"}` || toolCall.Payload.ToolCall.Status != domain.AgentToolCallSucceeded {
 		t.Fatalf("persisted blocks = %#v", result.Blocks)
 	}
 	if len(midStream.Blocks) != 1 || midStream.Blocks[0].ID != thinking.ID || midStream.Blocks[0].Text != "先想想" {
@@ -291,7 +291,7 @@ func TestRunStreamsModelChunks(t *testing.T) {
 
 // TestRunCancellationKeepsPartialProcess 验证取消工具执行时不把取消作为可修正错误继续调用模型，并返回中断前已产生的过程内容。
 func TestRunCancellationKeepsPartialProcess(t *testing.T) {
-	runtime, err := New()
+	runtime, err := newEchoRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -300,7 +300,7 @@ func TestRunCancellationKeepsPartialProcess(t *testing.T) {
 	modelCalls := 0
 	chatModel := &processChatModel{generate: func(context.Context, []*schema.AgenticMessage) (*schema.AgenticMessage, error) {
 		modelCalls++
-		return assistantReply("准备计算", &schema.FunctionToolCall{CallID: "slow", Name: "calculator", Arguments: `{"operation":"add","left":1,"right":2,"delayMilliseconds":1000}`}), nil
+		return assistantReply("准备计算", &schema.FunctionToolCall{CallID: "slow", Name: "echo", Arguments: `{"text":"3","delayMilliseconds":1000}`}), nil
 	}}
 	runtime.newModel = func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }
 	feed := &testInputFeed{}

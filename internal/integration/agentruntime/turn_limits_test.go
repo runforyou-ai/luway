@@ -59,15 +59,15 @@ func TestRunRetainsToolsAcrossRepeatedPreemption(t *testing.T) {
 	}
 	feed := &testInputFeed{}
 	feed.appendUser("开始计算")
-	// 计算器在执行期间追加一条新输入，抢占只能落在本轮工具调用完成之后。
-	calculator, err := toolutils.InferTool("calculator", "Add two numbers.", func(ctx context.Context, input calculatorInput) (calculatorOutput, error) {
+	// 回显工具在执行期间追加一条新输入，抢占只能落在本轮工具调用完成之后。
+	echoTool, err := toolutils.InferTool("echo", "Return the given text.", func(ctx context.Context, input echoInput) (echoOutput, error) {
 		feed.appendUser("再补充一项")
-		return calculate(ctx, input)
+		return echo(ctx, input)
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime.tools = []tool.BaseTool{calculator}
+	runtime.tools = []tool.BaseTool{echoTool}
 	calls := 0
 	chatModel := &processChatModel{generate: func(_ context.Context, messages []*schema.AgenticMessage) (*schema.AgenticMessage, error) {
 		calls++
@@ -75,7 +75,7 @@ func TestRunRetainsToolsAcrossRepeatedPreemption(t *testing.T) {
 		for _, message := range messages {
 			if reply := toolResult(message); reply != nil {
 				results++
-				if reply.CallID != fmt.Sprintf("call-%d", results) || messageText(message) != `{"result":3}` {
+				if reply.CallID != fmt.Sprintf("call-%d", results) || messageText(message) != `{"text":"3"}` {
 					return nil, fmt.Errorf("unexpected tool result: %#v", message)
 				}
 			}
@@ -86,7 +86,7 @@ func TestRunRetainsToolsAcrossRepeatedPreemption(t *testing.T) {
 		if calls == 4 {
 			return assistantReply("完成"), nil
 		}
-		return assistantReply("正在计算", &schema.FunctionToolCall{CallID: fmt.Sprintf("call-%d", calls), Name: "calculator", Arguments: `{"operation":"add","left":1,"right":2,"delayMilliseconds":200}`}), nil
+		return assistantReply("正在计算", &schema.FunctionToolCall{CallID: fmt.Sprintf("call-%d", calls), Name: "echo", Arguments: `{"text":"3","delayMilliseconds":200}`}), nil
 	}}
 	runtime.newModel = func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -99,14 +99,14 @@ func TestRunRetainsToolsAcrossRepeatedPreemption(t *testing.T) {
 
 // TestRunIterationLimitStillStopsToolLoop 验证单轮持续调用工具仍受迭代上限约束。
 func TestRunIterationLimitStillStopsToolLoop(t *testing.T) {
-	runtime, err := New()
+	runtime, err := newEchoRuntime()
 	if err != nil {
 		t.Fatal(err)
 	}
 	calls := 0
 	chatModel := &processChatModel{generate: func(context.Context, []*schema.AgenticMessage) (*schema.AgenticMessage, error) {
 		calls++
-		return assistantReply("", &schema.FunctionToolCall{CallID: fmt.Sprintf("call-%d", calls), Name: "calculator", Arguments: `{"operation":"add","left":1,"right":2}`}), nil
+		return assistantReply("", &schema.FunctionToolCall{CallID: fmt.Sprintf("call-%d", calls), Name: "echo", Arguments: `{"text":"3"}`}), nil
 	}}
 	runtime.newModel = func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }
 	feed := &testInputFeed{}

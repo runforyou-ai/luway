@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { type Brand, ConnectReason, connectServer, DeploymentMode, isApiError, probeServer } from "@/api"
+import { type Brand, ConnectReason, connectServer, isApiError, probeServer } from "@/api"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Button } from "@/components/ui/button"
 import {
@@ -84,7 +84,7 @@ export function ServerConnectionForm() {
       if (generation !== detectGeneration.current) return null
       const serverUrl = values.serverUrl.trim()
       const host = new URL(serverUrl).host
-      if (!status.installed && status.deploymentMode !== DeploymentMode.DeploymentModeManaged) {
+      if (!status.installed) {
         setDetected(null)
         toast.error(t("serverNotInstalled", { host }))
         return null

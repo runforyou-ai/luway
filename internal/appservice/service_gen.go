@@ -4,14 +4,9 @@ package appservice
 
 import "context"
 
-// InstallationStatus 返回部署名称、首次安装状态、注册开关和部署形态；登录方式由部署形态决定。
+// InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
 func (s *Service) InstallationStatus(ctx context.Context, meta RequestMeta) (InstallationStatus, error) {
 	return WithNormalizedSlices(s.backend.InstallationStatus(ctx, meta))
-}
-
-// StartOfficialLogin 登记官方账号登录尝试并返回授权地址。
-func (s *Service) StartOfficialLogin(ctx context.Context, meta RequestMeta, input OfficialLoginInput) (OfficialLoginStart, error) {
-	return WithNormalizedSlices(s.backend.StartOfficialLogin(ctx, meta, input))
 }
 
 // Logout 退出当前登录会话。

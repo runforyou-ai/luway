@@ -1,7 +1,7 @@
 /** AI 员工列表页：筛选、配置入口和状态管理。 */
 import { PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { Link, useLocation, useNavigate } from "react-router"
+import { Link, useNavigate } from "react-router"
 
 import {
   UserStatus,
@@ -32,6 +32,7 @@ import { useContactSearch } from "@/hooks/use-contact-search"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { usePagedResource } from "@/hooks/use-resource"
+import { useReturnLink } from "@/hooks/use-return-to"
 import { optionalWailsEnum } from "@/lib/wails-enum"
 
 /** 显示 AI 员工列表并提供配置和状态操作。 */
@@ -39,7 +40,6 @@ export function AgentListPage() {
   const { t } = useTranslation(["agents", "common"])
   const { formatDateTime } = useDateTime()
   const navigate = useNavigate()
-  const location = useLocation()
   const { searchParams, setParameters, query, search, setSearch } =
     useContactSearch()
   const status =
@@ -59,14 +59,14 @@ export function AgentListPage() {
     { select: (data) => ({ items: data.agents, page: data.page }), itemKey: (agent) => agent.id },
   )
   const agents = list.data?.items ?? []
-  const returnTo = encodeURIComponent(location.pathname + location.search)
+  const returnLink = useReturnLink()
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <PageHeader title={t("title")} description={t("description")}>
         <Button variant="subtle" size="icon-sm" asChild>
           <Link
-            to={`/ai-employees/new?returnTo=${returnTo}`}
+            to={returnLink("/ai-employees/new")}
             aria-label={t("create")}
             title={t("create")}
           >
@@ -137,7 +137,7 @@ export function AgentListPage() {
           rowKey={(agent) => agent.id}
           empty={t("empty")}
           onRowActivate={(agent) =>
-            navigate(`/ai-employees/${agent.id}?returnTo=${returnTo}`)
+            navigate(returnLink(`/ai-employees/${agent.id}`))
           }
           // 已停用的 AI 员工保留禁用的发消息。
           rowActions={(agent) => [

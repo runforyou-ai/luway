@@ -2,7 +2,7 @@
 import { useEffect, useMemo } from "react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { useLocation, useNavigate, useParams } from "react-router"
+import { useParams } from "react-router"
 import { toast } from "sonner"
 
 import {
@@ -26,13 +26,14 @@ import { ResourceContent } from "@/components/resource-content"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { zodResolver } from "@/lib/zod-resolver"
 
 /** 读取知识库和问答详情后展示编辑表单。 */
 export function KnowledgeQAFormPage({ mode }: { mode: "create" | "edit" }) {
   const { t } = useTranslation("knowledgeBase")
   const { knowledgeBaseId = "", entryId = "" } = useParams()
-  const location = useLocation()
+  const { returnTo } = useReturnTo(`/knowledge-bases/${knowledgeBaseId}/qa`)
   const base = useResource(
     resourceKeys.knowledgeBase(knowledgeBaseId),
     (signal) => getKnowledgeBase(knowledgeBaseId, signal),
@@ -51,7 +52,7 @@ export function KnowledgeQAFormPage({ mode }: { mode: "create" | "edit" }) {
         description={t(
           mode === "create" ? "qa.createDescription" : "qa.editDescription",
         )}
-        backTo={mode === "edit" ? `/knowledge-bases/${knowledgeBaseId}/qa${location.search}` : undefined}
+        backTo={mode === "edit" ? returnTo : undefined}
       />
       <PageContent variant="form">
         <ResourceContent
@@ -82,8 +83,7 @@ function KnowledgeQAForm({
   entry?: KnowledgeQAEntryData
 }) {
   const { t } = useTranslation(["knowledgeBase", "common"])
-  const navigate = useNavigate()
-  const location = useLocation()
+  const { leave } = useReturnTo(`/knowledge-bases/${knowledgeBase.id}/qa`)
   const invalidate = useResourceInvalidator()
   const schema = useMemo(
     () =>
@@ -104,7 +104,6 @@ function KnowledgeQAForm({
       similarQuestions: entry?.similarQuestions ?? [],
     },
   })
-  const returnPath = `/knowledge-bases/${knowledgeBase.id}/qa${location.search}`
   useEffect(() => {
     if (!entry || form.formState.isDirty) return
     form.reset({
@@ -132,7 +131,7 @@ function KnowledgeQAForm({
     },
     onSubmitted: () => {
       toast.success(t("qa.saveSuccess"))
-      navigate(returnPath, { replace: true })
+      leave({ replace: true })
     },
     errorMessage: t("qa.saveError"),
     logLabel: "保存问答",
@@ -151,7 +150,7 @@ function KnowledgeQAForm({
       {entry ? null : (
         <FormActions
           saving={form.formState.isSubmitting}
-          onCancel={() => navigate(returnPath, { replace: true })}
+          onCancel={() => leave({ replace: true })}
         />
       )}
     </form>

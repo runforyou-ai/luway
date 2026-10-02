@@ -16,7 +16,7 @@ import (
 func TestResolveAssignmentWebTools(t *testing.T) {
 	capabilities := Capabilities{Knowledge: true, WebSearch: true, WebFetch: true}
 	internal := ResolveAssignment(AssignmentFacts{Scene: SceneContext{Scene: SceneAgentChat}}, capabilities)
-	if strings.Join(internal.Tools, ",") != "calculator,search_knowledge,web_search,web_fetch,TaskCreate,TaskGet,TaskUpdate,TaskList,agent" {
+	if strings.Join(internal.Tools, ",") != "search_knowledge,web_search,web_fetch,TaskCreate,TaskGet,TaskUpdate,TaskList,agent" {
 		t.Fatalf("内部场景工具清单 = %v", internal.Tools)
 	}
 	if !strings.Contains(internal.Instruction, "- web_search：") || !strings.Contains(internal.Instruction, "- web_fetch：") ||
@@ -30,7 +30,7 @@ func TestResolveAssignmentWebTools(t *testing.T) {
 	}
 	// 企业未启用联网搜索时只提供网页读取。
 	fetchOnly := ResolveAssignment(AssignmentFacts{Scene: SceneContext{Scene: SceneGroup}}, Capabilities{WebFetch: true})
-	if strings.Join(fetchOnly.Tools, ",") != "calculator,web_fetch,TaskCreate,TaskGet,TaskUpdate,TaskList,agent" || strings.Contains(fetchOnly.Instruction, "- web_search：") {
+	if strings.Join(fetchOnly.Tools, ",") != "web_fetch,TaskCreate,TaskGet,TaskUpdate,TaskList,agent" || strings.Contains(fetchOnly.Instruction, "- web_search：") {
 		t.Fatalf("仅网页读取的有效配置 = %+v", fetchOnly)
 	}
 }

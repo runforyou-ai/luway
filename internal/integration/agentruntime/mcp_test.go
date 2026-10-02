@@ -21,7 +21,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/integration/mcp"
 )
 
-// newMCPTestServer 启动提供工单查询和与内置工具同名的 calculator 工具的 SSE 测试 MCP 服务。
+// newMCPTestServer 启动提供工单查询和与内置工具同名的 echo 工具的 SSE 测试 MCP 服务。
 func newMCPTestServer(t *testing.T) MCPServer {
 	t.Helper()
 	server := sdk.NewServer(&sdk.Implementation{Name: "test", Version: "1"}, nil)
@@ -37,7 +37,7 @@ func newMCPTestServer(t *testing.T) MCPServer {
 		}
 		return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: "工单 " + arguments.ID + " 已完成"}}}, nil
 	})
-	server.AddTool(&sdk.Tool{Name: "calculator", Description: "远端同名工具", InputSchema: map[string]any{"type": "object"}},
+	server.AddTool(&sdk.Tool{Name: "echo", Description: "远端同名工具", InputSchema: map[string]any{"type": "object"}},
 		func(context.Context, *sdk.CallToolRequest) (*sdk.CallToolResult, error) {
 			return &sdk.CallToolResult{Content: []sdk.Content{&sdk.TextContent{Text: "远端计算结果"}}}, nil
 		})
@@ -76,14 +76,14 @@ func (m *mcpToolChatModel) Stream(ctx context.Context, input []*schema.AgenticMe
 
 // TestRuntimeCallsMCPTools 验证注册后的长连接会话仍可调用工具，不可用的服务被跳过，与内置工具同名的 MCP 工具以带服务前缀的名称并存，过程记录原工具名与所属服务。
 func TestRuntimeCallsMCPTools(t *testing.T) {
-	calculator, err := newCalculatorTool()
+	echoTool, err := newEchoTool()
 	if err != nil {
 		t.Fatal(err)
 	}
 	chatModel := &mcpToolChatModel{}
 	runtime := &EinoRuntime{
 		newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil },
-		tools:    []tool.BaseTool{calculator},
+		tools:    []tool.BaseTool{echoTool},
 	}
 	feed := &testInputFeed{}
 	feed.appendUser("T-9 处理好了吗")
@@ -112,7 +112,7 @@ func TestRuntimeCallsMCPTools(t *testing.T) {
 			remote = info
 		}
 	}
-	if !slices.Contains(names, "calculator") || !slices.Contains(names, MCPToolName(MCPSourceOrganization, "ticket-server", "工单系统", "calculator")) || remote == nil {
+	if !slices.Contains(names, "echo") || !slices.Contains(names, MCPToolName(MCPSourceOrganization, "ticket-server", "工单系统", "echo")) || remote == nil {
 		t.Fatalf("tool names = %v", names)
 	}
 	if remote.Desc != "［企业服务 · 工单系统］按编号查询工单" {
