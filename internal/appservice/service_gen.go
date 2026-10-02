@@ -9,6 +9,11 @@ func (s *Service) InstallationStatus(ctx context.Context, meta RequestMeta) (Ins
 	return WithNormalizedSlices(s.backend.InstallationStatus(ctx, meta))
 }
 
+// GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+func (s *Service) GetProductDocPage(ctx context.Context, meta RequestMeta, input ProductDocPageInput) (ProductDocPage, error) {
+	return WithNormalizedSlices(s.backend.GetProductDocPage(ctx, meta, input))
+}
+
 // Logout 退出当前登录会话。
 func (s *Service) Logout(ctx context.Context, meta RequestMeta) error {
 	return s.backend.Logout(ctx, meta)

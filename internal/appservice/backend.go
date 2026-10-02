@@ -21,6 +21,9 @@ type Backend interface {
 	// InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
 	//appservice:route GET /installation/status auth=public manual=proxy
 	InstallationStatus(context.Context, RequestMeta) (InstallationStatus, error)
+	// GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+	//appservice:route GET /product-docs/page auth=public
+	GetProductDocPage(context.Context, RequestMeta, ProductDocPageInput) (ProductDocPage, error)
 	// Login 校验账号密码并建立登录会话。
 	//appservice:route POST /auth/login auth=public manual=service,proxy
 	Login(context.Context, RequestMeta, LoginInput) (Auth, error)

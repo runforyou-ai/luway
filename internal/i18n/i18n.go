@@ -117,6 +117,7 @@ const (
 	ErrorInternal                                Key = "error.internal"
 	ErrorMethodNotAllowed                        Key = "error.method_not_allowed"
 	ErrorInstallationStatusReadFailed            Key = "error.installation_status_read_failed"
+	ErrorProductDocNotFound                      Key = "error.product_doc_not_found"
 	ErrorAlreadyInitialized                      Key = "error.already_initialized"
 	ErrorInstallationRequired                    Key = "error.installation_required"
 	ErrorAuthenticationStatusFailed              Key = "error.authentication_status_failed"

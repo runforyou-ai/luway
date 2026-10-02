@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} · {{.SiteTitle}}</title>
+{{if .NotFound}}<meta name="robots" content="noindex">{{end}}
+<link rel="icon" href="/favicon.png">
+<link rel="stylesheet" href="{{.AssetPath}}site.css?v={{.AssetVersion}}">
+<script>(() => { const query = matchMedia("(prefers-color-scheme: dark)"); const apply = () => document.documentElement.classList.toggle("dark", query.matches); apply(); query.addEventListener("change", apply) })()</script>
+</head>
+<body class="docs-body">
+{{define "nav"}}
+<nav class="docs-nav">
+  {{range .Nav}}
+  <section class="docs-nav-section">
+    <h2 class="docs-nav-section-title">{{.Title}}</h2>
+    {{with .Index}}<a class="docs-nav-link" href="{{.Path}}"{{if .Current}} aria-current="page"{{end}}>{{.Title}}</a>{{end}}
+    {{range .Groups}}
+    <details class="docs-nav-group"{{if .Open}} open{{end}}>
+      <summary>{{.Title}}</summary>
+      {{range .Pages}}<a class="docs-nav-link" href="{{.Path}}"{{if .Current}} aria-current="page"{{end}}>{{.Title}}</a>{{end}}
+    </details>
+    {{end}}
+  </section>
+  {{end}}
+</nav>
+{{end}}
+<header class="docs-header">
+  <a class="docs-brand" href="{{.HomePath}}"><img src="/favicon.png" alt="" width="24" height="24">{{.SiteTitle}}</a>
+  <form class="docs-search" action="{{.SearchPath}}" method="get" role="search">
+    <input type="search" name="q" value="{{with .Search}}{{.Query}}{{end}}" aria-label="{{.Labels.search}}">
+  </form>
+  <select class="docs-languages" aria-label="{{.Labels.language}}" onchange="location.href = this.value">
+    {{range .Languages}}<option value="{{.Path}}" lang="{{.Lang}}"{{if .Current}} selected{{end}}>{{.Label}}</option>{{end}}
+  </select>
+</header>
+<details class="docs-mobile-nav">
+  <summary>{{.Labels.menu}}</summary>
+  {{template "nav" .}}
+</details>
+<div class="docs-shell">
+  <aside class="docs-sidebar">{{template "nav" .}}</aside>
+  <main class="docs-main">
+    <article class="docs-content">
+      <h1>{{.Title}}</h1>
+      {{with .Search}}
+        {{if .Heading}}<p class="docs-search-heading">{{.Heading}}</p>{{end}}
+        {{if .Empty}}<p>{{.Empty}}</p>{{end}}
+        {{if .Results}}
+        <ol class="docs-search-results">
+          {{range .Results}}<li><a href="{{.Path}}">{{.Title}}</a><p>{{.Snippet}}</p></li>{{end}}
+        </ol>
+        {{end}}
+      {{end}}
+      {{.HTML}}
+    </article>
+  </main>
+  {{if .TOC}}
+  <aside class="docs-toc">
+    <h2>{{.Labels.onThisPage}}</h2>
+    <ul>
+      {{range .TOC}}<li class="docs-toc-level-{{.Level}}"><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}
+    </ul>
+  </aside>
+  {{end}}
+</div>
+<script>(() => {
+  // 翻页时保留侧边栏的展开分组与滚动位置；首次打开时把当前页面滚到侧边栏中部。
+  const sidebar = document.querySelector(".docs-sidebar")
+  if (!sidebar) return
+  const key = "app.docs.sidebar"
+  const groups = [...sidebar.querySelectorAll("details")]
+  let saved = null
+  try { saved = JSON.parse(sessionStorage.getItem(key) || "null") } catch {}
+  const current = sidebar.querySelector('[aria-current="page"]')
+  if (saved && Array.isArray(saved.open) && typeof saved.scroll === "number") {
+    groups.forEach((group, index) => { if (saved.open.includes(index)) group.open = true })
+    sidebar.scrollTop = saved.scroll
+  }
+  if (current) {
+    const item = current.getBoundingClientRect(), box = sidebar.getBoundingClientRect()
+    if (item.top < box.top || item.bottom > box.bottom) sidebar.scrollTop += item.top - box.top - box.height / 2
+  }
+  const save = () => {
+    const open = groups.flatMap((group, index) => (group.open ? [index] : []))
+    try { sessionStorage.setItem(key, JSON.stringify({ scroll: sidebar.scrollTop, open })) } catch {}
+  }
+  sidebar.addEventListener("click", (event) => { if (event.target.closest("a")) save() })
+  addEventListener("pagehide", save)
+})()</script>
+</body>
+</html>

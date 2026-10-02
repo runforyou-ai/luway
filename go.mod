@@ -5,6 +5,7 @@ go 1.27.1
 require (
 	codeberg.org/readeck/go-readability/v2 v2.1.2
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.5.2
+	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/aws/aws-sdk-go-v2 v1.47.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.4
@@ -43,6 +44,10 @@ require (
 	github.com/wneessen/go-mail v0.8.1
 	github.com/xuri/excelize/v2 v2.11.0
 	github.com/yuin/goldmark v1.8.6
+	github.com/yuin/goldmark-highlighting/v2 v2.0.0-20230729083705-37449abec8cc
+	go.abhg.dev/goldmark/anchor v0.2.0
+	go.abhg.dev/goldmark/frontmatter v0.3.0
+	go.abhg.dev/goldmark/toc v0.12.0
 	golang.org/x/crypto v0.57.0
 	golang.org/x/image v0.46.0
 	golang.org/x/mod v0.41.0
@@ -61,6 +66,7 @@ require (
 	git.sr.ht/~jackmordaunt/go-toast/v2 v2.0.3 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.23.1 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.12.0 // indirect
+	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/JohannesKaufmann/dom v0.3.1 // indirect
 	github.com/adrg/xdg v0.5.3 // indirect
 	github.com/andybalholm/cascadia v1.3.5 // indirect
@@ -89,6 +95,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.7 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
+	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.1.0 // indirect
 	github.com/evanphx/json-patch v0.5.2 // indirect
 	github.com/felixge/httpsnoop v1.1.0 // indirect
