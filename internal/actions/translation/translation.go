@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
@@ -53,13 +54,14 @@ const (
 
 // Translator 以企业翻译模型执行单次模型调用完成翻译。
 type Translator struct {
-	db     *bun.DB
-	caller agentruntime.SingleCaller
+	db      *bun.DB
+	caller  agentruntime.SingleCaller
+	invoker *modelcall.Invoker
 }
 
 // NewTranslator 创建客户会话翻译器。
-func NewTranslator(db *bun.DB, caller agentruntime.SingleCaller) *Translator {
-	return &Translator{db: db, caller: caller}
+func NewTranslator(db *bun.DB, caller agentruntime.SingleCaller, invoker *modelcall.Invoker) *Translator {
+	return &Translator{db: db, caller: caller, invoker: invoker}
 }
 
 // ViewerLanguage 返回成员阅读译文和书写回复使用的语言：设置了翻译语言时取翻译语言，否则取账号界面语言。
@@ -82,20 +84,21 @@ func LanguageName(tag string) string {
 	return tag
 }
 
-// loadModel 读取企业翻译模型的调用配置，未设置或模型已不可用时返回 ErrDisabled。
-func loadModel(ctx context.Context, db bun.IDB, organizationID string) (agentruntime.ModelConfig, error) {
-	modelID, err := customerserviceaction.LoadTranslationModelID(ctx, db, organizationID)
+// loadModel 读取企业翻译模型的调用配置，调用由成员在会话中发起；未设置或模型已不可用时返回 ErrDisabled。
+func (t *Translator) loadModel(ctx context.Context, identity *servermodels.Identity, conversationID string) (agentruntime.ModelConfig, error) {
+	organizationID := identity.Organization.ID
+	modelID, err := customerserviceaction.LoadTranslationModelID(ctx, t.db, organizationID)
 	if err != nil {
 		return agentruntime.ModelConfig{}, err
 	}
-	credential, err := customerserviceaction.LoadModel(ctx, db, organizationID, modelID, domain.AIModelUsageTranslation)
+	model, err := customerserviceaction.LoadModel(ctx, t.db, organizationID, modelID, domain.AIModelUsageTranslation)
 	if err != nil {
 		return agentruntime.ModelConfig{}, fmt.Errorf("load translation model: %w", err)
 	}
-	if credential == nil {
+	if model == nil {
 		return agentruntime.ModelConfig{}, ErrDisabled
 	}
-	return credential.ModelConfig(), nil
+	return t.invoker.ModelConfig(modelcall.MemberScope(identity, domain.AIModelCallSourceConversation, conversationID), model), nil
 }
 
 // callJSON 以单次模型调用执行翻译指令，并把正文中的 JSON 对象解析到 target。

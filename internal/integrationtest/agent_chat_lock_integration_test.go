@@ -66,7 +66,7 @@ func testAgentChatLocking(t *testing.T, db *bun.DB, identity *servermodels.Ident
 				}
 				return agentruntime.RunResult{Content: "首个结果", EndSeq: claimed.EndSeq}, nil
 			}}
-			executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil)
+			executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 			executed, sent := make(chan error, 1), make(chan error, 1)
 			go func() {
 				ctx := context.WithValue(ctx, chatQueryGateKey{}, gate)
@@ -161,7 +161,7 @@ func testAgentWaitsForSender(t *testing.T, db *bun.DB, identity *servermodels.Id
 		return agentruntime.RunResult{Content: "结果", EndSeq: claimed.EndSeq}, err
 	}}
 	go func() {
-		executed <- agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID})
+		executed <- agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID})
 	}()
 	waitConversationLock(t, ctx, db, first.Conversation.ID)
 	gate.open()
@@ -207,7 +207,7 @@ func testAgentAcceptedInputs(t *testing.T, db *bun.DB, identity *servermodels.Id
 					}
 					return agentruntime.RunResult{Content: "已接受输入的结果", EndSeq: claimed.EndSeq}, err
 				}}
-				executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil)
+				executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 				done := make(chan error, 1)
 				if running {
 					go func() { done <- executor.Execute(ctx, agentrunaction.RunInput{RunID: run.ID}) }()
@@ -273,7 +273,7 @@ func testAgentParallelConversations(t *testing.T, db *bun.DB, identity *servermo
 		}
 		return agentruntime.RunResult{Content: request.RunID, EndSeq: claimed.EndSeq}, err
 	}}
-	executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil)
+	executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 	done := make(chan error, 1)
 	go func() {
 		done <- executor.Execute(context.WithValue(ctx, chatQueryGateKey{}, gate), agentrunaction.RunInput{RunID: firstRun.ID})

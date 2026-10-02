@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -28,8 +29,8 @@ func TestKnowledgeBaseReindex(t *testing.T) {
 	identity := installed.Identity
 	tasks := newKnowledgeTasks(t, db)
 	probe := &processingProbe{}
-	documentWorker := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
-	qaWorker := knowledgeaction.NewProcessQAEntryAction(db, probe)
+	documentWorker := knowledgeaction.NewProcessDocumentAction(db, probe, modelcall.New(db, modelcall.Upstreams{Embedder: probe}), probe, probe)
+	qaWorker := knowledgeaction.NewProcessQAEntryAction(db, modelcall.New(db, modelcall.Upstreams{Embedder: probe}))
 	update := knowledgeaction.NewUpdateKnowledgeBaseAction(db, tasks)
 	segmentCount := func(baseID string) int {
 		count, err := db.NewSelect().TableExpr("public.knowledge_segments").Where("knowledge_base_id = ?", baseID).Count(ctx)
@@ -100,7 +101,7 @@ func TestKnowledgeBaseReindex(t *testing.T) {
 	if err != nil || count != 2 {
 		t.Fatalf("tasks=%d %v", count, err)
 	}
-	if _, err := knowledgeaction.NewRetrievalService(db, nil, nil).Retrieve(ctx, identity, base.ID, "正文"); !errors.Is(err, knowledgeaction.ErrRetrievalNotReady) {
+	if _, err := knowledgeaction.NewRetrievalService(db, modelcall.New(db, modelcall.Upstreams{Embedder: nil, Reranker: nil})).Retrieve(ctx, identity, base.ID, "正文"); !errors.Is(err, knowledgeaction.ErrRetrievalNotReady) {
 		t.Fatalf("retrieve err=%v", err)
 	}
 	// 被替代的任务不再发布，新任务按新参数发布。
@@ -115,10 +116,7 @@ func TestKnowledgeBaseReindex(t *testing.T) {
 	}
 
 	// 问答库更换为同供应商的另一个向量模型和维度后按新配置重新索引。
-	qaEmbedding := &servermodels.AIModel{ID: qaBase.EmbeddingModelID}
-	if err := db.NewSelect().Model(qaEmbedding).WherePK().Scan(ctx); err != nil {
-		t.Fatal(err)
-	}
+	qaEmbedding := loadTestAIModel(t, db, qaBase.EmbeddingModelID)
 	embeddingB := aiModelID(t, db, qaEmbedding.ProviderID, "embedding-b")
 	qaUpdate := knowledgeaction.Input{Name: qaBase.Name, Category: qaBase.Category, EmbeddingModelID: embeddingB, EmbeddingDimension: 768, RetrievalCount: qaBase.RetrievalCount, RetrievalScoreThreshold: qaBase.RetrievalScoreThreshold, RerankModelID: qaBase.RerankModelID}
 	if _, err := update.Execute(ctx, identity, qaBase.ID, qaUpdate); err != nil {

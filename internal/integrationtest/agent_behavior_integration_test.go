@@ -85,7 +85,7 @@ func TestAgentRoleBehavior(t *testing.T) {
 		}
 		return agentruntime.RunResult{Content: "回复", EndSeq: claimed.EndSeq}, nil
 	}}
-	execute := agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil)
+	execute := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 	runQueuedAgentRun(t, db, execute, first.Conversation.ID)
 
 	// 指令由客服基线与内部对话场景规则拼成，空企业指令不占位，没有绑定知识库、未启用联网搜索时工具说明只有网页读取。
@@ -113,7 +113,6 @@ func TestAgentRoleBehavior(t *testing.T) {
 		Grounding         string   `json:"grounding"`
 		Model             struct {
 			ModelID       string `json:"modelId"`
-			Identifier    string `json:"identifier"`
 			ContextWindow int64  `json:"contextWindow"`
 		} `json:"model"`
 	}
@@ -123,7 +122,7 @@ func TestAgentRoleBehavior(t *testing.T) {
 	sum := sha256.Sum256([]byte(captured.Assignment.Instruction))
 	if !snapshot.HandlesCustomers || snapshot.Scene != string(agentruntime.SceneAgentChat) || snapshot.RulesVersion != agentruntime.AssignmentRulesVersion ||
 		snapshot.Instruction != captured.Assignment.Instruction || snapshot.InstructionSHA256 != hex.EncodeToString(sum[:]) ||
-		snapshot.Model.ModelID != aiModelID(t, db, provider.ID, "chat") || snapshot.Model.Identifier != "chat" || snapshot.Model.ContextWindow != 32000 ||
+		snapshot.Model.ModelID != aiModelID(t, db, provider.ID, "chat") || snapshot.Model.ContextWindow != 32000 ||
 		strings.Join(snapshot.Tools, ",") != "web_fetch,TaskCreate,TaskGet,TaskUpdate,TaskList,agent" || len(snapshot.MCPServers) != 0 || snapshot.Grounding != "" {
 		t.Fatalf("behavior snapshot = %+v", snapshot)
 	}

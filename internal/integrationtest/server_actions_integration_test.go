@@ -1394,7 +1394,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 			Exec(context.Background()); err != nil {
 			t.Fatal(err)
 		}
-		model := &servermodels.AIModel{
+		model := &testAIModel{
 			ProviderID: provider.ID, Identifier: "chat-model", Name: "测试对话模型", Type: string(domain.AIModelTypeChat),
 			InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096,
 		}
@@ -1507,7 +1507,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 			t.Fatal(err)
 		}
 		scheduler := agentrunaction.NewScheduler(taskRuntime)
-		coordinator := agentrunaction.NewExecuteAction(db, taskRuntime, nil, testAttachmentReader(db), nil, nil)
+		coordinator := agentrunaction.NewExecuteAction(db, taskRuntime, nil, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 		claimServiceSession := servicesessionaction.NewClaimServiceSessionAction(db, coordinator, newTestTasks(db))
 		transferServiceSession := servicesessionaction.NewTransferServiceSessionAction(db, coordinator, scheduler, newTestTasks(db))
 		closeServiceSession := servicesessionaction.NewCloseServiceSessionAction(db, coordinator, newTestTasks(db))
@@ -1841,7 +1841,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 			}
 			return agentruntime.RunResult{Content: "已回复新问题", EndSeq: claimed.EndSeq, Usage: agentruntime.Usage{TotalTokens: 18}}, nil
 		}}
-		if err := agentrunaction.NewExecuteAction(db, taskRuntime, customerRuntime, testAttachmentReader(db), nil, nil).Execute(context.Background(), agentrunaction.RunInput{RunID: absorbingCustomerRun.ID}); err != nil {
+		if err := agentrunaction.NewExecuteAction(db, taskRuntime, customerRuntime, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(context.Background(), agentrunaction.RunInput{RunID: absorbingCustomerRun.ID}); err != nil {
 			t.Fatal(err)
 		}
 		if err := db.NewSelect().Model(absorbingCustomerRun).Where("agr.id = ?", absorbingCustomerRun.ID).Scan(context.Background()); err != nil {
@@ -1893,7 +1893,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 		var successfulBlocks []agentruntime.Block
 		executedRuntime := testAgentRuntime{run: func(ctx context.Context, request agentruntime.RunRequest, feed agentruntime.InputFeed) (agentruntime.RunResult, error) {
 			executionStreams = append(executionStreams, request.StreamID)
-			if request.Assignment.AgentName != "售前智能体" || request.Assignment.Model.Identifier != model.Identifier {
+			if request.Assignment.AgentName != "售前智能体" || request.Assignment.Model.ModelID != model.ID || request.Models == nil {
 				return agentruntime.RunResult{}, errors.New("unexpected agent runtime request")
 			}
 			pending, err := feed.Peek(ctx, 0)
@@ -1927,7 +1927,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 			}}})
 			return agentruntime.RunResult{Content: "结果是 42", EndSeq: claimed.EndSeq, Usage: agentruntime.Usage{TotalTokens: 12}, Blocks: successfulBlocks}, nil
 		}}
-		executeAgentRun := agentrunaction.NewExecuteAction(db, taskRuntime, executedRuntime, testAttachmentReader(db), nil, nil)
+		executeAgentRun := agentrunaction.NewExecuteAction(db, taskRuntime, executedRuntime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 		// 用查询钩子让该会话的 AI 回复写入失败，共享测试库上的消息表不加结构锁。
 		responseFailure := &agentResponseFailureHook{conversationID: agentConversation.ID}
 		responseFailure.armed.Store(true)
@@ -2066,7 +2066,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 				}},
 			}, errors.New("model rejected input")
 		}}
-		if err := agentrunaction.NewExecuteAction(db, taskRuntime, failingRuntime, testAttachmentReader(db), nil, nil).Execute(context.Background(), agentrunaction.RunInput{RunID: failedRun.ID}); err == nil {
+		if err := agentrunaction.NewExecuteAction(db, taskRuntime, failingRuntime, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(context.Background(), agentrunaction.RunInput{RunID: failedRun.ID}); err == nil {
 			t.Fatal("failing agent run succeeded")
 		}
 		if err := db.NewSelect().Model(state).Where("al.conversation_id = ?", agentConversation.ID).Scan(context.Background()); err != nil {
@@ -2107,7 +2107,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 		if exhaustedRun.InputStartSeq != 4 {
 			t.Fatalf("agent run after failure starts at %d, want 4", exhaustedRun.InputStartSeq)
 		}
-		finalizer := agentrunaction.NewExecuteAction(db, taskRuntime, failingRuntime, testAttachmentReader(db), nil, nil)
+		finalizer := agentrunaction.NewExecuteAction(db, taskRuntime, failingRuntime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 		if err := finalizer.FinalizeFailure(context.Background(), agentrunaction.RunInput{RunID: exhaustedRun.ID}, errors.New("task attempts exhausted")); err != nil {
 			t.Fatal(err)
 		}

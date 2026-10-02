@@ -17,18 +17,17 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
 	mcpserveraction "github.com/runforyou-ai/luway/internal/actions/mcpserver"
 	"github.com/runforyou-ai/luway/internal/actions/messagepartition"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/actions/servicetimeout"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
-	"github.com/runforyou-ai/luway/internal/integration/decision"
 	"github.com/runforyou-ai/luway/internal/integration/documentconvert"
 	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
-	"github.com/runforyou-ai/luway/pkg/embedding"
 	"github.com/runforyou-ai/luway/pkg/webfetch"
 	"github.com/uptrace/bun"
 )
@@ -44,6 +43,7 @@ type serverTaskDeps struct {
 	fileReader    *serverfilecontent.Reader
 	emailSender   customernotify.Sender
 	agentRuntime  *agentruntime.EinoRuntime
+	modelInvoker  *modelcall.Invoker
 	agentSchedule *agentrunaction.Scheduler
 	agentRun      *agentrunaction.ExecuteAction
 	telegramAPI   *telegramintegration.Client
@@ -52,11 +52,10 @@ type serverTaskDeps struct {
 // registerServerTasks 注册服务端全部后台任务处理器与定时计划。
 func registerServerTasks(deps serverTaskDeps) error {
 	registry, db := deps.tasks.Registry(), deps.db
-	decider := decision.NewClient()
 
 	// 知识库文档处理、问答索引与 MCP 工具目录更新在最终失败时写入失败状态。
-	processDocument := knowledgeaction.NewProcessDocumentAction(db, documentconvert.NewConverter(), embedding.NewClient(), deps.fileReader, webfetch.NewClient(common.WebFetchUserAgent()))
-	processQAEntry := knowledgeaction.NewProcessQAEntryAction(db, embedding.NewClient())
+	processDocument := knowledgeaction.NewProcessDocumentAction(db, documentconvert.NewConverter(), deps.modelInvoker, deps.fileReader, webfetch.NewClient(common.WebFetchUserAgent()))
+	processQAEntry := knowledgeaction.NewProcessQAEntryAction(db, deps.modelInvoker)
 	updateMCPTools := mcpserveraction.NewUpdateToolsAction(db, mcpintegration.NewClient())
 	if err := errors.Join(
 		registry.RegisterJSONWithTerminalFailure(knowledgeaction.ProcessDocumentActionName, processDocument.Execute, processDocument.FinalizeFailure),
@@ -87,9 +86,9 @@ func registerServerTasks(deps serverTaskDeps) error {
 	}
 
 	// Agent 运行执行、会话标题、AI 员工记忆、退回转人工与评测回放；设备运行收敛扫描每 15 秒把租约过期或失去执行条件的设备运行标记失败。
-	agentEvaluation := agentevaluationaction.NewWorker(db, deps.agentRun, decider)
-	agentChatTitle := agentrunaction.NewGenerateAgentChatTitleAction(db, deps.agentRuntime)
-	agentMemory := agentrunaction.NewExtractAgentMemoryAction(db, deps.tasks, deps.agentRuntime)
+	agentEvaluation := agentevaluationaction.NewWorker(db, deps.agentRun, deps.modelInvoker)
+	agentChatTitle := agentrunaction.NewGenerateAgentChatTitleAction(db, deps.agentRuntime, deps.modelInvoker)
+	agentMemory := agentrunaction.NewExtractAgentMemoryAction(db, deps.tasks, deps.agentRuntime, deps.modelInvoker)
 	if err := errors.Join(
 		registry.RegisterJSONWithTerminalFailure(agentrunaction.RunActionName, deps.agentRun.Execute, deps.agentRun.FinalizeFailure),
 		registry.RegisterJSON(agentrunaction.AgentChatTitleActionName, agentChatTitle.Execute),
@@ -126,7 +125,7 @@ func registerServerTasks(deps serverTaskDeps) error {
 
 	// 客服处理周期的自动分配与补分配，小结、质检、交接摘要、联系人资料抽取与待补知识起草，以及每 30 秒扫描一次的超时处理；AI 超时跟进经 Agent 调度器追加输入。
 	serviceAssignment := serviceassignment.NewWorker(db)
-	serviceSummary := servicesummary.NewWorker(db, deps.tasks, decider, deps.agentRuntime)
+	serviceSummary := servicesummary.NewWorker(db, deps.tasks, deps.modelInvoker, deps.agentRuntime)
 	serviceTimeout := servicetimeout.NewWorker(db, deps.tasks, deps.agentSchedule)
 	if err := errors.Join(
 		registry.RegisterJSON(serviceassignment.AssignActionName, serviceAssignment.Assign),

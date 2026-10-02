@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
@@ -50,12 +51,12 @@ func (p *retrievalProbe) Convert(context.Context, string, io.Reader) (string, er
 }
 
 // Embed 按文本包含的主题关键词生成单位向量，未命中主题的文本落在独立分量。
-func (p *retrievalProbe) Embed(_ context.Context, _ embedding.Credential, _ string, dimension int, inputs []string) ([][]float32, error) {
+func (p *retrievalProbe) Embed(_ context.Context, _ embedding.Credential, _ string, dimension int, inputs []string) (embedding.Result, error) {
 	p.embedMu.Lock()
 	p.embedded = append(p.embedded, slices.Clone(inputs))
 	p.embedMu.Unlock()
 	if p.embedFail {
-		return nil, &embedding.Error{Code: "embedding_failed"}
+		return embedding.Result{}, &embedding.Error{Code: "embedding_failed"}
 	}
 	vectors := make([][]float32, len(inputs))
 	for index, input := range inputs {
@@ -68,11 +69,11 @@ func (p *retrievalProbe) Embed(_ context.Context, _ embedding.Credential, _ stri
 		}
 		vectors[index][component] = 1
 	}
-	return vectors, nil
+	return embedding.Result{Vectors: vectors, InputTokens: len(inputs)}, nil
 }
 
 // Rerank 记录调用次数，按候选是否包含退款、发票关键词给出固定相关性。
-func (p *retrievalProbe) Rerank(_ context.Context, _ rerank.Credential, _, _ string, documents []string, _ int) ([]rerank.Score, error) {
+func (p *retrievalProbe) Rerank(_ context.Context, _ rerank.Credential, _, _ string, documents []string, _ int) (rerank.Result, error) {
 	p.reranked++
 	scores := make([]rerank.Score, 0, len(documents))
 	for index, document := range documents {
@@ -84,7 +85,7 @@ func (p *retrievalProbe) Rerank(_ context.Context, _ rerank.Credential, _, _ str
 		}
 		scores = append(scores, rerank.Score{Index: index, Relevance: relevance})
 	}
-	return scores, nil
+	return rerank.Result{Scores: scores}, nil
 }
 
 // publishRetrievalDocument 上传并处理一篇文档，返回文档编号。
@@ -101,7 +102,7 @@ func publishRetrievalDocument(t *testing.T, db *bun.DB, probe *retrievalProbe, i
 		t.Fatal(err)
 	}
 	probe.markdown = markdown
-	worker := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
+	worker := knowledgeaction.NewProcessDocumentAction(db, probe, modelcall.New(db, modelcall.Upstreams{Embedder: probe}), probe, probe)
 	err = worker.Execute(ctx, knowledgeaction.ProcessInput{
 		OrganizationID: identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: document.ID, ProcessingID: document.ProcessingID,
 		ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap,
@@ -126,7 +127,7 @@ func TestKnowledgeHybridRetrieval(t *testing.T) {
 	installed, base := newDocumentFixture(t, db)
 	identity := installed.Identity
 	probe := &retrievalProbe{}
-	service := knowledgeaction.NewRetrievalService(db, probe, probe)
+	service := knowledgeaction.NewRetrievalService(db, modelcall.New(db, modelcall.Upstreams{Embedder: probe, Reranker: probe}))
 
 	if _, err := service.Retrieve(ctx, identity, base.ID, "退款"); !errors.Is(err, knowledgeaction.ErrRetrievalNotReady) {
 		t.Fatalf("err=%v", err)
@@ -158,7 +159,7 @@ func TestKnowledgeHybridRetrieval(t *testing.T) {
 	}
 
 	// 多知识库来源经统一融合返回，并可按游标读取相邻分段。
-	sources, err := service.Sources(ctx, identity.Organization.ID, []string{base.ID})
+	sources, err := service.Sources(ctx, modelcall.MemberScope(identity, domain.AIModelCallSourceKnowledgeBase, ""), []string{base.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +187,7 @@ func TestKnowledgeHybridRetrieval(t *testing.T) {
 		t.Fatal(err)
 	}
 	probe.markdown = strings.Repeat("签收后七天内可以申请退款，退款金额原路返回。", 30)
-	if err := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe).Execute(ctx, knowledgeaction.ProcessInput{
+	if err := knowledgeaction.NewProcessDocumentAction(db, probe, modelcall.New(db, modelcall.Upstreams{Embedder: probe}), probe, probe).Execute(ctx, knowledgeaction.ProcessInput{
 		OrganizationID: identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: refundID, ProcessingID: republished.ProcessingID,
 		ChunkLength: republished.ChunkLength, ChunkOverlap: republished.ChunkOverlap,
 		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
@@ -297,7 +298,7 @@ func publishQAEntry(t *testing.T, db *bun.DB, probe *retrievalProbe, identity *s
 		t.Fatal(err)
 	}
 	task, _ := qaProcessInput(t, db, identity.Organization.ID, base.ID, entry.ID)
-	if err := knowledgeaction.NewProcessQAEntryAction(db, probe).Execute(ctx, task); err != nil {
+	if err := knowledgeaction.NewProcessQAEntryAction(db, modelcall.New(db, modelcall.Upstreams{Embedder: probe})).Execute(ctx, task); err != nil {
 		t.Fatal(err)
 	}
 	return entry.ID
@@ -315,7 +316,7 @@ func TestKnowledgeQARetrieval(t *testing.T) {
 	db := store.DB()
 	identity, base := newQAFixture(t, db)
 	probe := &retrievalProbe{}
-	service := knowledgeaction.NewRetrievalService(db, probe, probe)
+	service := knowledgeaction.NewRetrievalService(db, modelcall.New(db, modelcall.Upstreams{Embedder: probe, Reranker: probe}))
 	if _, err := service.Retrieve(ctx, identity, base.ID, "退款"); !errors.Is(err, knowledgeaction.ErrRetrievalNotReady) {
 		t.Fatalf("err=%v", err)
 	}
@@ -366,7 +367,7 @@ func TestKnowledgeQARetrieval(t *testing.T) {
 	}
 
 	// 跨知识库融合返回问答答案，游标读取返回条目本身。
-	sources, err := service.Sources(ctx, identity.Organization.ID, []string{base.ID})
+	sources, err := service.Sources(ctx, modelcall.MemberScope(identity, domain.AIModelCallSourceKnowledgeBase, ""), []string{base.ID})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -389,7 +390,7 @@ func TestKnowledgeQARetrieval(t *testing.T) {
 		t.Fatal(err)
 	}
 	task, _ := qaProcessInput(t, db, identity.Organization.ID, base.ID, refundID)
-	if err := knowledgeaction.NewProcessQAEntryAction(db, probe).Execute(ctx, task); err != nil {
+	if err := knowledgeaction.NewProcessQAEntryAction(db, modelcall.New(db, modelcall.Upstreams{Embedder: probe})).Execute(ctx, task); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := knowledgeretrieval.Search(ctx, sources, knowledgeretrieval.Request{Cursor: &cursor}); !errors.Is(err, knowledgeaction.ErrSegmentStale) {
@@ -446,10 +447,10 @@ func TestKnowledgeSearchBatchesQueryEmbedding(t *testing.T) {
 	}
 	probe := &retrievalProbe{}
 	refundID := publishRetrievalDocument(t, db, probe, identity, first, "退款政策.txt", "签收后七天内可以申请退款。")
-	service := knowledgeaction.NewRetrievalService(db, probe, probe)
+	service := knowledgeaction.NewRetrievalService(db, modelcall.New(db, modelcall.Upstreams{Embedder: probe, Reranker: probe}))
 	for _, embedFail := range []bool{false, true} {
 		probe.embedFail, probe.embedded = embedFail, nil
-		sources, err := service.Sources(ctx, identity.Organization.ID, baseIDs)
+		sources, err := service.Sources(ctx, modelcall.MemberScope(identity, domain.AIModelCallSourceKnowledgeBase, ""), baseIDs)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -51,15 +51,13 @@ func TestEinoRuntimeRetriesWithoutRejectedMedia(t *testing.T) {
 	for name, midStream := range map[string]bool{"open": false, "mid-stream": true} {
 		t.Run(name, func(t *testing.T) {
 			chatModel := &mediaRejectingChatModel{midStream: midStream}
-			runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) {
-				return chatModel, nil
-			}}
+			runtime := &EinoRuntime{}
 			feed := &testInputFeed{desired: 1, messages: []Message{{
 				ID: "1", Role: MessageRoleUser, Content: `{"body":"看图","attachment":{"name":"photo.png"}}`,
 				Media: &Media{MIMEType: "image/png", ByteSize: 16},
 			}}}
 			result, err := runtime.Run(context.Background(), RunRequest{
-				RunID: "media-fallback", MaxTurns: 2,
+				RunID: "media-fallback", MaxTurns: 2, Models: fixedModels(chatModel),
 				Assignment: Assignment{AgentName: "test-agent", Model: AssignmentModel{
 					InputModalities: []domain.AIModelInputModality{domain.AIModelInputModalityText, domain.AIModelInputModalityImage},
 				}},

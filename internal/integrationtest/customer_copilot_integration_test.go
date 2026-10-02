@@ -162,7 +162,7 @@ func TestServiceCopilotThreads(t *testing.T) {
 		}
 		return agentruntime.RunResult{Content: "建议先核实物流签收凭证", EndSeq: claimed.EndSeq}, nil
 	}}
-	executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil)
+	executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 	if err := executor.Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 		t.Fatal(err)
 	}

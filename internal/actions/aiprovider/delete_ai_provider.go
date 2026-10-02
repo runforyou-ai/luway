@@ -42,10 +42,11 @@ func (a *DeleteAIProviderAction) Execute(ctx context.Context, identity *servermo
 		if len(references) > 0 {
 			return ErrInUse
 		}
-		if _, err := tx.NewDelete().
-			Model((*servermodels.AIModel)(nil)).
-			Where("provider_id = ?", provider.ID).
-			Exec(ctx); err != nil {
+		modelIDs := make([]string, 0, len(stored))
+		for _, model := range stored {
+			modelIDs = append(modelIDs, model.ID)
+		}
+		if err := deleteModels(ctx, tx, identity.Organization.ID, modelIDs); err != nil {
 			return err
 		}
 		_, err = tx.NewDelete().

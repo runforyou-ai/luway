@@ -12,6 +12,7 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
@@ -78,14 +79,6 @@ type DeviceClaim struct {
 type DeviceLease struct {
 	Ended          bool
 	LeaseExpiresAt time.Time
-}
-
-// DeviceModelUpstream 是设备模型代理转发的上游模型服务与供应商凭据。
-type DeviceModelUpstream struct {
-	Brand      string
-	BaseURL    string
-	APIKey     string
-	Identifier string
 }
 
 // DeviceClaimedInput 是设备认领输入的结果，Suppressed 表示运行已失效，设备应停止执行。
@@ -248,25 +241,28 @@ func (a *ExecuteAction) RenewDeviceRunLease(ctx context.Context, device RunDevic
 	return lease, nil
 }
 
-// ResolveDeviceModelUpstream 返回设备持有有效租约的运行按配置版本锁定的模型服务与当前供应商凭据。
-func (a *ExecuteAction) ResolveDeviceModelUpstream(ctx context.Context, device RunDevice, runID string) (DeviceModelUpstream, error) {
+// DeviceRunModels 返回设备持有有效租约的运行按配置版本锁定的对话模型组件工厂，每次模型请求经统一调用入口记为该运行的调用。
+func (a *ExecuteAction) DeviceRunModels(ctx context.Context, device RunDevice, runID string) (agentruntime.ModelFactory, error) {
 	if _, err := a.requireDeviceLease(ctx, device, runID); err != nil {
-		return DeviceModelUpstream{}, err
+		return nil, err
 	}
 	execution, terminal, err := a.loadExecution(ctx, runID)
 	if err != nil {
-		return DeviceModelUpstream{}, err
+		return nil, err
 	}
 	if terminal {
-		return DeviceModelUpstream{}, ErrDeviceRunLeaseLost
+		return nil, ErrDeviceRunLeaseLost
 	}
-	// 本机 Agent 执行的运行使用本机 Agent 自身的模型，不经模型代理。
+	// 本机 Agent 执行的运行使用本机 Agent 自身的模型，不经服务端模型网关。
 	if execution.ExecutionMode != domain.AgentExecutionModeManaged {
-		return DeviceModelUpstream{}, ErrDeviceRunUnavailable
+		return nil, ErrDeviceRunUnavailable
 	}
-	return DeviceModelUpstream{
-		Brand: execution.Brand, BaseURL: execution.APIURL, APIKey: execution.APIKey, Identifier: execution.ModelIdentifier,
-	}, nil
+	models, err := a.runModels(ctx, &execution.Run, execution.ModelID)
+	// 锁定配置版本的模型已不可用时，设备按运行不可执行停止请求。
+	if errors.Is(err, aimodel.ErrUnavailable) {
+		return nil, ErrDeviceRunUnavailable
+	}
+	return models, err
 }
 
 // PeekDeviceRunInputs 返回设备持有运行尚未进入 TurnLoop 缓冲区的连续输入信号。
@@ -312,7 +308,7 @@ func (a *ExecuteAction) SearchDeviceRunKnowledge(ctx context.Context, device Run
 	if terminal {
 		return knowledgeretrieval.Result{}, ErrDeviceRunLeaseLost
 	}
-	search, err := loadKnowledgeSearch(ctx, a.db, a.knowledge, execution.Run.OrganizationID, execution.KnowledgeBaseIDs)
+	search, err := loadKnowledgeSearch(ctx, a.db, a.knowledge, runScope(&execution.Run), execution.KnowledgeBaseIDs)
 	if err != nil {
 		return knowledgeretrieval.Result{}, fmt.Errorf("load device agent run knowledge bases: %w", err)
 	}

@@ -60,7 +60,7 @@ func TestAgentChatTitles(t *testing.T) {
 		t.Fatal(err)
 	}
 	conversationID := first.Conversation.ID
-	execute := agentrunaction.NewExecuteAction(db, tasks, titleReplyRuntime{}, testAttachmentReader(db), nil, nil)
+	execute := agentrunaction.NewExecuteAction(db, tasks, titleReplyRuntime{}, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 	// 同步执行排队中的运行并返回回复消息编号。
 	runNext := func() string {
 		t.Helper()
@@ -120,12 +120,12 @@ func TestAgentChatTitles(t *testing.T) {
 	}
 	// 无效输出按失败重试，不写入标题。
 	for _, text := range []string{"标题：上海出差", `{"title":"` + strings.Repeat("长", 41) + `"}`, `{"title":"上海\n出差"}`} {
-		if err := agentrunaction.NewGenerateAgentChatTitleAction(db, &summaryCaller{text: text}).Execute(ctx, input); err == nil {
+		if err := agentrunaction.NewGenerateAgentChatTitleAction(db, &summaryCaller{text: text}, testModelInvoker(db)).Execute(ctx, input); err == nil {
 			t.Fatalf("invalid title output %q accepted", text)
 		}
 	}
 	caller := &summaryCaller{text: "好的，标题如下：\n```json\n{\"title\":\"上海出差行程安排。\"}\n```"}
-	title := agentrunaction.NewGenerateAgentChatTitleAction(db, caller)
+	title := agentrunaction.NewGenerateAgentChatTitleAction(db, caller, testModelInvoker(db))
 	if err := title.Execute(ctx, input); err != nil {
 		t.Fatal(err)
 	}

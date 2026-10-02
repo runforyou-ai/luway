@@ -70,7 +70,7 @@ func (t *Translator) translateReply(ctx context.Context, identity *servermodels.
 		return nil, agentruntime.ModelConfig{}, &ValidationError{Fields: map[string]ValidationCode{"body": ValidationBodyTooLong}}
 	}
 	source := ViewerLanguage(identity)
-	model, err := loadModel(ctx, t.db, identity.Organization.ID)
+	model, err := t.loadModel(ctx, identity, conversationID)
 	if err != nil {
 		return nil, agentruntime.ModelConfig{}, err
 	}

@@ -44,7 +44,7 @@ type replyTranscriptEntry struct {
 func (r *EinoRuntime) GenerateReplyCandidates(ctx context.Context, request ReplyCandidatesRequest) (ReplyCandidatesResult, error) {
 	config := request.Model
 	config.DisableThinking = true
-	chatModel, err := r.newModel(ctx, config)
+	chatModel, err := config.newModel(ctx)
 	if err != nil {
 		return ReplyCandidatesResult{}, err
 	}

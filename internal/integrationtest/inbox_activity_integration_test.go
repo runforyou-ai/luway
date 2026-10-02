@@ -139,7 +139,7 @@ func TestInboxSnapshot(t *testing.T) {
 	defer cancel()
 	first := f.send(t, f.owner, "快照前", false)
 	login := loginMember(t, f.db, f.owner.Organization.ID, f.member.Account.Email, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
 	f.db.AddQueryHook(chatQueryHook{})
 	gate := newChatQueryGate(t, false, 1, func(event *bun.QueryEvent) bool {
 		return event.Operation() == "SELECT" && strings.Contains(event.Query, "AS candidates") && strings.Contains(event.Query, "LIMIT 50")
@@ -316,7 +316,7 @@ func TestInboxTelegramActivity(t *testing.T) {
 	if _, err := conversationaction.NewMarkConversationReadAction(f.db).Execute(ctx, f.owner, telegram.ID, *telegram.LastMessageID, false); err != nil {
 		t.Fatal(err)
 	}
-	coordinator := agentrunaction.NewExecuteAction(f.db, nil, nil, testAttachmentReader(f.db), nil, nil)
+	coordinator := agentrunaction.NewExecuteAction(f.db, nil, nil, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil)
 	if _, err := servicesessionaction.NewCloseServiceSessionAction(f.db, coordinator, newTestTasks(f.db)).Execute(ctx, f.owner, telegram.ID); err != nil {
 		t.Fatal(err)
 	}

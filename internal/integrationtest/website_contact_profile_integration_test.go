@@ -30,7 +30,7 @@ func TestWebsiteContactProfile(t *testing.T) {
 	ctx := context.Background()
 	scheduler := agentrunaction.NewScheduler(newTestTasks(f.db))
 	visitorService := appservice.NewWebsiteVisitorService(direct.NewWebsiteVisitorBackend(f.db, scheduler, newTestTasks(f.db), nil, serverfilecontent.S3Config{}, nil, nil))
-	application := appservice.New(direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil))
+	application := appservice.New(direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil))
 	service := api.NewService(application, api.WithWebsiteVisitor(visitorService, false, "CF-IPCountry"))
 	secret, err := customerserviceaction.NewRegenerateCustomerIdentitySecretAction(f.db).Execute(ctx, f.owner)
 	if err != nil {

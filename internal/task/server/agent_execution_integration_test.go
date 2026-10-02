@@ -11,6 +11,7 @@ import (
 
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
@@ -40,7 +41,7 @@ func TestAgentCallbacksFenceTaskAttempts(t *testing.T) {
 		Set("lease_expires_at = now() + interval '1 hour'").Where("id = ?", taskID).Returning("*").Scan(ctx); err != nil {
 		t.Fatal(err)
 	}
-	executor := agentrunaction.NewExecuteAction(db, tasks, nil, agentrunaction.NewAttachmentReader(db, nil, serverfilecontent.NewLinks("http", "")), nil, nil)
+	executor := agentrunaction.NewExecuteAction(db, tasks, nil, modelcall.New(db, modelcall.DefaultUpstreams()), agentrunaction.NewAttachmentReader(db, nil, serverfilecontent.NewLinks("http", "")), nil, nil)
 	old := current
 	old.Attempt = 1
 	oldWorker := "old-worker"
@@ -222,7 +223,7 @@ func TestCustomerCallbacksFenceTaskAttempts(t *testing.T) {
 	if err := db.NewUpdate().Model(&current).Set("status = 'running'").Set("attempt = 2").Set("worker_id = 'customer-worker'").Set("lease_expires_at = now() + interval '1 hour'").Where("id = ?", taskID).Returning("*").Scan(ctx); err != nil {
 		t.Fatal(err)
 	}
-	executor := agentrunaction.NewExecuteAction(db, tasks, nil, agentrunaction.NewAttachmentReader(db, nil, serverfilecontent.NewLinks("http", "")), nil, nil)
+	executor := agentrunaction.NewExecuteAction(db, tasks, nil, modelcall.New(db, modelcall.DefaultUpstreams()), agentrunaction.NewAttachmentReader(db, nil, serverfilecontent.NewLinks("http", "")), nil, nil)
 	for _, kind := range []string{"旧尝试", "旧Worker", "过期租约"} {
 		stale := current
 		switch kind {

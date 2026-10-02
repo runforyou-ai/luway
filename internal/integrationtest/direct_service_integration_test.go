@@ -199,7 +199,7 @@ func TestDirectServiceConversation(t *testing.T) {
 		scene = request.Assignment.Scene
 		return handoffRuntime("需要 IT 同事排查", nil).Run(ctx, request, feed)
 	}}
-	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, runtime, testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, runtime, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if scene != agentruntime.SceneEmployeeService {

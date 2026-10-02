@@ -64,7 +64,7 @@ func TestServiceReplySuggestions(t *testing.T) {
 		t.Fatal(err)
 	}
 	conversationID := earlier.Conversation.ID
-	closeSession := servicesessionaction.NewCloseServiceSessionAction(db, agentrunaction.NewExecuteAction(db, tasks, nil, testAttachmentReader(db), nil, nil), newTestTasks(db))
+	closeSession := servicesessionaction.NewCloseServiceSessionAction(db, agentrunaction.NewExecuteAction(db, tasks, nil, testModelInvoker(db), testAttachmentReader(db), nil, nil), newTestTasks(db))
 	if _, err := closeSession.Execute(ctx, identity, conversationID); err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestServiceReplySuggestions(t *testing.T) {
 	}
 
 	generator := &testCustomerReplyGenerator{result: agentruntime.ReplyCandidatesResult{Candidates: []string{"您好，已为您加急处理。", "马上帮您催促仓库发货。"}}}
-	action := agentrunaction.NewGenerateServiceReplySuggestionsAction(db, generator, testAttachmentReader(db))
+	action := agentrunaction.NewGenerateServiceReplySuggestionsAction(db, generator, testModelInvoker(db), testAttachmentReader(db))
 	valid := agentrunaction.ServiceReplySuggestionsInput{
 		ConversationID: conversationID, AgentIdentityID: created.IdentityID,
 		Mode: domain.ServiceReplyModeRewrite, Tone: domain.ServiceReplyToneFriendly,
@@ -109,7 +109,7 @@ func TestServiceReplySuggestions(t *testing.T) {
 		request.History[1].Role != agentruntime.MessageRoleAssistant || request.History[1].Content != "我来帮您查询" {
 		t.Fatalf("history = %#v", request.History)
 	}
-	if request.Model.Identifier != "chat-model" || !strings.HasPrefix(request.Instruction, "你是售后客服") || !strings.Contains(request.Instruction, `{"candidates":`) {
+	if request.Model.New == nil || request.Model.MaxOutputTokens != 4096 || !strings.HasPrefix(request.Instruction, "你是售后客服") || !strings.Contains(request.Instruction, `{"candidates":`) {
 		t.Fatalf("request configuration = %#v", request)
 	}
 	for _, expected := range []string{"改写客服草稿", "友好", `回复针对的引用消息：{"sender":"customer","content":"订单还没发货"}`, `客服草稿："帮您催一下"`} {

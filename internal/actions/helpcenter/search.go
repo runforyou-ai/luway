@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
 	"github.com/uptrace/bun"
@@ -20,9 +21,9 @@ const searchArticleLimit = 10
 // ErrQueryInvalid 表示帮助中心搜索内容为空或超出长度。
 var ErrQueryInvalid = errors.New("help center query is invalid")
 
-// Retrieval 构造只召回帮助中心文章的知识库检索来源。
+// Retrieval 构造只召回帮助中心文章的知识库检索来源，检索中的模型调用按调用归属记录。
 type Retrieval interface {
-	ArticleSources(ctx context.Context, organizationID string, knowledgeBaseIDs []string) ([]knowledgeretrieval.Source, error)
+	ArticleSources(ctx context.Context, scope modelcall.Scope, knowledgeBaseIDs []string) ([]knowledgeretrieval.Source, error)
 }
 
 // SearchQuery 在网站渠道发布的文章中检索访客输入的内容。
@@ -50,7 +51,9 @@ func (q *SearchQuery) Execute(ctx context.Context, channelID, query string) ([]A
 	if len(scope.Bases) == 0 {
 		return articles, nil
 	}
-	sources, err := q.retrieval.ArticleSources(ctx, scope.OrganizationID, scope.BaseIDs())
+	// 访客搜索中的模型调用记为该网站渠道的后台调用。
+	callScope := modelcall.SystemScope(scope.OrganizationID, domain.AIModelCallSourceChannel, channelID)
+	sources, err := q.retrieval.ArticleSources(ctx, callScope, scope.BaseIDs())
 	if err != nil {
 		return nil, fmt.Errorf("load help center sources: %w", err)
 	}

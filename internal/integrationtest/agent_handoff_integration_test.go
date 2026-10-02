@@ -40,7 +40,7 @@ func testServiceSessionReturner(db *bun.DB) *agentrunaction.ExecuteAction {
 	if err := tasks.Registry().RegisterJSON(deliveryaction.SendActionName, func(context.Context, deliveryaction.Input) error { return nil }); err != nil {
 		panic(err)
 	}
-	return agentrunaction.NewExecuteAction(db, tasks, nil, testAttachmentReader(db), nil, nil)
+	return agentrunaction.NewExecuteAction(db, tasks, nil, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 }
 
 // testUserStatusAction 创建测试用的成员账号状态修改操作。
@@ -269,7 +269,7 @@ func testModelHandoffRoundTrip(t *testing.T, f handoffFixture) {
 	first := f.receive(t, &input, "我要退款")
 	run := f.queuedRun(t, first.Conversation.ID)
 	runtime := handoffRuntime("客户要求退款", func() { f.receive(t, &input, "还在吗") })
-	executor := agentrunaction.NewExecuteAction(f.db, f.tasks, runtime, testAttachmentReader(f.db), nil, nil)
+	executor := agentrunaction.NewExecuteAction(f.db, f.tasks, runtime, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil)
 	for range 2 {
 		if err := executor.Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 			t.Fatal(err)
@@ -329,7 +329,7 @@ func testModelHandoffRoundTrip(t *testing.T, f handoffFixture) {
 		claimed, err := feed.Claim(ctx, triggers[0].Seq)
 		return agentruntime.RunResult{Content: "新问题的回答", EndSeq: claimed.EndSeq}, err
 	}}
-	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, reply, testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: next.ID}); err != nil {
+	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, reply, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: next.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.db.NewSelect().Model(&next).WherePK().Scan(ctx); err != nil || next.Status != string(domain.AgentRunStatusSucceeded) ||
@@ -380,7 +380,7 @@ func testHandoffTargets(t *testing.T, f handoffFixture) {
 			input := visitorInput(channelID, "")
 			first := f.receive(t, &input, "需要人工")
 			run := f.queuedRun(t, first.Conversation.ID)
-			if err := agentrunaction.NewExecuteAction(f.db, f.tasks, handoffRuntime("无法确认", nil), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+			if err := agentrunaction.NewExecuteAction(f.db, f.tasks, handoffRuntime("无法确认", nil), testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 				t.Fatal(err)
 			}
 			session := loadSession(t, f.db, run.ScopeID)
@@ -465,7 +465,7 @@ func testHandoffCategoryRouting(t *testing.T, f handoffFixture) {
 			if scenario.category != nil {
 				categoryID = scenario.category.ID
 			}
-			if err := agentrunaction.NewExecuteAction(f.db, f.tasks, categoryHandoffRuntime("客户要求退款", categoryID, nil), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+			if err := agentrunaction.NewExecuteAction(f.db, f.tasks, categoryHandoffRuntime("客户要求退款", categoryID, nil), testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 				t.Fatal(err)
 			}
 			session := loadSession(t, f.db, run.ScopeID)
@@ -499,7 +499,7 @@ func testHandoffAutoAssignment(t *testing.T, f handoffFixture) {
 		input := visitorInput(channelID, "")
 		received := f.receive(t, &input, "需要人工")
 		run := f.queuedRun(t, received.Conversation.ID)
-		if err := agentrunaction.NewExecuteAction(f.db, f.tasks, handoffRuntime("无法确认", nil), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+		if err := agentrunaction.NewExecuteAction(f.db, f.tasks, handoffRuntime("无法确认", nil), testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 			t.Fatal(err)
 		}
 		return loadSession(t, f.db, run.ScopeID), handoffEvents(t, f.db, received.Conversation.ID), handoffNotice(t, f.db, "agent:"+run.ID)
@@ -593,7 +593,7 @@ func testBusinessHoursHandoffNotice(t *testing.T, f handoffFixture) {
 			input := visitorInput(channelID, "")
 			received := f.receive(t, &input, "需要人工")
 			run := f.queuedRun(t, received.Conversation.ID)
-			if err := agentrunaction.NewExecuteAction(f.db, f.tasks, handoffRuntime("无法确认", nil), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+			if err := agentrunaction.NewExecuteAction(f.db, f.tasks, handoffRuntime("无法确认", nil), testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 				t.Fatal(err)
 			}
 			if notice := handoffNotice(t, f.db, "agent:"+run.ID); notice != scenario.want {
@@ -618,7 +618,7 @@ func testHandoffCommitOrder(t *testing.T, f handoffFixture) {
 			t.Fatal(err)
 		}
 	})
-	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, takeover, testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, takeover, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.db.NewSelect().Model(&run).WherePK().Scan(ctx); err != nil || run.Status != string(domain.AgentRunStatusCancelled) || run.Outcome != nil || run.ResponseMessageID != nil {
@@ -632,7 +632,7 @@ func testHandoffCommitOrder(t *testing.T, f handoffFixture) {
 	input = visitorInput(channelID, "")
 	second := f.receive(t, &input, "AI 先转人工")
 	run = f.queuedRun(t, second.Conversation.ID)
-	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, handoffRuntime("无法确认", nil), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, handoffRuntime("无法确认", nil), testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 		t.Fatal(err)
 	}
 	claimed, err := servicesessionaction.NewClaimServiceSessionAction(f.db, coordinator, newTestTasks(f.db)).Execute(ctx, f.identity, second.Conversation.ID)
@@ -657,7 +657,7 @@ func testManagementReturn(t *testing.T, f handoffFixture) {
 			runQueuedAgentRun(t, f.db, agentrunaction.NewExecuteAction(f.db, f.tasks, &testAgentRuntime{run: func(ctx context.Context, _ agentruntime.RunRequest, feed agentruntime.InputFeed) (agentruntime.RunResult, error) {
 				claimed, err := feed.Claim(ctx, 1)
 				return agentruntime.RunResult{Content: "已回答", EndSeq: claimed.EndSeq}, err
-			}}, testAttachmentReader(f.db), nil, nil), idle.Conversation.ID)
+			}}, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil), idle.Conversation.ID)
 
 			returner := testServiceSessionReturner(f.db)
 			switch change {
@@ -791,7 +791,7 @@ func testInboundUnavailableAssignee(t *testing.T, f handoffFixture) {
 func testTelegramModelHandoff(t *testing.T, f handoffFixture) {
 	ctx := context.Background()
 	fixture := newAgentTelegramFixture(t, f.db, f.identity, f.providerID, f.modelID)
-	executor := agentrunaction.NewExecuteAction(f.db, fixture.tasks, handoffRuntime("需要人工确认", nil), testAttachmentReader(f.db), nil, nil)
+	executor := agentrunaction.NewExecuteAction(f.db, fixture.tasks, handoffRuntime("需要人工确认", nil), testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil)
 	for range 2 {
 		if err := executor.Execute(ctx, agentrunaction.RunInput{RunID: fixture.run.ID}); err != nil {
 			t.Fatal(err)
@@ -882,7 +882,7 @@ func testTelegramInboundReturnVersusRunFailure(t *testing.T, f handoffFixture) {
 	})
 	failed, scheduled := make(chan error, 1), make(chan error, 1)
 	go func() {
-		executor := agentrunaction.NewExecuteAction(gated, fixture.tasks, nil, testAttachmentReader(f.db), nil, nil)
+		executor := agentrunaction.NewExecuteAction(gated, fixture.tasks, nil, testModelInvoker(gated), testAttachmentReader(f.db), nil, nil)
 		failed <- executor.FinalizeFailure(context.WithValue(ctx, chatQueryGateKey{}, gate), agentrunaction.RunInput{RunID: fixture.run.ID}, errors.New("运行失败"))
 	}()
 	waitChatSignal(t, ctx, gate.reached)

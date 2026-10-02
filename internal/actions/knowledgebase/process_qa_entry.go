@@ -8,6 +8,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/pkg/textsplit"
@@ -28,13 +29,13 @@ type ProcessQAInput struct {
 
 // ProcessQAEntryAction 把问答条目的主问题、相似问题和答案分段、向量化并发布批次。
 type ProcessQAEntryAction struct {
-	db       *bun.DB
-	embedder segmentEmbedder
+	db      *bun.DB
+	invoker *modelcall.Invoker
 }
 
 // NewProcessQAEntryAction 创建问答索引任务。
-func NewProcessQAEntryAction(db *bun.DB, embedder segmentEmbedder) *ProcessQAEntryAction {
-	return &ProcessQAEntryAction{db: db, embedder: embedder}
+func NewProcessQAEntryAction(db *bun.DB, invoker *modelcall.Invoker) *ProcessQAEntryAction {
+	return &ProcessQAEntryAction{db: db, invoker: invoker}
 }
 
 // Execute 执行当前问答任务：切段并向量化后，在同一事务中替换分段并发布批次。
@@ -67,10 +68,11 @@ func (a *ProcessQAEntryAction) Execute(ctx context.Context, input ProcessQAInput
 		return &ProcessError{Code: "empty_content", Stage: domain.KnowledgeIndexSplitting}
 	}
 
-	published, err := embedAndPublish(ctx, a.db, a.embedder, indexPublication{
+	published, err := embedAndPublish(ctx, a.db, a.invoker, indexPublication{
 		Model:            (*servermodels.KnowledgeQAEntry)(nil),
 		Batch:            segmentBatch{OrganizationID: input.OrganizationID, KnowledgeBaseID: input.KnowledgeBaseID, SourceType: domain.KnowledgeSourceQAEntry, SourceID: input.EntryID, BatchID: input.ProcessingID, EmbeddingDimension: input.EmbeddingDimension},
 		EmbeddingModelID: input.EmbeddingModelID,
+		CallSource:       domain.AIModelCallSourceKnowledgeQAEntry,
 	}, segments)
 	if err == nil && published {
 		slog.Info("知识问答分段与向量完成", "entry_id", input.EntryID, "processing_id", input.ProcessingID, "segment_count", len(segments), "embedding_dimension", input.EmbeddingDimension, "duration_ms", time.Since(started).Milliseconds())

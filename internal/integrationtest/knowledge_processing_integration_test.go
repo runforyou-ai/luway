@@ -14,6 +14,7 @@ import (
 	"uuid"
 
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/documentconvert"
@@ -59,16 +60,16 @@ func (p *processingProbe) Convert(context.Context, string, io.Reader) (string, e
 }
 
 // Embed 记录本次凭据并按维度返回定长向量，或按需模拟向量接口失败。
-func (p *processingProbe) Embed(_ context.Context, credential embedding.Credential, _ string, dimension int, inputs []string) ([][]float32, error) {
+func (p *processingProbe) Embed(_ context.Context, credential embedding.Credential, _ string, dimension int, inputs []string) (embedding.Result, error) {
 	p.credential = credential
 	if p.embedFail {
-		return nil, &embedding.Error{Code: "embedding_failed"}
+		return embedding.Result{}, &embedding.Error{Code: "embedding_failed"}
 	}
 	vectors := make([][]float32, len(inputs))
 	for index := range vectors {
 		vectors[index] = make([]float32, dimension)
 	}
-	return vectors, nil
+	return embedding.Result{Vectors: vectors}, nil
 }
 
 // TestKnowledgeProcessingRetryAndPublication 验证上传投递、失败重试幂等、参数快照与完整发布。
@@ -98,7 +99,7 @@ func TestKnowledgeProcessingRetryAndPublication(t *testing.T) {
 	}
 	input := knowledgeaction.ProcessInput{OrganizationID: installed.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: documentID, ProcessingID: document.ProcessingID, ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap, EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension}
 	probe := &processingProbe{fail: true}
-	worker := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
+	worker := knowledgeaction.NewProcessDocumentAction(db, probe, modelcall.New(db, modelcall.Upstreams{Embedder: probe}), probe, probe)
 	err = worker.Execute(ctx, input)
 	if err == nil {
 		t.Fatalf("failure=%v", err)
@@ -202,7 +203,7 @@ func TestKnowledgeRetryAllStates(t *testing.T) {
 	}
 	input := knowledgeaction.ProcessInput{OrganizationID: owner.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: document.ID, ProcessingID: document.ProcessingID, ChunkLength: 512, ChunkOverlap: 50, EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension}
 	probe := &processingProbe{}
-	worker := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
+	worker := knowledgeaction.NewProcessDocumentAction(db, probe, modelcall.New(db, modelcall.Upstreams{Embedder: probe}), probe, probe)
 	if err := worker.Execute(ctx, input); err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +290,7 @@ func TestKnowledgeProcessingMissingFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	probe := &processingProbe{}
-	worker := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
+	worker := knowledgeaction.NewProcessDocumentAction(db, probe, modelcall.New(db, modelcall.Upstreams{Embedder: probe}), probe, probe)
 	input := knowledgeaction.ProcessInput{OrganizationID: owner.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: document.ID, ProcessingID: document.ProcessingID, ChunkLength: 512, ChunkOverlap: 50, EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension}
 	err = worker.Execute(ctx, input)
 	if err == nil {
@@ -348,7 +349,7 @@ func TestKnowledgeProcessingPublishesSegments(t *testing.T) {
 		ProcessingID: document.ProcessingID, ChunkLength: 256, ChunkOverlap: 50,
 		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
 	}
-	action := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
+	action := knowledgeaction.NewProcessDocumentAction(db, probe, modelcall.New(db, modelcall.Upstreams{Embedder: probe}), probe, probe)
 	if err := action.Execute(ctx, input); err != nil {
 		t.Fatal(err)
 	}

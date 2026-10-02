@@ -48,7 +48,7 @@ func (a *CreateAIProviderAction) Execute(ctx context.Context, identity *servermo
 		if err != nil {
 			return err
 		}
-		models, err = saveModels(ctx, tx, provider.ID, input.Models, changes)
+		models, err = saveModels(ctx, tx, identity.Organization.ID, provider.ID, input.Models, changes)
 		return err
 	})
 	if conflict := conflictError(err); conflict != nil {

@@ -81,11 +81,11 @@ func TestAIModelReferences(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.Execution.Managed.Model.ID != chatModelID || loaded.Execution.Managed.Model.Identifier != "chat-model-v2" {
+	if loaded.Execution.Managed.Model.ID != chatModelID {
 		t.Fatalf("agent model=%+v", loaded.Execution.Managed.Model)
 	}
 	resolved, err := aimodel.Resolve(ctx, db, identity.Organization.ID, chatModelID, domain.AIModelUsageSummary)
-	if err != nil || resolved.Identifier != "chat-model-v2" || resolved.APIKey != "test-key" {
+	if err != nil || len(resolved.Routes) != 1 || resolved.Routes[0].Identifier != "chat-model-v2" || resolved.Routes[0].APIKey != "test-key" {
 		t.Fatalf("resolved=%+v err=%v", resolved, err)
 	}
 
@@ -196,10 +196,7 @@ func TestEmbeddingModelRenameReindexesKnowledgeBases(t *testing.T) {
 		return document.ProcessingID
 	}
 	before := processingID()
-	embedding := &servermodels.AIModel{ID: base.EmbeddingModelID}
-	if err := db.NewSelect().Model(embedding).WherePK().Scan(ctx); err != nil {
-		t.Fatal(err)
-	}
+	embedding := loadTestAIModel(t, db, base.EmbeddingModelID)
 	provider, err := aiprovideraction.NewGetAIProviderQuery(db).Execute(ctx, identity, embedding.ProviderID)
 	if err != nil {
 		t.Fatal(err)
