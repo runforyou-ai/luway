@@ -20,7 +20,7 @@ const (
 // localMCPToolNames 是本地 MCP 管理工具，按注册顺序排列。
 var localMCPToolNames = []string{addLocalMCPToolName, removeLocalMCPToolName}
 
-const addLocalMCPToolDesc = `为这台电脑添加本地 MCP 服务，这台电脑上主人的所有助理共用。
+const addLocalMCPToolDesc = `为这台电脑添加本地 MCP 服务，这台电脑上负责人的所有个人 AI 员工共用。
 - 添加前会试连接服务并读取工具目录，失败时返回原因；成功后返回服务提供的工具。
 - 本地进程服务：type 省略或为 stdio，填写 command、args 与所需的 env；例如 command 为 uvx、args 为 ["mcp-server-fetch"]。%s
 - 通过网络连接的服务：type 为 http（Streamable HTTP）或 sse，填写 url 与所需的 headers。

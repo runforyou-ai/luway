@@ -130,19 +130,19 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.PUT("/agents/:agentID/evaluation/cases/:caseID", s.updateAgentEvaluationCase)
 	router.DELETE("/agents/:agentID/evaluation/cases/:caseID", s.deleteAgentEvaluationCase)
 	router.POST("/agents/:agentID/evaluation/cases/:caseID/rerun", s.rerunAgentEvaluationCase)
-	router.GET("/assistants", s.listAssistants)
-	router.GET("/users/:userID/assistants", s.listMemberAssistants)
-	router.GET("/assistants/:assistantID", s.getAssistant)
-	router.POST("/assistants", s.createAssistant)
-	router.PUT("/assistants/:assistantID", s.updateAssistant)
-	router.POST("/assistants/:assistantID/pause", s.pauseAssistant)
-	router.POST("/assistants/:assistantID/resume", s.resumeAssistant)
-	router.PUT("/assistants/:assistantID/device", s.moveAssistant)
-	router.POST("/assistants/:assistantID/deactivate", s.deactivateAssistant)
-	router.POST("/assistants/:assistantID/reactivate", s.reactivateAssistant)
-	router.GET("/assistants/:assistantID/memories", s.listAssistantMemories)
-	router.PUT("/assistants/:assistantID/memories/:memoryID", s.updateAssistantMemory)
-	router.DELETE("/assistants/:assistantID/memories/:memoryID", s.deleteAssistantMemory)
+	router.GET("/personal-agents", s.listPersonalAgents)
+	router.GET("/users/:userID/personal-agents", s.listMemberPersonalAgents)
+	router.GET("/personal-agents/:agentID", s.getPersonalAgent)
+	router.POST("/personal-agents", s.createPersonalAgent)
+	router.PUT("/personal-agents/:agentID", s.updatePersonalAgent)
+	router.POST("/personal-agents/:agentID/pause", s.pausePersonalAgent)
+	router.POST("/personal-agents/:agentID/resume", s.resumePersonalAgent)
+	router.PUT("/personal-agents/:agentID/device", s.movePersonalAgent)
+	router.POST("/personal-agents/:agentID/deactivate", s.deactivatePersonalAgent)
+	router.POST("/personal-agents/:agentID/reactivate", s.reactivatePersonalAgent)
+	router.GET("/personal-agents/:agentID/memories", s.listAgentMemories)
+	router.PUT("/personal-agents/:agentID/memories/:memoryID", s.updateAgentMemory)
+	router.DELETE("/personal-agents/:agentID/memories/:memoryID", s.deleteAgentMemory)
 	router.GET("/users", s.listUsers)
 	router.GET("/users/:userID", s.getUser)
 	router.GET("/invitations", s.listInvitations)
@@ -1215,97 +1215,97 @@ func (s *Service) rerunAgentEvaluationCase(c *gin.Context) {
 	writeEmpty(c, s.application.RerunAgentEvaluationCase(c.Request.Context(), requestMeta(c), c.Param("agentID"), c.Param("caseID")))
 }
 
-// listAssistants 返回当前成员名下的助理。
-func (s *Service) listAssistants(c *gin.Context) {
-	output, err := s.application.ListAssistants(c.Request.Context(), requestMeta(c))
+// listPersonalAgents 返回当前成员负责的个人 AI 员工。
+func (s *Service) listPersonalAgents(c *gin.Context) {
+	output, err := s.application.ListPersonalAgents(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listMemberAssistants 返回指定成员名下的助理。
-func (s *Service) listMemberAssistants(c *gin.Context) {
-	output, err := s.application.ListMemberAssistants(c.Request.Context(), requestMeta(c), c.Param("userID"))
+// listMemberPersonalAgents 返回指定成员负责的个人 AI 员工。
+func (s *Service) listMemberPersonalAgents(c *gin.Context) {
+	output, err := s.application.ListMemberPersonalAgents(c.Request.Context(), requestMeta(c), c.Param("userID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getAssistant 返回当前成员名下的助理详情。
-func (s *Service) getAssistant(c *gin.Context) {
-	output, err := s.application.GetAssistant(c.Request.Context(), requestMeta(c), c.Param("assistantID"))
+// getPersonalAgent 返回当前成员负责的个人 AI 员工详情。
+func (s *Service) getPersonalAgent(c *gin.Context) {
+	output, err := s.application.GetPersonalAgent(c.Request.Context(), requestMeta(c), c.Param("agentID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// createAssistant 在当前成员的电脑上创建助理。
-func (s *Service) createAssistant(c *gin.Context) {
-	var input appservice.CreateAssistantInput
+// createPersonalAgent 在当前成员的电脑上创建个人 AI 员工。
+func (s *Service) createPersonalAgent(c *gin.Context) {
+	var input appservice.CreatePersonalAgentInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.CreateAssistant(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.CreatePersonalAgent(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusCreated, output, err)
 }
 
-// updateAssistant 修改当前成员名下的助理。
-func (s *Service) updateAssistant(c *gin.Context) {
-	var input appservice.AssistantInput
+// updatePersonalAgent 修改当前成员负责的个人 AI 员工。
+func (s *Service) updatePersonalAgent(c *gin.Context) {
+	var input appservice.PersonalAgentInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.UpdateAssistant(c.Request.Context(), requestMeta(c), c.Param("assistantID"), input)
+	output, err := s.application.UpdatePersonalAgent(c.Request.Context(), requestMeta(c), c.Param("agentID"), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// pauseAssistant 暂停当前成员名下的助理。
-func (s *Service) pauseAssistant(c *gin.Context) {
-	output, err := s.application.PauseAssistant(c.Request.Context(), requestMeta(c), c.Param("assistantID"))
+// pausePersonalAgent 暂停当前成员负责的个人 AI 员工。
+func (s *Service) pausePersonalAgent(c *gin.Context) {
+	output, err := s.application.PausePersonalAgent(c.Request.Context(), requestMeta(c), c.Param("agentID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// resumeAssistant 恢复当前成员名下已暂停的助理。
-func (s *Service) resumeAssistant(c *gin.Context) {
-	output, err := s.application.ResumeAssistant(c.Request.Context(), requestMeta(c), c.Param("assistantID"))
+// resumePersonalAgent 恢复当前成员负责的已暂停个人 AI 员工。
+func (s *Service) resumePersonalAgent(c *gin.Context) {
+	output, err := s.application.ResumePersonalAgent(c.Request.Context(), requestMeta(c), c.Param("agentID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// moveAssistant 把当前成员名下的助理换到指定电脑。
-func (s *Service) moveAssistant(c *gin.Context) {
-	var input appservice.AssistantDeviceInput
+// movePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
+func (s *Service) movePersonalAgent(c *gin.Context) {
+	var input appservice.PersonalAgentDeviceInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.MoveAssistant(c.Request.Context(), requestMeta(c), c.Param("assistantID"), input)
+	output, err := s.application.MovePersonalAgent(c.Request.Context(), requestMeta(c), c.Param("agentID"), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// deactivateAssistant 停用助理。
-func (s *Service) deactivateAssistant(c *gin.Context) {
-	output, err := s.application.DeactivateAssistant(c.Request.Context(), requestMeta(c), c.Param("assistantID"))
+// deactivatePersonalAgent 停用个人 AI 员工。
+func (s *Service) deactivatePersonalAgent(c *gin.Context) {
+	output, err := s.application.DeactivatePersonalAgent(c.Request.Context(), requestMeta(c), c.Param("agentID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// reactivateAssistant 启用已停用的助理。
-func (s *Service) reactivateAssistant(c *gin.Context) {
-	output, err := s.application.ReactivateAssistant(c.Request.Context(), requestMeta(c), c.Param("assistantID"))
+// reactivatePersonalAgent 启用已停用的个人 AI 员工。
+func (s *Service) reactivatePersonalAgent(c *gin.Context) {
+	output, err := s.application.ReactivatePersonalAgent(c.Request.Context(), requestMeta(c), c.Param("agentID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listAssistantMemories 返回当前成员名下助理的记忆，按最近更新排列。
-func (s *Service) listAssistantMemories(c *gin.Context) {
-	output, err := s.application.ListAssistantMemories(c.Request.Context(), requestMeta(c), c.Param("assistantID"))
+// listAgentMemories 返回当前成员负责的个人 AI 员工的记忆，按最近更新排列。
+func (s *Service) listAgentMemories(c *gin.Context) {
+	output, err := s.application.ListAgentMemories(c.Request.Context(), requestMeta(c), c.Param("agentID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updateAssistantMemory 修改当前成员名下助理的一条记忆。
-func (s *Service) updateAssistantMemory(c *gin.Context) {
-	var input appservice.AssistantMemoryInput
+// updateAgentMemory 修改当前成员负责的个人 AI 员工的一条记忆。
+func (s *Service) updateAgentMemory(c *gin.Context) {
+	var input appservice.AgentMemoryInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.UpdateAssistantMemory(c.Request.Context(), requestMeta(c), c.Param("assistantID"), c.Param("memoryID"), input)
+	output, err := s.application.UpdateAgentMemory(c.Request.Context(), requestMeta(c), c.Param("agentID"), c.Param("memoryID"), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// deleteAssistantMemory 删除当前成员名下助理的一条记忆。
-func (s *Service) deleteAssistantMemory(c *gin.Context) {
-	writeEmpty(c, s.application.DeleteAssistantMemory(c.Request.Context(), requestMeta(c), c.Param("assistantID"), c.Param("memoryID")))
+// deleteAgentMemory 删除当前成员负责的个人 AI 员工的一条记忆。
+func (s *Service) deleteAgentMemory(c *gin.Context) {
+	writeEmpty(c, s.application.DeleteAgentMemory(c.Request.Context(), requestMeta(c), c.Param("agentID"), c.Param("memoryID")))
 }
 
 // listUsers 返回企业成员列表。

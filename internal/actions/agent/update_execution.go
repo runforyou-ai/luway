@@ -56,7 +56,7 @@ func (a *UpdateExecutionAction) Execute(ctx context.Context, identity *servermod
 			Column("id").
 			Where("a.organization_id = ?", identity.Organization.ID).
 			Where("a.id = ?", agentID).
-			Where(employeeIdentityCondition).
+			Where(serviceAgentCondition).
 			For("UPDATE").
 			Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {

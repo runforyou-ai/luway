@@ -1,6 +1,5 @@
 /** 移动端通讯录分类入口。 */
 import {
-  BotIcon,
   ChevronRightIcon,
   ContactRoundIcon,
   UsersRoundIcon,
@@ -15,10 +14,9 @@ const categories = [
   { path: "employees", icon: UserRoundIcon },
   { path: "teams", icon: UsersRoundIcon },
   { path: "external", icon: ContactRoundIcon },
-  { path: "assistants", icon: BotIcon },
 ] as const
 
-/** 展示同事、团队、外部联系人和我的助理四个分类的固定入口。 */
+/** 展示同事、团队和外部联系人三个分类的固定入口。 */
 export function MobileContactsPage() {
   const { t } = useTranslation(["mobile", "contacts"])
   return (

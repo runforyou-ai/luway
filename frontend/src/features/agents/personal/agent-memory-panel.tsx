@@ -1,4 +1,4 @@
-/** 助理记忆页签：列表、编辑弹窗与删除确认；记忆表单与删除操作供移动端复用。 */
+/** 个人 AI 员工记忆页签：列表、编辑弹窗与删除确认；记忆表单与删除操作供移动端复用。 */
 import { useEffect, useMemo, useRef } from "react"
 import { BookmarkIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
@@ -8,11 +8,11 @@ import { toast } from "sonner"
 import { z } from "zod"
 
 import {
-  deleteAssistantMemory,
+  deleteAgentMemory,
   isApiError,
-  listAssistantMemories,
-  updateAssistantMemory,
-  type AssistantMemory,
+  listAgentMemories,
+  updateAgentMemory,
+  type AgentMemory,
 } from "@/api"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { FormActions } from "@/components/form/form-actions"
@@ -46,35 +46,35 @@ import { recoverSession } from "@/lib/session-navigation"
 import { zodResolver } from "@/lib/zod-resolver"
 import { resolveAppPlatform } from "@/platform/app-platform"
 
-/** 读取助理的记忆；记忆由后台提取任务写入，每次打开或回到窗口时重新读取。 */
-export function useAssistantMemories(assistantId: string) {
+/** 读取个人 AI 员工的记忆；记忆由后台提取任务写入，每次打开或回到窗口时重新读取。 */
+export function useAgentMemories(agentId: string) {
   return useResource(
-    resourceKeys.assistantMemories(assistantId),
-    () => listAssistantMemories(assistantId),
+    resourceKeys.agentMemories(agentId),
+    () => listAgentMemories(agentId),
     { staleTime: 0, refetchOnWindowFocus: true },
   )
 }
 
-/** 读取助理的记忆，按最近更新列出并承载编辑与删除。 */
-export function AssistantMemoryPanel({ assistantId }: { assistantId: string }) {
-  const { t } = useTranslation(["contacts", "common"])
+/** 读取个人 AI 员工的记忆，按最近更新列出并承载编辑与删除。 */
+export function AgentMemoryPanel({ agentId }: { agentId: string }) {
+  const { t } = useTranslation(["agents", "common"])
   const { formatDateTime } = useDateTime()
-  const memories = useAssistantMemories(assistantId)
+  const memories = useAgentMemories(agentId)
   const invalidate = useResourceInvalidator()
-  const editor = useEditingDialog<AssistantMemory>()
+  const editor = useEditingDialog<AgentMemory>()
 
-  const deletion = useAssistantMemoryDeletion(assistantId)
+  const deletion = useAgentMemoryDeletion(agentId)
 
   return (
     <ResourceContent
       resources={[memories]}
-      errorMessage={t("assistants.memory.loadError")}
+      errorMessage={t("personal.memory.loadError")}
     >
       <ResourceTable
         columns={[
           {
             key: "name",
-            header: t("assistants.memory.form.name"),
+            header: t("personal.memory.form.name"),
             cell: (memory) => (
               <ResourceRowIdentity
                 icon={BookmarkIcon}
@@ -85,15 +85,15 @@ export function AssistantMemoryPanel({ assistantId }: { assistantId: string }) {
           },
           {
             key: "updatedAt",
-            header: t("assistants.memory.updatedAtColumn"),
+            header: t("personal.memory.updatedAtColumn"),
             cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground tabular-nums",
             cell: (memory) =>
-              t("assistants.memory.updatedAt", { time: formatDateTime(memory.updatedAt) }),
+              t("personal.memory.updatedAt", { time: formatDateTime(memory.updatedAt) }),
           },
         ]}
         rows={memories.data?.memories ?? []}
         rowKey={(memory) => memory.id}
-        empty={t("assistants.memory.empty")}
+        empty={t("personal.memory.empty")}
         onRowActivate={(memory) => editor.open(memory)}
         rowActions={(memory) => [
           {
@@ -117,17 +117,17 @@ export function AssistantMemoryPanel({ assistantId }: { assistantId: string }) {
       >
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>{t("assistants.memory.edit")}</DialogTitle>
+            <DialogTitle>{t("personal.memory.edit")}</DialogTitle>
             <DialogDescription>
-              {t("assistants.memory.editDescription")}
+              {t("personal.memory.editDescription")}
             </DialogDescription>
           </DialogHeader>
           {editor.editing?.item ? (
-            <AssistantMemoryForm
-              assistantId={assistantId}
+            <AgentMemoryForm
+              agentId={agentId}
               memory={editor.editing.item}
               onSaved={() => {
-                void invalidate(resourceKeys.assistantMemories(assistantId))
+                void invalidate(resourceKeys.agentMemories(agentId))
                 editor.finish(editor.editing)
               }}
               onCancel={editor.close}
@@ -138,31 +138,31 @@ export function AssistantMemoryPanel({ assistantId }: { assistantId: string }) {
 
       <ConfirmationDialog
         {...deletion.dialog}
-        title={t("assistants.memory.deleteTitle", {
+        title={t("personal.memory.deleteTitle", {
           name: deletion.item?.name ?? "",
         })}
-        description={t("assistants.memory.deleteDescription")}
+        description={t("personal.memory.deleteDescription")}
         pendingLabel={t("common:actions.deleting")}
       />
     </ResourceContent>
   )
 }
 
-/** 确认后删除助理记忆，成功后刷新记忆列表并调用 onSuccess。 */
-export function useAssistantMemoryDeletion(assistantId: string, onSuccess?: () => void) {
-  const { t } = useTranslation("contacts")
-  return useConfirmedAction<AssistantMemory>({
-    action: (memory) => deleteAssistantMemory(assistantId, memory.id),
-    invalidateKeys: () => [resourceKeys.assistantMemories(assistantId)],
-    successMessage: () => t("assistants.memory.deleted"),
-    errorMessage: () => t("assistants.memory.deleteError"),
-    logLabel: "删除助理记忆",
+/** 确认后删除个人 AI 员工记忆，成功后刷新记忆列表并调用 onSuccess。 */
+export function useAgentMemoryDeletion(agentId: string, onSuccess?: () => void) {
+  const { t } = useTranslation("agents")
+  return useConfirmedAction<AgentMemory>({
+    action: (memory) => deleteAgentMemory(agentId, memory.id),
+    invalidateKeys: () => [resourceKeys.agentMemories(agentId)],
+    successMessage: () => t("personal.memory.deleted"),
+    errorMessage: () => t("personal.memory.deleteError"),
+    logLabel: "删除个人 AI 员工记忆",
     onSuccess,
   })
 }
 
-/** 助理记忆表单校验规则。 */
-function createAssistantMemorySchema(messages: {
+/** 个人 AI 员工记忆表单校验规则。 */
+function createPersonalAgentMemorySchema(messages: {
   nameRequired: string
   nameTooLong: string
   descriptionRequired: string
@@ -177,38 +177,38 @@ function createAssistantMemorySchema(messages: {
   })
 }
 
-type AssistantMemoryFormValues = z.infer<
-  ReturnType<typeof createAssistantMemorySchema>
+type AgentMemoryFormValues = z.infer<
+  ReturnType<typeof createPersonalAgentMemorySchema>
 >
 
-/** 保存助理记忆的名称、说明与内容；未修改时跟随重新读取的记忆，移动端以整行保存按钮提交并由页头返回取消。 */
-export function AssistantMemoryForm({
-  assistantId,
+/** 保存个人 AI 员工记忆的名称、说明与内容；未修改时跟随重新读取的记忆，移动端以整行保存按钮提交并由页头返回取消。 */
+export function AgentMemoryForm({
+  agentId,
   memory,
   onSaved,
   onCancel,
 }: {
-  assistantId: string
-  memory: AssistantMemory
+  agentId: string
+  memory: AgentMemory
   onSaved: () => void
   onCancel?: () => void
 }) {
   const mobile = resolveAppPlatform() === "mobile"
-  const { t } = useTranslation(["contacts", "common"])
+  const { t } = useTranslation(["agents", "common"])
   const navigate = useNavigate()
   const schema = useMemo(
     () =>
-      createAssistantMemorySchema({
-        nameRequired: t("assistants.memory.validation.nameRequired"),
-        nameTooLong: t("assistants.memory.validation.nameTooLong"),
-        descriptionRequired: t("assistants.memory.validation.descriptionRequired"),
-        descriptionTooLong: t("assistants.memory.validation.descriptionTooLong"),
-        bodyRequired: t("assistants.memory.validation.bodyRequired"),
-        bodyTooLong: t("assistants.memory.validation.bodyTooLong"),
+      createPersonalAgentMemorySchema({
+        nameRequired: t("personal.memory.validation.nameRequired"),
+        nameTooLong: t("personal.memory.validation.nameTooLong"),
+        descriptionRequired: t("personal.memory.validation.descriptionRequired"),
+        descriptionTooLong: t("personal.memory.validation.descriptionTooLong"),
+        bodyRequired: t("personal.memory.validation.bodyRequired"),
+        bodyTooLong: t("personal.memory.validation.bodyTooLong"),
       }),
     [t],
   )
-  const form = useForm<AssistantMemoryFormValues>({
+  const form = useForm<AgentMemoryFormValues>({
     resolver: zodResolver(schema),
     shouldUseNativeValidation: true,
     defaultValues: {
@@ -234,19 +234,19 @@ export function AssistantMemoryForm({
   }, [form, isDirty, memory.name, memory.description, memory.body])
 
   /** 提交记忆的修改。 */
-  async function submit(values: AssistantMemoryFormValues) {
+  async function submit(values: AgentMemoryFormValues) {
     try {
-      await updateAssistantMemory(assistantId, memory.id, values)
-      toast.success(t("assistants.memory.saved"))
+      await updateAgentMemory(agentId, memory.id, values)
+      toast.success(t("personal.memory.saved"))
       // 表单已卸载时不再触发后续导航。
       if (mounted.current) onSaved()
     } catch (error) {
       if (recoverSession(error, navigate)) return
-      console.warn("保存助理记忆失败", { assistant_id: assistantId, memory_id: memory.id, error })
+      console.warn("保存个人 AI 员工记忆失败", { agent_id: agentId, memory_id: memory.id, error })
       toast.error(
         isApiError(error)
           ? apiErrorMessage(error, ["name", "description", "body"])
-          : t("assistants.memory.saveError"),
+          : t("personal.memory.saveError"),
       )
     }
   }
@@ -257,7 +257,7 @@ export function AssistantMemoryForm({
         <FormInputField
           name="name"
           control={form.control}
-          label={t("assistants.memory.form.name")}
+          label={t("personal.memory.form.name")}
           required
         />
         <Controller
@@ -266,7 +266,7 @@ export function AssistantMemoryForm({
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor={field.name} required>
-                {t("assistants.memory.form.description")}
+                {t("personal.memory.form.description")}
               </FieldLabel>
               <Input
                 {...field}
@@ -274,7 +274,7 @@ export function AssistantMemoryForm({
                 aria-invalid={fieldState.invalid}
               />
               <FieldDescription>
-                {t("assistants.memory.form.descriptionHelp")}
+                {t("personal.memory.form.descriptionHelp")}
               </FieldDescription>
             </Field>
           )}
@@ -285,7 +285,7 @@ export function AssistantMemoryForm({
           render={({ field, fieldState }) => (
             <Field data-invalid={fieldState.invalid}>
               <FieldLabel htmlFor={field.name} required>
-                {t("assistants.memory.form.body")}
+                {t("personal.memory.form.body")}
               </FieldLabel>
               <Textarea
                 {...field}

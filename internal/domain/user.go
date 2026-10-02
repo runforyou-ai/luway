@@ -1,6 +1,6 @@
 package domain
 
-// IdentityStatus 定义成员账号、AI 员工与助理的启用状态。
+// IdentityStatus 定义成员账号、AI 员工的启用状态。
 type IdentityStatus string
 
 const (

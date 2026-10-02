@@ -8,7 +8,7 @@ import { PageHeader } from "@/components/page-header"
 import { ResourceContent } from "@/components/resource-content"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { useContactInvalidator } from "@/hooks/use-contact-invalidator"
-import { MemberAssistantsSection } from "@/components/member-assistants-section"
+import { MemberPersonalAgentsSection } from "@/components/member-personal-agents-section"
 import { MemberForm } from "@/features/settings/members/member-form"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
@@ -65,7 +65,7 @@ export function MemberFormPage() {
                   leave({ replace: true })
                 }}
               />
-              <MemberAssistantsSection userId={user.id} />
+              <MemberPersonalAgentsSection userId={user.id} />
             </div>
           ) : null}
         </ResourceContent>

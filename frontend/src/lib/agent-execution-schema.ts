@@ -1,4 +1,4 @@
-/** AI 员工与助理共用的托管执行配置校验。 */
+/** AI 员工共用的托管执行配置校验。 */
 import { z } from "zod"
 
 import { isAgentModelSelection } from "@/lib/agent-model-selection"

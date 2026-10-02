@@ -62,7 +62,7 @@ func (q *GetQuery) Execute(ctx context.Context, identity *servermodels.Identity,
 			q.db.NewSelect().TableExpr("agents AS a").ColumnExpr("1").
 				Join("JOIN service_conversations AS svc ON svc.id = ss.service_conversation_id AND svc.organization_id = ss.organization_id").
 				Where("a.organization_id = ss.organization_id AND a.identity_id = ss.agent_identity_id").
-				Where("a.owner_user_id IS NULL AND svc.audience = ANY(a.service_audiences)"),
+				Where("svc.audience = ANY(a.service_audiences)"),
 			q.db.NewSelect().TableExpr("agent_evaluation_cases AS aec").ColumnExpr("1").
 				Where("aec.organization_id = kg.organization_id AND aec.question_message_id = kg.question_message_id")).
 		Join("JOIN service_sessions AS ss ON ss.id = kg.service_session_id AND ss.organization_id = kg.organization_id").

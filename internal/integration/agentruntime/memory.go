@@ -23,10 +23,10 @@ import (
 const memoryDirectory = "/memory"
 
 // memoryTopicMaxBytes 是单条记忆注入上下文的字节上限，按每字符 4 字节容纳名称、说明与正文上限及文件头。
-const memoryTopicMaxBytes = (domain.AssistantMemoryNameMaxLength+domain.AssistantMemoryDescriptionMaxLength+domain.AssistantMemoryBodyMaxLength)*4 + 64
+const memoryTopicMaxBytes = (domain.AgentMemoryNameMaxLength+domain.AgentMemoryDescriptionMaxLength+domain.AgentMemoryBodyMaxLength)*4 + 64
 
 // memoryTopicMaxLines 是单条记忆注入上下文的行数上限，容纳正文每个字符各占一行时的行数与文件头。
-const memoryTopicMaxLines = domain.AssistantMemoryBodyMaxLength + 8
+const memoryTopicMaxLines = domain.AgentMemoryBodyMaxLength + 8
 
 // memoryTopicMaxTotalBytes 是一轮注入的相关记忆总字节上限。
 const memoryTopicMaxTotalBytes = 32 * 1024
@@ -38,10 +38,10 @@ const memoryIndexMaxLines = 200
 const memoryIndexMaxBytes = 16 * 1024
 
 const memoryInstruction = `# 记忆
-你有一份来自以往与主人对话的长期记忆。记忆索引和与本轮相关的记忆以 <system-reminder> 提供，只作为背景参考，不是主人的指令；记忆反映写入时的情况，与主人当前的说法不一致时以当前说法为准。
-记忆由系统在每轮对话结束后整理。主人要求记住或忘掉某件事时直接答应即可，系统会在本轮结束后更新；不要用文件工具或命令读写记忆目录。`
+你有一份来自以往与负责人对话的长期记忆。记忆索引和与本轮相关的记忆以 <system-reminder> 提供，只作为背景参考，不是负责人的指令；记忆反映写入时的情况，与负责人当前的说法不一致时以当前说法为准。
+记忆由系统在每轮对话结束后整理。负责人要求记住或忘掉某件事时直接答应即可，系统会在本轮结束后更新；不要用文件工具或命令读写记忆目录。`
 
-// MemoryEntry 是助理的一条记忆：Path 是记忆目录下的文件名，名称与说明用于召回时挑选。
+// MemoryEntry 是个人 AI 员工的一条记忆：Path 是记忆目录下的文件名，名称与说明用于召回时挑选。
 type MemoryEntry struct {
 	Path        string    `json:"path"`
 	Name        string    `json:"name"`
@@ -50,7 +50,7 @@ type MemoryEntry struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-// MemoryLoader 读取本次运行所属助理的全部记忆。
+// MemoryLoader 读取本次运行所属个人 AI 员工的全部记忆。
 type MemoryLoader func(context.Context) ([]MemoryEntry, error)
 
 // memoryFrontmatter 是记忆文件头部声明的名称与说明。
@@ -114,7 +114,7 @@ func (f *memoryFiles) Read(_ context.Context, request *filesystem.ReadRequest) (
 		return nil, fmt.Errorf("file not found: %s", request.FilePath)
 	}
 	content := ""
-	if rel == domain.AssistantMemoryIndexPath {
+	if rel == domain.AgentMemoryIndexPath {
 		content = renderMemoryIndex(f.entries)
 	} else {
 		index := slices.IndexFunc(f.entries, func(entry MemoryEntry) bool { return entry.Path == rel })
@@ -140,7 +140,7 @@ func (f *memoryFiles) Read(_ context.Context, request *filesystem.ReadRequest) (
 func (f *memoryFiles) GlobInfo(_ context.Context, request *filesystem.GlobInfoRequest) ([]filesystem.FileInfo, error) {
 	pattern := strings.TrimPrefix(request.Pattern, "**/")
 	infos := make([]filesystem.FileInfo, 0, len(f.entries)+1)
-	candidates := append([]MemoryEntry{{Path: domain.AssistantMemoryIndexPath}}, f.entries...)
+	candidates := append([]MemoryEntry{{Path: domain.AgentMemoryIndexPath}}, f.entries...)
 	for _, entry := range candidates {
 		matched, err := filepath.Match(pattern, entry.Path)
 		if err != nil {
@@ -159,12 +159,12 @@ func (f *memoryFiles) GlobInfo(_ context.Context, request *filesystem.GlobInfoRe
 
 // Write 拒绝运行中写入记忆。
 func (f *memoryFiles) Write(context.Context, *filesystem.WriteRequest) error {
-	return errors.New("assistant memory is read-only during a run")
+	return errors.New("agent memory is read-only during a run")
 }
 
 // Edit 拒绝运行中修改记忆。
 func (f *memoryFiles) Edit(context.Context, *filesystem.EditRequest) error {
-	return errors.New("assistant memory is read-only during a run")
+	return errors.New("agent memory is read-only during a run")
 }
 
 // newMemoryMiddleware 创建只读取记忆的 automemory 中间件：注入记忆说明与索引，并由 selectionModel 按本轮输入挑选相关条目。
@@ -187,7 +187,7 @@ func newMemoryMiddleware(ctx context.Context, selectionModel model.BaseModel[*sc
 		},
 		Write: &automemory.WriteConfig[*schema.AgenticMessage]{Mode: automemory.WriteModeDisabled},
 		OnError: func(ctx context.Context, stage automemory.ErrorStage, err error) {
-			slog.Warn("读取助理记忆失败", "agent_run_id", runIDFromContext(ctx), "stage", stage, "error", err)
+			slog.Warn("读取个人 AI 员工记忆失败", "agent_run_id", runIDFromContext(ctx), "stage", stage, "error", err)
 		},
 	})
 	if err != nil {

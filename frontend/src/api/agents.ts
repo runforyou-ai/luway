@@ -12,6 +12,8 @@ import {
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   AgentExecutionMode,
+  LocalAgentKind,
+  PersonalAgentPresence,
   type Agent,
   type UpdateAgentExecutionInput,
   type AgentList,
@@ -22,6 +24,7 @@ import {
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 import type { NonNullArrays } from "@/api/normalize"
+import type { LocalAgentKindId, PersonalAgentPresenceId } from "@/api/personal-agents"
 
 type AgentListQuery = Partial<AgentListInput>
 
@@ -33,20 +36,28 @@ type ManagedAgentExecutionData = Omit<
   managed: NonNullable<NonNullArrays<Agent>["execution"]["managed"]>
 }
 
-type ManagedAgentExecutionSummaryData = Omit<
-  NonNullArrays<AgentListItem>["execution"],
-  "mode" | "managed"
-> & {
-  mode: AgentExecutionMode.AgentExecutionModeManaged
-  managed: NonNullable<NonNullArrays<AgentListItem>["execution"]["managed"]>
-}
+type AgentListExecutionSummary = NonNullArrays<AgentListItem>["execution"]
+
+/** 目录项执行配置摘要：平台托管执行带 managed，个人 AI 员工由本机 Agent 执行时带 localAgent。 */
+type AgentExecutionSummaryData =
+  | (Omit<AgentListExecutionSummary, "mode" | "managed" | "localAgent"> & {
+      mode: AgentExecutionMode.AgentExecutionModeManaged
+      managed: NonNullable<AgentListExecutionSummary["managed"]>
+      localAgent?: null
+    })
+  | (Omit<AgentListExecutionSummary, "mode" | "managed" | "localAgent"> & {
+      mode: AgentExecutionMode.AgentExecutionModeLocalAgent
+      managed?: null
+      localAgent: { kind: LocalAgentKindId }
+    })
 
 export type AgentData = Omit<NonNullArrays<Agent>, "execution"> & {
   execution: ManagedAgentExecutionData
 }
 
-export type AgentListItemData = Omit<NonNullArrays<AgentListItem>, "execution"> & {
-  execution: ManagedAgentExecutionSummaryData
+export type AgentListItemData = Omit<NonNullArrays<AgentListItem>, "execution" | "personal"> & {
+  execution: AgentExecutionSummaryData
+  personal?: { deviceId: string; deviceName: string; presence: PersonalAgentPresenceId } | null
 }
 
 type AgentListData = Omit<NonNullArrays<AgentList>, "agents"> & {
@@ -120,9 +131,25 @@ export function listAgents(
     },
     signal,
   ).then((output) => {
-    for (const agent of output.agents) assertManagedExecution(agent.execution)
+    for (const agent of output.agents) assertListItem(agent)
     return output as AgentListData
   })
+}
+
+/** 校验目录项：个人 AI 员工带有效在线状态且可由本机 Agent 执行，其他 AI 员工使用平台托管执行。 */
+function assertListItem(agent: NonNullArrays<AgentListItem>) {
+  if (!agent.personal) {
+    assertManagedExecution(agent.execution)
+    return
+  }
+  if (agent.personal.presence === PersonalAgentPresence.$zero) {
+    throw new Error("Personal agent presence is missing")
+  }
+  const local =
+    agent.execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent &&
+    agent.execution.localAgent &&
+    agent.execution.localAgent.kind !== LocalAgentKind.$zero
+  if (!local) assertManagedExecution(agent.execution)
 }
 
 /** 校验 AI 员工使用平台托管执行配置。 */

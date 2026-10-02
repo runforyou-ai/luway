@@ -1,7 +1,7 @@
-/** Agent 单聊运行状态与助理在线状态文案。 */
+/** Agent 单聊运行状态与个人 AI 员工在线状态文案。 */
 import type { TFunction } from "i18next"
 
-import { AgentRunStatus, AssistantPresence } from "@/api"
+import { AgentRunStatus, PersonalAgentPresence } from "@/api"
 
 /** 返回 Agent 单聊运行状态的用户文案。 */
 export function agentRunStatusLabel(
@@ -20,18 +20,18 @@ export function agentRunStatusLabel(
   }
 }
 
-/** 返回助理不在线时的原因文案，离线时说明上线后回复，在线或未知状态返回 null。 */
-export function assistantUnavailableLabel(
-  presence: AssistantPresence | null | undefined,
-  t: TFunction<["inbox", "contacts"]>,
+/** 返回个人 AI 员工不在线时的原因文案，离线时说明上线后回复，在线或未知状态返回 null。 */
+export function personalAgentUnavailableLabel(
+  presence: PersonalAgentPresence | null | undefined,
+  t: TFunction<["inbox", "agents"]>,
 ) {
   switch (presence) {
-    case AssistantPresence.AssistantPresenceOffline:
-      return t("inbox:assistantPresenceOffline")
-    case AssistantPresence.AssistantPresencePaused:
-      return t("contacts:assistants.presence.paused")
-    case AssistantPresence.AssistantPresenceUnbound:
-      return t("contacts:assistants.presence.unbound")
+    case PersonalAgentPresence.PersonalAgentPresenceOffline:
+      return t("inbox:personalAgentPresenceOffline")
+    case PersonalAgentPresence.PersonalAgentPresencePaused:
+      return t("agents:personal.presence.paused")
+    case PersonalAgentPresence.PersonalAgentPresenceUnbound:
+      return t("agents:personal.presence.unbound")
     default:
       return null
   }

@@ -1,4 +1,4 @@
-/** 本机设置：这台电脑为助理提供的运行环境、本地 MCP 服务与技能，当前页签与地址同步。 */
+/** 本机设置：这台电脑为 AI 员工提供的运行环境、本地 MCP 服务与技能，当前页签与地址同步。 */
 import { useEffect, useState } from "react"
 import { BlocksIcon, PackageIcon, SparklesIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -344,7 +344,7 @@ function LocalMCPServers({ servers }: { servers: LocalMCPServerData[] }) {
   )
 }
 
-/** 列出这台电脑上可用的技能及其来源，助理安装的技能可以删除。 */
+/** 列出这台电脑上可用的技能及其来源，AI 员工安装的技能可以删除。 */
 function LocalSkills({ skills }: { skills: LocalSkillData[] }) {
   const { t } = useTranslation(["settings", "common"])
   const removal = useConfirmedAction<LocalSkillData>({

@@ -12,7 +12,7 @@ import {
 import {
   ConversationType,
   getAgent,
-  getAssistant,
+  getPersonalAgent,
   isAgentInboxConversation,
   isNotFoundApiError,
   UserStatus,
@@ -38,11 +38,11 @@ import { useResource } from "@/hooks/use-resource"
 /** 移动端 AI 聊天草稿目标的身份、名称与账号状态。 */
 type DraftTarget = Pick<AgentData, "identityId" | "displayName" | "status">
 
-/** 移动端 AI 聊天路由状态：draftAgentID 按 AI 员工或助理编号读取草稿目标，draftTarget 为已解析的活跃目标。 */
+/** 移动端 AI 聊天路由状态：draftAgentID 按 AI 员工编号读取草稿目标，draftTarget 为已解析的活跃目标。 */
 export type MobileAgentLocationState = MobileLocateState & {
   draftAgentID?: string
   draftTarget?: Pick<AgentData, "identityId" | "displayName">
-  draftAssistant?: boolean
+  draftPersonalAgent?: boolean
   mobileBack?: boolean
 }
 
@@ -66,8 +66,8 @@ function MobileAgentConversation({ conversationID }: { conversationID: string })
   const [draftAgentID] = useState(
     () => (location.state as MobileAgentLocationState | null)?.draftAgentID ?? "",
   )
-  const [draftAssistant] = useState(
-    () => (location.state as MobileAgentLocationState | null)?.draftAssistant ?? false,
+  const [draftPersonalAgent] = useState(
+    () => (location.state as MobileAgentLocationState | null)?.draftPersonalAgent ?? false,
   )
   const [draftAgent, setDraftAgent] = useState<DraftTarget | null>(() => {
     const target = (location.state as MobileAgentLocationState | null)?.draftTarget
@@ -78,19 +78,19 @@ function MobileAgentConversation({ conversationID }: { conversationID: string })
   const alive = useMountedRef()
   const firstChat = useFirstChatMessage()
   const conversationName = useConversationName()
-  // 草稿目标为本人助理时读取助理详情，其余读取 AI 员工详情。
+  // 草稿目标为本人负责的个人 AI 员工时读取其详情，其余读取 AI 员工详情。
   const employee = useResource(
     resourceKeys.agent(draftAgentID),
     () => getAgent(draftAgentID),
-    { staleTime: 0, enabled: !persisted && !draftAgent && !draftAssistant },
+    { staleTime: 0, enabled: !persisted && !draftAgent && !draftPersonalAgent },
   )
-  const assistant = useResource(
-    resourceKeys.assistant(draftAgentID),
-    () => getAssistant(draftAgentID),
-    { staleTime: 0, enabled: !persisted && !draftAgent && draftAssistant },
+  const personalAgent = useResource(
+    resourceKeys.personalAgent(draftAgentID),
+    () => getPersonalAgent(draftAgentID),
+    { staleTime: 0, enabled: !persisted && !draftAgent && draftPersonalAgent },
   )
-  const agent = draftAssistant
-    ? { ...assistant, data: assistant.data?.assistant as DraftTarget | undefined }
+  const agent = draftPersonalAgent
+    ? { ...personalAgent, data: personalAgent.data?.personalAgent as DraftTarget | undefined }
     : employee
   const summary = useConversationSummary(persisted ? conversationID : "", false)
   // 首发结果只用于当前页面过渡；后续摘要（包括不可用结果）由查询接管。

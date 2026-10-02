@@ -10,7 +10,7 @@ import {
   type InboxConversationData,
 } from "@/api"
 import { IconTooltip } from "@/components/icon-tooltip"
-import { useAssistantDisplayName } from "@/hooks/use-assistant-display-name"
+import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import { useContactName } from "@/hooks/use-contact-name"
 import { Button } from "@/components/ui/button"
 import {
@@ -134,7 +134,7 @@ export function ComposerReplyPreview({
   onCancel: () => void
 }) {
   const { t } = useTranslation("inbox")
-  const assistantDisplayName = useAssistantDisplayName()
+  const personalAgentDisplayName = usePersonalAgentDisplayName()
   const contactName = useContactName()
   return (
     <div className="flex items-start justify-between gap-3 border-b px-3 py-2 text-xs">
@@ -144,9 +144,9 @@ export function ComposerReplyPreview({
             ? t("messageOriginalDeleted")
             : t("messageReplyingTo", {
                 name:
-                  assistantDisplayName(
+                  personalAgentDisplayName(
                     contactName(replyTo.sender?.displayName, replyTo.sender?.contactNumber),
-                    replyTo.sender?.assistantOwnerName,
+                    replyTo.sender?.personalResponsibleName,
                   ) || t("unknownSender"),
               })}
         </p>

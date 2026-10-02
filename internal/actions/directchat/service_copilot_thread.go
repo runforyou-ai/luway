@@ -207,7 +207,8 @@ func ensureServiceCopilotThread(ctx context.Context, tx bun.Tx, identity *server
 	}
 	agentAvailable, err := tx.NewSelect().TableExpr("agents AS agent").
 		Join("JOIN organization_identities AS oi ON oi.organization_id = agent.organization_id AND oi.id = agent.identity_id AND oi.type = ?", domain.OrganizationIdentityTypeAgent).
-		Where("agent.organization_id = ? AND agent.identity_id = ? AND agent.status = ?", identity.Organization.ID, agentID, domain.IdentityStatusActive).Exists(ctx)
+		Where("agent.organization_id = ? AND agent.identity_id = ? AND agent.status = ?", identity.Organization.ID, agentID, domain.IdentityStatusActive).
+		Where("NOT ? = ANY(agent.service_audiences)", domain.ServiceAudiencePersonal).Exists(ctx)
 	if err != nil {
 		return fmt.Errorf("check copilot agent: %w", err)
 	}

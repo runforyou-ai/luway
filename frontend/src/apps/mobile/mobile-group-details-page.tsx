@@ -62,9 +62,9 @@ export function MobileGroupDetailsPage() {
       member.role === GroupParticipantRole.GroupParticipantRoleOwner,
   )
   const canManage = isOwner && !archived
-  // 当前成员名下已在群内的助理，由本人移出。
-  const ownsAssistantInGroup = group.participants.some(
-    (member) => member.assistantOwnerIdentityId === identity.user.identityId,
+  // 当前成员负责的已在群内的个人 AI 员工，由本人移出。
+  const ownsPersonalAgentInGroup = group.participants.some(
+    (member) => member.personalResponsibleIdentityId === identity.user.identityId,
   )
   useEffect(() => {
     // 群聊解散或群主身份变化后关闭退出、解散确认。
@@ -142,14 +142,14 @@ export function MobileGroupDetailsPage() {
         <MobileScrollArea storageKey={`group-details:${group.id}`}>
           <MobileGroupMembersPreview
             group={group}
-            showRemove={isOwner || ownsAssistantInGroup}
+            showRemove={isOwner || ownsPersonalAgentInGroup}
             returnDepth={returnDepth}
             canAdd={
               !archived && !save.saving && group.participants.length < groupMemberMaxCount
             }
             canRemove={
               !save.saving &&
-              (canManage ? group.participants.length > 1 : !archived && ownsAssistantInGroup)
+              (canManage ? group.participants.length > 1 : !archived && ownsPersonalAgentInGroup)
             }
           />
           <MobileGroupInfo

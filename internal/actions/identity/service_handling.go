@@ -143,11 +143,13 @@ func TeamHasServiceHandler(ctx context.Context, db bun.IDB, organizationID, team
 		Exists(ctx)
 }
 
-// ApplyActiveMemberConditions 给以 oi 为别名的企业身份查询追加有效成员条件：真人成员账号有效或 AI 员工有效。
+// ApplyActiveMemberConditions 给以 oi 为别名的企业身份查询追加有效成员条件：真人成员账号有效，或服务客户、员工的 AI 员工有效。
 func ApplyActiveMemberConditions(query *bun.SelectQuery) *bun.SelectQuery {
 	return query.Where(`((oi.type = ? AND EXISTS (
 			SELECT 1 FROM users AS mu WHERE mu.identity_id = oi.id AND mu.organization_id = oi.organization_id AND mu.status = ?))
 		OR (oi.type = ? AND EXISTS (
-			SELECT 1 FROM agents AS ma WHERE ma.identity_id = oi.id AND ma.organization_id = oi.organization_id AND ma.status = ?)))`,
-		domain.OrganizationIdentityTypeUser, domain.IdentityStatusActive, domain.OrganizationIdentityTypeAgent, domain.IdentityStatusActive)
+			SELECT 1 FROM agents AS ma WHERE ma.identity_id = oi.id AND ma.organization_id = oi.organization_id AND ma.status = ?
+				AND NOT ? = ANY(ma.service_audiences))))`,
+		domain.OrganizationIdentityTypeUser, domain.IdentityStatusActive, domain.OrganizationIdentityTypeAgent, domain.IdentityStatusActive,
+		domain.ServiceAudiencePersonal)
 }

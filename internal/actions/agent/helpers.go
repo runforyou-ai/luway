@@ -9,14 +9,13 @@ import (
 
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
 	"github.com/runforyou-ai/luway/internal/common"
-	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/uptrace/bun"
 )
 
-// employeeIdentityCondition 限定 agents 记录为 AI 员工，调用方查询的 agents 别名为 a。
-var employeeIdentityCondition = "a.identity_id IN (SELECT oi.id FROM organization_identities AS oi WHERE oi.organization_id = a.organization_id AND oi.type = '" + string(domain.OrganizationIdentityTypeAgent) + "')"
+// serviceAgentCondition 限定 agents 记录为服务客户或员工的 AI 员工，调用方查询的 agents 别名为 a。
+var serviceAgentCondition = "NOT " + personalAgentCondition
 
-// loadAgent 读取当前企业中的 AI 员工详情。
+// loadAgent 读取当前企业中服务客户或员工的 AI 员工详情。
 func loadAgent(ctx context.Context, db bun.IDB, organizationID, agentID string) (*Agent, error) {
 	if !common.ValidUUID(agentID) {
 		return nil, ErrNotFound
@@ -24,8 +23,9 @@ func loadAgent(ctx context.Context, db bun.IDB, organizationID, agentID string) 
 	agent := &Agent{}
 	err := db.NewSelect().TableExpr("agents AS a").
 		ColumnExpr("a.id::text AS id, a.identity_id::text AS identity_id, oi.display_name, oi.avatar_file_id::text AS avatar_file_id, a.service_audiences, a.handoff_team_id::text AS handoff_team_id, a.status, oi.work_status, oi.created_at").
-		Join("JOIN organization_identities AS oi ON oi.id = a.identity_id AND oi.organization_id = a.organization_id AND oi.type = ?", domain.OrganizationIdentityTypeAgent).
+		Join("JOIN organization_identities AS oi ON oi.id = a.identity_id AND oi.organization_id = a.organization_id").
 		Where("a.id = ?", agentID).
+		Where(serviceAgentCondition).
 		Where("a.organization_id = ?", organizationID).
 		Scan(ctx, agent)
 	if errors.Is(err, sql.ErrNoRows) {

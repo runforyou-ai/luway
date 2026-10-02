@@ -226,16 +226,16 @@ func inboxConversationFromAction(summary inboxaction.ConversationSummary, avatar
 			status := appservice.AgentRunStatus(*summary.Agent.AgentRunStatus)
 			agentRunStatus = &status
 		}
-		// 只有助理携带在线状态。
-		var assistantPresence *appservice.AssistantPresence
-		if summary.Agent.AssistantPresence != "" {
-			presence := appservice.AssistantPresence(summary.Agent.AssistantPresence)
-			assistantPresence = &presence
+		// 只有个人 AI 员工携带在线状态。
+		var personalPresence *appservice.PersonalAgentPresence
+		if summary.Agent.PersonalPresence != "" {
+			presence := appservice.PersonalAgentPresence(summary.Agent.PersonalPresence)
+			personalPresence = &presence
 		}
 		conversation.Agent = &appservice.AgentInboxConversation{
 			Title: summary.Agent.Title, AgentIdentityID: summary.Agent.AgentIdentityID, AgentName: summary.Agent.AgentName, AgentAvatarURL: optionalFileURL(avatarURLs, summary.Agent.AgentAvatarFileID), AgentStatus: appservice.UserStatus(summary.Agent.AgentStatus),
-			AgentType: appservice.OrganizationIdentityType(summary.Agent.AgentType), AssistantPresence: assistantPresence,
-			Preview: messagePreviewText(summary.Agent.Preview, summary.Agent.PreviewSenderIdentityType), LastMessageAt: summary.Agent.LastMessageAt, AgentRunStatus: agentRunStatus,
+			PersonalPresence: personalPresence,
+			Preview:          messagePreviewText(summary.Agent.Preview, summary.Agent.PreviewSenderIdentityType), LastMessageAt: summary.Agent.LastMessageAt, AgentRunStatus: agentRunStatus,
 			ServiceOpen: summary.Agent.ServiceOpen,
 		}
 	}
@@ -434,7 +434,7 @@ func (o *directOperations) SearchInbox(ctx context.Context, meta appservice.Requ
 	}
 	for _, person := range result.People {
 		item := appservice.InboxSearchPerson{
-			Kind: appservice.InboxSearchPersonKind(person.Kind), ID: person.ID, UserID: person.UserID, AgentID: person.AgentID, DisplayName: person.DisplayName, ContactNumber: person.ContactNumber,
+			Kind: appservice.InboxSearchPersonKind(person.Kind), ID: person.ID, UserID: person.UserID, AgentID: person.AgentID, Personal: person.Personal, DisplayName: person.DisplayName, ContactNumber: person.ContactNumber,
 			AvatarURL: optionalFileURL(avatarURLs, person.AvatarFileID), ConversationID: person.ConversationID,
 		}
 		if person.Kind == inboxaction.SearchPersonMember {

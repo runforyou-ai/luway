@@ -1,13 +1,19 @@
-/** AI 员工列表页：筛选、配置入口和状态管理。 */
+/** AI 员工列表页：服务型 AI 员工与本人的个人 AI 员工共用一个列表，提供筛选、配置入口和状态管理。 */
 import { PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Link, useNavigate } from "react-router"
 
 import {
+  AgentExecutionMode,
+  PersonalAgentPresence,
   UserStatus,
+  currentDevice,
   deactivateAgent,
+  deactivatePersonalAgent,
   listAgents,
+  movePersonalAgent,
   reactivateAgent,
+  reactivatePersonalAgent,
   type AgentListItemData,
 } from "@/api"
 import {
@@ -18,24 +24,30 @@ import {
 } from "@/components/list-toolbar"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { PageHeader } from "@/components/page-header"
+import { PersonalAgentPresenceMark } from "@/components/personal-agent-presence-mark"
 import { ResourceListLayout } from "@/components/resource-list"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
-import { ResourceTable } from "@/components/resource-table"
+import { ResourceTable, type ResourceRowAction } from "@/components/resource-table"
 import { WorkStatusDot } from "@/components/work-status"
 import { Button } from "@/components/ui/button"
 import {
   AccountStatusFilter,
   useAccountStatusToggle,
 } from "@/components/account-status-toggle"
+import { usePersonalAgentPause } from "@/features/agents/personal/use-personal-agent-pause"
 import { contactResourceKeys } from "@/hooks/use-contact-invalidator"
 import { useContactSearch } from "@/hooks/use-contact-search"
+import { useConfirmedAction } from "@/hooks/use-confirmed-action"
+import { personalAgentResourceKeys } from "@/hooks/use-personal-agent-invalidator"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
-import { usePagedResource } from "@/hooks/use-resource"
+import { usePagedResource, useResource } from "@/hooks/use-resource"
 import { useReturnLink } from "@/hooks/use-return-to"
+import { localAgentName } from "@/lib/local-agent-name"
+import { personalAgentPresenceLabel } from "@/lib/personal-agent-presence"
 import { optionalWailsEnum } from "@/lib/wails-enum"
 
-/** 显示 AI 员工列表并提供配置和状态操作。 */
+/** 显示 AI 员工列表并提供配置和状态操作；个人 AI 员工额外提供暂停和换到这台电脑。 */
 export function AgentListPage() {
   const { t } = useTranslation(["agents", "common"])
   const { formatDateTime } = useDateTime()
@@ -52,6 +64,23 @@ export function AgentListPage() {
     invalidateKeys: (agent) => contactResourceKeys("agent", agent.id),
     logLabel: "修改 AI 员工状态",
   })
+  const personalStatusToggle = useAccountStatusToggle<AgentListItemData>({
+    keyPrefix: "agents:personal.status",
+    deactivate: deactivatePersonalAgent,
+    reactivate: reactivatePersonalAgent,
+    invalidateKeys: (agent) => personalAgentResourceKeys(agent.id),
+    logLabel: "修改个人 AI 员工状态",
+  })
+  const { data: local } = useResource(resourceKeys.currentDevice(), () => currentDevice())
+  const localDeviceID = local?.deviceId ?? ""
+  const move = useConfirmedAction<AgentListItemData>({
+    action: (agent) => movePersonalAgent(agent.id, localDeviceID),
+    invalidateKeys: (agent) => personalAgentResourceKeys(agent.id),
+    successMessage: () => t("personal.move.done"),
+    errorMessage: () => t("personal.move.error"),
+    logLabel: "把个人 AI 员工换到这台电脑",
+  })
+  const pause = usePersonalAgentPause()
 
   const list = usePagedResource(
     resourceKeys.agents({ query, status, pageSize: 50 }),
@@ -60,6 +89,33 @@ export function AgentListPage() {
   )
   const agents = list.data?.items ?? []
   const returnLink = useReturnLink()
+
+  /** 返回个人 AI 员工特有的行操作：桌面端换到这台电脑、暂停或恢复。 */
+  function personalActions(agent: AgentListItemData): ResourceRowAction[] {
+    const personal = agent.personal
+    if (!personal) return []
+    const active = agent.status === UserStatus.UserStatusActive
+    const unbound = personal.presence === PersonalAgentPresence.PersonalAgentPresenceUnbound
+    const paused = personal.presence === PersonalAgentPresence.PersonalAgentPresencePaused
+    return [
+      // 换到这台电脑只在桌面端出现。
+      ...(localDeviceID
+        ? [{
+            key: "move",
+            label: t("personal.actions.move"),
+            disabled: personal.deviceId === localDeviceID && !unbound,
+            onSelect: () => move.select(agent),
+          }]
+        : []),
+      {
+        key: "pause",
+        label: t(paused ? "personal.actions.resume" : "personal.actions.pause"),
+        // 已禁用或未绑定电脑的个人 AI 员工不接收请求，暂停没有意义。
+        disabled: !active || unbound || pause.saving,
+        onSelect: () => void pause.toggle({ id: agent.id, presence: personal.presence }),
+      },
+    ]
+  }
 
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -109,8 +165,22 @@ export function AgentListPage() {
                     name: agent.displayName,
                     fallback: "agent",
                   }}
-                  mark={<WorkStatusDot status={agent.workStatus} />}
+                  mark={
+                    agent.personal ? (
+                      <PersonalAgentPresenceMark presence={agent.personal.presence} />
+                    ) : (
+                      <WorkStatusDot status={agent.workStatus} />
+                    )
+                  }
                   name={agent.displayName}
+                  secondary={agent.personal ? t("form.audiences.personal") : undefined}
+                  description={
+                    agent.personal
+                      ? [personalAgentPresenceLabel(agent.personal.presence, t), agent.personal.deviceName]
+                          .filter(Boolean)
+                          .join(" · ")
+                      : undefined
+                  }
                 />
               ),
             },
@@ -120,8 +190,9 @@ export function AgentListPage() {
               cellClassName: "max-w-xs text-muted-foreground",
               cell: (agent) => (
                 <span className="block truncate">
-                  {agent.execution.managed.providerName} ·{" "}
-                  {agent.execution.managed.modelName}
+                  {agent.execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent
+                    ? t("personal.form.executorLocalAgent", { name: localAgentName(agent.execution.localAgent.kind) })
+                    : `${agent.execution.managed.providerName} · ${agent.execution.managed.modelName}`}
                 </span>
               ),
             },
@@ -137,7 +208,7 @@ export function AgentListPage() {
           rowKey={(agent) => agent.id}
           empty={t("empty")}
           onRowActivate={(agent) =>
-            navigate(returnLink(`/ai-employees/${agent.id}`))
+            navigate(returnLink(agent.personal ? `/ai-employees/personal/${agent.id}` : `/ai-employees/${agent.id}`))
           }
           // 已停用的 AI 员工保留禁用的发消息。
           rowActions={(agent) => [
@@ -148,12 +219,21 @@ export function AgentListPage() {
               onSelect: () =>
                 navigate(`/chats?target=${agent.identityId}`),
             },
-            statusToggle.rowAction(agent),
+            ...personalActions(agent),
+            (agent.personal ? personalStatusToggle : statusToggle).rowAction(agent),
           ]}
         />
       </ResourceListLayout>
 
+      <ConfirmationDialog
+        {...move.dialog}
+        title={t("personal.move.title", { name: move.item?.displayName ?? "" })}
+        description={t("personal.move.description")}
+        pendingLabel={t("personal.move.saving")}
+        destructive={false}
+      />
       <ConfirmationDialog {...statusToggle.dialog} />
+      <ConfirmationDialog {...personalStatusToggle.dialog} />
     </section>
   )
 }

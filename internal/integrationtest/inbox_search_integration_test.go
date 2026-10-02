@@ -114,7 +114,7 @@ func TestInboxSearch(t *testing.T) {
 		t.Fatal(err)
 	}
 	agent, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{
-		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "检索助理",
+		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "检索个人 AI 员工",
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
 			ProviderID: provider.ID, ModelIdentifier: model.Identifier, SystemInstruction: "负责检索测试。",
 		}},
@@ -122,7 +122,7 @@ func TestInboxSearch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	agents := search(f.owner, inboxaction.SearchInput{Text: "检索助理", Range: inboxaction.SearchRangeReadable})
+	agents := search(f.owner, inboxaction.SearchInput{Text: "检索个人 AI 员工", Range: inboxaction.SearchRangeReadable})
 	if !slices.ContainsFunc(agents.People, func(person inboxaction.SearchPerson) bool {
 		return person.Kind == inboxaction.SearchPersonMember && person.IdentityType == domain.OrganizationIdentityTypeAgent &&
 			person.AgentID != nil && *person.AgentID == agent.ID && person.UserID == nil

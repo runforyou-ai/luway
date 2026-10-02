@@ -32,9 +32,9 @@ const (
 	DeviceRunMaxDuration = 30 * time.Minute
 	// deviceRunSweepBatch 是单次扫描收敛的运行数量上限。
 	deviceRunSweepBatch = 100
-	// deviceRunRouteJoins 关联运行所属助理。
+	// deviceRunRouteJoins 关联运行所属个人 AI 员工。
 	deviceRunRouteJoins = `JOIN agents AS a ON a.organization_id = agr.organization_id AND a.identity_id = agr.agent_identity_id`
-	// deviceRunRouteCurrent 判断助理仍绑定运行的执行设备。
+	// deviceRunRouteCurrent 判断个人 AI 员工仍绑定运行的执行设备。
 	deviceRunRouteCurrent = `a.device_id = agr.execution_device_id`
 )
 
@@ -94,7 +94,7 @@ type DeviceClaimedInput struct {
 	Input      agentruntime.ClaimedInput
 }
 
-// DeviceWork 返回设备的工作水位与按创建顺序排列、助理仍绑定该设备的待领取运行。
+// DeviceWork 返回设备的工作水位与按创建顺序排列、个人 AI 员工仍绑定该设备的待领取运行。
 func (a *ExecuteAction) DeviceWork(ctx context.Context, device RunDevice) (DeviceWork, error) {
 	work := DeviceWork{Runs: make([]DeviceWorkRun, 0)}
 	if err := a.db.NewSelect().Model((*servermodels.Device)(nil)).Column("work_seq").
@@ -104,7 +104,7 @@ func (a *ExecuteAction) DeviceWork(ctx context.Context, device RunDevice) (Devic
 	}
 	if err := a.db.NewSelect().Model((*servermodels.AgentRun)(nil)).
 		ColumnExpr("agr.id, agr.conversation_id").
-		// 助理已换电脑的运行不再交给设备，由收敛扫描标记失败。
+		// 个人 AI 员工已换电脑的运行不再交给设备，由收敛扫描标记失败。
 		Join(deviceRunRouteJoins).
 		Where(deviceRunRouteCurrent).
 		Where("agr.organization_id = ? AND agr.execution_device_id = ?", device.OrganizationID, device.DeviceID).
@@ -139,7 +139,7 @@ func (a *ExecuteAction) ClaimDeviceRun(ctx context.Context, device RunDevice, ru
 		if run.Status != string(domain.AgentRunStatusQueued) {
 			return ErrDeviceRunUnavailable
 		}
-		// 助理已换电脑时拒绝领取，由收敛扫描标记失败。
+		// 个人 AI 员工已换电脑时拒绝领取，由收敛扫描标记失败。
 		current, err := tx.NewSelect().Model((*servermodels.AgentRun)(nil)).
 			Join(deviceRunRouteJoins).
 			Where("agr.id = ?", run.ID).
@@ -160,7 +160,7 @@ func (a *ExecuteAction) ClaimDeviceRun(ctx context.Context, device RunDevice, ru
 		`, domain.AgentRunStatusRunning, DeviceRunLeaseTTL.Seconds(), run.ID).Scan(ctx, &claim.LeaseExpiresAt); err != nil {
 			return fmt.Errorf("claim device agent run: %w", err)
 		}
-		// 运行期间以助理的聊天主体发布输入状态。
+		// 运行期间以个人 AI 员工的聊天主体发布输入状态。
 		if _, err := chatstate.EnsureOrganizationIdentityChatSubject(ctx, tx, run.OrganizationID, run.AgentIdentityID, uuid.NewV7().String()); err != nil {
 			return err
 		}
@@ -195,7 +195,7 @@ func (a *ExecuteAction) deviceAssignment(ctx context.Context, runID string, poli
 	if err != nil {
 		return nil, err
 	}
-	// 配置版本绑定知识库、企业 MCP 服务与企业启用联网搜索时经服务端检索、调用和搜索，网页在本机读取，本机工具全部提供，助理记忆经服务端读取。
+	// 配置版本绑定知识库、企业 MCP 服务与企业启用联网搜索时经服务端检索、调用和搜索，网页在本机读取，本机工具全部提供，个人 AI 员工记忆经服务端读取。
 	capabilities := shared.capabilities
 	capabilities.Knowledge = len(execution.KnowledgeBaseIDs) > 0
 	capabilities.LocalTools = agentruntime.LocalTools()
@@ -409,7 +409,7 @@ func (a *ExecuteAction) expireDeviceRun(ctx context.Context, run *servermodels.A
 	return a.persistPartialProcess(ctx, run, partial)
 }
 
-// SweepDeviceRuns 收敛无法继续的设备运行：运行中但租约已过期或超出总时限，或排队中但设备已撤销、设备主人已停用或助理已换电脑。
+// SweepDeviceRuns 收敛无法继续的设备运行：运行中但租约已过期或超出总时限，或排队中但设备已撤销、设备所属成员已停用或个人 AI 员工已换电脑。
 func (a *ExecuteAction) SweepDeviceRuns(ctx context.Context, _ struct{}) error {
 	var stale []struct {
 		ID   string                   `bun:"id"`

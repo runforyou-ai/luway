@@ -8,7 +8,7 @@ import type { ResourceRowAction } from "@/components/resource-table"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 
 /** 启停文案所在的词条前缀。 */
-type AccountStatusKeyPrefix = "contacts:members.status" | "contacts:assistants.status" | "agents:status"
+type AccountStatusKeyPrefix = "contacts:members.status" | "agents:personal.status" | "agents:status"
 
 type AccountItem = {
   id: string

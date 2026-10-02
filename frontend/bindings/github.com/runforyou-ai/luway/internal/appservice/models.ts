@@ -518,7 +518,7 @@ export interface AgentExecution {
 }
 
 /**
- * AgentExecutionInput 定义执行配置输入，按执行方式填写 managed 或 localAgent；localAgent 只用于助理。
+ * AgentExecutionInput 定义执行配置输入，按执行方式填写 managed 或 localAgent；localAgent 只用于个人 AI 员工。
  */
 export interface AgentExecutionInput {
     "mode": AgentExecutionMode;
@@ -527,7 +527,7 @@ export interface AgentExecutionInput {
 }
 
 /**
- * AgentExecutionMode 表示 AI 员工与助理的执行方式。
+ * AgentExecutionMode 表示 AI 员工的执行方式。
  */
 export enum AgentExecutionMode {
     /**
@@ -579,8 +579,11 @@ export interface AgentInboxConversation {
     "agentName": string;
     "agentAvatarUrl": string;
     "agentStatus": UserStatus;
-    "agentType": OrganizationIdentityType;
-    "assistantPresence": AssistantPresence | null;
+
+    /**
+     * PersonalPresence 是个人 AI 员工的在线状态，其他 AI 员工为空。
+     */
+    "personalPresence": PersonalAgentPresence | null;
 
     /**
      * Preview 是末条消息的单行纯文本摘要。
@@ -614,18 +617,29 @@ export interface AgentListInput {
 }
 
 /**
- * AgentListItem 定义 AI 员工目录项。
+ * AgentListItem 定义 AI 员工目录项，Personal 只在个人 AI 员工上有值。
  */
 export interface AgentListItem {
     "id": string;
     "identityId": string;
     "displayName": string;
     "avatarUrl": string;
+    "serviceAudiences": ServiceAudience[] | null;
     "status": UserStatus;
     "workStatus": WorkStatus;
     "teams": TeamSummary[] | null;
     "execution": AgentExecutionSummary;
+    "personal"?: AgentListPersonalItem | null;
     "createdAt": string;
+}
+
+/**
+ * AgentListPersonalItem 定义个人 AI 员工目录项的绑定电脑与在线状态。
+ */
+export interface AgentListPersonalItem {
+    "deviceId": string;
+    "deviceName": string;
+    "presence": PersonalAgentPresence;
 }
 
 /**
@@ -702,6 +716,33 @@ export interface AgentManagedExecutionSummary {
     "providerName": string;
     "modelIdentifier": string;
     "modelName": string;
+}
+
+/**
+ * AgentMemory 定义个人 AI 员工的一条记忆。
+ */
+export interface AgentMemory {
+    "id": string;
+    "name": string;
+    "description": string;
+    "body": string;
+    "updatedAt": string;
+}
+
+/**
+ * AgentMemoryInput 定义负责人编辑记忆时提交的名称、说明与正文。
+ */
+export interface AgentMemoryInput {
+    "name": string;
+    "description": string;
+    "body": string;
+}
+
+/**
+ * AgentMemoryList 定义个人 AI 员工的记忆列表。
+ */
+export interface AgentMemoryList {
+    "memories": AgentMemory[] | null;
 }
 
 /**
@@ -919,115 +960,6 @@ export interface ArchivedConversationListInput {
     "page": number;
     "pageSize": number;
 }
-
-/**
- * Assistant 定义助理信息。
- */
-export interface Assistant {
-    "id": string;
-    "identityId": string;
-    "displayName": string;
-    "avatarUrl": string;
-    "owner": AssistantOwner;
-    "device": AssistantDevice;
-    "status": UserStatus;
-    "presence": AssistantPresence;
-    "execution": AgentExecutionSummary;
-    "createdAt": string;
-}
-
-/**
- * AssistantDetail 定义助理信息与当前完整执行配置。
- */
-export interface AssistantDetail {
-    "assistant": Assistant;
-    "execution": AgentExecution;
-}
-
-/**
- * AssistantDevice 定义助理绑定电脑的摘要，LocalAgents 是该电脑上报的已安装且可用的本机 Agent。
- */
-export interface AssistantDevice {
-    "id": string;
-    "name": string;
-    "localAgents": LocalAgentKind[] | null;
-}
-
-/**
- * AssistantDeviceInput 定义助理要换到的电脑。
- */
-export interface AssistantDeviceInput {
-    "deviceId": string;
-}
-
-/**
- * AssistantInput 定义助理的资料、执行配置与企业 MCP 服务，avatarFileId 为空时保留当前头像。
- */
-export interface AssistantInput {
-    "displayName": string;
-    "avatarFileId": string;
-    "execution": AgentExecutionInput;
-    "mcpServerIds": string[] | null;
-}
-
-/**
- * AssistantList 定义助理列表。
- */
-export interface AssistantList {
-    "assistants": Assistant[] | null;
-}
-
-/**
- * AssistantMemory 定义助理的一条记忆。
- */
-export interface AssistantMemory {
-    "id": string;
-    "name": string;
-    "description": string;
-    "body": string;
-    "updatedAt": string;
-}
-
-/**
- * AssistantMemoryInput 定义主人编辑记忆时提交的名称、说明与正文。
- */
-export interface AssistantMemoryInput {
-    "name": string;
-    "description": string;
-    "body": string;
-}
-
-/**
- * AssistantMemoryList 定义助理的记忆列表。
- */
-export interface AssistantMemoryList {
-    "memories": AssistantMemory[] | null;
-}
-
-/**
- * AssistantOwner 定义助理主人的摘要。
- */
-export interface AssistantOwner {
-    "userId": string;
-    "identityId": string;
-    "displayName": string;
-}
-
-/**
- * AssistantPresence 表示助理当前能否处理新请求。
- */
-export enum AssistantPresence {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    AssistantPresenceOnline = "online",
-    AssistantPresenceOffline = "offline",
-    AssistantPresencePaused = "paused",
-    AssistantPresenceUnbound = "unbound",
-    AssistantPresenceInactive = "inactive",
-};
 
 /**
  * AttachmentMessageInput 定义已上传附件的发送意图，agentIdentityId 非空表示按 conversationId 草稿编号首发 AI 聊天，同时指定 servedConversationId 表示首发该服务会话的 Copilot 线程。
@@ -1558,9 +1490,9 @@ export interface ConversationAgentRun {
     "agentName": string;
 
     /**
-     * AgentAssistantOwnerName 是执行者为助理时其主人的名称，AI 员工为空。
+     * AgentPersonalResponsibleName 是执行者为个人 AI 员工时其负责人的名称，其他 AI 员工为空。
      */
-    "agentAssistantOwnerName": string | null;
+    "agentPersonalResponsibleName": string | null;
     "agentAvatarUrl": string;
     "id": string;
     "agentIdentityId": string;
@@ -1745,9 +1677,9 @@ export interface ConversationMessageSender {
     "identityType": OrganizationIdentityType | null;
 
     /**
-     * AssistantOwnerName 是发送者为助理时其主人的名称，其他发送者为空。
+     * PersonalResponsibleName 是发送者为个人 AI 员工时其负责人的名称，其他发送者为空。
      */
-    "assistantOwnerName": string | null;
+    "personalResponsibleName": string | null;
 }
 
 /**
@@ -1825,9 +1757,9 @@ export interface ConversationPendingAgent {
     "avatarUrl": string;
 
     /**
-     * AssistantOwnerName 是等待者为助理时其主人的名称，AI 员工为空。
+     * PersonalResponsibleName 是等待者为个人 AI 员工时其负责人的名称，其他 AI 员工为空。
      */
-    "assistantOwnerName": string | null;
+    "personalResponsibleName": string | null;
 }
 
 /**
@@ -1926,9 +1858,9 @@ export interface ConversationSystemEventParticipant {
     "displayName": string;
 
     /**
-     * AssistantOwnerName 是成员为助理时事件写入时其主人的名称，其他成员为空。
+     * PersonalResponsibleName 是成员为个人 AI 员工时事件写入时其负责人的名称，其他成员为空。
      */
-    "assistantOwnerName": string | null;
+    "personalResponsibleName": string | null;
 }
 
 /**
@@ -2068,17 +2000,6 @@ export interface CreateAgentInput {
 }
 
 /**
- * CreateAssistantInput 定义新建助理的资料、执行配置、企业 MCP 服务与要绑定的本机电脑，avatarFileId 为空时不设置头像。
- */
-export interface CreateAssistantInput {
-    "displayName": string;
-    "avatarFileId": string;
-    "execution": AgentExecutionInput;
-    "mcpServerIds": string[] | null;
-    "deviceId": string;
-}
-
-/**
  * CreateMessageChannelInput 定义创建消息渠道所需字段。
  */
 export interface CreateMessageChannelInput {
@@ -2088,6 +2009,17 @@ export interface CreateMessageChannelInput {
     "newConversationTarget": ChannelRoutingTarget;
     "fallbackTarget": ChannelRoutingTarget;
     "type": ChannelType;
+}
+
+/**
+ * CreatePersonalAgentInput 定义新建个人 AI 员工的资料、执行配置、企业 MCP 服务与要绑定的本机电脑，avatarFileId 为空时不设置头像。
+ */
+export interface CreatePersonalAgentInput {
+    "displayName": string;
+    "avatarFileId": string;
+    "execution": AgentExecutionInput;
+    "mcpServerIds": string[] | null;
+    "deviceId": string;
 }
 
 /**
@@ -2542,14 +2474,14 @@ export interface GroupParticipant {
     "role": GroupParticipantRole;
 
     /**
-     * AssistantOwnerName 是成员为助理时其主人的名称，其他成员为空。
+     * PersonalResponsibleName 是成员为个人 AI 员工时其负责人的名称，其他成员为空。
      */
-    "assistantOwnerName": string | null;
+    "personalResponsibleName": string | null;
 
     /**
-     * AssistantOwnerIdentityID 是成员为助理时其主人的企业身份编号，其他成员为空。
+     * PersonalResponsibleIdentityID 是成员为个人 AI 员工时其负责人的企业身份编号，其他成员为空。
      */
-    "assistantOwnerIdentityId": string | null;
+    "personalResponsibleIdentityId": string | null;
 }
 
 /**
@@ -2874,6 +2806,11 @@ export interface InboxSearchPerson {
     "userId": string | null;
     "agentId": string | null;
     "identityType": OrganizationIdentityType | null;
+
+    /**
+     * Personal 表示人员是当前成员负责的个人 AI 员工。
+     */
+    "personal": boolean;
     "displayName": string;
     "contactNumber": number | null;
     "avatarUrl": string;
@@ -3576,7 +3513,7 @@ export interface LocalDevice {
 }
 
 /**
- * LocalEnvironment 定义本机为助理提供的运行环境、本地 MCP 服务与技能，未安装的组件版本为空。
+ * LocalEnvironment 定义本机为个人 AI 员工提供的运行环境、本地 MCP 服务与技能，未安装的组件版本为空。
  */
 export interface LocalEnvironment {
     "toolchain": LocalToolchain;
@@ -3589,7 +3526,7 @@ export interface LocalEnvironment {
 }
 
 /**
- * LocalMCPServer 定义这台电脑上主人的助理共用的一个本地 MCP 服务：本地进程给出启动命令与参数，SSE 与 Streamable HTTP 服务给出地址。
+ * LocalMCPServer 定义这台电脑上负责人的个人 AI 员工共用的一个本地 MCP 服务：本地进程给出启动命令与参数，SSE 与 Streamable HTTP 服务给出地址。
  */
 export interface LocalMCPServer {
     "name": string;
@@ -3625,7 +3562,7 @@ export enum LocalMCPServerType {
 };
 
 /**
- * LocalSkill 定义这台电脑上主人的助理共用的一个技能及其所在文件夹。
+ * LocalSkill 定义这台电脑上负责人的个人 AI 员工共用的一个技能及其所在文件夹。
  */
 export interface LocalSkill {
     "name": string;
@@ -3644,7 +3581,7 @@ export enum LocalSkillSource {
     $zero = "",
 
     /**
-     * LocalSkillSourceManaged 表示助理安装的技能，可以删除。
+     * LocalSkillSourceManaged 表示个人 AI 员工安装的技能，可以删除。
      */
     LocalSkillSourceManaged = "managed",
 
@@ -4028,7 +3965,6 @@ export enum OrganizationIdentityType {
 
     OrganizationIdentityTypeUser = "user",
     OrganizationIdentityTypeAgent = "agent",
-    OrganizationIdentityTypeAssistant = "assistant",
 };
 
 /**
@@ -4113,6 +4049,88 @@ export enum PermissionResource {
     PermissionResourceRoles = "roles",
     PermissionResourceOrganization = "organization",
 };
+
+/**
+ * PersonalAgent 定义个人 AI 员工信息。
+ */
+export interface PersonalAgent {
+    "id": string;
+    "identityId": string;
+    "displayName": string;
+    "avatarUrl": string;
+    "responsible": PersonalAgentResponsible;
+    "device": PersonalAgentDevice;
+    "status": UserStatus;
+    "presence": PersonalAgentPresence;
+    "execution": AgentExecutionSummary;
+    "createdAt": string;
+}
+
+/**
+ * PersonalAgentDetail 定义个人 AI 员工信息与当前完整执行配置。
+ */
+export interface PersonalAgentDetail {
+    "personalAgent": PersonalAgent;
+    "execution": AgentExecution;
+}
+
+/**
+ * PersonalAgentDevice 定义个人 AI 员工绑定电脑的摘要，LocalAgents 是该电脑上报的已安装且可用的本机 Agent。
+ */
+export interface PersonalAgentDevice {
+    "id": string;
+    "name": string;
+    "localAgents": LocalAgentKind[] | null;
+}
+
+/**
+ * PersonalAgentDeviceInput 定义个人 AI 员工要换到的电脑。
+ */
+export interface PersonalAgentDeviceInput {
+    "deviceId": string;
+}
+
+/**
+ * PersonalAgentInput 定义个人 AI 员工的资料、执行配置与企业 MCP 服务，avatarFileId 为空时保留当前头像。
+ */
+export interface PersonalAgentInput {
+    "displayName": string;
+    "avatarFileId": string;
+    "execution": AgentExecutionInput;
+    "mcpServerIds": string[] | null;
+}
+
+/**
+ * PersonalAgentList 定义个人 AI 员工列表。
+ */
+export interface PersonalAgentList {
+    "personalAgents": PersonalAgent[] | null;
+}
+
+/**
+ * PersonalAgentPresence 表示个人 AI 员工当前能否处理新请求。
+ */
+export enum PersonalAgentPresence {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    PersonalAgentPresenceOnline = "online",
+    PersonalAgentPresenceOffline = "offline",
+    PersonalAgentPresencePaused = "paused",
+    PersonalAgentPresenceUnbound = "unbound",
+    PersonalAgentPresenceInactive = "inactive",
+};
+
+/**
+ * PersonalAgentResponsible 定义个人 AI 员工负责人的摘要。
+ */
+export interface PersonalAgentResponsible {
+    "userId": string;
+    "identityId": string;
+    "displayName": string;
+}
 
 /**
  * ProductDocPage 定义文档页面的标题、渲染后的正文 HTML 与完整文档中的访问路径。
@@ -4275,7 +4293,7 @@ export interface ServiceAttachmentMessageInput {
 }
 
 /**
- * ServiceAudience 表示服务对象：customer 为外部客户，employee 为本企业员工，partner 为伙伴。
+ * ServiceAudience 表示服务对象：customer 为外部客户，employee 为本企业员工，partner 为伙伴，personal 为仅负责人本人。
  */
 export enum ServiceAudience {
     /**
@@ -4286,6 +4304,7 @@ export enum ServiceAudience {
     ServiceAudienceCustomer = "customer",
     ServiceAudienceEmployee = "employee",
     ServiceAudiencePartner = "partner",
+    ServiceAudiencePersonal = "personal",
 };
 
 /**

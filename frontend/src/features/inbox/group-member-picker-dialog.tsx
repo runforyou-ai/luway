@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { isApiError, OrganizationIdentityType, type GroupParticipant, type MemberOption } from "@/api"
+import { isApiError, type GroupParticipant, type MemberOption } from "@/api"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,17 +22,17 @@ import { recoverSession } from "@/lib/session-navigation"
 
 import { groupMemberMaxCount } from "@/features/inbox/group-conversation-schema"
 
-/** 选择尚未加入群聊的企业成员；ownAssistantsOnly 时只列出本人名下的助理。 */
+/** 选择尚未加入群聊的企业成员；ownPersonalAgentsOnly 时只列出本人负责的个人 AI 员工。 */
 export function GroupMemberPickerDialog({
   open,
   participants,
-  ownAssistantsOnly,
+  ownPersonalAgentsOnly,
   onOpenChange,
   onAdd,
 }: {
   open: boolean
   participants: GroupParticipant[]
-  ownAssistantsOnly: boolean
+  ownPersonalAgentsOnly: boolean
   onOpenChange: (open: boolean) => void
   onAdd: (members: MemberOption[]) => Promise<void>
 }) {
@@ -54,8 +54,8 @@ export function GroupMemberPickerDialog({
     () =>
       (resource.data ?? []).filter((member) =>
         !participantIdentityIDs.has(member.id) &&
-        (!ownAssistantsOnly || member.type === OrganizationIdentityType.OrganizationIdentityTypeAssistant)),
-    [ownAssistantsOnly, participantIdentityIDs, resource.data],
+        (!ownPersonalAgentsOnly || member.personal)),
+    [ownPersonalAgentsOnly, participantIdentityIDs, resource.data],
   )
   const remainingCount = Math.max(0, groupMemberMaxCount - participants.length)
 
@@ -97,14 +97,14 @@ export function GroupMemberPickerDialog({
         <DialogHeader>
           <DialogTitle>{t("groupAddMembers")}</DialogTitle>
           <DialogDescription>
-            {t(ownAssistantsOnly ? "groupAddAssistantsDescription" : "groupAddMembersDescription")}
+            {t(ownPersonalAgentsOnly ? "groupAddPersonalAgentsDescription" : "groupAddMembersDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid min-h-0 gap-4">
           <GroupMemberPicker
             label={t("groupMemberSearch")}
-            emptyMessage={t(ownAssistantsOnly ? "groupAssistantsNoCandidates" : "groupMembersNoCandidates")}
+            emptyMessage={t(ownPersonalAgentsOnly ? "groupPersonalAgentsNoCandidates" : "groupMembersNoCandidates")}
             members={availableMembers}
             selected={selectedIdentityIDs}
             onChange={setSelectedIdentityIDs}

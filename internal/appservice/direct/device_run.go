@@ -176,7 +176,7 @@ func (o *directOperations) SearchDeviceRunKnowledge(ctx context.Context, meta ap
 	return appservice.DeviceRunKnowledgeSearchResult{Result: encoded}, nil
 }
 
-// GetDeviceRunMemory 返回本设备持有运行所属助理的记忆。
+// GetDeviceRunMemory 返回本设备持有运行所属个人 AI 员工的记忆。
 func (o *directOperations) GetDeviceRunMemory(ctx context.Context, meta appservice.RequestMeta, device deviceIdentity, runID string) (appservice.DeviceRunMemory, error) {
 	if !common.ValidUUID(runID) {
 		return appservice.DeviceRunMemory{}, appservice.NotFoundError(meta, i18n.ErrorDeviceRunNotFound)

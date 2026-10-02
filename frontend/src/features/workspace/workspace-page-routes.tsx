@@ -28,8 +28,8 @@ const MessageChannelFormPage = lazy(() =>
 const MessageChannelListPage = lazy(() =>
   import("@/features/channels/message-channel-list-page").then((module) => ({ default: module.MessageChannelListPage })),
 )
-const AssistantFormPage = lazy(() =>
-  import("@/features/contacts/assistants/assistant-form-page").then((module) => ({ default: module.AssistantFormPage })),
+const PersonalAgentFormPage = lazy(() =>
+  import("@/features/agents/personal/personal-agent-form-page").then((module) => ({ default: module.PersonalAgentFormPage })),
 )
 const ContactsPage = lazy(() =>
   import("@/features/contacts/contacts-page").then((module) => ({ default: module.ContactsPage })),
@@ -186,26 +186,6 @@ const workspaceRouteDefinitions = [
     element: <ContactsPage scope="external" />,
   },
   {
-    path: "/contacts/assistants",
-    element: <ContactsPage scope="assistants" />,
-  },
-  {
-    path: "/contacts/assistants/new",
-    element: (
-      <ContactsPage scope="assistants">
-        <AssistantFormPage mode="create" />
-      </ContactsPage>
-    ),
-  },
-  {
-    path: "/contacts/assistants/:assistantId",
-    element: (
-      <ContactsPage scope="assistants">
-        <AssistantFormPage mode="edit" />
-      </ContactsPage>
-    ),
-  },
-  {
     path: "/ai-performance",
     element: <AIPerformancePage />,
   },
@@ -220,6 +200,10 @@ const workspaceRouteDefinitions = [
   {
     path: "/ai-employees/new",
     element: <AgentFormPage mode="create" />,
+  },
+  {
+    path: "/ai-employees/personal/:agentId",
+    element: <PersonalAgentFormPage />,
   },
   {
     path: "/ai-employees/:agentId",

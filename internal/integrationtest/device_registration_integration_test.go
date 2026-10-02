@@ -16,7 +16,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// deviceFixture 是设备注册测试的企业、设备主人和另一名成员。
+// deviceFixture 是设备注册测试的企业、设备所属成员和另一名成员。
 type deviceFixture struct {
 	db     *bun.DB
 	owner  *servermodels.Identity
@@ -35,7 +35,7 @@ func newDeviceFixture(t *testing.T) deviceFixture {
 	db := store.DB()
 	suffix := uuid.NewV7().String()
 	installed := installWorkspace(t, db, workspaceSpec{
-		Name: "设备测试", DisplayName: "设备主人",
+		Name: "设备测试", DisplayName: "设备所属成员",
 		Email: "owner@" + suffix + ".device.test", Password: "password123", Locale: domain.LocaleEnglishUnitedStates, TimeZone: "UTC",
 	})
 	owner := installed.Identity
@@ -87,7 +87,7 @@ func TestDeviceRegistrationSeparatesUsers(t *testing.T) {
 	ctx := context.Background()
 	register := deviceaction.NewRegisterDeviceAction(f.db)
 	ownerDevice, err := register.Execute(ctx, f.owner, deviceaction.RegisterInput{
-		InstallID: uuid.NewV7().String(), Name: "主人的电脑", Platform: domain.DevicePlatformMacOS,
+		InstallID: uuid.NewV7().String(), Name: "负责人的电脑", Platform: domain.DevicePlatformMacOS,
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -81,18 +81,18 @@ func (a *SendFirstAgentTextMessageAction) Execute(ctx context.Context, identity 
 	return result, nil
 }
 
-// ensureAgentConversation 创建与 AI 员工或本人助理的聊天，重试时核对固定的业务归属。
+// ensureAgentConversation 创建与 AI 员工的聊天，重试时核对固定的业务归属。
 func ensureAgentConversation(ctx context.Context, tx bun.Tx, identity *servermodels.Identity, conversationID, agentID, body string) error {
 	// 锁定已有草稿并核对归属后复用共享主体。
 	if found, err := lockAgentConversationDraft(ctx, tx, identity, conversationID, agentID); err != nil || found {
 		return err
 	}
-	// 助理只能由主人发起聊天。
+	// 个人 AI 员工只能由负责人发起聊天。
 	var target servermodels.OrganizationIdentity
 	err := tx.NewSelect().Model(&target).
 		Join("JOIN agents AS agent ON agent.organization_id = oi.organization_id AND agent.identity_id = oi.id").
 		Where("oi.organization_id = ? AND oi.id = ?", identity.Organization.ID, agentID).
-		Where("oi.type = ? OR (oi.type = ? AND agent.owner_user_id = ?)", domain.OrganizationIdentityTypeAgent, domain.OrganizationIdentityTypeAssistant, identity.User.ID).
+		Where("oi.type = ? AND (NOT ? = ANY(agent.service_audiences) OR agent.responsible_user_id = ?)", domain.OrganizationIdentityTypeAgent, domain.ServiceAudiencePersonal, identity.User.ID).
 		Where("agent.status = ?", domain.IdentityStatusActive).Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return conversationaction.ErrAgentTargetNotFound
@@ -225,12 +225,12 @@ func lockAgentSendContext(ctx context.Context, tx bun.Tx, identity *servermodels
 	if !row.AgentActive && !row.ServiceOpen {
 		return row, conversationaction.ErrConversationNotFound
 	}
-	// 未绑定电脑优先于暂停，与助理在线状态的优先级一致。
+	// 未绑定电脑优先于暂停，与个人 AI 员工在线状态的优先级一致。
 	if row.AgentUnbound {
-		return row, &conversationaction.ConflictError{Reason: conversationaction.ConflictReasonAssistantUnbound}
+		return row, &conversationaction.ConflictError{Reason: conversationaction.ConflictReasonPersonalAgentUnbound}
 	}
 	if row.AgentPaused {
-		return row, &conversationaction.ConflictError{Reason: conversationaction.ConflictReasonAssistantPaused}
+		return row, &conversationaction.ConflictError{Reason: conversationaction.ConflictReasonPersonalAgentPaused}
 	}
 	row.Conversation = member.Conversation
 	row.AgentInputKind = domain.AgentInputKindAgentDirect

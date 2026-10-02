@@ -90,20 +90,20 @@ const MobileNewChatTargetPage = lazy(() =>
 const MobileInboxSearchPage = lazy(() =>
   import("@/apps/mobile/mobile-inbox-search-page").then((module) => ({ default: module.MobileInboxSearchPage })),
 )
-const MobileAssistantMemoriesPage = lazy(() =>
-  import("@/apps/mobile/mobile-assistant-memories-page").then((module) => ({ default: module.MobileAssistantMemoriesPage })),
+const MobileAgentMemoriesPage = lazy(() =>
+  import("@/apps/mobile/mobile-agent-memories-page").then((module) => ({ default: module.MobileAgentMemoriesPage })),
 )
-const MobileAssistantMemoryPage = lazy(() =>
-  import("@/apps/mobile/mobile-assistant-memories-page").then((module) => ({ default: module.MobileAssistantMemoryPage })),
+const MobileAgentMemoryPage = lazy(() =>
+  import("@/apps/mobile/mobile-agent-memories-page").then((module) => ({ default: module.MobileAgentMemoryPage })),
 )
-const MobileAssistantEditPage = lazy(() =>
-  import("@/apps/mobile/mobile-assistants-page").then((module) => ({ default: module.MobileAssistantEditPage })),
+const MobilePersonalAgentEditPage = lazy(() =>
+  import("@/apps/mobile/mobile-personal-agents-page").then((module) => ({ default: module.MobilePersonalAgentEditPage })),
 )
-const MobileAssistantPage = lazy(() =>
-  import("@/apps/mobile/mobile-assistants-page").then((module) => ({ default: module.MobileAssistantPage })),
+const MobilePersonalAgentPage = lazy(() =>
+  import("@/apps/mobile/mobile-personal-agents-page").then((module) => ({ default: module.MobilePersonalAgentPage })),
 )
-const MobileAssistantsPage = lazy(() =>
-  import("@/apps/mobile/mobile-assistants-page").then((module) => ({ default: module.MobileAssistantsPage })),
+const MobilePersonalAgentsPage = lazy(() =>
+  import("@/apps/mobile/mobile-personal-agents-page").then((module) => ({ default: module.MobilePersonalAgentsPage })),
 )
 const MobileCreateExternalContactPage = lazy(() =>
   import("@/apps/mobile/mobile-external-contact-editor").then((module) => ({ default: module.MobileCreateExternalContactPage })),
@@ -257,24 +257,24 @@ export default function MobileApp({ workspaceSlug }: { workspaceSlug: string | n
               element={<MobileEmployeeChatPage />}
             />
             <Route
-              path="/contacts/assistants"
-              element={<MobileAssistantsPage />}
+              path="/me/personal-agents"
+              element={<MobilePersonalAgentsPage />}
             />
             <Route
-              path="/contacts/assistants/:assistantID"
-              element={<MobileAssistantPage />}
+              path="/me/personal-agents/:agentID"
+              element={<MobilePersonalAgentPage />}
             />
             <Route
-              path="/contacts/assistants/:assistantID/edit"
-              element={<MobileAssistantEditPage />}
+              path="/me/personal-agents/:agentID/edit"
+              element={<MobilePersonalAgentEditPage />}
             />
             <Route
-              path="/contacts/assistants/:assistantID/memories"
-              element={<MobileAssistantMemoriesPage />}
+              path="/me/personal-agents/:agentID/memories"
+              element={<MobileAgentMemoriesPage />}
             />
             <Route
-              path="/contacts/assistants/:assistantID/memories/:memoryID"
-              element={<MobileAssistantMemoryPage />}
+              path="/me/personal-agents/:agentID/memories/:memoryID"
+              element={<MobileAgentMemoryPage />}
             />
             <Route path="/contacts/teams" element={<MobileTeamsPage />} />
             <Route

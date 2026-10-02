@@ -211,7 +211,7 @@ const integrations = {
     loadError: "联网搜索设置加载失败。",
     saveError: "保存联网搜索设置失败，请重试。",
     provider: "搜索服务",
-    providerDescription: "AI 员工和助理在内部对话中搜索互联网时使用，接待客户时不使用",
+    providerDescription: "AI 员工在内部对话中搜索互联网时使用，接待客户时不使用",
     notUsed: "不使用",
     baseUrl: "服务地址",
     baseUrlDescription: "SearXNG 实例的访问地址，实例需开启 JSON 格式输出",

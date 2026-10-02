@@ -1,10 +1,9 @@
-/** 通讯录页面协调层：按范围渲染同事、团队、外部联系人和助理面板。 */
+/** 通讯录页面协调层：按范围渲染同事、团队和外部联系人面板。 */
 import { lazy, Suspense, type ReactNode } from "react"
 import { useParams } from "react-router"
 
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { PageSplit } from "@/components/page-split"
-import { AssistantsPanel } from "@/features/contacts/assistants/assistants-panel"
 import { ContactScopeSidebar } from "@/features/contacts/contact-scope-sidebar"
 import { MembersPanel } from "@/features/contacts/members/members-panel"
 import { TeamListPanel } from "@/features/contacts/teams/team-list-panel"
@@ -24,9 +23,7 @@ export function ContactsPage({ scope, children }: { scope: ContactScope; childre
 
   return (
     <PageSplit paneVariant="nav" pane={<ContactScopeSidebar />}>
-      {children ?? (scope === "assistants" ? (
-        <AssistantsPanel />
-      ) : scope === "employees" ? (
+      {children ?? (scope === "employees" ? (
         <MembersPanel />
       ) : scope === "team" && teamId ? (
         <TeamPanel teamId={teamId} />

@@ -772,93 +772,93 @@ func (b *Backend) RerunAgentEvaluationCase(ctx context.Context, meta appservice.
 	return b.do(ctx, meta, http.MethodPost, "/agents/"+url.PathEscape(agentID)+"/evaluation/cases/"+url.PathEscape(caseID)+"/rerun", nil, nil, nil)
 }
 
-// ListAssistants 返回当前成员名下的助理。
-func (b *Backend) ListAssistants(ctx context.Context, meta appservice.RequestMeta) (appservice.AssistantList, error) {
-	var output appservice.AssistantList
-	err := b.do(ctx, meta, http.MethodGet, "/assistants", nil, nil, &output)
+// ListPersonalAgents 返回当前成员负责的个人 AI 员工。
+func (b *Backend) ListPersonalAgents(ctx context.Context, meta appservice.RequestMeta) (appservice.PersonalAgentList, error) {
+	var output appservice.PersonalAgentList
+	err := b.do(ctx, meta, http.MethodGet, "/personal-agents", nil, nil, &output)
 	return output, err
 }
 
-// ListMemberAssistants 返回指定成员名下的助理。
-func (b *Backend) ListMemberAssistants(ctx context.Context, meta appservice.RequestMeta, userID string) (appservice.AssistantList, error) {
-	var output appservice.AssistantList
-	err := b.do(ctx, meta, http.MethodGet, "/users/"+url.PathEscape(userID)+"/assistants", nil, nil, &output)
+// ListMemberPersonalAgents 返回指定成员负责的个人 AI 员工。
+func (b *Backend) ListMemberPersonalAgents(ctx context.Context, meta appservice.RequestMeta, userID string) (appservice.PersonalAgentList, error) {
+	var output appservice.PersonalAgentList
+	err := b.do(ctx, meta, http.MethodGet, "/users/"+url.PathEscape(userID)+"/personal-agents", nil, nil, &output)
 	return output, err
 }
 
-// GetAssistant 返回当前成员名下的助理详情。
-func (b *Backend) GetAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.AssistantDetail, error) {
-	var output appservice.AssistantDetail
-	err := b.do(ctx, meta, http.MethodGet, "/assistants/"+url.PathEscape(assistantID), nil, nil, &output)
+// GetPersonalAgent 返回当前成员负责的个人 AI 员工详情。
+func (b *Backend) GetPersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgentDetail, error) {
+	var output appservice.PersonalAgentDetail
+	err := b.do(ctx, meta, http.MethodGet, "/personal-agents/"+url.PathEscape(agentID), nil, nil, &output)
 	return output, err
 }
 
-// CreateAssistant 在当前成员的电脑上创建助理。
-func (b *Backend) CreateAssistant(ctx context.Context, meta appservice.RequestMeta, input appservice.CreateAssistantInput) (appservice.Assistant, error) {
-	var output appservice.Assistant
-	err := b.do(ctx, meta, http.MethodPost, "/assistants", nil, input, &output)
+// CreatePersonalAgent 在当前成员的电脑上创建个人 AI 员工。
+func (b *Backend) CreatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, input appservice.CreatePersonalAgentInput) (appservice.PersonalAgent, error) {
+	var output appservice.PersonalAgent
+	err := b.do(ctx, meta, http.MethodPost, "/personal-agents", nil, input, &output)
 	return output, err
 }
 
-// UpdateAssistant 修改当前成员名下的助理。
-func (b *Backend) UpdateAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string, input appservice.AssistantInput) (appservice.Assistant, error) {
-	var output appservice.Assistant
-	err := b.do(ctx, meta, http.MethodPut, "/assistants/"+url.PathEscape(assistantID), nil, input, &output)
+// UpdatePersonalAgent 修改当前成员负责的个人 AI 员工。
+func (b *Backend) UpdatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentInput) (appservice.PersonalAgent, error) {
+	var output appservice.PersonalAgent
+	err := b.do(ctx, meta, http.MethodPut, "/personal-agents/"+url.PathEscape(agentID), nil, input, &output)
 	return output, err
 }
 
-// PauseAssistant 暂停当前成员名下的助理。
-func (b *Backend) PauseAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.Assistant, error) {
-	var output appservice.Assistant
-	err := b.do(ctx, meta, http.MethodPost, "/assistants/"+url.PathEscape(assistantID)+"/pause", nil, nil, &output)
+// PausePersonalAgent 暂停当前成员负责的个人 AI 员工。
+func (b *Backend) PausePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
+	var output appservice.PersonalAgent
+	err := b.do(ctx, meta, http.MethodPost, "/personal-agents/"+url.PathEscape(agentID)+"/pause", nil, nil, &output)
 	return output, err
 }
 
-// ResumeAssistant 恢复当前成员名下已暂停的助理。
-func (b *Backend) ResumeAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.Assistant, error) {
-	var output appservice.Assistant
-	err := b.do(ctx, meta, http.MethodPost, "/assistants/"+url.PathEscape(assistantID)+"/resume", nil, nil, &output)
+// ResumePersonalAgent 恢复当前成员负责的已暂停个人 AI 员工。
+func (b *Backend) ResumePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
+	var output appservice.PersonalAgent
+	err := b.do(ctx, meta, http.MethodPost, "/personal-agents/"+url.PathEscape(agentID)+"/resume", nil, nil, &output)
 	return output, err
 }
 
-// MoveAssistant 把当前成员名下的助理换到指定电脑。
-func (b *Backend) MoveAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string, input appservice.AssistantDeviceInput) (appservice.Assistant, error) {
-	var output appservice.Assistant
-	err := b.do(ctx, meta, http.MethodPut, "/assistants/"+url.PathEscape(assistantID)+"/device", nil, input, &output)
+// MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
+func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentDeviceInput) (appservice.PersonalAgent, error) {
+	var output appservice.PersonalAgent
+	err := b.do(ctx, meta, http.MethodPut, "/personal-agents/"+url.PathEscape(agentID)+"/device", nil, input, &output)
 	return output, err
 }
 
-// DeactivateAssistant 停用助理。
-func (b *Backend) DeactivateAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.Assistant, error) {
-	var output appservice.Assistant
-	err := b.do(ctx, meta, http.MethodPost, "/assistants/"+url.PathEscape(assistantID)+"/deactivate", nil, nil, &output)
+// DeactivatePersonalAgent 停用个人 AI 员工。
+func (b *Backend) DeactivatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
+	var output appservice.PersonalAgent
+	err := b.do(ctx, meta, http.MethodPost, "/personal-agents/"+url.PathEscape(agentID)+"/deactivate", nil, nil, &output)
 	return output, err
 }
 
-// ReactivateAssistant 启用已停用的助理。
-func (b *Backend) ReactivateAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.Assistant, error) {
-	var output appservice.Assistant
-	err := b.do(ctx, meta, http.MethodPost, "/assistants/"+url.PathEscape(assistantID)+"/reactivate", nil, nil, &output)
+// ReactivatePersonalAgent 启用已停用的个人 AI 员工。
+func (b *Backend) ReactivatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
+	var output appservice.PersonalAgent
+	err := b.do(ctx, meta, http.MethodPost, "/personal-agents/"+url.PathEscape(agentID)+"/reactivate", nil, nil, &output)
 	return output, err
 }
 
-// ListAssistantMemories 返回当前成员名下助理的记忆，按最近更新排列。
-func (b *Backend) ListAssistantMemories(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.AssistantMemoryList, error) {
-	var output appservice.AssistantMemoryList
-	err := b.do(ctx, meta, http.MethodGet, "/assistants/"+url.PathEscape(assistantID)+"/memories", nil, nil, &output)
+// ListAgentMemories 返回当前成员负责的个人 AI 员工的记忆，按最近更新排列。
+func (b *Backend) ListAgentMemories(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.AgentMemoryList, error) {
+	var output appservice.AgentMemoryList
+	err := b.do(ctx, meta, http.MethodGet, "/personal-agents/"+url.PathEscape(agentID)+"/memories", nil, nil, &output)
 	return output, err
 }
 
-// UpdateAssistantMemory 修改当前成员名下助理的一条记忆。
-func (b *Backend) UpdateAssistantMemory(ctx context.Context, meta appservice.RequestMeta, assistantID string, memoryID string, input appservice.AssistantMemoryInput) (appservice.AssistantMemory, error) {
-	var output appservice.AssistantMemory
-	err := b.do(ctx, meta, http.MethodPut, "/assistants/"+url.PathEscape(assistantID)+"/memories/"+url.PathEscape(memoryID), nil, input, &output)
+// UpdateAgentMemory 修改当前成员负责的个人 AI 员工的一条记忆。
+func (b *Backend) UpdateAgentMemory(ctx context.Context, meta appservice.RequestMeta, agentID string, memoryID string, input appservice.AgentMemoryInput) (appservice.AgentMemory, error) {
+	var output appservice.AgentMemory
+	err := b.do(ctx, meta, http.MethodPut, "/personal-agents/"+url.PathEscape(agentID)+"/memories/"+url.PathEscape(memoryID), nil, input, &output)
 	return output, err
 }
 
-// DeleteAssistantMemory 删除当前成员名下助理的一条记忆。
-func (b *Backend) DeleteAssistantMemory(ctx context.Context, meta appservice.RequestMeta, assistantID string, memoryID string) error {
-	return b.do(ctx, meta, http.MethodDelete, "/assistants/"+url.PathEscape(assistantID)+"/memories/"+url.PathEscape(memoryID), nil, nil, nil)
+// DeleteAgentMemory 删除当前成员负责的个人 AI 员工的一条记忆。
+func (b *Backend) DeleteAgentMemory(ctx context.Context, meta appservice.RequestMeta, agentID string, memoryID string) error {
+	return b.do(ctx, meta, http.MethodDelete, "/personal-agents/"+url.PathEscape(agentID)+"/memories/"+url.PathEscape(memoryID), nil, nil, nil)
 }
 
 // ListUsers 返回企业成员列表。

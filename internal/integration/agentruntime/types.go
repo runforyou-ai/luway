@@ -135,7 +135,7 @@ type Workspace interface {
 	Delete(ctx context.Context, path string) error
 }
 
-// LocalMCPServer 是助理为这台电脑添加的本地 MCP 服务：Type 为空或 stdio 时启动本地进程，为 sse 或 http 时连接服务地址。
+// LocalMCPServer 是个人 AI 员工为这台电脑添加的本地 MCP 服务：Type 为空或 stdio 时启动本地进程，为 sse 或 http 时连接服务地址。
 type LocalMCPServer struct {
 	Name    string
 	Type    string
@@ -146,7 +146,7 @@ type LocalMCPServer struct {
 	Headers map[string]string
 }
 
-// LocalMCP 是执行设备提供的本地 MCP 服务管理，这台电脑上主人的所有助理共用。
+// LocalMCP 是执行设备提供的本地 MCP 服务管理，这台电脑上负责人的所有个人 AI 员工共用。
 type LocalMCP interface {
 	// Add 试启动服务并读取工具目录，成功后保存配置并返回服务提供的工具名称；同名服务被替换。
 	Add(ctx context.Context, server LocalMCPServer) ([]string, error)
@@ -156,7 +156,7 @@ type LocalMCP interface {
 	Names(ctx context.Context) ([]string, error)
 }
 
-// LocalSkills 是执行设备提供的技能目录，这台电脑上主人的所有助理共用。
+// LocalSkills 是执行设备提供的技能目录，这台电脑上负责人的所有个人 AI 员工共用。
 type LocalSkills interface {
 	// List 按名称顺序返回可用技能。
 	List(ctx context.Context) ([]localskill.Skill, error)
@@ -164,7 +164,7 @@ type LocalSkills interface {
 	Load(ctx context.Context, name string) (localskill.Skill, string, error)
 	// Install 从来源安装技能，来源含多个技能时按 name 选择；同名技能被替换。
 	Install(ctx context.Context, source, name string) (localskill.Skill, error)
-	// Remove 删除助理安装的技能，返回技能是否存在。
+	// Remove 删除个人 AI 员工安装的技能，返回技能是否存在。
 	Remove(ctx context.Context, name string) (bool, error)
 }
 

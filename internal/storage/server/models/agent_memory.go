@@ -8,9 +8,9 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// AssistantMemory 表示助理的一条长期记忆。
-type AssistantMemory struct {
-	bun.BaseModel `bun:"table:assistant_memories,alias:am"`
+// AgentMemory 表示仅服务负责人本人的 AI 员工的一条长期记忆。
+type AgentMemory struct {
+	bun.BaseModel `bun:"table:agent_memories,alias:am"`
 
 	ID             string    `bun:"id,pk"`
 	CreatedAt      time.Time `bun:"created_at"`

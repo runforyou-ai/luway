@@ -40,7 +40,7 @@ const (
 	TypeRunStreamDelta           Type = "run_stream_delta"
 	TypeRunStreamEnded           Type = "run_stream_ended"
 	TypeDeviceWorkAdvanced       Type = "device_work_advanced"
-	TypeAssistantMemoryChanged   Type = "assistant_memory_changed"
+	TypeAgentMemoryChanged       Type = "agent_memory_changed"
 	TypeReceptionChanged         Type = "reception_changed"
 	TypeKnowledgeGapsChanged     Type = "knowledge_gaps_changed"
 	TypeWorkspaceActivity        Type = "workspace_activity"
@@ -148,9 +148,9 @@ type WorkspaceActivity struct {
 	Reason           domain.ServiceAttentionReason `json:"reason,omitempty"`
 }
 
-// AssistantMemoryChanged 表示本人名下助理的记忆已变化，客户端据此重新读取该助理的记忆。
-type AssistantMemoryChanged struct {
-	AssistantID string `json:"assistantId"`
+// AgentMemoryChanged 表示本人负责的个人 AI 员工的记忆已变化，客户端据此重新读取该 AI 员工的记忆。
+type AgentMemoryChanged struct {
+	AgentID string `json:"agentId"`
 }
 
 // DeviceWorkAdvanced 表示本设备的工作水位推进到指定值，只发给携带该设备身份的事件流。
@@ -269,8 +269,8 @@ func (ServiceAttention) FrameType() Type { return TypeServiceAttention }
 // FrameType 返回设备工作水位事件种类。
 func (DeviceWorkAdvanced) FrameType() Type { return TypeDeviceWorkAdvanced }
 
-// FrameType 返回助理记忆变更事件种类。
-func (AssistantMemoryChanged) FrameType() Type { return TypeAssistantMemoryChanged }
+// FrameType 返回 AI 员工记忆变更事件种类。
+func (AgentMemoryChanged) FrameType() Type { return TypeAgentMemoryChanged }
 
 // FrameType 返回工作区动态事件种类。
 func (WorkspaceActivity) FrameType() Type { return TypeWorkspaceActivity }
@@ -314,7 +314,7 @@ var decoders = map[Type]decoder{
 	TypeRunStreamDelta:           decodeAs[RunStreamDelta],
 	TypeRunStreamEnded:           decodeAs[RunStreamEnded],
 	TypeDeviceWorkAdvanced:       decodeAs[DeviceWorkAdvanced],
-	TypeAssistantMemoryChanged:   decodeAs[AssistantMemoryChanged],
+	TypeAgentMemoryChanged:       decodeAs[AgentMemoryChanged],
 	TypeWorkspaceActivity:        decodeAs[WorkspaceActivity],
 }
 
