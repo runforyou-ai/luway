@@ -1,4 +1,4 @@
-/** 移动端逐个移除成员和转让群主的独立页面：群主可操作全部成员，其他成员只能移出本人名下的助理。 */
+/** 移动端逐个移除成员和转让群主的独立页面：群主可操作全部成员，其他成员只能移出本人负责的个人 AI 员工。 */
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useOutletContext } from "react-router"
@@ -17,7 +17,7 @@ import { MobilePageHeader } from "@/apps/mobile/mobile-page"
 import { useMobileWorkspace } from "@/apps/mobile/mobile-workspace-layout"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Button } from "@/components/ui/button"
-import { useAssistantDisplayName } from "@/hooks/use-assistant-display-name"
+import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import { useMountedRef } from "@/hooks/use-mounted-ref"
 
 /** 列出可操作成员并二次确认，移除后留在列表，转让后返回群详情。 */
@@ -27,7 +27,7 @@ export function MobileGroupMemberActionPage({
   action: "remove" | "transfer"
 }) {
   const { t } = useTranslation(["mobile", "inbox", "common"])
-  const assistantDisplayName = useAssistantDisplayName()
+  const personalAgentDisplayName = usePersonalAgentDisplayName()
   const { group, canManage, archived, busy, onSave } =
     useOutletContext<MobileGroupDetailsContext>()
   const { identity } = useMobileWorkspace()
@@ -39,7 +39,7 @@ export function MobileGroupMemberActionPage({
   const alive = useMountedRef()
   const removing = action === "remove"
   const allowed = canManage || (removing && !archived)
-  const name = target ? assistantDisplayName(target.displayName, target.assistantOwnerName) : ""
+  const name = target ? personalAgentDisplayName(target.displayName, target.personalResponsibleName) : ""
   const config = removing
     ? {
         title: t("group.removeMembers"),
@@ -73,12 +73,12 @@ export function MobileGroupMemberActionPage({
             ownerIdentityId: identityID,
           }),
       }
-  // 群主移除候选为群主以外的成员，其他成员只能移出本人名下的助理；转让候选为群主以外的真人成员。
+  // 群主移除候选为群主以外的成员，其他成员只能移出本人负责的个人 AI 员工；转让候选为群主以外的真人成员。
   const candidates = group.participants.filter(
     (member) =>
       member.role !== GroupParticipantRole.GroupParticipantRoleOwner &&
       (removing
-        ? canManage || member.assistantOwnerIdentityId === identity.user.identityId
+        ? canManage || member.personalResponsibleIdentityId === identity.user.identityId
         : member.identityType ===
           OrganizationIdentityType.OrganizationIdentityTypeUser),
   )
@@ -116,7 +116,7 @@ export function MobileGroupMemberActionPage({
             variant="outline"
             className="min-h-11 shrink-0"
             disabled={busy || !allowed}
-            aria-label={config.buttonLabel(assistantDisplayName(member.displayName, member.assistantOwnerName))}
+            aria-label={config.buttonLabel(personalAgentDisplayName(member.displayName, member.personalResponsibleName))}
             onClick={(event) => {
               trigger.current = event.currentTarget
               setTarget(member)

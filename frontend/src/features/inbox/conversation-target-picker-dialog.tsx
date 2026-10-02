@@ -115,9 +115,9 @@ export function ConversationTargetPickerDialog({
                     {member.displayName}
                   </span>
                   {member.type === OrganizationIdentityType.OrganizationIdentityTypeAgent ? (
-                    <span className="shrink-0 text-xs text-muted-foreground">{t("chatPickerAgent")}</span>
-                  ) : member.type === OrganizationIdentityType.OrganizationIdentityTypeAssistant ? (
-                    <span className="shrink-0 text-xs text-muted-foreground">{t("chatPickerAssistant")}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {t(member.personal ? "chatPickerPersonalAgent" : "chatPickerAgent")}
+                    </span>
                   ) : null}
                 </button>
               ))}

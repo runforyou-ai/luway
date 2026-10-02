@@ -82,16 +82,16 @@ func conversationAgentProcess(run *servermodels.AgentRun) (*ConversationAgentPro
 // loadConversationAgentRuns 读取尚未由结果消息表达的运行：仍在执行的运行，以及结束后会话再无新消息的取消运行。取消时间与消息创建时间同取数据库时钟。
 func loadConversationAgentRuns(ctx context.Context, db bun.IDB, organizationID, conversationID string, history *ConversationMessageHistory) error {
 	var rows []struct {
-		servermodels.AgentRun   `bun:",embed"`
-		AgentName               string  `bun:"agent_name"`
-		AgentAssistantOwnerName *string `bun:"agent_assistant_owner_name"`
-		AgentAvatarFileID       *string `bun:"agent_avatar_file_id"`
-		ExecutionDeviceName     *string `bun:"execution_device_name"`
-		HasProcess              bool    `bun:"has_process"`
+		servermodels.AgentRun        `bun:",embed"`
+		AgentName                    string  `bun:"agent_name"`
+		AgentPersonalResponsibleName *string `bun:"agent_personal_responsible_name"`
+		AgentAvatarFileID            *string `bun:"agent_avatar_file_id"`
+		ExecutionDeviceName          *string `bun:"execution_device_name"`
+		HasProcess                   bool    `bun:"has_process"`
 	}
 	if err := db.NewSelect().Model((*servermodels.AgentRun)(nil)).
 		ColumnExpr("agr.*").ColumnExpr("oi.display_name AS agent_name").
-		ColumnExpr("? AS agent_assistant_owner_name", AssistantOwnerName("oi")).
+		ColumnExpr("? AS agent_personal_responsible_name", PersonalResponsibleName("oi")).
 		ColumnExpr("oi.avatar_file_id AS agent_avatar_file_id").
 		ColumnExpr(agentRunHasProcessCondition+" AS has_process").
 		ColumnExpr("d.name AS execution_device_name").
@@ -110,7 +110,7 @@ func loadConversationAgentRuns(ctx context.Context, db bun.IDB, organizationID, 
 	history.AgentRuns = make([]ConversationAgentRun, 0, len(rows))
 	for _, row := range rows {
 		run := ConversationAgentRun{ID: row.ID, AgentIdentityID: row.AgentIdentityID, AgentName: row.AgentName,
-			AgentAssistantOwnerName: row.AgentAssistantOwnerName, AgentAvatarFileID: row.AgentAvatarFileID, Status: domain.AgentRunStatus(row.Status),
+			AgentPersonalResponsibleName: row.AgentPersonalResponsibleName, AgentAvatarFileID: row.AgentAvatarFileID, Status: domain.AgentRunStatus(row.Status),
 			ErrorCode: row.ErrorCode, LastError: row.LastError, ExecutionDeviceID: row.ExecutionDeviceID, ExecutionDeviceName: row.ExecutionDeviceName}
 		if row.HasProcess && row.StartedAt != nil && row.CompletedAt != nil {
 			process, err := conversationAgentProcess(&row.AgentRun)
@@ -132,7 +132,7 @@ func loadConversationPendingAgents(ctx context.Context, db bun.IDB, organization
 		ColumnExpr("al.agent_identity_id AS identity_id").
 		ColumnExpr("oi.display_name AS display_name").
 		ColumnExpr("oi.avatar_file_id::text AS avatar_file_id").
-		ColumnExpr("? AS assistant_owner_name", AssistantOwnerName("oi")).
+		ColumnExpr("? AS personal_responsible_name", PersonalResponsibleName("oi")).
 		Join("JOIN organization_identities AS oi ON oi.id = al.agent_identity_id AND oi.organization_id = al.organization_id").
 		Join("JOIN agent_inputs AS ai ON ai.lane_id = al.id AND ai.input_seq = al.processed_seq + 1").
 		Join("JOIN messages AS msg ON msg.id = ai.source_message_id AND msg.organization_id = ai.organization_id").

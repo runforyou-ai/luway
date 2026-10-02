@@ -20,8 +20,8 @@ import (
 func testMemoryEntries() []MemoryEntry {
 	now := time.Date(2026, 9, 27, 8, 0, 0, 0, time.UTC)
 	return []MemoryEntry{
-		{Path: "role.md", Name: "主人的角色", Description: "主人负责华东区销售", Body: "主人是华东区销售负责人。", UpdatedAt: now.Add(-time.Hour)},
-		{Path: "work-style.md", Name: "工作方式", Description: "主人希望先给结论", Body: "回答先给结论，再列依据。", UpdatedAt: now},
+		{Path: "role.md", Name: "负责人的角色", Description: "负责人负责华东区销售", Body: "负责人是华东区销售负责人。", UpdatedAt: now.Add(-time.Hour)},
+		{Path: "work-style.md", Name: "工作方式", Description: "负责人希望先给结论", Body: "回答先给结论，再列依据。", UpdatedAt: now},
 	}
 }
 
@@ -36,21 +36,21 @@ func TestMemoryFiles(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if index.Content != "- [工作方式](work-style.md) — 主人希望先给结论\n- [主人的角色](role.md) — 主人负责华东区销售" {
+	if index.Content != "- [工作方式](work-style.md) — 负责人希望先给结论\n- [负责人的角色](role.md) — 负责人负责华东区销售" {
 		t.Fatalf("索引 = %q", index.Content)
 	}
 	file, err := files.Read(ctx, &filesystem.ReadRequest{FilePath: filepath.Join(files.directory, "role.md")})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(file.Content, "---\nname: 主人的角色\ndescription: 主人负责华东区销售\n---\n\n主人是华东区销售负责人。") {
+	if !strings.HasPrefix(file.Content, "---\nname: 负责人的角色\ndescription: 负责人负责华东区销售\n---\n\n负责人是华东区销售负责人。") {
 		t.Fatalf("记忆文件 = %q", file.Content)
 	}
 	preview, err := files.Read(ctx, &filesystem.ReadRequest{FilePath: filepath.Join(files.directory, "role.md"), Offset: 2, Limit: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.Content != "name: 主人的角色\ndescription: 主人负责华东区销售\n" {
+	if preview.Content != "name: 负责人的角色\ndescription: 负责人负责华东区销售\n" {
 		t.Fatalf("按行截取 = %q", preview.Content)
 	}
 	if _, err := files.Read(ctx, &filesystem.ReadRequest{FilePath: filepath.Join(files.directory, "missing.md")}); err == nil || !strings.Contains(err.Error(), "file not found") {
@@ -100,12 +100,12 @@ func TestMemoryFiles(t *testing.T) {
 // TestMemoryTopicLimits 验证写到上限的记忆不会触发主题记忆的截断提示。
 func TestMemoryTopicLimits(t *testing.T) {
 	for _, body := range []string{
-		strings.Repeat("a\n", domain.AssistantMemoryBodyMaxLength/2),
-		strings.Repeat("😀", domain.AssistantMemoryBodyMaxLength),
+		strings.Repeat("a\n", domain.AgentMemoryBodyMaxLength/2),
+		strings.Repeat("😀", domain.AgentMemoryBodyMaxLength),
 	} {
 		content := renderMemoryFile(MemoryEntry{
-			Path: "full.md", Name: strings.Repeat("😀", domain.AssistantMemoryNameMaxLength),
-			Description: strings.Repeat("😀", domain.AssistantMemoryDescriptionMaxLength), Body: body,
+			Path: "full.md", Name: strings.Repeat("😀", domain.AgentMemoryNameMaxLength),
+			Description: strings.Repeat("😀", domain.AgentMemoryDescriptionMaxLength), Body: body,
 		})
 		if lines := len(strings.Split(content, "\n")); lines > memoryTopicMaxLines || len(content) > memoryTopicMaxBytes {
 			t.Fatalf("满额记忆 %d 行 %d 字节超出上限 %d 行 %d 字节", lines, len(content), memoryTopicMaxLines, memoryTopicMaxBytes)
@@ -171,13 +171,13 @@ func TestEinoRuntimeInjectsMemory(t *testing.T) {
 		}
 		reminders.WriteString(messageText(message))
 	}
-	if !strings.Contains(system.String(), "你有一份来自以往与主人对话的长期记忆") {
+	if !strings.Contains(system.String(), "你有一份来自以往与负责人对话的长期记忆") {
 		t.Fatalf("系统指令未包含记忆说明：%q", system.String())
 	}
-	if !strings.Contains(reminders.String(), "- [工作方式](work-style.md) — 主人希望先给结论") {
+	if !strings.Contains(reminders.String(), "- [工作方式](work-style.md) — 负责人希望先给结论") {
 		t.Fatalf("未注入记忆索引：%q", reminders.String())
 	}
-	if !strings.Contains(reminders.String(), "回答先给结论，再列依据。") || strings.Contains(reminders.String(), "主人是华东区销售负责人。") {
+	if !strings.Contains(reminders.String(), "回答先给结论，再列依据。") || strings.Contains(reminders.String(), "负责人是华东区销售负责人。") {
 		t.Fatalf("相关记忆注入不正确：%q", reminders.String())
 	}
 }
@@ -198,7 +198,7 @@ func (m *extractionModel) Generate(_ context.Context, input []*schema.AgenticMes
 	if m.calls == 1 {
 		m.input = messageText(input[len(input)-1])
 		return assistantReply("",
-			&schema.FunctionToolCall{CallID: "save-1", Name: "save_memory", Arguments: `{"path":"report.md","name":"周报格式","description":"主人要求周报按客户分组","body":"周报按客户分组，每组列出进展与风险。"}`},
+			&schema.FunctionToolCall{CallID: "save-1", Name: "save_memory", Arguments: `{"path":"report.md","name":"周报格式","description":"负责人要求周报按客户分组","body":"周报按客户分组，每组列出进展与风险。"}`},
 			&schema.FunctionToolCall{CallID: "delete-1", Name: "delete_memory", Arguments: `{"path":"role.md"}`},
 			&schema.FunctionToolCall{CallID: "save-2", Name: "save_memory", Arguments: `{"path":"MEMORY.md","name":"索引","description":"索引","body":"x"}`},
 		), nil
@@ -233,7 +233,7 @@ func TestExtractMemory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, expected := range []string{"- work-style.md：工作方式 — 主人希望先给结论", "## 此前的消息\n[{\"sender\":\"owner\",\"content\":\"你好\"}]", "以后周报按客户分组"} {
+	for _, expected := range []string{"- work-style.md：工作方式 — 负责人希望先给结论", "## 此前的消息\n[{\"sender\":\"owner\",\"content\":\"你好\"}]", "以后周报按客户分组"} {
 		if !strings.Contains(chatModel.input, expected) {
 			t.Fatalf("提取输入缺少 %q：%s", expected, chatModel.input)
 		}
@@ -254,7 +254,7 @@ func TestResolveAssignmentMemory(t *testing.T) {
 	facts := customerFacts()
 	facts.Scene = SceneContext{Scene: SceneAgentChat}
 	if !ResolveAssignment(facts, Capabilities{Memory: true}).Memory {
-		t.Fatal("助理单聊应启用记忆")
+		t.Fatal("个人 AI 员工单聊应启用记忆")
 	}
 	if ResolveAssignment(facts, Capabilities{}).Memory {
 		t.Fatal("执行侧不支持时不应启用记忆")

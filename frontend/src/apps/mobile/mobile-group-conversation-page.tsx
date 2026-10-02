@@ -35,7 +35,7 @@ import {
   useConversationTypingLabel,
 } from "@/features/inbox/use-conversation-typing"
 import { resourceKeys } from "@/hooks/resource-keys"
-import { useAssistantDisplayName } from "@/hooks/use-assistant-display-name"
+import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 
 /** 按群聊隔离资料查询、发送草稿和访问恢复状态。 */
@@ -56,7 +56,7 @@ function MobileGroupConversation({
   conversationID: string
 }) {
   const { t } = useTranslation(["mobile", "inbox", "common"])
-  const assistantDisplayName = useAssistantDisplayName()
+  const personalAgentDisplayName = usePersonalAgentDisplayName()
   const groupName = useGroupDisplayName()
   const navigate = useNavigate()
   const outgoingStore = useOutgoingMessageStore()
@@ -104,7 +104,7 @@ function MobileGroupConversation({
   const covered = detailsOpen && Boolean(data) && !lost
   const activityLabel = useConversationTypingLabel(
     conversationID,
-    groupTypingSenderName(data?.participants ?? [], assistantDisplayName),
+    groupTypingSenderName(data?.participants ?? [], personalAgentDisplayName),
   )
 
   /** 消息或详情读取发现会话不可访问时重新校验群资料，由校验结果决定是否显示不可用。 */

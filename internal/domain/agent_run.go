@@ -46,9 +46,9 @@ const (
 const (
 	// AgentRunErrorCodeDeviceLeaseExpired 表示执行设备未按时续租，运行以失败结束。
 	AgentRunErrorCodeDeviceLeaseExpired AgentRunErrorCode = "device_lease_expired"
-	// AgentRunErrorCodeDeviceUnavailable 表示执行设备已撤销或设备主人已停用。
+	// AgentRunErrorCodeDeviceUnavailable 表示执行设备已撤销或设备所属成员已停用。
 	AgentRunErrorCodeDeviceUnavailable AgentRunErrorCode = "device_unavailable"
-	// AgentRunErrorCodeExecutionChanged 表示运行派发后助理已换电脑，排队中的运行不再执行。
+	// AgentRunErrorCodeExecutionChanged 表示运行派发后个人 AI 员工已换电脑，排队中的运行不再执行。
 	AgentRunErrorCodeExecutionChanged AgentRunErrorCode = "execution_changed"
 	// AgentRunErrorCodeDeviceRunFailed 表示设备上的运行时执行失败。
 	AgentRunErrorCodeDeviceRunFailed AgentRunErrorCode = "device_run_failed"

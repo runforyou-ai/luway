@@ -218,7 +218,7 @@ func loadCustomerReplyContext(ctx context.Context, db bun.IDB, identity *serverm
 			return withManagedAgentConfiguration(query, "a.active_revision_id")
 		}).
 		Where("a.organization_id = ? AND a.identity_id = ? AND a.status = ?", organizationID, input.AgentIdentityID, domain.IdentityStatusActive).
-		Where("oi.type = ?", domain.OrganizationIdentityTypeAgent).
+		Where("oi.type = ? AND NOT ? = ANY(a.service_audiences)", domain.OrganizationIdentityTypeAgent, domain.ServiceAudiencePersonal).
 		Scan(ctx, &result.agent)
 	if errors.Is(err, sql.ErrNoRows) {
 		return customerReplyContext{}, ErrAgentUnavailable
@@ -268,7 +268,7 @@ func NewListServiceReplyAgentsQuery(db *bun.DB) *ListServiceReplyAgentsQuery {
 	return &ListServiceReplyAgentsQuery{db: db}
 }
 
-// Execute 返回当前企业活跃且当前托管配置有效的 AI 员工，按显示名排序。
+// Execute 返回当前企业活跃、服务客户或员工且当前托管配置有效的 AI 员工，按显示名排序。
 func (q *ListServiceReplyAgentsQuery) Execute(ctx context.Context, identity *servermodels.Identity) ([]ServiceReplyAgent, error) {
 	agents := make([]ServiceReplyAgent, 0)
 	err := q.db.NewSelect().
@@ -278,6 +278,7 @@ func (q *ListServiceReplyAgentsQuery) Execute(ctx context.Context, identity *ser
 			return joinAgentConfiguration(query, "a.active_revision_id", false)
 		}).
 		Where("a.organization_id = ? AND a.status = ? AND oi.type = ?", identity.Organization.ID, domain.IdentityStatusActive, domain.OrganizationIdentityTypeAgent).
+		Where("NOT ? = ANY(a.service_audiences)", domain.ServiceAudiencePersonal).
 		OrderExpr("oi.display_name, a.identity_id").
 		Scan(ctx, &agents)
 	if err != nil {

@@ -99,7 +99,7 @@ func (l *localAgents) installCodexAdapter(ctx context.Context, environment local
 	defer func() { _ = os.RemoveAll(staging) }()
 	installCtx, cancel := context.WithTimeout(ctx, localAgentInstallTimeout)
 	defer cancel()
-	// 适配器使用主人已安装的 Codex CLI，不安装其可选的自带 Codex。
+	// 适配器使用负责人已安装的 Codex CLI，不安装其可选的自带 Codex。
 	install, err := localworkspace.Command(installCtx, environment, staging, "npm", "install", "--prefix", staging,
 		"--omit=optional", "--no-audit", "--no-fund", "--loglevel=error", codexACPPackage+"@"+codexACPVersion)
 	if err != nil {

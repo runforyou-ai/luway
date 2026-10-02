@@ -1,27 +1,27 @@
-/** 助理头像右下角的在线状态标记。 */
+/** 个人 AI 员工头像右下角的在线状态标记。 */
 import { PauseIcon } from "lucide-react"
 
-import { AssistantPresence } from "@/api"
+import { PersonalAgentPresence } from "@/api"
 import { cn } from "@/lib/utils"
 
 /** 在线显示绿点，离线或未绑定电脑显示灰点，暂停显示暂停标记，已停用或未知状态不显示；紧凑尺寸用于小头像，暂停只显示色点。 */
-export function AssistantPresenceMark({
+export function PersonalAgentPresenceMark({
   presence,
   compact = false,
   className,
 }: {
-  presence: AssistantPresence | null | undefined
+  presence: PersonalAgentPresence | null | undefined
   compact?: boolean
   className?: string
 }) {
   const dot = cn("inline-block shrink-0 rounded-full", compact ? "size-2" : "size-2.5")
   switch (presence) {
-    case AssistantPresence.AssistantPresenceOnline:
+    case PersonalAgentPresence.PersonalAgentPresenceOnline:
       return <span aria-hidden="true" className={cn(dot, "bg-success", className)} />
-    case AssistantPresence.AssistantPresenceOffline:
-    case AssistantPresence.AssistantPresenceUnbound:
+    case PersonalAgentPresence.PersonalAgentPresenceOffline:
+    case PersonalAgentPresence.PersonalAgentPresenceUnbound:
       return <span aria-hidden="true" className={cn(dot, "bg-muted-foreground", className)} />
-    case AssistantPresence.AssistantPresencePaused:
+    case PersonalAgentPresence.PersonalAgentPresencePaused:
       return compact ? (
         <span aria-hidden="true" className={cn(dot, "bg-warning", className)} />
       ) : (

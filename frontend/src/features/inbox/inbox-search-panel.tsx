@@ -4,7 +4,6 @@ import { useTranslation } from "react-i18next"
 
 import {
   InboxSearchPersonKind,
-  OrganizationIdentityType,
   type Identity,
   type InboxConversationData,
 } from "@/api"
@@ -241,7 +240,6 @@ export function InboxSearchPanel({ search, identity }: { search: InboxSearchStat
           {search.people.map((person, position) => {
             const contact = person.kind === InboxSearchPersonKind.InboxSearchPersonContact
             const agent = isAIIdentityType(person.identityType)
-            const assistant = person.identityType === OrganizationIdentityType.OrganizationIdentityTypeAssistant
             return (
               <SearchResultRow
                 key={`${person.kind}-${person.id}`}
@@ -253,7 +251,7 @@ export function InboxSearchPanel({ search, identity }: { search: InboxSearchStat
                 detail={
                   contact
                     ? t(person.conversationId ? "searchPersonContact" : "searchPersonNoConversation")
-                    : t(assistant ? "contextIdentityAssistant" : agent ? "contextIdentityAgent" : "contextIdentityMember")
+                    : t(person.personal ? "contextIdentityPersonalAgent" : agent ? "contextIdentityAgent" : "contextIdentityMember")
                 }
                 onSelect={search.setActiveIndex}
                 onOpen={() => search.open({ kind: "person", person })}

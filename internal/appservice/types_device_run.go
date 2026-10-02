@@ -70,7 +70,7 @@ type DeviceRunKnowledgeSearchResult struct {
 	Result json.RawMessage `json:"result"`
 }
 
-// DeviceRunMemory 定义设备运行读取的助理记忆，记忆条目是运行时的不透明 JSON。
+// DeviceRunMemory 定义设备运行读取的个人 AI 员工记忆，记忆条目是运行时的不透明 JSON。
 type DeviceRunMemory struct {
 	Entries json.RawMessage `json:"entries"`
 }

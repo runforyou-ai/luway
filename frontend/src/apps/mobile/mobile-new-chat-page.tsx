@@ -1,4 +1,4 @@
-/** 移动端发起单聊：选择同事、AI 员工或本人助理，打开已有单聊或新草稿。 */
+/** 移动端发起单聊：选择同事、AI 员工，打开已有单聊或新草稿。 */
 import { useState } from "react"
 import { ChevronRightIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -85,11 +85,7 @@ export function MobileNewChatPage() {
                   </span>
                   {member.type === OrganizationIdentityType.OrganizationIdentityTypeAgent ? (
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {t("chatPickerAgent")}
-                    </span>
-                  ) : member.type === OrganizationIdentityType.OrganizationIdentityTypeAssistant ? (
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {t("chatPickerAssistant")}
+                      {t(member.personal ? "chatPickerPersonalAgent" : "chatPickerAgent")}
                     </span>
                   ) : null}
                   <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
@@ -109,7 +105,7 @@ export function MobileNewChatTargetPage() {
   return <MobileNewChatTarget key={identityID} identityID={identityID} />
 }
 
-/** 解析单聊对象：同事复用已有单聊或进入草稿，AI 员工与助理进入新的 AI 对话。 */
+/** 解析单聊对象：同事复用已有单聊或进入草稿，AI 员工进入新的 AI 对话。 */
 function MobileNewChatTarget({ identityID }: { identityID: string }) {
   const { t } = useTranslation(["inbox", "common"])
   const { identity } = useMobileWorkspace()

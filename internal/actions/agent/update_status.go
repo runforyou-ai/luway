@@ -58,7 +58,7 @@ func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels
 			Set("updated_at = now()").
 			Where("organization_id = ?", identity.Organization.ID).
 			Where("id = ?", agentID).
-			Where("identity_id IN (SELECT id FROM organization_identities WHERE organization_id = ? AND type = ?)", identity.Organization.ID, domain.OrganizationIdentityTypeAgent).
+			Where(serviceAgentCondition).
 			Returning("new.identity_id, old.status <> new.status AS changed").
 			Scan(ctx, &updatedAgent)
 		if errors.Is(err, sql.ErrNoRows) {

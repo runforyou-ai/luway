@@ -8,16 +8,17 @@ const (
 	ServiceSessionStatusClosed ServiceSessionStatus = "closed"
 )
 
-// ServiceAudience 定义服务对象：customer 为外部客户，employee 为本企业员工，partner 为伙伴。
+// ServiceAudience 定义服务对象：customer 为外部客户，employee 为本企业员工，partner 为伙伴，personal 为仅负责人本人，服务对象为 personal 的 AI 员工称为个人 AI 员工。
 type ServiceAudience string
 
 const (
 	ServiceAudienceCustomer ServiceAudience = "customer"
 	ServiceAudienceEmployee ServiceAudience = "employee"
 	ServiceAudiencePartner  ServiceAudience = "partner"
+	ServiceAudiencePersonal ServiceAudience = "personal"
 )
 
-// AgentServiceAudiences 是 AI 员工可选择的服务对象，按展示顺序排列。
+// AgentServiceAudiences 是服务客户或员工的 AI 员工可组合选择的服务对象，按展示顺序排列；personal 只能单独使用且创建后不可更改。
 var AgentServiceAudiences = []ServiceAudience{ServiceAudienceCustomer, ServiceAudienceEmployee}
 
 // ServiceSource 定义服务会话来源：channel 为渠道，direct 为单聊。

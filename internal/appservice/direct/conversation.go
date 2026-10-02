@@ -97,11 +97,11 @@ func newConversationOps(db *bun.DB, agentScheduler conversationaction.AgentMessa
 	}
 }
 
-// assistantConflictKeys 是助理无法接收新请求时的冲突提示。
-var assistantConflictKeys = map[string]i18n.Key{
-	conversationaction.ConflictReasonAssistantPaused:  i18n.ErrorAssistantPaused,
-	conversationaction.ConflictReasonAssistantUnbound: i18n.ErrorAssistantUnbound,
-	groupchataction.ConflictReasonAssistantInactive:   i18n.ErrorAssistantInactive,
+// personalAgentConflictKeys 是个人 AI 员工无法接收新请求时的冲突提示。
+var personalAgentConflictKeys = map[string]i18n.Key{
+	conversationaction.ConflictReasonPersonalAgentPaused:  i18n.ErrorAgentPaused,
+	conversationaction.ConflictReasonPersonalAgentUnbound: i18n.ErrorAgentDeviceUnbound,
+	groupchataction.ConflictReasonPersonalAgentInactive:   i18n.ErrorAgentInactive,
 }
 
 var conversationMessageValidationKeys = map[conversationaction.ValidationCode]i18n.Key{

@@ -1,6 +1,6 @@
 // Package localskill 读取、安装与删除这台电脑上的 Agent Skills 技能。
 //
-// 技能是含 SKILL.md 的文件夹。助理安装的技能位于主目录下以品牌标识命名的隐藏目录下的 skills，同时只读使用
+// 技能是含 SKILL.md 的文件夹。个人 AI 员工安装的技能位于主目录下以品牌标识命名的隐藏目录下的 skills，同时只读使用
 // ~/.agents/skills 与 ~/.claude/skills 中的技能，重名时按目录顺序取第一个。
 package localskill
 
@@ -27,7 +27,7 @@ const FileName = "SKILL.md"
 type Source string
 
 const (
-	// SourceManaged 表示助理安装的技能，位于主目录下以品牌标识命名的隐藏目录。
+	// SourceManaged 表示个人 AI 员工安装的技能，位于主目录下以品牌标识命名的隐藏目录。
 	SourceManaged Source = "managed"
 	// SourceAgents 表示跨工具共用的技能，位于 ~/.agents/skills。
 	SourceAgents Source = "agents"
@@ -50,7 +50,7 @@ type Skill struct {
 	Fork        bool // 元数据声明 context: fork，技能交给独立上下文的子 Agent 执行。
 }
 
-// DefaultDirs 按优先级返回用户主目录下的技能目录，第一个是助理安装技能的目录。
+// DefaultDirs 按优先级返回用户主目录下的技能目录，第一个是个人 AI 员工安装技能的目录。
 func DefaultDirs() ([]Dir, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {

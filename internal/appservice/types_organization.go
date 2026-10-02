@@ -6,9 +6,8 @@ import "github.com/runforyou-ai/luway/internal/domain"
 type OrganizationIdentityType string
 
 const (
-	OrganizationIdentityTypeUser      OrganizationIdentityType = OrganizationIdentityType(domain.OrganizationIdentityTypeUser)
-	OrganizationIdentityTypeAgent     OrganizationIdentityType = OrganizationIdentityType(domain.OrganizationIdentityTypeAgent)
-	OrganizationIdentityTypeAssistant OrganizationIdentityType = OrganizationIdentityType(domain.OrganizationIdentityTypeAssistant)
+	OrganizationIdentityTypeUser  OrganizationIdentityType = OrganizationIdentityType(domain.OrganizationIdentityTypeUser)
+	OrganizationIdentityTypeAgent OrganizationIdentityType = OrganizationIdentityType(domain.OrganizationIdentityTypeAgent)
 )
 
 // Organization 定义当前工作区及其通用设置。

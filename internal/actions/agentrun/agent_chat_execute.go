@@ -54,7 +54,7 @@ func (p agentChatRunPolicy) loadMessages(ctx context.Context, db bun.IDB, run *s
 	return loadClaimedConversationMessages(ctx, db, run, endSeq, links, false)
 }
 
-// persistMessage 追加独立 AI 会话的结果消息，新写入的文本回复是 AI 员工首条文本回复时投递标题任务，运行的 Agent 是助理时投递记忆提取任务。
+// persistMessage 追加独立 AI 会话的结果消息，新写入的文本回复是 AI 员工首条文本回复时投递标题任务，运行的 Agent 是个人 AI 员工时投递记忆提取任务。
 func (p agentChatRunPolicy) persistMessage(ctx context.Context, db bun.IDB, policyContext agentRunPolicyContext, run *servermodels.AgentRun, messageID string, messageType domain.MessageType, content string) error {
 	_, inserted, err := appendAgentMessage(ctx, db, policyContext.Conversation, agentResultMessage(run, messageID, policyContext.AgentParticipantID, messageType, content, nil))
 	if err != nil || !inserted || messageType != domain.MessageTypeText {
@@ -63,7 +63,7 @@ func (p agentChatRunPolicy) persistMessage(ctx context.Context, db bun.IDB, poli
 	if err := enqueueAgentChatTitle(ctx, db, p.enqueuer, policyContext.Conversation, policyContext.AgentParticipantID, messageID); err != nil {
 		return err
 	}
-	return enqueueAssistantMemory(ctx, db, p.enqueuer, run, messageID)
+	return enqueueAgentMemory(ctx, db, p.enqueuer, run, messageID)
 }
 
 // sceneContext 给出企业内部对话场景。

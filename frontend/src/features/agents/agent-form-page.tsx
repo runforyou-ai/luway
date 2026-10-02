@@ -1,21 +1,25 @@
-/** AI 员工独立创建页和详情页：详情页分概览、待补知识、问题会话、评测、服务记录、基本资料与运行配置七个与地址同步的页签，没有服务对象的 AI 员工不显示评测。 */
-import { useEffect } from "react"
+/** AI 员工独立创建页和详情页：创建页先选择服务对象，仅自己时切换为本机创建表单；详情页分概览、待补知识、问题会话、评测、服务记录、基本资料与运行配置七个与地址同步的页签，没有服务对象的 AI 员工不显示评测。 */
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useSearchParams } from "react-router"
 
 import {
+  currentDevice,
   getAIPerformanceReport,
   getAgent,
   isNotFoundApiError,
+  listDevices,
   listTeams,
   type AgentData,
+  type ServiceAudience,
 } from "@/api"
 import { ListToolbar, ListToolbarFilter } from "@/components/list-toolbar"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { ResourceContent } from "@/components/resource-content"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AgentForm } from "@/features/agents/agent-form"
+import { AgentForm, useAgentAvatarUpload, type AgentCreateDraft } from "@/features/agents/agent-form"
+import { PersonalAgentCreateForm } from "@/features/agents/personal/personal-agent-form"
 import { AgentProfileForm } from "@/features/agents/agent-profile-form"
 import { AgentExecutionForm } from "@/features/agents/agent-execution-form"
 import { AgentEvaluationPanel } from "@/features/agents/agent-evaluation"
@@ -88,7 +92,7 @@ export function AgentFormPage({ mode }: { mode: "create" | "edit" }) {
       />
       {mode === "create" ? (
         <PageContent variant="form">
-          <AgentForm
+          <AgentCreateForms
             defaultTeamIds={teamId ? [teamId] : []}
             onCancel={() => leave()}
             onSaved={() => leave({ replace: true })}
@@ -100,6 +104,70 @@ export function AgentFormPage({ mode }: { mode: "create" | "edit" }) {
         </ResourceContent>
       )}
     </div>
+  )
+}
+
+/** 按服务对象切换创建表单：客户或员工使用 AI 员工表单，仅自己使用本机创建表单，切换时保留已填写的名称与托管执行配置；本机未注册为电脑时不可选择仅自己。 */
+function AgentCreateForms({
+  defaultTeamIds,
+  onSaved,
+  onCancel,
+}: {
+  defaultTeamIds: string[]
+  onSaved: () => void
+  onCancel: () => void
+}) {
+  const { t } = useTranslation("agents")
+  const [personal, setPersonal] = useState(false)
+  const [serviceAudiences, setServiceAudiences] = useState<ServiceAudience[]>([])
+  const [draft, setDraft] = useState<AgentCreateDraft>({ displayName: "", modelSelection: "", systemInstruction: "", knowledgeBaseIds: [] })
+  // 头像上传与已带入的草稿跨表单保留，切换后仍按未保存内容拦截离开。
+  const avatar = useAgentAvatarUpload()
+  const draftDirty =
+    draft.displayName !== "" || draft.modelSelection !== "" || draft.systemInstruction !== "" || draft.knowledgeBaseIds.length > 0
+  const local = useResource(resourceKeys.currentDevice(), () => currentDevice())
+  const devices = useResource(resourceKeys.devices(), () => listDevices(), { enabled: personal })
+  const localDeviceID = local.data?.deviceId ?? ""
+  const localDevice = devices.data?.devices.find((device) => device.id === localDeviceID)
+
+  if (personal && localDeviceID) {
+    return (
+      <ResourceContent resources={devices} errorMessage={t("personal.loadError")}>
+        <PersonalAgentCreateForm
+          deviceID={localDeviceID}
+          deviceName={localDevice?.name ?? ""}
+          localAgents={localDevice?.localAgents ?? []}
+          draft={draft}
+          draftDirty={draftDirty}
+          avatar={avatar}
+          onServiceAudiencesChange={(audiences, next) => {
+            setServiceAudiences(audiences)
+            setDraft(next)
+            setPersonal(false)
+          }}
+          onCancel={onCancel}
+          onSaved={onSaved}
+        />
+      </ResourceContent>
+    )
+  }
+  return (
+    <AgentForm
+      defaultTeamIds={defaultTeamIds}
+      defaultServiceAudiences={serviceAudiences}
+      draft={draft}
+      draftDirty={draftDirty}
+      avatar={avatar}
+      personal={{
+        available: localDeviceID !== "",
+        onSelect: (next) => {
+          setDraft(next)
+          setPersonal(true)
+        },
+      }}
+      onCancel={onCancel}
+      onSaved={onSaved}
+    />
   )
 }
 

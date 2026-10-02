@@ -79,7 +79,7 @@ func (b *Backend) SearchDeviceRunKnowledge(ctx context.Context, meta appservice.
 	return appservice.WithNormalizedSlices(b.ops.SearchDeviceRunKnowledge(ctx, meta, device, runID, input))
 }
 
-// GetDeviceRunMemory 返回本设备持有运行所属助理的记忆，有效配置未启用记忆时为空。
+// GetDeviceRunMemory 返回本设备持有运行所属个人 AI 员工的记忆，有效配置未启用记忆时为空。
 func (b *Backend) GetDeviceRunMemory(ctx context.Context, meta appservice.RequestMeta, runID string) (appservice.DeviceRunMemory, error) {
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {

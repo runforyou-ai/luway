@@ -13,7 +13,6 @@ import {
 
 import {
   ConversationType,
-  OrganizationIdentityType,
   isAgentInboxConversation,
   isDirectInboxConversation,
   type AgentInboxConversationData,
@@ -33,7 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { assistantUnavailableLabel } from "@/features/inbox/agent-run-status"
+import { personalAgentUnavailableLabel } from "@/features/inbox/agent-run-status"
 import { useConversationSummary } from "@/features/inbox/use-conversation-summary"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { useAccountDisabledReason } from "@/features/inbox/use-account-disabled-reason"
@@ -55,7 +54,7 @@ export type MobileIndividualConversationContext = {
   conversation: DirectInboxConversationData | AgentInboxConversationData
 }
 
-/** 展示双方会话的移动端头部，静音时在标题旁显示标识：助理不在线时在标题栏下方整行说明，并提供包含资料、会话内搜索与归档的菜单；子页覆盖时不响应返回。 */
+/** 展示双方会话的移动端头部，静音时在标题旁显示标识：个人 AI 员工不在线时在标题栏下方整行说明，并提供包含资料、会话内搜索与归档的菜单；子页覆盖时不响应返回。 */
 export function MobileIndividualHeader({
   conversation,
   peerName,
@@ -72,15 +71,11 @@ export function MobileIndividualHeader({
   const { memberUserID } =
     (location.state as MobileIndividualLocationState | null) ?? {}
   const typingLabel = useConversationTypingLabel(conversation?.id ?? "", null)
-  const assistant =
-    conversation &&
-    isAgentInboxConversation(conversation) &&
-    conversation.agent.agentType ===
-      OrganizationIdentityType.OrganizationIdentityTypeAssistant
-      ? conversation.agent
-      : null
-  // 助理不在线时在标题栏下方整行说明原因，正常在线不额外提示。
-  const presenceLabel = assistantUnavailableLabel(assistant?.assistantPresence, tInbox)
+  // 个人 AI 员工不在线时在标题栏下方整行说明原因，正常在线不额外提示。
+  const presenceLabel = personalAgentUnavailableLabel(
+    conversation && isAgentInboxConversation(conversation) ? conversation.agent.personalPresence : null,
+    tInbox,
+  )
   const archived = Boolean(conversation?.archivedAt)
   const archive = useConversationArchive()
   const listActions = useConversationListActions()

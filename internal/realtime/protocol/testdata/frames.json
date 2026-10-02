@@ -174,10 +174,10 @@
     "wire": {"v": 1, "type": "device_work_advanced", "data": {"deviceId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a90", "workSeq": "9223372036854775807"}}
   },
   {
-    "name": "assistant_memory_changed",
+    "name": "agent_memory_changed",
     "result": "frame",
     "encode": true,
-    "wire": {"v": 1, "type": "assistant_memory_changed", "data": {"assistantId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a91"}}
+    "wire": {"v": 1, "type": "agent_memory_changed", "data": {"agentId": "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a91"}}
   },
   {
     "name": "workspace_activity",

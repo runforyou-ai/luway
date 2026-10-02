@@ -236,7 +236,7 @@ func (q *CaseDetailQuery) Execute(ctx context.Context, identity *servermodels.Id
 	return detail, nil
 }
 
-// loadEvaluatedAgent 读取当前企业中有服务对象的 AI 员工，助理与没有服务对象的 AI 员工视为不存在。
+// loadEvaluatedAgent 读取当前企业中有服务对象的 AI 员工，个人 AI 员工与没有服务对象的 AI 员工视为不存在。
 func loadEvaluatedAgent(ctx context.Context, db bun.IDB, organizationID, agentID string) (*servermodels.Agent, error) {
 	return scanEvaluatedAgent(ctx, db, organizationID, agentID, false)
 }
@@ -249,8 +249,7 @@ func scanEvaluatedAgent(ctx context.Context, db bun.IDB, organizationID, agentID
 	agent := &servermodels.Agent{}
 	query := db.NewSelect().Model(agent).
 		Where("a.organization_id = ? AND a.id = ?", organizationID, agentID).
-		Where("a.owner_user_id IS NULL").
-		Where("cardinality(a.service_audiences) > 0")
+		Where("cardinality(a.service_audiences) > 0 AND NOT ? = ANY(a.service_audiences)", domain.ServiceAudiencePersonal)
 	if lock {
 		query = query.For("UPDATE")
 	}
