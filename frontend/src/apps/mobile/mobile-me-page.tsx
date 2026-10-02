@@ -1,6 +1,6 @@
 /** 移动端个人中心、工作状态切换和个人设置子页。 */
 import { useRef, useState } from "react"
-import { ChevronRightIcon } from "lucide-react"
+import { ArrowUpRightIcon, ChevronRightIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { Link, useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -26,13 +26,14 @@ import { ProfileSettingsForm } from "@/features/settings/profile-settings-form"
 import { UserPreferencesForm } from "@/features/settings/user-preferences-form"
 import { useWorkStatusChange } from "@/hooks/use-work-status-change"
 import { withReturnTo } from "@/lib/workspace-route"
+import { openProductDocs } from "@/platform/product-docs"
 
 const rowClassName =
   "flex min-h-14 w-full items-center gap-3 px-4 text-left text-sm outline-none active:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50"
 
-/** 展示个人资料、工作状态、待补知识入口、当前工作区与切换入口、设置入口、退出操作和应用版本号。 */
+/** 展示个人资料、工作状态、待补知识入口、当前工作区与切换入口、设置入口、帮助文档、退出操作和应用版本号。 */
 export function MobileMePage() {
-  const { t } = useTranslation(["mobile", "workspace", "common", "account", "agents"])
+  const { t, i18n } = useTranslation(["mobile", "workspace", "common", "account", "agents"])
   const navigate = useNavigate()
   const { identity } = useMobileWorkspace()
   const otherWorkspacesUnread = useWorkspaceAttention(identity.organization.id).others
@@ -104,6 +105,12 @@ export function MobileMePage() {
           </div>
         ) : null}
         <div className="mb-6 border-y">
+          <Link to="/me/personal-agents" state={{ mobileBack: true }} className={rowClassName}>
+            <span className="flex-1">{t("agents:personal.sectionTitle")}</span>
+            <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="mb-6 border-y">
           {/* 切换工作区经账号级的工作区列表，返回时回到这里。 */}
           <Link to={withReturnTo("/workspaces")} className={rowClassName}>
             <span className="grid flex-1 gap-0.5">
@@ -134,6 +141,19 @@ export function MobileMePage() {
               />
             </Link>
           ))}
+        </div>
+        <div className="mt-6 border-y">
+          <button
+            type="button"
+            className={rowClassName}
+            onClick={() => void openProductDocs("home", i18n.language)}
+          >
+            <span className="flex-1">{t("common:productDocs")}</span>
+            <ArrowUpRightIcon
+              className="size-5 shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
+          </button>
         </div>
         <div className="mt-9 px-4">
           <Button

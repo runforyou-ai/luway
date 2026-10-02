@@ -41,9 +41,9 @@ const mobile = {
     notFound: "该联系人不存在或无法访问。",
     channelsLoadError: "无法加载渠道，请重试。",
   },
-  assistants: {
-    loadError: "无法加载助理，请重试。",
-    notFound: "该助理不存在或无法访问。",
+  personalAgents: {
+    loadError: "无法加载 AI 员工，请重试。",
+    notFound: "该 AI 员工不存在或无法访问。",
   },
   agents: {
     chatError: "无法打开 AI 对话，请重试。",

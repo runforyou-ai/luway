@@ -3,7 +3,8 @@ import { useId, type Ref } from "react"
 import { SearchIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { OrganizationIdentityType, type MemberOption } from "@/api"
+import { OrganizationIdentityType } from "@/api"
+import type { ChatTarget } from "@/features/inbox/list-all-member-options"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { Button } from "@/components/ui/button"
@@ -17,7 +18,7 @@ export function GroupMemberPicker({
   loading, error, onRetry, disabled = false, required = false,
   showCount = false, inputRef, name, onBlur,
 }: {
-  members: MemberOption[]
+  members: ChatTarget[]
   label: string
   emptyMessage: string
   selected: string[]
@@ -110,7 +111,7 @@ export function GroupMemberPicker({
 function GroupMemberOption({
   member, checked, disabled, name, onBlur, onChange,
 }: {
-  member: MemberOption
+  member: ChatTarget
   checked: boolean
   disabled: boolean
   name?: string
@@ -119,7 +120,6 @@ function GroupMemberOption({
 }) {
   const { t } = useTranslation("inbox")
   const agent = member.type === OrganizationIdentityType.OrganizationIdentityTypeAgent
-  const assistant = member.type === OrganizationIdentityType.OrganizationIdentityTypeAssistant
   return (
     <label className="flex items-center gap-3 rounded-md px-3 py-2.5 transition-colors hover:bg-muted">
       <input
@@ -135,12 +135,12 @@ function GroupMemberOption({
       <ProfileAvatar
         imageURL={member.avatarUrl}
         name={member.displayName}
-        fallback={agent || assistant ? "agent" : "person"}
+        fallback={agent ? "agent" : "person"}
         className="size-9"
       />
       <span className="min-w-0 flex-1 truncate text-sm">{member.displayName}</span>
-      {agent || assistant ? (
-        <span className="shrink-0 text-xs text-muted-foreground">{t(agent ? "groupAgent" : "chatPickerAssistant")}</span>
+      {agent ? (
+        <span className="shrink-0 text-xs text-muted-foreground">{t(member.personal ? "chatPickerPersonalAgent" : "groupAgent")}</span>
       ) : null}
     </label>
   )

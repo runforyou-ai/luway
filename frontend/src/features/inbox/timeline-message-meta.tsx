@@ -2,7 +2,7 @@
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
-import { useAssistantDisplayName } from "@/hooks/use-assistant-display-name"
+import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import { useContactName } from "@/hooks/use-contact-name"
 import { messagePreview } from "@/lib/message-preview"
 import { cn } from "@/lib/utils"
@@ -24,7 +24,7 @@ export function MessageReplyQuote({
   onFollow: (messageID: string) => Promise<void>
 }) {
   const { t } = useTranslation(["inbox", "common"])
-  const assistantDisplayName = useAssistantDisplayName()
+  const personalAgentDisplayName = usePersonalAgentDisplayName()
   const contactName = useContactName()
   return (
     <button
@@ -52,9 +52,9 @@ export function MessageReplyQuote({
       ) : (
         <>
           <span className="block font-medium">
-            {assistantDisplayName(
+            {personalAgentDisplayName(
               contactName(replyTo.sender?.displayName, replyTo.sender?.contactNumber),
-              replyTo.sender?.assistantOwnerName,
+              replyTo.sender?.personalResponsibleName,
             ) || replyTo.externalSenderName || t("unknownSender")}
           </span>
           <span className="line-clamp-2 whitespace-pre-wrap">

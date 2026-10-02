@@ -15,7 +15,6 @@ import {
 import { useTranslation } from "react-i18next"
 
 import {
-  OrganizationIdentityType,
   isAgentInboxConversation,
   isInternalInboxConversation,
   isServiceInboxConversation,
@@ -39,8 +38,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { assistantUnavailableLabel } from "@/features/inbox/agent-run-status"
-import { useAssistantDisplayName } from "@/hooks/use-assistant-display-name"
+import { personalAgentUnavailableLabel } from "@/features/inbox/agent-run-status"
+import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import { useContactName } from "@/hooks/use-contact-name"
 import {
   customerTypingSenderName,
@@ -151,26 +150,24 @@ export function ConversationHeader({
   contextVisible?: boolean
   onToggleContext?: () => void
 }) {
-  const { t } = useTranslation(["inbox", "contacts", "common"])
-  const assistantDisplayName = useAssistantDisplayName()
+  const { t } = useTranslation(["inbox", "agents", "contacts", "common"])
+  const personalAgentDisplayName = usePersonalAgentDisplayName()
   const customerConversation = isServiceInboxConversation(conversation)
     ? conversation
     : null
   const customer = customerConversation?.service ?? null
   const group = isGroupInboxConversation(conversation) ? conversation.group : null
-  const assistant =
-    isAgentInboxConversation(conversation) &&
-    conversation.agent.agentType === OrganizationIdentityType.OrganizationIdentityTypeAssistant
-      ? conversation.agent
-      : null
-  // 助理不在线时在标题旁说明原因，正常在线不额外提示。
-  const presenceLabel = assistantUnavailableLabel(assistant?.assistantPresence, t)
+  // 个人 AI 员工不在线时在标题旁说明原因，正常在线不额外提示。
+  const presenceLabel = personalAgentUnavailableLabel(
+    isAgentInboxConversation(conversation) ? conversation.agent.personalPresence : null,
+    t,
+  )
   const formatContactName = useContactName()
   // 正在输入提示紧接标题右侧展示，真人与 AI 员工同等列出。
   const activityLabel = useConversationTypingLabel(
     conversation.id,
     group
-      ? groupTypingSenderName(groupParticipants ?? [], assistantDisplayName)
+      ? groupTypingSenderName(groupParticipants ?? [], personalAgentDisplayName)
       : customer
         ? customerTypingSenderName(customer, formatContactName)
         : null,

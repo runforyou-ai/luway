@@ -95,7 +95,7 @@ var memberFrameTypes = []protocol.Type{
 	protocol.TypeServerHello, protocol.TypeConversationChanged, protocol.TypeConversationRemoved,
 	protocol.TypeConversationStateChanged, protocol.TypeConversationTyping, protocol.TypeIdentityProfileChanged,
 	protocol.TypePinOrderChanged, protocol.TypeServiceAttention, protocol.TypeKnowledgeGapsChanged, protocol.TypeServiceReportsChanged,
-	protocol.TypeAssistantMemoryChanged,
+	protocol.TypeAgentMemoryChanged,
 }
 
 // workspaceActivityKinds 是工作区动态事件流转发的成员变更通知，均影响本人的提醒数量或新消息提示。
@@ -608,8 +608,8 @@ func (g *Gateway) deliver(subject string, data []byte) {
 		frame = protocol.ServiceAttention{ConversationID: payload.ConversationID, ServiceSessionID: payload.ServiceSessionID, Reason: payload.AttentionReason}
 	case realtime.KindDeviceWorkAdvanced:
 		frame = protocol.DeviceWorkAdvanced{DeviceID: payload.DeviceID, WorkSeq: payload.Version}
-	case realtime.KindAssistantMemoryChanged:
-		frame = protocol.AssistantMemoryChanged{AssistantID: payload.AssistantID}
+	case realtime.KindAgentMemoryChanged:
+		frame = protocol.AgentMemoryChanged{AgentID: payload.AgentID}
 	case realtime.KindSessionLoggedOut:
 		for _, current := range targets {
 			if current.tokenSession() == payload.TokenSessionID {

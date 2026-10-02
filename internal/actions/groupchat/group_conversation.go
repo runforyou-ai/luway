@@ -46,22 +46,23 @@ type SendGroupTextMessageAction struct {
 }
 
 type groupMemberRow struct {
-	IdentityID         string                          `bun:"identity_id"`
-	IdentityType       domain.OrganizationIdentityType `bun:"identity_type"`
-	DisplayName        string                          `bun:"display_name"`
-	AvatarFileID       *string                         `bun:"avatar_file_id"`
-	AssistantOwnerName *string                         `bun:"assistant_owner_name"`
+	IdentityID              string                          `bun:"identity_id"`
+	IdentityType            domain.OrganizationIdentityType `bun:"identity_type"`
+	Personal                bool                            `bun:"personal"`
+	DisplayName             string                          `bun:"display_name"`
+	AvatarFileID            *string                         `bun:"avatar_file_id"`
+	PersonalResponsibleName *string                         `bun:"personal_responsible_name"`
 }
 
 type groupParticipantRow struct {
-	IdentityType             domain.OrganizationIdentityType `bun:"identity_type"`
-	ChatSubjectID            string                          `bun:"chat_subject_id"`
-	IdentityID               string                          `bun:"identity_id"`
-	DisplayName              string                          `bun:"display_name"`
-	AvatarFileID             *string                         `bun:"avatar_file_id"`
-	Role                     string                          `bun:"role"`
-	AssistantOwnerName       *string                         `bun:"assistant_owner_name"`
-	AssistantOwnerIdentityID *string                         `bun:"assistant_owner_identity_id"`
+	IdentityType                  domain.OrganizationIdentityType `bun:"identity_type"`
+	ChatSubjectID                 string                          `bun:"chat_subject_id"`
+	IdentityID                    string                          `bun:"identity_id"`
+	DisplayName                   string                          `bun:"display_name"`
+	AvatarFileID                  *string                         `bun:"avatar_file_id"`
+	Role                          string                          `bun:"role"`
+	PersonalResponsibleName       *string                         `bun:"personal_responsible_name"`
+	PersonalResponsibleIdentityID *string                         `bun:"personal_responsible_identity_id"`
 }
 
 // NewCreateGroupConversationAction 创建群聊创建操作。
@@ -211,8 +212,8 @@ func loadGroupConversation(ctx context.Context, db bun.IDB, identity *servermode
 		ColumnExpr("oi.display_name AS display_name").
 		ColumnExpr("oi.avatar_file_id::text AS avatar_file_id").
 		ColumnExpr("cp.role AS role, oi.type AS identity_type").
-		ColumnExpr("? AS assistant_owner_name", conversationaction.AssistantOwnerName("oi")).
-		ColumnExpr("? AS assistant_owner_identity_id", assistantOwnerIdentityID("oi")).
+		ColumnExpr("? AS personal_responsible_name", conversationaction.PersonalResponsibleName("oi")).
+		ColumnExpr("? AS personal_responsible_identity_id", personalResponsibleIdentityID("oi")).
 		Join("JOIN chat_subjects AS cs ON cs.organization_id = cp.organization_id AND cs.id = cp.subject_id AND cs.kind = ?", domain.ChatSubjectKindOrganizationIdentity).
 		Join("JOIN organization_identities AS oi ON oi.organization_id = cs.organization_id AND oi.id = cs.source_id").
 		Where("cp.organization_id = ?", identity.Organization.ID).
@@ -228,7 +229,7 @@ func loadGroupConversation(ctx context.Context, db bun.IDB, identity *servermode
 			ChatSubjectID: row.ChatSubjectID, IdentityType: row.IdentityType,
 			IdentityID: row.IdentityID, DisplayName: row.DisplayName,
 			AvatarFileID: row.AvatarFileID, Role: domain.ConversationParticipantRole(row.Role),
-			AssistantOwnerName: row.AssistantOwnerName, AssistantOwnerIdentityID: row.AssistantOwnerIdentityID,
+			PersonalResponsibleName: row.PersonalResponsibleName, PersonalResponsibleIdentityID: row.PersonalResponsibleIdentityID,
 		})
 	}
 	return GroupConversation{
@@ -380,7 +381,7 @@ func normalizeGroupConversationInput(currentIdentityID string, input GroupConver
 	return input, fields
 }
 
-// loadActiveGroupMembers 读取同企业可加入群聊的有效真人、AI 员工与当前成员本人名下的助理；调用方须在锁定群聊前调用，先对其中 AI 的记录取共享锁，与停用 AI 及其主人的锁序一致。
+// loadActiveGroupMembers 读取同企业可加入群聊的有效真人、服务型 AI 员工与当前成员负责的个人 AI 员工；调用方须在锁定群聊前调用，先对其中 AI 员工的记录取共享锁，与停用 AI 员工及其负责人的锁序一致。
 func loadActiveGroupMembers(ctx context.Context, db bun.IDB, identity *servermodels.Identity, identityIDs []string) ([]groupMemberRow, error) {
 	var lockedAgentIDs []string
 	if err := db.NewSelect().Model((*servermodels.Agent)(nil)).Column("a.id").
@@ -394,15 +395,16 @@ func loadActiveGroupMembers(ctx context.Context, db bun.IDB, identity *servermod
 		TableExpr("organization_identities AS oi").
 		ColumnExpr("oi.id AS identity_id").
 		ColumnExpr("oi.type AS identity_type").
+		ColumnExpr("COALESCE(? = ANY(a.service_audiences), FALSE) AS personal", domain.ServiceAudiencePersonal).
 		ColumnExpr("oi.display_name AS display_name").
 		ColumnExpr("oi.avatar_file_id::text AS avatar_file_id").
-		ColumnExpr("? AS assistant_owner_name", conversationaction.AssistantOwnerName("oi")).
+		ColumnExpr("? AS personal_responsible_name", conversationaction.PersonalResponsibleName("oi")).
 		Join("LEFT JOIN users AS u ON u.organization_id = oi.organization_id AND u.identity_id = oi.id").
 		Join("LEFT JOIN agents AS a ON a.organization_id = oi.organization_id AND a.identity_id = oi.id").
 		Where("oi.organization_id = ?", identity.Organization.ID).
-		Where("(oi.type = ? AND u.status = ?) OR (oi.type = ? AND a.status = ?) OR (oi.type = ? AND a.status = ? AND a.owner_user_id = ?)",
+		Where("(oi.type = ? AND u.status = ?) OR (oi.type = ? AND a.status = ? AND (NOT ? = ANY(a.service_audiences) OR a.responsible_user_id = ?))",
 			domain.OrganizationIdentityTypeUser, domain.IdentityStatusActive, domain.OrganizationIdentityTypeAgent, domain.IdentityStatusActive,
-			domain.OrganizationIdentityTypeAssistant, domain.IdentityStatusActive, identity.User.ID).
+			domain.ServiceAudiencePersonal, identity.User.ID).
 		Where("oi.id IN (?)", bun.In(identityIDs)).
 		OrderExpr("lower(oi.display_name) ASC, oi.id ASC").
 		Scan(ctx, &rows); err != nil {
@@ -414,18 +416,18 @@ func loadActiveGroupMembers(ctx context.Context, db bun.IDB, identity *servermod
 	return rows, nil
 }
 
-// scheduleGroupAgents 按引用目标优先、提醒顺序在后的次序为群内 AI 员工与助理追加输入。
+// scheduleGroupAgents 按引用目标优先、提醒顺序在后的次序为群内 AI 员工追加输入。
 func (a *SendGroupTextMessageAction) scheduleGroupAgents(ctx context.Context, db bun.IDB, organizationID, conversationID, messageID, senderSubjectID string, reply *conversationaction.ConversationMessageReference, mentions []conversationaction.ConversationMessageMention) error {
 	agentIdentityIDs := make([]string, 0, len(mentions)+1)
 	seen := make(map[string]struct{}, len(mentions)+1)
-	// 回复 AI 员工或助理的文本消息与显式点名等价，作为首个执行目标。
+	// 回复 AI 员工的文本消息与显式点名等价，作为首个执行目标。
 	if reply != nil && reply.Sender != nil && reply.Sender.IdentityType != nil &&
-		domain.OrganizationIdentityTypeIsAI(*reply.Sender.IdentityType) {
+		*reply.Sender.IdentityType == domain.OrganizationIdentityTypeAgent {
 		agentIdentityIDs = append(agentIdentityIDs, reply.Sender.SourceID)
 		seen[reply.Sender.SourceID] = struct{}{}
 	}
 	for _, mention := range mentions {
-		if !domain.OrganizationIdentityTypeIsAI(mention.IdentityType) {
+		if mention.IdentityType != domain.OrganizationIdentityTypeAgent {
 			continue
 		}
 		if _, duplicate := seen[mention.SourceID]; duplicate {
@@ -437,7 +439,7 @@ func (a *SendGroupTextMessageAction) scheduleGroupAgents(ctx context.Context, db
 	if len(agentIdentityIDs) == 0 {
 		return nil
 	}
-	if err := ensureAssistantsReachable(ctx, db, organizationID, agentIdentityIDs); err != nil {
+	if err := ensurePersonalAgentsReachable(ctx, db, organizationID, agentIdentityIDs); err != nil {
 		return err
 	}
 	if err := a.agentScheduler.ScheduleGroupMentions(ctx, db, organizationID, conversationID, messageID, senderSubjectID, agentIdentityIDs); err != nil {

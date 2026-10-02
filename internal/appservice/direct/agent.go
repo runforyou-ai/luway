@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"slices"
+	"time"
 
 	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
@@ -131,6 +132,7 @@ func (o *directOperations) ListAgents(ctx context.Context, meta appservice.Reque
 	if err != nil {
 		return appservice.AgentList{}, o.agentError(ctx, meta, err, i18n.ErrorAgentListFailed, identity.Organization.ID, "", nil)
 	}
+	now := time.Now()
 	agents := make([]appservice.AgentListItem, 0, len(output.Agents))
 	for _, agent := range output.Agents {
 		// 转换 AI 员工目录项契约。
@@ -147,7 +149,19 @@ func (o *directOperations) ListAgents(ctx context.Context, meta appservice.Reque
 			}
 		}
 		execution := appservice.AgentExecutionSummary{RevisionID: agent.Execution.RevisionID, Mode: appservice.AgentExecutionMode(agent.Execution.Mode), Managed: managed}
-		agents = append(agents, appservice.AgentListItem{ID: agent.ID, IdentityID: agent.IdentityID, DisplayName: agent.DisplayName, AvatarURL: optionalFileURL(avatarURLs, agent.AvatarFileID), Status: appservice.UserStatus(agent.Status), WorkStatus: appservice.WorkStatus(agent.WorkStatus), Teams: teams, Execution: execution, CreatedAt: agent.CreatedAt})
+		if agent.Execution.LocalAgent != nil {
+			execution.LocalAgent = &appservice.AgentLocalAgentExecutionSummary{Kind: appservice.LocalAgentKind(agent.Execution.LocalAgent.Kind)}
+		}
+		serviceAudiences := make([]appservice.ServiceAudience, 0, len(agent.ServiceAudiences))
+		for _, audience := range agent.ServiceAudiences {
+			serviceAudiences = append(serviceAudiences, appservice.ServiceAudience(audience))
+		}
+		// 个人 AI 员工附带绑定电脑名称与按当前时间计算的在线状态。
+		var personal *appservice.AgentListPersonalItem
+		if agent.Personal() {
+			personal = &appservice.AgentListPersonalItem{DeviceID: common.StringValue(agent.DeviceID), DeviceName: common.StringValue(agent.DeviceName), Presence: appservice.PersonalAgentPresence(agent.Presence(now))}
+		}
+		agents = append(agents, appservice.AgentListItem{ID: agent.ID, IdentityID: agent.IdentityID, DisplayName: agent.DisplayName, AvatarURL: optionalFileURL(avatarURLs, agent.AvatarFileID), ServiceAudiences: serviceAudiences, Status: appservice.UserStatus(agent.Status), WorkStatus: appservice.WorkStatus(agent.WorkStatus), Teams: teams, Execution: execution, Personal: personal, CreatedAt: agent.CreatedAt})
 	}
 	return appservice.AgentList{Agents: agents, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total}}, nil
 }

@@ -109,7 +109,7 @@ func individualConversationError(ctx context.Context, meta appservice.RequestMet
 		if conflictError.Reason == conversationaction.ConflictReasonReplyTargetInvalid {
 			return appservice.ConflictError(meta, i18n.ErrorReplyTargetInvalid, conflictError.Reason)
 		}
-		if key, ok := assistantConflictKeys[conflictError.Reason]; ok {
+		if key, ok := personalAgentConflictKeys[conflictError.Reason]; ok {
 			return appservice.ConflictError(meta, key, conflictError.Reason)
 		}
 		return appservice.ConflictError(meta, i18n.ErrorMessageConflict, conflictError.Reason)

@@ -104,7 +104,7 @@ func (a *UpdateAgentAction) Execute(ctx context.Context, identity *servermodels.
 			Column("a.identity_id", "a.status", "a.service_audiences", "a.responsible_user_id").
 			Where("a.organization_id = ?", identity.Organization.ID).
 			Where("a.id = ?", agentID).
-			Where(employeeIdentityCondition).
+			Where(serviceAgentCondition).
 			For("UPDATE OF a").
 			Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {

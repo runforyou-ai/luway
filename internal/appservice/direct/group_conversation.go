@@ -156,7 +156,7 @@ func (o *directOperations) groupConversationFromAction(ctx context.Context, iden
 		participants = append(participants, appservice.GroupParticipant{
 			ChatSubjectID: participant.ChatSubjectID, IdentityType: appservice.OrganizationIdentityType(participant.IdentityType), IdentityID: participant.IdentityID, DisplayName: participant.DisplayName,
 			AvatarURL: optionalFileURL(avatarURLs, participant.AvatarFileID), Role: appservice.GroupParticipantRole(participant.Role),
-			AssistantOwnerName: participant.AssistantOwnerName, AssistantOwnerIdentityID: participant.AssistantOwnerIdentityID,
+			PersonalResponsibleName: participant.PersonalResponsibleName, PersonalResponsibleIdentityID: participant.PersonalResponsibleIdentityID,
 		})
 	}
 	return appservice.GroupConversation{
@@ -221,7 +221,7 @@ func groupConversationError(ctx context.Context, meta appservice.RequestMeta, er
 		case groupchataction.ConflictReasonGroupMentionTargetInvalid:
 			messageKey = i18n.ErrorGroupMentionTargetInvalid
 		}
-		if key, ok := assistantConflictKeys[conflictError.Reason]; ok {
+		if key, ok := personalAgentConflictKeys[conflictError.Reason]; ok {
 			messageKey = key
 		}
 		return appservice.ConflictError(meta, messageKey, conflictError.Reason)

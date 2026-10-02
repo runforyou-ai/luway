@@ -10,21 +10,31 @@ const audienceChoices = [
   ServiceAudience.ServiceAudienceEmployee,
 ] as const
 
-/** 以一组复选框选择 AI 员工服务的客户和员工。 */
+/** 新建时「仅自己」选项的状态：与客户、员工互斥，未注册本机电脑时不可选。 */
+export type PersonalAudienceChoice = {
+  checked: boolean
+  available: boolean
+  onChange: (checked: boolean) => void
+}
+
+/** 以一组复选框选择 AI 员工服务的客户和员工；新建时传入 personal 显示与之互斥的「仅自己」。 */
 export function AgentServiceAudiencesField({
   value,
   onChange,
   onBlur,
   disabled = false,
+  personal,
 }: {
   value: ServiceAudience[]
   onChange: (audiences: ServiceAudience[]) => void
   onBlur: () => void
   disabled?: boolean
+  personal?: PersonalAudienceChoice
 }) {
   const { t } = useTranslation("agents")
   const labelId = useId()
   const descriptionId = useId()
+  const checkboxClassName = "size-4 accent-primary disabled:cursor-not-allowed disabled:opacity-50"
   return (
     <Field>
       <FieldLabel id={labelId}>{t("form.serviceAudiences")}</FieldLabel>
@@ -38,15 +48,15 @@ export function AgentServiceAudiencesField({
           <label key={audience} className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
-              className="size-4 accent-primary disabled:cursor-not-allowed disabled:opacity-50"
+              className={checkboxClassName}
               disabled={disabled}
-              checked={value.includes(audience)}
+              checked={!personal?.checked && value.includes(audience)}
               onBlur={onBlur}
               onChange={(event) =>
                 onChange(
                   event.target.checked
                     ? audienceChoices.filter(
-                        (choice) => choice === audience || value.includes(choice),
+                        (choice) => choice === audience || (!personal?.checked && value.includes(choice)),
                       )
                     : value.filter((choice) => choice !== audience),
                 )
@@ -55,9 +65,23 @@ export function AgentServiceAudiencesField({
             <span>{t(`form.audiences.${audience}`)}</span>
           </label>
         ))}
+        {personal ? (
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className={checkboxClassName}
+              disabled={disabled || !personal.available}
+              checked={personal.checked}
+              onBlur={onBlur}
+              onChange={(event) => personal.onChange(event.target.checked)}
+            />
+            <span>{t("form.audiences.personal")}</span>
+          </label>
+        ) : null}
       </div>
       <FieldDescription id={descriptionId}>
         {t("form.serviceAudiencesHelp")}
+        {personal ? t(personal.available ? "form.personalAudienceHelp" : "form.personalAudienceDesktopOnly") : null}
       </FieldDescription>
     </Field>
   )

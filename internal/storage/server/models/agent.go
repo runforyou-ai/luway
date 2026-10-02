@@ -9,7 +9,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// Agent 表示 PostgreSQL 中的 AI 员工或助理，类型以企业身份为准。
+// Agent 表示 PostgreSQL 中的 AI 员工，服务对象为 personal 时仅服务负责人本人。
 type Agent struct {
 	bun.BaseModel `bun:"table:agents,alias:a"`
 
@@ -18,7 +18,6 @@ type Agent struct {
 	OrganizationID    string                   `bun:"organization_id"`
 	ActiveRevisionID  string                   `bun:"active_revision_id"`
 	Status            string                   `bun:"status"`
-	OwnerUserID       *string                  `bun:"owner_user_id"`
 	DeviceID          *string                  `bun:"device_id"`
 	ServiceAudiences  []domain.ServiceAudience `bun:"service_audiences,array"`
 	HandoffTeamID     *string                  `bun:"handoff_team_id"`

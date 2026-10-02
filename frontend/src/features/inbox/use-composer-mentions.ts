@@ -17,7 +17,7 @@ import {
 import type { ConversationComposerValues } from "@/features/inbox/conversation-composer-schema"
 import type { ComposerModeDraft } from "@/lib/composer-draft-store"
 import type { MentionTarget } from "@/lib/outgoing-message-store"
-import { useAssistantDisplayName } from "@/hooks/use-assistant-display-name"
+import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import {
   mentionTokenPattern,
   reconcileMentionAllToken,
@@ -65,7 +65,7 @@ export function useComposerMentions({
   noteSwitchAvailable: boolean
 }) {
   const { t } = useTranslation("inbox")
-  const assistantDisplayName = useAssistantDisplayName()
+  const personalAgentDisplayName = usePersonalAgentDisplayName()
   const [mentions, setMentions] = useState<MentionTarget[]>(() => initialDraft?.mentions ?? [])
   const mentionsRef = useRef(mentions)
   mentionsRef.current = mentions
@@ -78,7 +78,7 @@ export function useComposerMentions({
   } | null>(null)
   const [activeMentionIndex, setActiveMentionIndex] = useState(0)
 
-  // 群聊提醒当前成员，助理按「主人的助理 · 名称」展示；客户会话的内部备注提醒企业真人成员。
+  // 群聊提醒当前成员，个人 AI 员工按「负责人的 AI 员工 · 名称」展示；客户会话的内部备注提醒企业真人成员。
   const mentionOptions = useMemo<{ target: MentionTarget; label: string }[]>(() => {
     if (groupConversation) {
       return (groupParticipants ?? []).map((participant) => ({
@@ -87,7 +87,7 @@ export function useComposerMentions({
           chatSubjectID: participant.chatSubjectId,
           displayName: participant.displayName,
         },
-        label: assistantDisplayName(participant.displayName, participant.assistantOwnerName),
+        label: personalAgentDisplayName(participant.displayName, participant.personalResponsibleName),
       }))
     }
     if (!customerConversation || !internalNote) return []
@@ -97,7 +97,7 @@ export function useComposerMentions({
         target: { identityID: member.id, chatSubjectID: null, displayName: member.displayName },
         label: member.displayName,
       }))
-  }, [assistantDisplayName, customerConversation, groupConversation, groupParticipants, internalNote, noteMentionMembers])
+  }, [personalAgentDisplayName, customerConversation, groupConversation, groupParticipants, internalNote, noteMentionMembers])
 
   const mentionCandidates = useMemo<MentionCandidate[]>(() => {
     if (!mentionQuery) return []

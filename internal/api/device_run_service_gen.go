@@ -85,7 +85,7 @@ func (s *Service) searchDeviceRunKnowledge(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getDeviceRunMemory 返回本设备持有运行所属助理的记忆，有效配置未启用记忆时为空。
+// getDeviceRunMemory 返回本设备持有运行所属个人 AI 员工的记忆，有效配置未启用记忆时为空。
 func (s *Service) getDeviceRunMemory(c *gin.Context) {
 	output, err := s.deviceRuns.GetDeviceRunMemory(c.Request.Context(), requestMeta(c), c.Param("runID"))
 	writeResult(c, http.StatusOK, output, err)

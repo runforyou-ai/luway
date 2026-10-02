@@ -366,45 +366,45 @@ type Backend interface {
 	// RerunAgentEvaluationCase 在最近一次运行中重新运行一条用例。
 	//appservice:route POST /agents/:agentID/evaluation/cases/:caseID/rerun
 	RerunAgentEvaluationCase(context.Context, RequestMeta, string, string) error
-	// ListAssistants 返回当前成员名下的助理。
-	//appservice:route GET /assistants
-	ListAssistants(context.Context, RequestMeta) (AssistantList, error)
-	// ListMemberAssistants 返回指定成员名下的助理。
-	//appservice:route GET /users/:userID/assistants
-	ListMemberAssistants(context.Context, RequestMeta, string) (AssistantList, error)
-	// GetAssistant 返回当前成员名下的助理详情。
-	//appservice:route GET /assistants/:assistantID
-	GetAssistant(context.Context, RequestMeta, string) (AssistantDetail, error)
-	// CreateAssistant 在当前成员的电脑上创建助理。
-	//appservice:route POST /assistants status=201
-	CreateAssistant(context.Context, RequestMeta, CreateAssistantInput) (Assistant, error)
-	// UpdateAssistant 修改当前成员名下的助理。
-	//appservice:route PUT /assistants/:assistantID
-	UpdateAssistant(context.Context, RequestMeta, string, AssistantInput) (Assistant, error)
-	// PauseAssistant 暂停当前成员名下的助理。
-	//appservice:route POST /assistants/:assistantID/pause
-	PauseAssistant(context.Context, RequestMeta, string) (Assistant, error)
-	// ResumeAssistant 恢复当前成员名下已暂停的助理。
-	//appservice:route POST /assistants/:assistantID/resume
-	ResumeAssistant(context.Context, RequestMeta, string) (Assistant, error)
-	// MoveAssistant 把当前成员名下的助理换到指定电脑。
-	//appservice:route PUT /assistants/:assistantID/device
-	MoveAssistant(context.Context, RequestMeta, string, AssistantDeviceInput) (Assistant, error)
-	// DeactivateAssistant 停用助理。
-	//appservice:route POST /assistants/:assistantID/deactivate
-	DeactivateAssistant(context.Context, RequestMeta, string) (Assistant, error)
-	// ReactivateAssistant 启用已停用的助理。
-	//appservice:route POST /assistants/:assistantID/reactivate
-	ReactivateAssistant(context.Context, RequestMeta, string) (Assistant, error)
-	// ListAssistantMemories 返回当前成员名下助理的记忆，按最近更新排列。
-	//appservice:route GET /assistants/:assistantID/memories
-	ListAssistantMemories(context.Context, RequestMeta, string) (AssistantMemoryList, error)
-	// UpdateAssistantMemory 修改当前成员名下助理的一条记忆。
-	//appservice:route PUT /assistants/:assistantID/memories/:memoryID
-	UpdateAssistantMemory(context.Context, RequestMeta, string, string, AssistantMemoryInput) (AssistantMemory, error)
-	// DeleteAssistantMemory 删除当前成员名下助理的一条记忆。
-	//appservice:route DELETE /assistants/:assistantID/memories/:memoryID
-	DeleteAssistantMemory(context.Context, RequestMeta, string, string) error
+	// ListPersonalAgents 返回当前成员负责的个人 AI 员工。
+	//appservice:route GET /personal-agents
+	ListPersonalAgents(context.Context, RequestMeta) (PersonalAgentList, error)
+	// ListMemberPersonalAgents 返回指定成员负责的个人 AI 员工。
+	//appservice:route GET /users/:userID/personal-agents
+	ListMemberPersonalAgents(context.Context, RequestMeta, string) (PersonalAgentList, error)
+	// GetPersonalAgent 返回当前成员负责的个人 AI 员工详情。
+	//appservice:route GET /personal-agents/:agentID
+	GetPersonalAgent(context.Context, RequestMeta, string) (PersonalAgentDetail, error)
+	// CreatePersonalAgent 在当前成员的电脑上创建个人 AI 员工。
+	//appservice:route POST /personal-agents status=201
+	CreatePersonalAgent(context.Context, RequestMeta, CreatePersonalAgentInput) (PersonalAgent, error)
+	// UpdatePersonalAgent 修改当前成员负责的个人 AI 员工。
+	//appservice:route PUT /personal-agents/:agentID
+	UpdatePersonalAgent(context.Context, RequestMeta, string, PersonalAgentInput) (PersonalAgent, error)
+	// PausePersonalAgent 暂停当前成员负责的个人 AI 员工。
+	//appservice:route POST /personal-agents/:agentID/pause
+	PausePersonalAgent(context.Context, RequestMeta, string) (PersonalAgent, error)
+	// ResumePersonalAgent 恢复当前成员负责的已暂停个人 AI 员工。
+	//appservice:route POST /personal-agents/:agentID/resume
+	ResumePersonalAgent(context.Context, RequestMeta, string) (PersonalAgent, error)
+	// MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
+	//appservice:route PUT /personal-agents/:agentID/device
+	MovePersonalAgent(context.Context, RequestMeta, string, PersonalAgentDeviceInput) (PersonalAgent, error)
+	// DeactivatePersonalAgent 停用个人 AI 员工。
+	//appservice:route POST /personal-agents/:agentID/deactivate
+	DeactivatePersonalAgent(context.Context, RequestMeta, string) (PersonalAgent, error)
+	// ReactivatePersonalAgent 启用已停用的个人 AI 员工。
+	//appservice:route POST /personal-agents/:agentID/reactivate
+	ReactivatePersonalAgent(context.Context, RequestMeta, string) (PersonalAgent, error)
+	// ListAgentMemories 返回当前成员负责的个人 AI 员工的记忆，按最近更新排列。
+	//appservice:route GET /personal-agents/:agentID/memories
+	ListAgentMemories(context.Context, RequestMeta, string) (AgentMemoryList, error)
+	// UpdateAgentMemory 修改当前成员负责的个人 AI 员工的一条记忆。
+	//appservice:route PUT /personal-agents/:agentID/memories/:memoryID
+	UpdateAgentMemory(context.Context, RequestMeta, string, string, AgentMemoryInput) (AgentMemory, error)
+	// DeleteAgentMemory 删除当前成员负责的个人 AI 员工的一条记忆。
+	//appservice:route DELETE /personal-agents/:agentID/memories/:memoryID
+	DeleteAgentMemory(context.Context, RequestMeta, string, string) error
 	// ListUsers 返回企业成员列表。
 	//appservice:route GET /users
 	ListUsers(context.Context, RequestMeta, UserListInput) (UserList, error)
@@ -837,7 +837,7 @@ type LocalDeviceReporter interface {
 	CurrentDevice(context.Context, RequestMeta) (LocalDevice, error)
 }
 
-// LocalEnvironmentManager 由为助理提供本机运行环境、本地 MCP 服务与技能的原生端实现。
+// LocalEnvironmentManager 由为个人 AI 员工提供本机运行环境、本地 MCP 服务与技能的原生端实现。
 type LocalEnvironmentManager interface {
 	LocalEnvironment(context.Context, RequestMeta) (LocalEnvironment, error)
 	UpdateLocalToolchain(context.Context, RequestMeta) (LocalToolchainUpdate, error)

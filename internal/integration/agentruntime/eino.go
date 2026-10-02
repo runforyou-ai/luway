@@ -122,7 +122,7 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 		terminal.budgetSpent = guard.budgetExhausted
 	}
 	// 主 Agent 在通用中间件之后依次挂载记忆、任务清单、委派、终止工具与依据门禁。
-	// 有效配置启用记忆时注入助理记忆，相关条目由关闭思考的同一模型挑选，挑选用量计入本次运行；记忆读取失败时本次运行不注入记忆。
+	// 有效配置启用记忆时注入个人 AI 员工记忆，相关条目由关闭思考的同一模型挑选，挑选用量计入本次运行；记忆读取失败时本次运行不注入记忆。
 	var handlers []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]
 	selection := &usageModel{}
 	if request.Assignment.Memory {
@@ -281,14 +281,14 @@ func (r *EinoRuntime) buildAgent(ctx context.Context, spec agentSpec) (*agentAss
 	return assembly, nil
 }
 
-// memoryMiddleware 读取助理记忆并创建记忆中间件，挑选模型装入 selection 以累计用量；记忆读取失败时记录日志并返回空。
+// memoryMiddleware 读取个人 AI 员工记忆并创建记忆中间件，挑选模型装入 selection 以累计用量；记忆读取失败时记录日志并返回空。
 func (r *EinoRuntime) memoryMiddleware(ctx context.Context, request RunRequest, modelConfig ModelConfig, selection *usageModel) (adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage], error) {
 	if request.Memory == nil {
 		return nil, errors.New("agent run assignment requires memory without a memory loader")
 	}
 	entries, err := request.Memory(ctx)
 	if err != nil {
-		slog.Warn("读取助理记忆失败", "agent_run_id", request.RunID, "error", err)
+		slog.Warn("读取个人 AI 员工记忆失败", "agent_run_id", request.RunID, "error", err)
 		return nil, nil
 	}
 	selectionConfig := modelConfig

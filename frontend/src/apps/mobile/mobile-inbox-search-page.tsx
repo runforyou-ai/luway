@@ -7,7 +7,6 @@ import { useLocation, useNavigate, useSearchParams } from "react-router"
 import {
   InboxSearchPersonKind,
   InboxSearchRange,
-  OrganizationIdentityType,
   type InboxConversationData,
 } from "@/api"
 import {
@@ -187,7 +186,6 @@ function MobileSearchResults({
         {search.people.map((person) => {
           const contact = person.kind === InboxSearchPersonKind.InboxSearchPersonContact
           const agent = isAIIdentityType(person.identityType)
-          const assistant = person.identityType === OrganizationIdentityType.OrganizationIdentityTypeAssistant
           return (
             <MobileSearchRow
               key={`${person.kind}-${person.id}`}
@@ -204,7 +202,7 @@ function MobileSearchResults({
               detail={
                 contact
                   ? t(person.conversationId ? "searchPersonContact" : "searchPersonNoConversation")
-                  : t(assistant ? "contextIdentityAssistant" : agent ? "contextIdentityAgent" : "contextIdentityMember")
+                  : t(person.personal ? "contextIdentityPersonalAgent" : agent ? "contextIdentityAgent" : "contextIdentityMember")
               }
               disabled={contact && !person.conversationId}
               onOpen={() => onOpenPerson(person)}
@@ -269,7 +267,7 @@ export function MobileInboxSearchPage() {
     })
   }
 
-  /** 打开人员结果：外部联系人进入客户会话，真人成员进入单聊，AI 员工与本人助理开始新对话。 */
+  /** 打开人员结果：外部联系人进入客户会话，真人成员进入单聊，AI 员工开始新对话。 */
   function openPerson(person: InboxSearchPersonData) {
     if (person.kind === InboxSearchPersonKind.InboxSearchPersonContact) {
       if (person.conversationId)
@@ -278,7 +276,7 @@ export function MobileInboxSearchPage() {
       void navigate(`/chats/agent/${crypto.randomUUID()}`, {
         state: {
           draftAgentID: person.agentId,
-          draftAssistant: person.identityType === OrganizationIdentityType.OrganizationIdentityTypeAssistant,
+          draftPersonalAgent: person.personal,
           mobileBack: true,
         },
       })

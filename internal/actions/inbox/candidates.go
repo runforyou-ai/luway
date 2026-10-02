@@ -55,7 +55,7 @@ func (q *LoadInboxQuery) agentConversationAccessQuery(organizationID, identityID
 		Join("JOIN agent_conversations AS ac ON ac.organization_id = cv.organization_id AND ac.conversation_id = cv.id").
 		Join("JOIN organization_identities AS oi ON oi.organization_id = ac.organization_id AND oi.id = ac.agent_identity_id").
 		Join("JOIN agents AS agent ON agent.organization_id = oi.organization_id AND agent.identity_id = oi.id").
-		Where("cv.type = ? AND ac.user_identity_id = ? AND oi.type IN (?, ?)", domain.ConversationTypeAgent, identityID, domain.OrganizationIdentityTypeAgent, domain.OrganizationIdentityTypeAssistant)
+		Where("cv.type = ? AND ac.user_identity_id = ? AND oi.type = ?", domain.ConversationTypeAgent, identityID, domain.OrganizationIdentityTypeAgent)
 }
 
 // groupConversationAccessQuery 限定当前成员可读的群聊，解散后仍保留阅读资格。

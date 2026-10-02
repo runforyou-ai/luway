@@ -111,7 +111,7 @@ func TestSkillLoadingSurvivesSummary(t *testing.T) {
 	}
 }
 
-// TestInstallAndRemoveSkillTools 验证安装工具从本机文件夹安装技能且当前运行即可加载，删除工具只删除助理安装的技能。
+// TestInstallAndRemoveSkillTools 验证安装工具从本机文件夹安装技能且当前运行即可加载，删除工具只删除个人 AI 员工安装的技能。
 func TestInstallAndRemoveSkillTools(t *testing.T) {
 	ctx := context.Background()
 	skills := testSkills(t)

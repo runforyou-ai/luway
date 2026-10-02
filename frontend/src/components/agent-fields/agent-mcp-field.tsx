@@ -1,4 +1,4 @@
-/** 通过模态框编辑 AI 员工与助理表单中的 MCP 服务选择。 */
+/** 通过模态框编辑 AI 员工表单中的 MCP 服务选择。 */
 import { useTranslation } from "react-i18next"
 
 import { listAgentMCPServerOptions } from "@/api"

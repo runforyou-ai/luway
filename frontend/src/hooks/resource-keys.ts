@@ -125,7 +125,7 @@ export const resourceKeys = {
       : ["service-reply-suggestions", conversationId, parameters],
   /** 发起内部会话时使用的成员候选项。 */
   memberOptions: () => ["member-options"],
-  /** 可发起单聊的对象，含本人名下的助理。 */
+  /** 可发起单聊的对象，含本人负责的个人 AI 员工。 */
   chatTargets: () => ["chat-targets"],
   /** 单个群聊资料和当前成员。 */
   groupConversation: (conversationId?: string) =>
@@ -247,14 +247,14 @@ export const resourceKeys = {
   agentEvaluation: (agentId?: string) => itemKey("agent-evaluation", agentId),
   /** AI 员工的单条评测用例及其在最近一次运行中的尝试。 */
   agentEvaluationCase: (agentId?: string, caseId?: string) => scopedListKey("agent-evaluation-case", agentId, caseId === undefined ? undefined : { caseId }),
-  /** 当前成员名下的助理列表。 */
-  assistants: () => ["assistants"],
-  /** 当前成员名下的单个助理。 */
-  assistant: (id?: string) => itemKey("assistant", id),
-  /** 当前成员名下助理的记忆列表。 */
-  assistantMemories: (assistantId?: string) => itemKey("assistant-memories", assistantId),
-  /** 指定成员名下的助理列表。 */
-  memberAssistants: (userId?: string) => itemKey("member-assistants", userId),
+  /** 当前成员负责的个人 AI 员工列表。 */
+  personalAgents: () => ["personal-agents"],
+  /** 当前成员负责的单个个人 AI 员工。 */
+  personalAgent: (id?: string) => itemKey("personal-agent", id),
+  /** 个人 AI 员工的记忆列表。 */
+  agentMemories: (agentId?: string) => itemKey("agent-memories", agentId),
+  /** 指定成员负责的个人 AI 员工列表。 */
+  memberPersonalAgents: (userId?: string) => itemKey("member-personal-agents", userId),
   /** 团队列表，可带分页参数。 */
   teams: (parameters?: KeyParameters) => listKey("teams", parameters),
   /** 单个团队。 */

@@ -4,7 +4,7 @@ import { useNavigate } from "react-router"
 import { useTheme } from "next-themes"
 import { toast } from "sonner"
 import { resourceKeys } from "@/hooks/resource-keys"
-import { useAssistantDisplayName } from "@/hooks/use-assistant-display-name"
+import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import { useMountedRef } from "@/hooks/use-mounted-ref"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 import { agentToolLabel } from "@/lib/agent-tool-labels"
@@ -230,7 +230,7 @@ function AgentRunStreamProcess({ state }: { state: RunStreamState }) {
 export function AgentRunState({ run, incoming, conversationID, group, copilot, onStopped, onToggle }: { run: ConversationAgentRun; incoming: boolean; conversationID?: string; group?: boolean; copilot?: boolean; onStopped: () => Promise<unknown>; onToggle: () => void }) {
   const { t } = useTranslation("inbox")
   const { t: tCommon } = useTranslation("common")
-  const assistantDisplayName = useAssistantDisplayName()
+  const personalAgentDisplayName = usePersonalAgentDisplayName()
   const stream = useAgentRunStream(run.id, run.status === AgentRunStatus.AgentRunStatusRunning, onStopped)
   // 排队等待本机执行时读取本机运行环境，未就绪时说明正在准备或准备失败。
   const queuedOnDevice = run.status === AgentRunStatus.AgentRunStatusQueued && run.executionDeviceId != null
@@ -250,7 +250,7 @@ export function AgentRunState({ run, incoming, conversationID, group, copilot, o
     ).find(Boolean)
     : undefined
   const phase: OrbState = stream?.candidateContent ? "composing" : activeToolName ? "searching" : "working"
-  const senderName = assistantDisplayName(run.agentName.trim(), run.agentAssistantOwnerName) || t("unknownSender")
+  const senderName = personalAgentDisplayName(run.agentName.trim(), run.agentPersonalResponsibleName) || t("unknownSender")
   const label = thinking
     ? stream?.candidateContent
       ? t("agentRunComposing")
@@ -355,12 +355,12 @@ export function AgentRunState({ run, incoming, conversationID, group, copilot, o
   )
 }
 
-/** 展示已收到点名、等待轮转发言的 AI 员工与助理。 */
+/** 展示已收到点名、等待轮转发言的 AI 员工。 */
 export function AgentQueueState({ agents, incoming, copilot }: { agents: ConversationPendingAgent[]; incoming: boolean; copilot?: boolean }) {
   const { t } = useTranslation("inbox")
-  const assistantDisplayName = useAssistantDisplayName()
+  const personalAgentDisplayName = usePersonalAgentDisplayName()
   if (!agents.length) return null
-  const names = agents.map((agent) => assistantDisplayName(agent.displayName.trim(), agent.assistantOwnerName) || t("unknownSender")).join("、")
+  const names = agents.map((agent) => personalAgentDisplayName(agent.displayName.trim(), agent.personalResponsibleName) || t("unknownSender")).join("、")
   return (
     <div
       className={cn("mt-2 flex min-w-0 text-xs text-muted-foreground", incoming ? "justify-start" : "justify-end")}

@@ -76,7 +76,7 @@ func (w *Worker) runAgent(runCtx context.Context, meta appservice.RequestMeta, r
 	if slices.Contains(assignment.Tools, agentruntime.KnowledgeToolName) {
 		request.KnowledgeSearch = remoteKnowledgeSearch(w.client, meta, runID)
 	}
-	// 有效配置启用记忆时经企业服务端读取助理记忆。
+	// 有效配置启用记忆时经企业服务端读取个人 AI 员工记忆。
 	if assignment.Memory {
 		request.Memory = remoteMemory(w.client, meta, runID)
 	}
@@ -175,7 +175,7 @@ func remoteKnowledgeSearch(client appservice.DeviceRunBackend, meta appservice.R
 	}
 }
 
-// remoteMemory 返回经企业服务端读取运行所属助理记忆的读取函数。
+// remoteMemory 返回经企业服务端读取运行所属个人 AI 员工记忆的读取函数。
 func remoteMemory(client appservice.DeviceRunBackend, meta appservice.RequestMeta, runID string) agentruntime.MemoryLoader {
 	return func(ctx context.Context) ([]agentruntime.MemoryEntry, error) {
 		output, err := client.GetDeviceRunMemory(ctx, meta, runID)
@@ -184,7 +184,7 @@ func remoteMemory(client appservice.DeviceRunBackend, meta appservice.RequestMet
 		}
 		var entries []agentruntime.MemoryEntry
 		if err := json.Unmarshal(output.Entries, &entries); err != nil {
-			return nil, fmt.Errorf("decode assistant memory: %w", err)
+			return nil, fmt.Errorf("decode agent memory: %w", err)
 		}
 		return entries, nil
 	}

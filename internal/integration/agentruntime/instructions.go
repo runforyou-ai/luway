@@ -134,7 +134,7 @@ const CustomerIdleMessage = `{"kind":"customer_idle"}`
 const customerFollowUpRule = "内容为 " + CustomerIdleMessage + ` 的消息由系统发出，不是客户发言，表示客户在你上次发言后一段时间没有回复。此时调用 ask_customer，purpose 为 confirm_resolution，简短询问客户问题是否已经解决、是否还需要帮助；不重复之前的回答，不再查询资料。`
 
 const groupSceneRules = `本次在群聊%s中与其他成员一起工作。
-群内其他成员的发言以 JSON 提供：sender.name 是发送者名称，sender.kind 为 user 表示真人、为 agent 表示另一位 AI 员工、为 assistant 表示某位成员的个人助理，mentions 是这条消息点名的成员，replyTo 是被引用的原消息，attachment 是消息携带的附件；你自己的历史发言是纯文本。
+群内其他成员的发言以 JSON 提供：sender.name 是发送者名称，sender.kind 为 user 表示真人、为 agent 表示另一位 AI 员工、为 personal_agent 表示只为某位成员工作的个人 AI 员工，mentions 是这条消息点名的成员，replyTo 是被引用的原消息，attachment 是消息携带的附件；你自己的历史发言是纯文本。
 addressedToYou 为 true 的消息是本次需要你处理的请求，其余消息是群内上下文。
 你的最终回复会原样发到群里。需要某位成员回应时，在正文中写「@成员名」：@ 前留空格（位于行首时除外），成员名后接空格或标点；被点名的 AI 员工会接着发言。可点名的成员：%s。`
 

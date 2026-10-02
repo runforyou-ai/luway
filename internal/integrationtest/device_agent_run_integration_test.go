@@ -38,21 +38,21 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// deviceRunFixture 是设备执行集成测试共用的助理、设备与调用入口。
+// deviceRunFixture 是设备执行集成测试共用的个人 AI 员工、设备与调用入口。
 type deviceRunFixture struct {
-	t         *testing.T
-	ctx       context.Context
-	db        *bun.DB
-	identity  *servermodels.Identity
-	assistant *agentaction.Assistant
-	tasks     *servertask.Runtime
-	executor  *agentrunaction.ExecuteAction
-	sendFirst *directchataction.SendFirstAgentTextMessageAction
-	send      *directchataction.SendAgentTextMessageAction
-	device    agentrunaction.RunDevice
+	t             *testing.T
+	ctx           context.Context
+	db            *bun.DB
+	identity      *servermodels.Identity
+	personalAgent *agentaction.PersonalAgent
+	tasks         *servertask.Runtime
+	executor      *agentrunaction.ExecuteAction
+	sendFirst     *directchataction.SendFirstAgentTextMessageAction
+	send          *directchataction.SendAgentTextMessageAction
+	device        agentrunaction.RunDevice
 }
 
-// testDeviceAgentRuns 验证助理的运行派发到其绑定电脑，以及领取、并行、停止、租约过期、换电脑、暂停与失去执行条件的收敛；AI 员工的运行始终在服务端执行。
+// testDeviceAgentRuns 验证个人 AI 员工的运行派发到其绑定电脑，以及领取、并行、停止、租约过期、换电脑、暂停与失去执行条件的收敛；AI 员工的运行始终在服务端执行。
 func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identity, employee *agentaction.Agent, tasks *servertask.Runtime) {
 	ctx := context.Background()
 	installID := uuid.NewV7().String()
@@ -60,7 +60,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	if err != nil {
 		t.Fatal(err)
 	}
-	assistant, err := agentaction.NewCreateAssistantAction(db).Execute(ctx, identity, registered.ID, agentaction.AssistantInput{
+	personalAgent, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, identity, registered.ID, agentaction.PersonalAgentInput{
 		DisplayName: "小码", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
 			ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier,
 		}},
@@ -69,34 +69,34 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		t.Fatal(err)
 	}
 	fixture := &deviceRunFixture{
-		t: t, ctx: ctx, db: db, identity: identity, assistant: assistant, tasks: tasks,
+		t: t, ctx: ctx, db: db, identity: identity, personalAgent: personalAgent, tasks: tasks,
 		executor:  agentrunaction.NewExecuteAction(db, tasks, nil, testAttachmentReader(db), nil, nil),
 		sendFirst: directchataction.NewSendFirstAgentTextMessageAction(db, agentrunaction.NewScheduler(tasks)),
 		send:      directchataction.NewSendAgentTextMessageAction(db, agentrunaction.NewScheduler(tasks)),
 		device:    agentrunaction.RunDevice{OrganizationID: identity.Organization.ID, UserID: identity.User.ID, DeviceID: registered.ID},
 	}
-	t.Run("助理归属主人", func(t *testing.T) {
-		if assistant.OwnerUserID != identity.User.ID || assistant.DeviceID != registered.ID || assistant.Presence(time.Now()) != domain.AssistantPresenceOffline {
-			t.Fatalf("assistant=%+v", assistant)
+	t.Run("个人 AI 员工归属负责人", func(t *testing.T) {
+		if personalAgent.ResponsibleUserID != identity.User.ID || personalAgent.DeviceID != registered.ID || personalAgent.Presence(time.Now()) != domain.PersonalAgentPresenceOffline {
+			t.Fatalf("personalAgent=%+v", personalAgent)
 		}
 		other := newChatLockUser(t, db, identity)
-		// 其他成员不能在别人的电脑上创建助理，也不能与别人的助理单聊。
-		if _, err := agentaction.NewCreateAssistantAction(db).Execute(ctx, other, registered.ID, agentaction.AssistantInput{
+		// 其他成员不能在别人的电脑上创建个人 AI 员工，也不能与别人的个人 AI 员工单聊。
+		if _, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, other, registered.ID, agentaction.PersonalAgentInput{
 			DisplayName: "冒用", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier}},
-		}); !errors.Is(err, agentaction.ErrAssistantDeviceNotFound) {
+		}); !errors.Is(err, agentaction.ErrPersonalAgentDeviceNotFound) {
 			t.Fatalf("create on foreign device=%v", err)
 		}
 		if _, err := fixture.sendFirst.Execute(ctx, other, directchataction.FirstAgentTextMessageInput{
-			ConversationID: uuid.NewV7().String(), AgentIdentityID: assistant.IdentityID, ClientMessageID: uuid.NewV7().String(), Body: "借用",
+			ConversationID: uuid.NewV7().String(), AgentIdentityID: personalAgent.IdentityID, ClientMessageID: uuid.NewV7().String(), Body: "借用",
 		}); !errors.Is(err, conversationaction.ErrAgentTargetNotFound) {
-			t.Fatalf("foreign assistant chat=%v", err)
+			t.Fatalf("foreign personalAgent chat=%v", err)
 		}
-		// AI 员工管理入口不能修改助理。
-		if _, err := agentaction.NewUpdateStatusAction(db, testServiceSessionReturner(db)).Execute(ctx, identity, assistant.ID, domain.IdentityStatusInactive); err == nil {
-			t.Fatal("agent status action changed assistant")
+		// AI 员工管理入口不能修改个人 AI 员工。
+		if _, err := agentaction.NewUpdateStatusAction(db, testServiceSessionReturner(db)).Execute(ctx, identity, personalAgent.ID, domain.IdentityStatusInactive); err == nil {
+			t.Fatal("agent status action changed personalAgent")
 		}
-		if _, err := agentaction.NewGetAgentQuery(db).Execute(ctx, identity, assistant.ID); !errors.Is(err, agentaction.ErrNotFound) {
-			t.Fatalf("agent query read assistant=%v", err)
+		if _, err := agentaction.NewGetAgentQuery(db).Execute(ctx, identity, personalAgent.ID); !errors.Is(err, agentaction.ErrNotFound) {
+			t.Fatalf("agent query read personalAgent=%v", err)
 		}
 	})
 
@@ -120,7 +120,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	t.Run("草稿首发即派发到绑定电脑", func(t *testing.T) {
 		conversationID := uuid.NewV7().String()
 		if _, err := fixture.sendFirst.Execute(ctx, identity, directchataction.FirstAgentTextMessageInput{
-			ConversationID: conversationID, AgentIdentityID: assistant.IdentityID, ClientMessageID: uuid.NewV7().String(), Body: "首条就在本机执行",
+			ConversationID: conversationID, AgentIdentityID: personalAgent.IdentityID, ClientMessageID: uuid.NewV7().String(), Body: "首条就在本机执行",
 		}); err != nil {
 			t.Fatal(err)
 		}
@@ -148,8 +148,8 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		}
 		bindKnowledge := func(ids []string) {
 			t.Helper()
-			if _, err := agentaction.NewUpdateAssistantAction(db).Execute(ctx, identity, assistant.ID, agentaction.AssistantInput{
-				DisplayName: assistant.DisplayName, Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
+			if _, err := agentaction.NewUpdatePersonalAgentAction(db).Execute(ctx, identity, personalAgent.ID, agentaction.PersonalAgentInput{
+				DisplayName: personalAgent.DisplayName, Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
 					ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier, KnowledgeBaseIDs: ids,
 				}},
 			}); err != nil {
@@ -159,7 +159,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		bindKnowledge([]string{base.ID})
 		defer bindKnowledge(nil)
 		executor := agentrunaction.NewExecuteAction(db, tasks, nil, testAttachmentReader(db), testDeviceKnowledge{}, nil)
-		conversationID := fixture.assistantChat()
+		conversationID := fixture.personalAgentChat()
 		sent, err := directchataction.NewSendAttachmentMessageAction(db, agentrunaction.NewScheduler(tasks)).Execute(ctx, identity, directchataction.AttachmentMessageInput{
 			ConversationID: conversationID, ClientMessageID: uuid.NewV7().String(), Body: "看看截图",
 			FileID: uploadedAttachment(t, db, identity, "screen.png", "image/png"),
@@ -249,14 +249,14 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		}
 		bindMCP := func(ids []string) error {
 			t.Helper()
-			_, err := agentaction.NewUpdateAssistantAction(db).Execute(ctx, identity, assistant.ID, agentaction.AssistantInput{
-				DisplayName: assistant.DisplayName, MCPServerIDs: ids, Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
+			_, err := agentaction.NewUpdatePersonalAgentAction(db).Execute(ctx, identity, personalAgent.ID, agentaction.PersonalAgentInput{
+				DisplayName: personalAgent.DisplayName, MCPServerIDs: ids, Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
 					ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier,
 				}},
 			})
 			return err
 		}
-		// 助理不接待客户，不能绑定按客户查询的服务。
+		// 个人 AI 员工不接待客户，不能绑定按客户查询的服务。
 		var fieldErr *common.FieldError
 		if err := bindMCP([]string{customerOrders.ID}); !errors.As(err, &fieldErr) || fieldErr.Fields["mcpServerIds"] != agentaction.ValidationMCPServerInvalid {
 			t.Fatalf("bind customer scoped service=%v", err)
@@ -269,7 +269,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 				t.Fatal(err)
 			}
 		}()
-		run := fixture.sendAndLoadRun(fixture.assistantChat(), "查一下订单")
+		run := fixture.sendAndLoadRun(fixture.personalAgentChat(), "查一下订单")
 		if _, err := fixture.executor.ListDeviceRunMCPTools(ctx, fixture.device, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunLeaseLost) {
 			t.Fatalf("list before claim=%v", err)
 		}
@@ -319,7 +319,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		if _, err := fixture.executor.CallDeviceRunMCPTool(ctx, fixture.device, run.ID, orders.ID, "get_order", json.RawMessage(`{}`)); !errors.Is(err, agentrunaction.ErrDeviceRunLeaseLost) {
 			t.Fatalf("call after completion=%v", err)
 		}
-		// 服务改为按客户查询后从助理的配置中移除，AI 员工保留。
+		// 服务改为按客户查询后从个人 AI 员工的配置中移除，AI 员工保留。
 		bindEmployee := func(ids []string) {
 			t.Helper()
 			if _, err := agentaction.NewUpdateExecutionAction(db).Execute(ctx, identity, employee.ID, agentaction.UpdateExecutionInput{
@@ -341,9 +341,9 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		}); err != nil {
 			t.Fatal(err)
 		}
-		_, assistantExecution, err := agentaction.NewGetAssistantQuery(db).Execute(ctx, identity, assistant.ID)
-		if err != nil || !slices.Equal(assistantExecution.MCPServerIDs, []string{offline.ID}) {
-			t.Fatalf("assistant mcp servers=%v %v", assistantExecution.MCPServerIDs, err)
+		_, personalAgentExecution, err := agentaction.NewGetPersonalAgentQuery(db).Execute(ctx, identity, personalAgent.ID)
+		if err != nil || !slices.Equal(personalAgentExecution.MCPServerIDs, []string{offline.ID}) {
+			t.Fatalf("personalAgent mcp servers=%v %v", personalAgentExecution.MCPServerIDs, err)
 		}
 		reloaded, err := agentaction.NewGetAgentQuery(db).Execute(ctx, identity, employee.ID)
 		if err != nil || !slices.Contains(reloaded.Execution.MCPServerIDs, orders.ID) {
@@ -352,7 +352,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	})
 
 	t.Run("设备运行下发全部本机工具", func(t *testing.T) {
-		run := fixture.sendAndLoadRun(fixture.assistantChat(), "看看文件")
+		run := fixture.sendAndLoadRun(fixture.personalAgentChat(), "看看文件")
 		claim, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, run.ID)
 		if err != nil {
 			t.Fatal(err)
@@ -376,13 +376,13 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		fixture.complete(run.ID, "已查看")
 	})
 
-	t.Run("助理记忆", func(t *testing.T) {
-		testAssistantMemory(t, fixture)
+	t.Run("个人 AI 员工记忆", func(t *testing.T) {
+		testAgentMemory(t, fixture)
 	})
 
 	t.Run("派发领取与并行", func(t *testing.T) {
 		before := fixture.workSeq()
-		conversationID := fixture.assistantChat()
+		conversationID := fixture.personalAgentChat()
 		run := fixture.sendAndLoadRun(conversationID, "在本机执行")
 		if run.ExecutionDeviceID == nil || *run.ExecutionDeviceID != registered.ID {
 			t.Fatalf("device run=%+v", run)
@@ -416,7 +416,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 			t.Fatalf("foreign device model upstream=%v", err)
 		}
 		// 其他会话的运行不必等待，可以同时领取。
-		waiting := fixture.sendAndLoadRun(fixture.assistantChat(), "并行")
+		waiting := fixture.sendAndLoadRun(fixture.personalAgentChat(), "并行")
 		if _, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, waiting.ID); err != nil {
 			t.Fatalf("parallel claim=%v", err)
 		}
@@ -451,14 +451,14 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	})
 
 	t.Run("设备运行输入状态", func(t *testing.T) {
-		conversationID := fixture.assistantChat()
+		conversationID := fixture.personalAgentChat()
 		run := fixture.sendAndLoadRun(conversationID, "输入状态")
 		feed := startRealtimeFeed(t, identity.Organization.ID)
 		if _, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, run.ID); err != nil {
 			t.Fatal(err)
 		}
-		// 领取时建立助理聊天主体并开始发布正在输入。
-		agentSubjectID := loadIdentitySubjectID(t, db, identity.Organization.ID, assistant.IdentityID)
+		// 领取时建立个人 AI 员工聊天主体并开始发布正在输入。
+		agentSubjectID := loadIdentitySubjectID(t, db, identity.Organization.ID, personalAgent.IdentityID)
 		feed.expectTyping(t, feed.userTyping(identity.User.ID, conversationID, agentSubjectID, true))
 		// 其他设备上报结果不影响本设备运行的输入状态。
 		foreign := agentrunaction.RunDevice{OrganizationID: identity.Organization.ID, UserID: identity.User.ID, DeviceID: uuid.NewV7().String()}
@@ -477,7 +477,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		feed.expectNoTyping(t)
 	})
 	t.Run("租约过期", func(t *testing.T) {
-		run := fixture.sendAndLoadRun(fixture.assistantChat(), "租约")
+		run := fixture.sendAndLoadRun(fixture.personalAgentChat(), "租约")
 		if _, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, run.ID); err != nil {
 			t.Fatal(err)
 		}
@@ -498,7 +498,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		fixture.assertBlocks(run.ID, 1)
 
 		// 收尾请求等待会话锁期间租约过期，取得锁后按租约失效拒绝写入。
-		waiting := fixture.sendAndLoadRun(fixture.assistantChat(), "等锁")
+		waiting := fixture.sendAndLoadRun(fixture.personalAgentChat(), "等锁")
 		if _, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, waiting.ID); err != nil {
 			t.Fatal(err)
 		}
@@ -552,7 +552,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 			}
 		}
 		// 超出总时限后不再续租、不再代理模型请求，设备上报失败时按超时收敛并保留过程内容。
-		run := fixture.sendAndLoadRun(fixture.assistantChat(), "超时")
+		run := fixture.sendAndLoadRun(fixture.personalAgentChat(), "超时")
 		if claim, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, run.ID); err != nil || len(claim.Assignment) == 0 {
 			t.Fatalf("claim=%+v %v", claim, err)
 		}
@@ -580,7 +580,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	})
 
 	t.Run("失败原因校验", func(t *testing.T) {
-		run := fixture.sendAndLoadRun(fixture.assistantChat(), "失败")
+		run := fixture.sendAndLoadRun(fixture.personalAgentChat(), "失败")
 		if err := fixture.executor.FailDeviceRun(ctx, fixture.device, run.ID, domain.AgentRunErrorCodeUserCancelled, "", agentruntime.RunResult{}); !errors.Is(err, agentrunaction.ErrDeviceRunFailureCodeInvalid) {
 			t.Fatalf("invalid failure code=%v", err)
 		}
@@ -591,7 +591,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	})
 
 	t.Run("任务清单随结果保存", func(t *testing.T) {
-		run := fixture.sendAndLoadRun(fixture.assistantChat(), "列个清单再做")
+		run := fixture.sendAndLoadRun(fixture.personalAgentChat(), "列个清单再做")
 		claim, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, run.ID)
 		if err != nil {
 			t.Fatal(err)
@@ -641,12 +641,12 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	})
 
 	t.Run("由本机 Agent 完成", func(t *testing.T) {
-		update := agentaction.NewUpdateAssistantAction(db)
-		localInput := agentaction.AssistantInput{DisplayName: assistant.DisplayName, Execution: agentaction.ExecutionInput{
+		update := agentaction.NewUpdatePersonalAgentAction(db)
+		localInput := agentaction.PersonalAgentInput{DisplayName: personalAgent.DisplayName, Execution: agentaction.ExecutionInput{
 			Mode: domain.AgentExecutionModeLocalAgent, LocalAgent: &agentaction.LocalAgentExecutionInput{Kind: domain.LocalAgentKindCodex, SystemInstruction: "整理周报。"},
 		}}
 		// 绑定电脑未上报 Codex 可用时不能选择。
-		if _, err := update.Execute(ctx, identity, assistant.ID, localInput); !hasFieldCode(err, "localAgent", agentaction.ValidationLocalAgentUnavailable) {
+		if _, err := update.Execute(ctx, identity, personalAgent.ID, localInput); !hasFieldCode(err, "localAgent", agentaction.ValidationLocalAgentUnavailable) {
 			t.Fatalf("unavailable local agent=%v", err)
 		}
 		if err := deviceaction.NewReportLocalAgentsAction(db).Execute(ctx, identity, registered.ID, []domain.LocalAgentKind{domain.LocalAgentKindCodex, "unknown"}); err != nil {
@@ -655,18 +655,18 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		// 本机 Agent 执行不使用企业 MCP 服务。
 		withMCP := localInput
 		withMCP.MCPServerIDs = []string{uuid.NewV7().String()}
-		if _, err := update.Execute(ctx, identity, assistant.ID, withMCP); !hasFieldCode(err, "mcpServerIds", agentaction.ValidationMCPServerInvalid) {
+		if _, err := update.Execute(ctx, identity, personalAgent.ID, withMCP); !hasFieldCode(err, "mcpServerIds", agentaction.ValidationMCPServerInvalid) {
 			t.Fatalf("local agent with mcp=%v", err)
 		}
-		updated, err := update.Execute(ctx, identity, assistant.ID, localInput)
+		updated, err := update.Execute(ctx, identity, personalAgent.ID, localInput)
 		if err != nil || updated.Execution.LocalAgent == nil || updated.Execution.LocalAgent.Kind != domain.LocalAgentKindCodex || !slices.Equal(updated.DeviceLocalAgents, []domain.LocalAgentKind{domain.LocalAgentKindCodex}) {
 			t.Fatalf("updated=%+v %v", updated, err)
 		}
-		if _, execution, err := agentaction.NewGetAssistantQuery(db).Execute(ctx, identity, assistant.ID); err != nil || execution.LocalAgent == nil || execution.LocalAgent.SystemInstruction != "整理周报。" || execution.Managed != nil {
+		if _, execution, err := agentaction.NewGetPersonalAgentQuery(db).Execute(ctx, identity, personalAgent.ID); err != nil || execution.LocalAgent == nil || execution.LocalAgent.SystemInstruction != "整理周报。" || execution.Managed != nil {
 			t.Fatalf("execution=%+v %v", execution, err)
 		}
 		// 领取时有效配置指定本机 Agent，不含模型与应用工具，模型代理拒绝该运行。
-		conversationID := fixture.assistantChat()
+		conversationID := fixture.personalAgentChat()
 		run := fixture.sendAndLoadRun(conversationID, "整理一下")
 		claim, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, run.ID)
 		if err != nil {
@@ -704,8 +704,8 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		if index < 0 || history.Messages[index].AgentErrorCode == nil || *history.Messages[index].AgentErrorCode != domain.AgentRunErrorCodeLocalAgentAuthRequired {
 			t.Fatalf("failure message=%+v", history.Messages)
 		}
-		// 改回由助理自己完成，后续用例沿用托管执行。
-		if _, err := update.Execute(ctx, identity, assistant.ID, agentaction.AssistantInput{DisplayName: assistant.DisplayName, Execution: agentaction.ExecutionInput{
+		// 改回由个人 AI 员工自己完成，后续用例沿用托管执行。
+		if _, err := update.Execute(ctx, identity, personalAgent.ID, agentaction.PersonalAgentInput{DisplayName: personalAgent.DisplayName, Execution: agentaction.ExecutionInput{
 			Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier},
 		}}); err != nil {
 			t.Fatal(err)
@@ -713,29 +713,29 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	})
 
 	t.Run("暂停与恢复", func(t *testing.T) {
-		conversationID := fixture.assistantChat()
-		paused, err := agentaction.NewSetAssistantPausedAction(db).Execute(ctx, identity, assistant.ID, true)
-		if err != nil || paused.Presence(time.Now()) != domain.AssistantPresencePaused {
+		conversationID := fixture.personalAgentChat()
+		paused, err := agentaction.NewSetPersonalAgentPausedAction(db).Execute(ctx, identity, personalAgent.ID, true)
+		if err != nil || paused.Presence(time.Now()) != domain.PersonalAgentPresencePaused {
 			t.Fatalf("pause=%+v %v", paused, err)
 		}
 		_, err = fixture.send.Execute(ctx, identity, directchataction.InternalTextMessageInput{ConversationID: conversationID, ClientMessageID: uuid.NewV7().String(), Body: "暂停中"})
-		if conflict, ok := errors.AsType[*conversationaction.ConflictError](err); !ok || conflict.Reason != conversationaction.ConflictReasonAssistantPaused {
-			t.Fatalf("send to paused assistant=%v", err)
+		if conflict, ok := errors.AsType[*conversationaction.ConflictError](err); !ok || conflict.Reason != conversationaction.ConflictReasonPersonalAgentPaused {
+			t.Fatalf("send to paused personalAgent=%v", err)
 		}
-		if _, err := agentaction.NewSetAssistantPausedAction(db).Execute(ctx, identity, assistant.ID, false); err != nil {
+		if _, err := agentaction.NewSetPersonalAgentPausedAction(db).Execute(ctx, identity, personalAgent.ID, false); err != nil {
 			t.Fatal(err)
 		}
 		fixture.claimAndComplete(fixture.sendAndLoadRun(conversationID, "恢复后").ID, "恢复后的回复")
 	})
 
 	t.Run("换到另一台电脑", func(t *testing.T) {
-		conversationID := fixture.assistantChat()
+		conversationID := fixture.personalAgentChat()
 		queued := fixture.sendAndLoadRun(conversationID, "换电脑前")
 		otherDevice, err := deviceaction.NewRegisterDeviceAction(db).Execute(ctx, identity, deviceaction.RegisterInput{InstallID: uuid.NewV7().String(), Name: "新电脑", Platform: domain.DevicePlatformLinux})
 		if err != nil {
 			t.Fatal(err)
 		}
-		moved, err := agentaction.NewMoveAssistantAction(db).Execute(ctx, identity, assistant.ID, otherDevice.ID)
+		moved, err := agentaction.NewMovePersonalAgentAction(db).Execute(ctx, identity, personalAgent.ID, otherDevice.ID)
 		if err != nil || moved.DeviceID != otherDevice.ID {
 			t.Fatalf("move=%+v %v", moved, err)
 		}
@@ -752,13 +752,13 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		if _, err := fixture.executor.StopAgentReply(ctx, identity, conversationID, next.ID); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := agentaction.NewMoveAssistantAction(db).Execute(ctx, identity, assistant.ID, registered.ID); err != nil {
+		if _, err := agentaction.NewMovePersonalAgentAction(db).Execute(ctx, identity, personalAgent.ID, registered.ID); err != nil {
 			t.Fatal(err)
 		}
 	})
 
 	t.Run("撤销设备", func(t *testing.T) {
-		run := fixture.sendAndLoadRun(fixture.assistantChat(), "撤销")
+		run := fixture.sendAndLoadRun(fixture.personalAgentChat(), "撤销")
 		if err := deviceaction.NewRevokeDeviceAction(db).Execute(ctx, identity, registered.ID); err != nil {
 			t.Fatal(err)
 		}
@@ -771,16 +771,16 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		fixture.sweep()
 		fixture.assertFailed(run.ID, domain.AgentRunErrorCodeDeviceUnavailable)
 		// 绑定电脑撤销后，发送前即拒绝且未绑定优先于暂停，不再排队。
-		if _, err := agentaction.NewSetAssistantPausedAction(db).Execute(ctx, identity, assistant.ID, true); err != nil {
+		if _, err := agentaction.NewSetPersonalAgentPausedAction(db).Execute(ctx, identity, personalAgent.ID, true); err != nil {
 			t.Fatal(err)
 		}
 		_, err := fixture.send.Execute(ctx, identity, directchataction.InternalTextMessageInput{ConversationID: run.ConversationID, ClientMessageID: uuid.NewV7().String(), Body: "撤销后"})
-		if conflict, ok := errors.AsType[*conversationaction.ConflictError](err); !ok || conflict.Reason != conversationaction.ConflictReasonAssistantUnbound {
-			t.Fatalf("send to unbound assistant=%v", err)
+		if conflict, ok := errors.AsType[*conversationaction.ConflictError](err); !ok || conflict.Reason != conversationaction.ConflictReasonPersonalAgentUnbound {
+			t.Fatalf("send to unbound personalAgent=%v", err)
 		}
-		reloaded, _, err := agentaction.NewGetAssistantQuery(db).Execute(ctx, identity, assistant.ID)
-		if err != nil || reloaded.Presence(time.Now()) != domain.AssistantPresenceUnbound {
-			t.Fatalf("reload assistant=%+v %v", reloaded, err)
+		reloaded, _, err := agentaction.NewGetPersonalAgentQuery(db).Execute(ctx, identity, personalAgent.ID)
+		if err != nil || reloaded.Presence(time.Now()) != domain.PersonalAgentPresenceUnbound {
+			t.Fatalf("reload personalAgent=%+v %v", reloaded, err)
 		}
 	})
 }
@@ -799,12 +799,12 @@ func (testDeviceKnowledge) Sources(_ context.Context, _ string, knowledgeBaseIDs
 	return sources, nil
 }
 
-// assistantChat 创建一条与测试助理的新单聊，停止首条消息的运行后返回会话编号。
-func (f *deviceRunFixture) assistantChat() string {
+// personalAgentChat 创建一条与测试个人 AI 员工的新单聊，停止首条消息的运行后返回会话编号。
+func (f *deviceRunFixture) personalAgentChat() string {
 	f.t.Helper()
 	conversationID := uuid.NewV7().String()
 	if _, err := f.sendFirst.Execute(f.ctx, f.identity, directchataction.FirstAgentTextMessageInput{
-		ConversationID: conversationID, AgentIdentityID: f.assistant.IdentityID, ClientMessageID: uuid.NewV7().String(), Body: "开始",
+		ConversationID: conversationID, AgentIdentityID: f.personalAgent.IdentityID, ClientMessageID: uuid.NewV7().String(), Body: "开始",
 	}); err != nil {
 		f.t.Fatalf("send first=%v", err)
 	}

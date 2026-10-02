@@ -59,14 +59,14 @@ export function useConversationTypingReport(conversationID: string, enabled: boo
 /** 按聊天主体解析输入者名称：null 表示无法识别该输入者。 */
 type TypingSenderName = (senderSubjectID: string) => string | null
 
-/** 按群聊当前成员解析输入者名称，真人与 AI 员工同等处理，助理名称经 formatName 带上主人。 */
+/** 按群聊当前成员解析输入者名称，真人与 AI 员工同等处理，个人 AI 员工名称经 formatName 带上负责人。 */
 export function groupTypingSenderName(
   participants: GroupParticipant[],
   formatName: (name: string, ownerName: string | null) => string,
 ): TypingSenderName {
   return (senderSubjectID) => {
     const participant = participants.find((item) => item.chatSubjectId === senderSubjectID)
-    return (participant && formatName(participant.displayName.trim(), participant.assistantOwnerName)) || null
+    return (participant && formatName(participant.displayName.trim(), participant.personalResponsibleName)) || null
   }
 }
 

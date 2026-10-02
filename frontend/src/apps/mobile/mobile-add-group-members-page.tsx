@@ -1,4 +1,4 @@
-/** 移动端群主添加任意成员、其他成员添加本人名下的助理，保留选择并返回原群详情。 */
+/** 移动端群主添加任意成员、其他成员添加本人负责的个人 AI 员工，保留选择并返回原群详情。 */
 import { groupMemberMaxCount } from "@/features/inbox/group-conversation-schema"
 import { useEffect } from "react"
 import { useController, useForm } from "react-hook-form"
@@ -53,7 +53,7 @@ export function MobileAddGroupMembersPage() {
       ? tInbox("groupMemberLimitReached")
       : canManage
         ? null
-        : tInbox("groupAddAssistantsDescription")
+        : tInbox("groupAddPersonalAgentsDescription")
 
   /** 批量添加所选成员，离开页面后忽略迟到的返回导航。 */
   async function addMembers(values: z.infer<typeof schema>) {
@@ -93,7 +93,7 @@ export function MobileAddGroupMembersPage() {
             showSelectionSummary={false}
             currentIdentityID={identity.user.identityId}
             excludedIdentityIDs={existingIDs}
-            ownAssistantsOnly={!canManage}
+            ownPersonalAgentsOnly={!canManage}
             selectionLimit={remaining}
             selected={field.value}
             onChange={field.onChange}

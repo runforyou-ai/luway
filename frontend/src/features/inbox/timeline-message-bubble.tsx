@@ -22,7 +22,7 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import type { OutgoingConversationDraft } from "@/lib/outgoing-message-store"
-import { useAssistantDisplayName } from "@/hooks/use-assistant-display-name"
+import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import { useContactName } from "@/hooks/use-contact-name"
 import { mentionTokenPattern } from "@/lib/mention-token"
 import { cn } from "@/lib/utils"
@@ -115,7 +115,7 @@ export function TimelineMessageBubble(props: TimelineMessageBubbleProps) {
     replyVisibility,
   } = props
   const { t } = useTranslation(["inbox", "common"])
-  const assistantDisplayName = useAssistantDisplayName()
+  const personalAgentDisplayName = usePersonalAgentDisplayName()
   const contactName = useContactName()
   const rowRef = useRef<HTMLElement>(null)
   const currentIdentityID = currentUser.identityId
@@ -147,9 +147,9 @@ export function TimelineMessageBubble(props: TimelineMessageBubbleProps) {
   const senderName =
     (message.local || sentByCurrentIdentity
       ? t("messageSenderYou")
-      : assistantDisplayName(
+      : personalAgentDisplayName(
           contactName(message.sender?.displayName, message.sender?.contactNumber),
-          message.sender?.assistantOwnerName,
+          message.sender?.personalResponsibleName,
         )) || t("unknownSender")
   // 从身份资料生成头像及默认头像。
   const useCurrentUserAvatar =

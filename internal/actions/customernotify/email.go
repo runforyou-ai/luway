@@ -133,7 +133,7 @@ func awaitingHumanReply(ctx context.Context, db bun.IDB, session *servermodels.S
 			Scan(ctx, &assigneeType); err != nil {
 			return false, fmt.Errorf("load service session assignee type: %w", err)
 		}
-		if domain.OrganizationIdentityTypeIsAI(domain.OrganizationIdentityType(assigneeType)) {
+		if domain.OrganizationIdentityType(assigneeType) == domain.OrganizationIdentityTypeAgent {
 			return false, nil
 		}
 	}

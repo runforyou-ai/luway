@@ -14,7 +14,7 @@ import "context"
 // 指令只接受 status、query 与 manual=proxy 选项，manual=proxy 的 API Proxy 转发在 apiproxy 包手写；
 // 每个调用先校验登录令牌，再校验 DeviceHeader 指向的设备属于当前用户且未撤销。
 //
-// 本契约的消费者是原生端的设备执行循环，界面发起的设备与助理管理属于
+// 本契约的消费者是原生端的设备执行循环，界面发起的设备与个人 AI 员工管理属于
 // Backend，新增方法按消费者归入其中一个。
 type DeviceRunBackend interface {
 	// GetDeviceWork 返回本设备的工作水位与待领取运行。
@@ -38,7 +38,7 @@ type DeviceRunBackend interface {
 	// SearchDeviceRunKnowledge 在本设备持有运行绑定的知识库中检索。
 	//appservice:route POST /agent-runs/:runID/knowledge/search
 	SearchDeviceRunKnowledge(context.Context, RequestMeta, string, DeviceRunKnowledgeSearchInput) (DeviceRunKnowledgeSearchResult, error)
-	// GetDeviceRunMemory 返回本设备持有运行所属助理的记忆，有效配置未启用记忆时为空。
+	// GetDeviceRunMemory 返回本设备持有运行所属个人 AI 员工的记忆，有效配置未启用记忆时为空。
 	//appservice:route GET /agent-runs/:runID/memory
 	GetDeviceRunMemory(context.Context, RequestMeta, string) (DeviceRunMemory, error)
 	// SearchDeviceRunWeb 用企业配置的搜索服务为本设备持有的运行搜索互联网。
