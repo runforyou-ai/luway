@@ -1,4 +1,4 @@
-/** 工作台左下角的用户菜单：工作状态、设置入口、在客户端中使用、切换或创建工作区与退出登录。 */
+/** 工作台左下角的用户菜单：工作状态、设置入口、部署管理入口、在客户端中使用、切换或创建工作区与退出登录。 */
 import { useRef, useState } from "react"
 import {
   CheckIcon,
@@ -7,14 +7,17 @@ import {
   LogOutIcon,
   MonitorSmartphoneIcon,
   PlusIcon,
+  ServerCogIcon,
   SettingsIcon,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 
-import type { Identity } from "@/api"
+import { loadAccount, type Identity } from "@/api"
 import { useUnsavedChangesContext } from "@/contexts/unsaved-changes-context"
 import { useWorkspaceScope } from "@/contexts/workspace-scope-context"
+import { resourceKeys } from "@/hooks/resource-keys"
+import { useResource } from "@/hooks/use-resource"
 import { useWorkStatusChange } from "@/hooks/use-work-status-change"
 import { useWorkspaceAttention } from "@/hooks/use-workspace-attention"
 import { ClientLinkDialog } from "@/features/server-connection/client-link-dialog"
@@ -37,7 +40,7 @@ import { WorkStatusDot, WorkStatusPicker } from "@/components/work-status"
 import { UserAvatar } from "@/components/user-avatar"
 import { cn } from "@/lib/utils"
 
-/** 展示当前成员头像与工作区，展开后切换工作状态、进入设置、切换工作区或确认后退出登录。 */
+/** 展示当前成员头像与工作区，展开后切换工作状态、进入设置、部署管理员进入部署管理、切换工作区或确认后退出登录。 */
 export function WorkspaceUserMenu({
   identity,
   collapsed,
@@ -49,8 +52,10 @@ export function WorkspaceUserMenu({
   loggingOut: boolean
   onLogout: () => void
 }) {
-  const { t } = useTranslation(["workspace", "account", "connection"])
+  const { t } = useTranslation(["workspace", "account", "admin", "connection"])
   const workspaceScope = useWorkspaceScope()
+  // 部署管理入口只对部署管理员显示，账号读取失败时不显示。
+  const account = useResource(resourceKeys.account(), (signal) => loadAccount(signal))
   const workspaceAttention = useWorkspaceAttention(workspaceScope.current.id)
   const navigate = useNavigate()
   const unsavedChanges = useUnsavedChangesContext()
@@ -163,6 +168,18 @@ export function WorkspaceUserMenu({
             <SettingsIcon />
             {t("settings")}
           </DropdownMenuItem>
+          {account.data?.isDeploymentAdmin ? (
+            <DropdownMenuItem
+              onSelect={async () => {
+                setUserMenuOpen(false)
+                if (unsavedChanges && !(await unsavedChanges.confirmDiscard())) return
+                navigateToHashPath("/admin")
+              }}
+            >
+              <ServerCogIcon />
+              {t("admin:entry")}
+            </DropdownMenuItem>
+          ) : null}
           {/* Web 端提供唤起桌面端和移动端的入口，客户端内不展示。 */}
           {resolveAppPlatform() === "web" ? (
             <DropdownMenuItem onSelect={() => setClientLinkOpen(true)}>
@@ -195,17 +212,21 @@ export function WorkspaceUserMenu({
                   ) : null}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={async () => {
-                  setUserMenuOpen(false)
-                  if (unsavedChanges && !(await unsavedChanges.confirmDiscard())) return
-                  navigateToHashPath(withReturnTo("/workspaces/new"))
-                }}
-              >
-                <PlusIcon />
-                {t("account:create")}
-              </DropdownMenuItem>
+              {workspaceScope.canCreate ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      setUserMenuOpen(false)
+                      if (unsavedChanges && !(await unsavedChanges.confirmDiscard())) return
+                      navigateToHashPath(withReturnTo("/workspaces/new"))
+                    }}
+                  >
+                    <PlusIcon />
+                    {t("account:create")}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSeparator />

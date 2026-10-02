@@ -4,6 +4,7 @@ const account = {
   description: "Select the workspace you want to open.",
   emptyTitle: "No workspaces yet",
   emptyDescription: "Create a workspace to start collaborating with your team.",
+  emptyDescriptionJoin: "Ask a workspace admin to invite you.",
   signedInAs: "Signed in as {{email}}",
   logout: "Log out",
   loadError: "Couldn't load workspaces. Please try again.",

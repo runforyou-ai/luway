@@ -1,4 +1,4 @@
-/** 工作区选择页：列出账号已加入的工作区，进入其中之一或前往创建工作区；带返回地址进入时可返回原工作区页面。 */
+/** 工作区选择页：列出账号已加入的工作区，进入其中之一或在允许时前往创建工作区，Web 与桌面端的部署管理员可进入部署管理；带返回地址进入时可返回原工作区页面。 */
 import { useEffect, useState } from "react"
 import { ArrowLeftIcon, ChevronRightIcon, LayoutGridIcon, PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -16,18 +16,20 @@ import { updateNotificationUnreadIndicator } from "@/platform/notifications"
 import { useWorkspaceActivityConnection, useWorkspaceAttention } from "@/hooks/use-workspace-attention"
 import { useResource } from "@/hooks/use-resource"
 import { resolveServerURL } from "@/lib/server-url"
+import { resolveAppPlatform } from "@/platform/app-platform"
 import { enterWorkspace, navigateToHashPath, returnToPath } from "@/lib/workspace-route"
 
-/** 展示工作区列表；没有工作区时引导创建。 */
+/** 展示工作区列表；没有工作区时在允许创建时引导创建。 */
 export function WorkspaceListPage() {
-  const { t } = useTranslation(["account", "common"])
+  const { t } = useTranslation(["account", "admin", "common"])
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   // 从工作区内进入时返回原工作区页面，不依赖浏览历史。
   const returnTo = returnToPath(searchParams)
   // 从进不去的工作区地址回到列表时，页头说明原因。
   const unavailable = searchParams.get("unavailable") === "1"
-  const account = useResource(resourceKeys.account(), (signal) => loadAccount(signal))
+  // 部署管理员身份可能被其他管理员修改，进入本页时重新读取账号。
+  const account = useResource(resourceKeys.account(), (signal) => loadAccount(signal), { staleTime: 0 })
   const workspaces = useResource(resourceKeys.workspaces(), (signal) => listWorkspaces(signal), { staleTime: 0 })
   // 各工作区的未读数量只用于提示，读取失败时不影响进入工作区；停在本页时同样保持工作区动态事件流。
   useWorkspaceActivityConnection("", workspaces.data?.items.map((workspace) => workspace.id) ?? [])
@@ -84,10 +86,23 @@ export function WorkspaceListPage() {
     )
   }
 
+  const canCreate = workspaces.data.canCreate
   const footer = (
     <span className="inline-flex max-w-full items-center gap-1.5">
       <span className="min-w-0 truncate">{t("signedInAs", { email: account.data.email })}</span>
       <span aria-hidden="true">·</span>
+      {account.data.isDeploymentAdmin && resolveAppPlatform() !== "mobile" ? (
+        <>
+          <button
+            type="button"
+            className="shrink-0 font-medium text-foreground/80 underline-offset-4 hover:text-foreground hover:underline"
+            onClick={() => navigate("/admin")}
+          >
+            {t("admin:entry")}
+          </button>
+          <span aria-hidden="true">·</span>
+        </>
+      ) : null}
       <button
         type="button"
         className="shrink-0 font-medium text-foreground/80 underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"
@@ -101,16 +116,22 @@ export function WorkspaceListPage() {
 
   if (workspaces.data.items.length === 0) {
     return (
-      <EntryLayout title={t("emptyTitle")} description={unavailable ? t("workspaceUnavailable") : t("emptyDescription")} footer={footer}>
-        <div className="flex flex-col items-center rounded-xl border bg-card px-6 py-10 text-center">
-          <span className="mb-4 flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <LayoutGridIcon className="size-5" />
-          </span>
-          <Button onClick={() => navigate("/workspaces/new")}>
-            <PlusIcon />
-            {t("create")}
-          </Button>
-        </div>
+      <EntryLayout
+        title={t("emptyTitle")}
+        description={unavailable ? t("workspaceUnavailable") : canCreate ? t("emptyDescription") : t("emptyDescriptionJoin")}
+        footer={footer}
+      >
+        {canCreate ? (
+          <div className="flex flex-col items-center rounded-xl border bg-card px-6 py-10 text-center">
+            <span className="mb-4 flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
+              <LayoutGridIcon className="size-5" />
+            </span>
+            <Button onClick={() => navigate("/workspaces/new")}>
+              <PlusIcon />
+              {t("create")}
+            </Button>
+          </div>
+        ) : null}
       </EntryLayout>
     )
   }
@@ -163,18 +184,20 @@ export function WorkspaceListPage() {
             </button>
           </li>
         ))}
-        <li>
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted-foreground transition-colors outline-none hover:bg-muted/60 hover:text-foreground focus-visible:bg-muted/60"
-            onClick={() => navigate(returnTo ? `/workspaces/new?via=list&returnTo=${encodeURIComponent(returnTo)}` : "/workspaces/new")}
-          >
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-dashed">
-              <PlusIcon className="size-4" />
-            </span>
-            {t("create")}
-          </button>
-        </li>
+        {canCreate ? (
+          <li>
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm text-muted-foreground transition-colors outline-none hover:bg-muted/60 hover:text-foreground focus-visible:bg-muted/60"
+              onClick={() => navigate(returnTo ? `/workspaces/new?via=list&returnTo=${encodeURIComponent(returnTo)}` : "/workspaces/new")}
+            >
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-dashed">
+                <PlusIcon className="size-4" />
+              </span>
+              {t("create")}
+            </button>
+          </li>
+        ) : null}
       </ul>
     </EntryLayout>
   )

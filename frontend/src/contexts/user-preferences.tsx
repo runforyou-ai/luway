@@ -6,12 +6,12 @@ import { changeAppLanguage } from "@/i18n"
 
 const UserTimeZoneContext = createContext<CurrentUser["timeZone"] | null>(null)
 
-/** 同步用户语言并向子页面提供用户时区。 */
+/** 同步用户语言并向子页面提供用户时区；工作区页面传入当前成员，部署管理页面传入登录账号。 */
 export function UserPreferencesProvider({
   user,
   children,
 }: {
-  user: CurrentUser
+  user: Pick<CurrentUser, "locale" | "timeZone">
   children: ReactNode
 }) {
   useEffect(() => {

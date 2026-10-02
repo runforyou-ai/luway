@@ -44,15 +44,9 @@ func openEmptyDatabase(t *testing.T) *bun.DB {
 	return store.DB()
 }
 
-// newAccountTestBackend 创建未开放注册的自托管直接后端，只接入账号与工作区入口需要的依赖。
+// newAccountTestBackend 创建自托管直接后端，只接入账号与工作区入口需要的依赖。
 func newAccountTestBackend(db *bun.DB) *direct.Backend {
-	return newRegistrationTestBackend(db, false)
-}
-
-// newRegistrationTestBackend 创建按指定注册开关配置的自托管直接后端。
-func newRegistrationTestBackend(db *bun.DB, registrationOpen bool) *direct.Backend {
-	return direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL, RegistrationOpen: registrationOpen},
-		nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	return direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
 }
 
 // requireSessionState 断言错误把调用方引导到指定会话入口。
@@ -60,6 +54,14 @@ func requireSessionState(t *testing.T, err error, want appservice.SessionState) 
 	t.Helper()
 	if state := appservice.SessionStateOf(err); state != want {
 		t.Fatalf("session state = %q, want %q (error: %v)", state, want, err)
+	}
+}
+
+// requireErrorKind 断言错误是指定种类的业务错误。
+func requireErrorKind(t *testing.T, err error, want appservice.ErrorKind) {
+	t.Helper()
+	if appErr, ok := errors.AsType[*appservice.Error](err); !ok || appErr.Kind != want {
+		t.Fatalf("error = %#v, want kind %q", err, want)
 	}
 }
 
@@ -73,7 +75,7 @@ func requireFieldError(t *testing.T, err error, field string, key i18n.Key) {
 	}
 }
 
-// TestFirstInstallationAndRegistration 验证空部署进入初始化、首次安装只执行一次，以及注册按部署配置开放。
+// TestFirstInstallationAndRegistration 验证空部署进入初始化、首次安装只执行一次，以及注册与工作区创建按部署策略开放。
 func TestFirstInstallationAndRegistration(t *testing.T) {
 	t.Parallel()
 	db := openEmptyDatabase(t)
@@ -88,9 +90,9 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	}
 	_, err = backend.LoadIdentity(ctx, meta)
 	requireSessionState(t, err, appservice.SessionStateSetup)
-	// 开放注册的部署在首次安装之前也不能注册，第一个账号只能是部署管理员。
+	// 首次安装之前不能注册，第一个账号只能是部署管理员。
 	early := appservice.RegisterInput{DisplayName: "抢先注册", Email: "early@example.test", Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai"}
-	_, err = newRegistrationTestBackend(db, true).Register(ctx, meta, early)
+	_, err = backend.Register(ctx, meta, early)
 	requireSessionState(t, err, appservice.SessionStateSetup)
 
 	install := appservice.InstallWorkspaceInput{
@@ -106,44 +108,168 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	requireSessionState(t, err, appservice.SessionStateLogin)
 
 	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: appservice.LocaleChineseSimplified}
+	// 免费实例只有首个工作区，部署管理员也不能再创建。
 	workspaces, err := backend.ListWorkspaces(ctx, adminMeta)
-	if err != nil || len(workspaces.Items) != 1 || workspaces.Items[0].Slug != "demo-team" {
+	if err != nil || len(workspaces.Items) != 1 || workspaces.Items[0].Slug != "demo-team" || workspaces.CanCreate {
 		t.Fatalf("workspaces = %#v, err = %v", workspaces, err)
 	}
+	_, err = backend.CreateWorkspace(ctx, adminMeta, appservice.WorkspaceInput{Name: "第二工作区", Slug: "second-team"})
+	requireErrorKind(t, err, appservice.ErrorKindConflict)
 	adminMeta.WorkspaceID = workspaces.Items[0].ID
 	identity, err := backend.LoadIdentity(ctx, adminMeta)
 	if err != nil || identity.Organization.Slug != "demo-team" || identity.User.Email != "admin@example.test" || identity.User.DisplayName != "管理员" {
 		t.Fatalf("identity = %#v, err = %v", identity, err)
 	}
 
-	// 部署未开放注册时拒绝注册，配置开放后可以注册。
+	// 首次安装后默认仅限受邀注册，部署管理员开放注册后可以注册。
 	register := appservice.RegisterInput{DisplayName: "成员", Email: "member@example.test", Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai"}
-	if _, err := backend.Register(ctx, meta, register); err == nil {
-		t.Fatal("closed registration accepted a new account")
+	_, err = backend.Register(ctx, meta, register)
+	appErr, ok := errors.AsType[*appservice.Error](err)
+	if closed, _ := i18n.Localize("zh-CN", i18n.ErrorRegistrationClosed); !ok || appErr.Message != closed {
+		t.Fatalf("closed registration error = %#v", err)
 	}
-	openBackend := newRegistrationTestBackend(db, true)
-	status, err = openBackend.InstallationStatus(ctx, meta)
+	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	status, err = backend.InstallationStatus(ctx, meta)
 	if err != nil || !status.Installed || !status.RegistrationOpen {
 		t.Fatalf("installed status = %#v, err = %v", status, err)
 	}
-	member, err := appservice.New(openBackend).Register(ctx, meta, register)
+	member, err := service.Register(ctx, meta, register)
 	if err != nil || member.Account.IsDeploymentAdmin {
 		t.Fatalf("register auth = %#v, err = %v", member, err)
 	}
-	_, err = openBackend.Register(ctx, meta, register)
+	_, err = backend.Register(ctx, meta, register)
 	requireFieldError(t, err, "email", i18n.FieldEmailDuplicate)
 	memberMeta := appservice.RequestMeta{Token: member.Token, Locale: appservice.LocaleChineseSimplified}
-	// 新注册账号没有任何工作区，进入工作区需要先创建或加入。
+	// 新注册账号没有任何工作区；创建策略仅限部署管理员时不能创建工作区。
 	workspaces, err = backend.ListWorkspaces(ctx, memberMeta)
-	if err != nil || len(workspaces.Items) != 0 {
+	if err != nil || len(workspaces.Items) != 0 || workspaces.CanCreate {
 		t.Fatalf("member workspaces = %#v, err = %v", workspaces, err)
 	}
+	_, err = backend.CreateWorkspace(ctx, memberMeta, appservice.WorkspaceInput{Name: "成员工作区", Slug: "member-team"})
+	requireErrorKind(t, err, appservice.ErrorKindForbidden)
+	// 所有账号可创建时，普通账号同样受实例工作区上限约束。
+	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyAnyAccount,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_, err = backend.CreateWorkspace(ctx, memberMeta, appservice.WorkspaceInput{Name: "成员工作区", Slug: "member-team"})
+	requireErrorKind(t, err, appservice.ErrorKindConflict)
 	memberMeta.WorkspaceID = adminMeta.WorkspaceID
 	_, err = backend.LoadIdentity(ctx, memberMeta)
 	requireSessionState(t, err, appservice.SessionStateWorkspace)
 }
 
-// TestAccountWorkspacesAreIsolated 验证账号创建多个工作区后可分别进入，且无法进入不属于自己的工作区。
+// TestDeploymentAdministration 验证部署管理接口只对部署管理员开放，并保持部署至少有一名有效部署管理员。
+func TestDeploymentAdministration(t *testing.T) {
+	t.Parallel()
+	db := openEmptyDatabase(t)
+	backend := newAccountTestBackend(db)
+	service := appservice.New(backend)
+	ctx := context.Background()
+	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
+
+	admin, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
+		WorkspaceName: "部署管理", WorkspaceSlug: "deployment-admin", DisplayName: "管理员", Email: "admin@example.test",
+		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: appservice.LocaleChineseSimplified}
+	_, err = backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{RegistrationPolicy: "closed", WorkspaceCreationPolicy: "everyone"})
+	requireFieldError(t, err, "registrationPolicy", i18n.FieldRegistrationPolicyInvalid)
+	requireFieldError(t, err, "workspaceCreationPolicy", i18n.FieldWorkspaceCreationPolicyInvalid)
+	settings, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
+	})
+	if err != nil || settings.RegistrationPolicy != appservice.RegistrationPolicyOpen {
+		t.Fatalf("settings = %#v, err = %v", settings, err)
+	}
+	member, err := service.Register(ctx, meta, appservice.RegisterInput{
+		DisplayName: "成员", Email: "member@example.test", Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	memberMeta := appservice.RequestMeta{Token: member.Token, Locale: appservice.LocaleChineseSimplified}
+
+	// 普通账号调用部署管理接口被拒绝。
+	_, err = backend.GetDeploymentOverview(ctx, memberMeta)
+	requireErrorKind(t, err, appservice.ErrorKindForbidden)
+	_, err = backend.ListDeploymentAccounts(ctx, memberMeta, appservice.DeploymentAccountListInput{Status: appservice.AccountStatusActive})
+	requireErrorKind(t, err, appservice.ErrorKindForbidden)
+
+	overview, err := backend.GetDeploymentOverview(ctx, adminMeta)
+	if err != nil || len(overview.InstanceID) != 36 || overview.AccountCount != 2 || overview.WorkspaceCount != 1 || overview.Capabilities.WorkspaceLimit != 1 {
+		t.Fatalf("overview = %#v, err = %v", overview, err)
+	}
+	accounts, err := service.ListDeploymentAccounts(ctx, adminMeta, appservice.DeploymentAccountListInput{Status: appservice.AccountStatusActive})
+	if err != nil || accounts.Page.Total != 2 || accounts.Accounts[0].ID != member.Account.ID || accounts.Accounts[0].WorkspaceCount != 0 ||
+		!accounts.Accounts[1].IsDeploymentAdmin || accounts.Accounts[1].WorkspaceCount != 1 {
+		t.Fatalf("accounts = %#v, err = %v", accounts, err)
+	}
+	accounts, err = backend.ListDeploymentAccounts(ctx, adminMeta, appservice.DeploymentAccountListInput{Query: "MEMBER@", Status: appservice.AccountStatusActive})
+	if err != nil || len(accounts.Accounts) != 1 || accounts.Accounts[0].ID != member.Account.ID {
+		t.Fatalf("searched accounts = %#v, err = %v", accounts, err)
+	}
+	workspaces, err := backend.ListDeploymentWorkspaces(ctx, adminMeta, appservice.DeploymentWorkspaceListInput{})
+	if err != nil || len(workspaces.Workspaces) != 1 || workspaces.Workspaces[0].Slug != "deployment-admin" || workspaces.Workspaces[0].MemberCount != 1 {
+		t.Fatalf("workspaces = %#v, err = %v", workspaces, err)
+	}
+
+	// 部署管理员不能修改自己的账号，部署因此始终保留操作者自己。
+	_, err = backend.DeactivateDeploymentAccount(ctx, adminMeta, admin.Account.ID)
+	requireErrorKind(t, err, appservice.ErrorKindInvalid)
+	_, err = backend.RevokeDeploymentAdmin(ctx, adminMeta, admin.Account.ID)
+	requireErrorKind(t, err, appservice.ErrorKindInvalid)
+	_, err = backend.GrantDeploymentAdmin(ctx, adminMeta, "00000000-0000-0000-0000-000000000000")
+	requireErrorKind(t, err, appservice.ErrorKindNotFound)
+
+	// 授予部署管理员后新管理员可以撤销原管理员，原管理员随即失去部署管理入口。
+	granted, err := backend.GrantDeploymentAdmin(ctx, adminMeta, member.Account.ID)
+	if err != nil || !granted.IsDeploymentAdmin {
+		t.Fatalf("granted = %#v, err = %v", granted, err)
+	}
+	if loaded, err := backend.LoadAccount(ctx, memberMeta); err != nil || !loaded.IsDeploymentAdmin {
+		t.Fatalf("member account = %#v, err = %v", loaded, err)
+	}
+	if _, err := backend.RevokeDeploymentAdmin(ctx, memberMeta, admin.Account.ID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = backend.GetDeploymentOverview(ctx, adminMeta)
+	requireErrorKind(t, err, appservice.ErrorKindForbidden)
+	_, err = backend.GrantDeploymentAdmin(ctx, adminMeta, admin.Account.ID)
+	requireErrorKind(t, err, appservice.ErrorKindForbidden)
+
+	// 停用账号使其登录会话失效，恢复后可以重新登录。
+	deactivated, err := backend.DeactivateDeploymentAccount(ctx, memberMeta, admin.Account.ID)
+	if err != nil || deactivated.Status != appservice.AccountStatusInactive {
+		t.Fatalf("deactivated = %#v, err = %v", deactivated, err)
+	}
+	_, err = backend.LoadAccount(ctx, adminMeta)
+	requireSessionState(t, err, appservice.SessionStateLogin)
+	_, err = backend.Login(ctx, meta, appservice.LoginInput{Email: "admin@example.test", Password: "password123"})
+	requireErrorKind(t, err, appservice.ErrorKindInvalid)
+	inactive, err := backend.ListDeploymentAccounts(ctx, memberMeta, appservice.DeploymentAccountListInput{Status: appservice.AccountStatusInactive})
+	if err != nil || len(inactive.Accounts) != 1 || inactive.Accounts[0].ID != admin.Account.ID {
+		t.Fatalf("inactive accounts = %#v, err = %v", inactive, err)
+	}
+	if _, err := backend.ReactivateDeploymentAccount(ctx, memberMeta, admin.Account.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := backend.Login(ctx, meta, appservice.LoginInput{Email: "admin@example.test", Password: "password123"}); err != nil {
+		t.Fatalf("login after reactivation: %v", err)
+	}
+	_, err = backend.ListDeploymentAccounts(ctx, memberMeta, appservice.DeploymentAccountListInput{Status: "deleted"})
+	requireFieldError(t, err, "status", i18n.FieldUserStatusInvalid)
+}
+
+// TestAccountWorkspacesAreIsolated 验证账号加入多个工作区后可分别进入，且无法进入不属于自己的工作区。
 func TestAccountWorkspacesAreIsolated(t *testing.T) {
 	t.Parallel()
 	store, err := serverstorage.Open(context.Background(), servertest.DatabaseConfig(t))
@@ -165,18 +291,12 @@ func TestAccountWorkspacesAreIsolated(t *testing.T) {
 	if _, err := backend.UpdateProfile(ctx, firstMeta, appservice.ProfileInput{DisplayName: "改名后的负责人", Email: owner.Identity.Account.Email}); err != nil {
 		t.Fatal(err)
 	}
-	slug := "second-" + strings.ReplaceAll(uuid.NewV7().String(), "-", "")[:12]
-	second, err := backend.CreateWorkspace(ctx, ownerMeta, appservice.WorkspaceInput{Name: "第二工作区", Slug: slug})
-	if err != nil || second.Slug != slug {
-		t.Fatalf("created workspace = %#v, err = %v", second, err)
-	}
+	second := addAccountWorkspace(t, db, owner.Token, "第二工作区").Organization
 	secondMeta := ownerMeta
 	secondMeta.WorkspaceID = second.ID
 	if identity, err := backend.LoadIdentity(ctx, secondMeta); err != nil || identity.User.DisplayName != "改名后的负责人" {
 		t.Fatalf("second workspace identity = %#v, err = %v", identity.User, err)
 	}
-	_, err = backend.CreateWorkspace(ctx, ownerMeta, appservice.WorkspaceInput{Name: "重复标识", Slug: slug})
-	requireFieldError(t, err, "slug", i18n.FieldWorkspaceSlugTaken)
 	_, err = backend.CreateWorkspace(ctx, ownerMeta, appservice.WorkspaceInput{Name: "非法标识", Slug: "-bad"})
 	requireFieldError(t, err, "slug", i18n.FieldWorkspaceSlugInvalid)
 

@@ -1,4 +1,4 @@
-/** 工作台一级导航的宽度、收起状态和顶部开关。 */
+/** 工作台与部署管理外壳共用的一级导航宽度、收起状态和顶部开关。 */
 import { useCallback, useState } from "react"
 import { PanelLeftCloseIcon, PanelLeftOpenIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"

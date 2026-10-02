@@ -58,6 +58,8 @@ func (e *Error) HTTPStatus() int {
 		return http.StatusBadRequest
 	case ErrorKindNotFound:
 		return http.StatusNotFound
+	case ErrorKindForbidden:
+		return http.StatusForbidden
 	case ErrorKindConflict:
 		return http.StatusConflict
 	case ErrorKindUnavailable:
@@ -101,6 +103,11 @@ func InvalidError(meta RequestMeta, messageKey i18n.Key, fieldKeys map[string]i1
 // NotFoundError 返回资源不存在的业务错误。
 func NotFoundError(meta RequestMeta, messageKey i18n.Key) *Error {
 	return newError(meta, ErrorKindNotFound, "", messageKey, nil)
+}
+
+// ForbiddenError 返回当前账号无权执行操作的业务错误。
+func ForbiddenError(meta RequestMeta, messageKey i18n.Key) *Error {
+	return newError(meta, ErrorKindForbidden, "", messageKey, nil)
 }
 
 // ConflictError 返回带稳定原因码的业务冲突。

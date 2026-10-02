@@ -318,6 +318,13 @@ export function DeactivateAssistant(meta: $models.RequestMeta, assistantID: stri
 }
 
 /**
+ * DeactivateDeploymentAccount 停用其他账号并使其登录会话失效。
+ */
+export function DeactivateDeploymentAccount(meta: $models.RequestMeta, accountID: string): $CancellablePromise<$models.DeploymentAccount> {
+    return $Call.ByID(409525135, meta, accountID);
+}
+
+/**
  * DeactivateMessageChannel 停用消息渠道。
  */
 export function DeactivateMessageChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.MessageChannelSummary> {
@@ -577,6 +584,20 @@ export function GetCustomerIdentitySecret(meta: $models.RequestMeta): $Cancellab
 }
 
 /**
+ * GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+ */
+export function GetDeploymentOverview(meta: $models.RequestMeta): $CancellablePromise<$models.DeploymentOverview> {
+    return $Call.ByID(546094695, meta);
+}
+
+/**
+ * GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+ */
+export function GetDeploymentSettings(meta: $models.RequestMeta): $CancellablePromise<$models.DeploymentSettings> {
+    return $Call.ByID(1568829417, meta);
+}
+
+/**
  * GetGroupConversation 返回当前成员可见的群聊资料。
  */
 export function GetGroupConversation(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.GroupConversation> {
@@ -759,6 +780,13 @@ export function GetWebsiteChannel(meta: $models.RequestMeta, channelID: string):
 }
 
 /**
+ * GrantDeploymentAdmin 把其他账号设为部署管理员。
+ */
+export function GrantDeploymentAdmin(meta: $models.RequestMeta, accountID: string): $CancellablePromise<$models.DeploymentAccount> {
+    return $Call.ByID(3534401305, meta, accountID);
+}
+
+/**
  * InstallLocalToolchain 重新安装已卸载的本机运行环境。
  */
 export function InstallLocalToolchain(meta: $models.RequestMeta): $CancellablePromise<void> {
@@ -773,7 +801,7 @@ export function InstallWorkspace(meta: $models.RequestMeta, input: $models.Insta
 }
 
 /**
- * InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
+ * InstallationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
  */
 export function InstallationStatus(meta: $models.RequestMeta): $CancellablePromise<$models.InstallationStatus> {
     return $Call.ByID(1778204715, meta);
@@ -903,6 +931,20 @@ export function ListContacts(meta: $models.RequestMeta, input: $models.ContactLi
  */
 export function ListConversationMessages(meta: $models.RequestMeta, conversationID: string, input: $models.ConversationMessageListInput): $CancellablePromise<$models.ConversationMessageList> {
     return $Call.ByID(2307643874, meta, conversationID, input);
+}
+
+/**
+ * ListDeploymentAccounts 返回部署内的账号。
+ */
+export function ListDeploymentAccounts(meta: $models.RequestMeta, input: $models.DeploymentAccountListInput): $CancellablePromise<$models.DeploymentAccountList> {
+    return $Call.ByID(180456726, meta, input);
+}
+
+/**
+ * ListDeploymentWorkspaces 返回部署内的全部工作区。
+ */
+export function ListDeploymentWorkspaces(meta: $models.RequestMeta, input: $models.DeploymentWorkspaceListInput): $CancellablePromise<$models.DeploymentWorkspaceList> {
+    return $Call.ByID(3765846964, meta, input);
 }
 
 /**
@@ -1109,7 +1151,7 @@ export function ListWorkspaceAttention(meta: $models.RequestMeta): $CancellableP
 }
 
 /**
- * ListWorkspaces 返回当前账号作为有效成员可进入的工作区。
+ * ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
  */
 export function ListWorkspaces(meta: $models.RequestMeta): $CancellablePromise<$models.WorkspaceList> {
     return $Call.ByID(1070304639, meta);
@@ -1232,6 +1274,13 @@ export function ReactivateAgent(meta: $models.RequestMeta, agentID: string): $Ca
  */
 export function ReactivateAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.Assistant> {
     return $Call.ByID(86884527, meta, assistantID);
+}
+
+/**
+ * ReactivateDeploymentAccount 恢复已停用的其他账号。
+ */
+export function ReactivateDeploymentAccount(meta: $models.RequestMeta, accountID: string): $CancellablePromise<$models.DeploymentAccount> {
+    return $Call.ByID(4077266009, meta, accountID);
 }
 
 /**
@@ -1421,6 +1470,13 @@ export function RetryKnowledgeDocument(meta: $models.RequestMeta, knowledgeBaseI
  */
 export function RetryKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseID: string, entryID: string): $CancellablePromise<void> {
     return $Call.ByID(2055109947, meta, knowledgeBaseID, entryID);
+}
+
+/**
+ * RevokeDeploymentAdmin 撤销其他账号的部署管理员身份。
+ */
+export function RevokeDeploymentAdmin(meta: $models.RequestMeta, accountID: string): $CancellablePromise<$models.DeploymentAccount> {
+    return $Call.ByID(3903614743, meta, accountID);
 }
 
 /**
@@ -1757,6 +1813,13 @@ export function UpdateConversationUnreadMark(meta: $models.RequestMeta, conversa
  */
 export function UpdateCustomerReplyLanguage(meta: $models.RequestMeta, conversationID: string, input: $models.CustomerReplyLanguageInput): $CancellablePromise<$models.ConversationTranslation> {
     return $Call.ByID(3341048574, meta, conversationID, input);
+}
+
+/**
+ * UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+ */
+export function UpdateDeploymentSettings(meta: $models.RequestMeta, input: $models.DeploymentSettings): $CancellablePromise<$models.DeploymentSettings> {
+    return $Call.ByID(2154649026, meta, input);
 }
 
 /**

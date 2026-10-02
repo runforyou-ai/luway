@@ -11,6 +11,7 @@ import (
 
 	accountaction "github.com/runforyou-ai/luway/internal/actions/account"
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	organizationaction "github.com/runforyou-ai/luway/internal/actions/organization"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -21,7 +22,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ErrAlreadyInstalled 表示部署已有账号，首次安装入口关闭。
+// ErrAlreadyInstalled 表示部署已完成首次安装，首次安装入口关闭。
 var ErrAlreadyInstalled = errors.New("deployment is already installed")
 
 // ValidationError 表示首次安装字段校验失败。
@@ -54,7 +55,7 @@ func NewInstallWorkspaceAction(db *bun.DB) *InstallWorkspaceAction {
 	return &InstallWorkspaceAction{db: db}
 }
 
-// Execute 在部署没有任何账号时，于同一事务内创建部署管理员账号、第一个工作区和登录会话。
+// Execute 在部署尚未完成首次安装时，于同一事务内生成部署实例，并创建部署管理员账号、第一个工作区和登录会话。
 func (a *InstallWorkspaceAction) Execute(ctx context.Context, input InstallWorkspaceInput) (InstallWorkspaceOutput, error) {
 	account := accountaction.NewAccountInput{
 		DisplayName: strings.TrimSpace(input.DisplayName),
@@ -79,16 +80,19 @@ func (a *InstallWorkspaceAction) Execute(ctx context.Context, input InstallWorks
 
 	var output InstallWorkspaceOutput
 	err = a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		// 锁定账号表后确认部署尚无账号，并发安装只有一个成功。
-		if _, err := tx.ExecContext(ctx, "LOCK TABLE accounts IN SHARE ROW EXCLUSIVE MODE"); err != nil {
+		// 锁定部署实例表后确认尚未写入部署实例，并发安装只有一个成功。
+		if _, err := tx.ExecContext(ctx, "LOCK TABLE deployments IN SHARE ROW EXCLUSIVE MODE"); err != nil {
 			return err
 		}
-		installed, err := tx.NewSelect().Model((*servermodels.Account)(nil)).Exists(ctx)
+		installed, err := tx.NewSelect().Model((*servermodels.Deployment)(nil)).Exists(ctx)
 		if err != nil {
 			return err
 		}
 		if installed {
 			return ErrAlreadyInstalled
+		}
+		if _, err := deploymentaction.Create(ctx, tx); err != nil {
+			return err
 		}
 		admin, err := identityaction.CreateAccount(ctx, tx, identityaction.NewAccount{
 			Email: account.Email, PasswordHash: passwordHash, DisplayName: account.DisplayName,

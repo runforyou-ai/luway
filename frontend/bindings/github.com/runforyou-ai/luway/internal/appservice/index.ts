@@ -11,6 +11,7 @@ export {
     AIModelType,
     AIProviderBrand,
     AIProviderCredentialType,
+    AccountStatus,
     AgentEvaluationCaseSource,
     AgentEvaluationContextSender,
     AgentEvaluationErrorCode,
@@ -76,6 +77,7 @@ export {
     PermissionCode,
     PermissionLevel,
     PermissionResource,
+    RegistrationPolicy,
     RoleKind,
     ServiceAudience,
     ServiceIssueType,
@@ -97,7 +99,8 @@ export {
     UserStatus,
     WebSearchProvider,
     WebsiteHomeBlockType,
-    WorkStatus
+    WorkStatus,
+    WorkspaceCreationPolicy
 } from "./models.js";
 
 export type {
@@ -250,6 +253,14 @@ export type {
     CustomerReplyTranslationInput,
     CustomerReplyTranslationPreview,
     CustomerVisit,
+    DeploymentAccount,
+    DeploymentAccountList,
+    DeploymentAccountListInput,
+    DeploymentOverview,
+    DeploymentSettings,
+    DeploymentWorkspace,
+    DeploymentWorkspaceList,
+    DeploymentWorkspaceListInput,
     Device,
     DeviceList,
     DeviceRegistrationInput,
@@ -300,6 +311,7 @@ export type {
     InboxWindowInput,
     InstallWorkspaceInput,
     InstallationStatus,
+    InstanceCapabilities,
     Invitation,
     InvitationCreated,
     InvitationInput,

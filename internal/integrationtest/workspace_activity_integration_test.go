@@ -12,12 +12,14 @@ import (
 	"uuid"
 
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	"github.com/runforyou-ai/luway/internal/realtime/gateway"
 	"github.com/runforyou-ai/luway/internal/realtime/protocol"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 
@@ -52,10 +54,7 @@ func TestRealtimeWorkspacesStream(t *testing.T) {
 	ctx := context.Background()
 	h := startRealtimeGateway(t, f, testGatewayOptions(), nil)
 	token := loginToken(t, f.db, f.owner.Organization.ID, f.memberEmail)
-	second, err := h.backend.CreateWorkspace(ctx, appservice.RequestMeta{Token: token}, appservice.WorkspaceInput{Name: "第二工作区", Slug: "activity-" + strings.ReplaceAll(uuid.NewV7().String(), "-", "")[20:]})
-	if err != nil {
-		t.Fatal(err)
-	}
+	second := addAccountWorkspace(t, f.db, token, "第二工作区").Organization
 	client := h.openWorkspacesStream(t, token)
 
 	// 当前工作区的群消息标明所在工作区。
@@ -87,10 +86,7 @@ func TestListWorkspaceAttention(t *testing.T) {
 	ctx := context.Background()
 	backend := newAccountTestBackend(f.db)
 	token := loginToken(t, f.db, f.owner.Organization.ID, f.memberEmail)
-	second, err := backend.CreateWorkspace(ctx, appservice.RequestMeta{Token: token}, appservice.WorkspaceInput{Name: "第二工作区", Slug: "attention-" + strings.ReplaceAll(uuid.NewV7().String(), "-", "")[20:]})
-	if err != nil {
-		t.Fatal(err)
-	}
+	second := addAccountWorkspace(t, f.db, token, "第二工作区").Organization
 	f.send(t, f.owner, "未读一条", false)
 
 	list, err := backend.ListWorkspaceAttention(ctx, appservice.RequestMeta{Token: token})
@@ -147,9 +143,7 @@ func TestRealtimeWorkspacesStreamRejectsChangedMemberships(t *testing.T) {
 	f := newNavigationFixture(t)
 	ctx := context.Background()
 	token := loginToken(t, f.db, f.owner.Organization.ID, f.memberEmail)
-	if _, err := newAccountTestBackend(f.db).CreateWorkspace(ctx, appservice.RequestMeta{Token: token}, appservice.WorkspaceInput{Name: "第二工作区", Slug: "changed-" + strings.ReplaceAll(uuid.NewV7().String(), "-", "")[20:]}); err != nil {
-		t.Fatal(err)
-	}
+	addAccountWorkspace(t, f.db, token, "第二工作区")
 	var once sync.Once
 	h := startRealtimeGateway(t, f, testGatewayOptions(), func(backend gateway.MemberBackend) gateway.MemberBackend {
 		// 直接改库而不发出停用通知，模拟停用通知在订阅生效前已送达、本连接收不到的情形。
@@ -176,4 +170,24 @@ func TestRealtimeWorkspacesStreamRejectsChangedMemberships(t *testing.T) {
 	client := h.openWorkspacesStream(t, token)
 	f.send(t, f.owner, "停用之后", false)
 	client.expectQuiet()
+}
+
+// TestDeploymentDeactivationEndsRealtimeStreams 验证部署管理员停用账号后，该账号已建立的工作区动态事件流随即结束。
+func TestDeploymentDeactivationEndsRealtimeStreams(t *testing.T) {
+	t.Parallel()
+	f := newNavigationFixture(t)
+	ctx := context.Background()
+	h := startRealtimeGateway(t, f, testGatewayOptions(), nil)
+	token := loginToken(t, f.db, f.owner.Organization.ID, f.memberEmail)
+	client := h.openWorkspacesStream(t, token)
+
+	// 工作区负责人的账号同时是部署管理员。
+	if _, err := f.db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_deployment_admin = true").Where("id = ?", f.owner.Account.ID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	operator := &servermodels.AccountIdentity{Account: f.owner.Account}
+	if _, err := deploymentaction.NewUpdateAccountAction(f.db).SetStatus(ctx, operator, f.member.Account.ID, domain.AccountStatusInactive); err != nil {
+		t.Fatal(err)
+	}
+	client.expectEnded()
 }

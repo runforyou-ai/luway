@@ -286,6 +286,19 @@ export interface Account {
 }
 
 /**
+ * AccountStatus 表示部署内登录账号的状态。
+ */
+export enum AccountStatus {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    AccountStatusActive = "active",
+    AccountStatusInactive = "inactive",
+};
+
+/**
  * Agent 定义 AI 员工信息，Behavior 是该员工当前生效的内置工作规则与可用工具，HandoffTeamID 为空表示转人工进入公共队列，Responsible 为空表示未指定负责人。
  */
 export interface Agent {
@@ -2240,6 +2253,85 @@ export interface CustomerVisit {
 }
 
 /**
+ * DeploymentAccount 定义部署账号列表中的一个账号及其加入的工作区数量。
+ */
+export interface DeploymentAccount {
+    "id": string;
+    "email": string;
+    "displayName": string;
+    "status": AccountStatus;
+    "isDeploymentAdmin": boolean;
+    "workspaceCount": number;
+    "createdAt": string;
+}
+
+/**
+ * DeploymentAccountList 定义部署账号分页结果。
+ */
+export interface DeploymentAccountList {
+    "accounts": DeploymentAccount[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * DeploymentAccountListInput 定义部署账号列表的筛选与分页条件，Status 缺省为有效账号。
+ */
+export interface DeploymentAccountListInput {
+    "query": string;
+    "status": AccountStatus;
+    "page": number;
+    "pageSize": number;
+}
+
+/**
+ * DeploymentOverview 定义部署实例标识、服务端版本、安装时间、规模和实例能力。
+ */
+export interface DeploymentOverview {
+    "instanceId": string;
+    "version": string;
+    "installedAt": string;
+    "accountCount": number;
+    "workspaceCount": number;
+    "capabilities": InstanceCapabilities;
+}
+
+/**
+ * DeploymentSettings 定义部署注册策略和工作区创建策略。
+ */
+export interface DeploymentSettings {
+    "registrationPolicy": RegistrationPolicy;
+    "workspaceCreationPolicy": WorkspaceCreationPolicy;
+}
+
+/**
+ * DeploymentWorkspace 定义部署工作区列表中的一个工作区及其有效成员数量。
+ */
+export interface DeploymentWorkspace {
+    "id": string;
+    "name": string;
+    "slug": string;
+    "memberCount": number;
+    "createdAt": string;
+}
+
+/**
+ * DeploymentWorkspaceList 定义部署工作区分页结果。
+ */
+export interface DeploymentWorkspaceList {
+    "workspaces": DeploymentWorkspace[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * DeploymentWorkspaceListInput 定义部署工作区列表的关键词与分页条件。
+ */
+export interface DeploymentWorkspaceListInput {
+    "query": string;
+    "page": number;
+    "pageSize": number;
+}
+
+/**
  * Device 定义成员注册到企业的本机设备，LocalAgents 是设备上报的已安装且可用的本机 Agent。
  */
 export interface Device {
@@ -2959,13 +3051,21 @@ export interface InstallWorkspaceInput {
 }
 
 /**
- * InstallationStatus 定义部署名称、部署是否已完成首次安装、是否开放注册和部署使用的产品品牌。
+ * InstallationStatus 定义部署名称、部署是否已完成首次安装、注册策略是否开放注册和部署使用的产品品牌。
  */
 export interface InstallationStatus {
     "deploymentName": string;
     "installed": boolean;
     "registrationOpen": boolean;
     "brand": Brand;
+}
+
+/**
+ * InstanceCapabilities 定义部署实例当前生效的能力；WorkspaceLimit 为 0 表示不限工作区数量。
+ */
+export interface InstanceCapabilities {
+    "workspaceLimit": number;
+    "customBranding": boolean;
 }
 
 /**
@@ -4149,6 +4249,19 @@ export interface RegisterInput {
     "timeZone": string;
     "invitationToken": string;
 }
+
+/**
+ * RegistrationPolicy 表示部署的账号注册策略。
+ */
+export enum RegistrationPolicy {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    RegistrationPolicyOpen = "open",
+    RegistrationPolicyInvitationOnly = "invitation_only",
+};
 
 /**
  * RequestMeta 携带一次应用服务调用的认证、目标工作区和本地化信息；WorkspaceID 经 WorkspaceHeader 传输，
@@ -5543,6 +5656,19 @@ export interface WorkspaceAttentionList {
 }
 
 /**
+ * WorkspaceCreationPolicy 表示部署内可以创建工作区的账号范围。
+ */
+export enum WorkspaceCreationPolicy {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    WorkspaceCreationPolicyAnyAccount = "any_account",
+    WorkspaceCreationPolicyDeploymentAdmin = "deployment_admin",
+};
+
+/**
  * WorkspaceInput 定义新建工作区的名称和标识。
  */
 export interface WorkspaceInput {
@@ -5551,8 +5677,9 @@ export interface WorkspaceInput {
 }
 
 /**
- * WorkspaceList 定义账号可进入的全部工作区。
+ * WorkspaceList 定义账号可进入的全部工作区；CanCreate 表示部署创建策略和实例工作区上限是否允许账号再创建工作区。
  */
 export interface WorkspaceList {
     "items": Workspace[] | null;
+    "canCreate": boolean;
 }

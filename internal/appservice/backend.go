@@ -8,7 +8,7 @@ import "context"
 //
 // 每个方法必须携带一条 appservice:route 指令，格式为：
 //
-//	appservice:route <HTTP方法> <路径> [status=201] [query=<参数名>] [auth=public|account] [manual=service,api,proxy]
+//	appservice:route <HTTP方法> <路径> [status=201] [query=<参数名>] [auth=public|account|admin] [manual=service,api,proxy]
 //
 // appservicegen 按指令生成 Service 委托、Gin 路由、API Proxy 转发和服务端认证分发；
 // manual 标记的层由对应包手写实现。路径中的 :参数 依次对应签名中的 string 参数，
@@ -16,15 +16,15 @@ import "context"
 //
 // auth 默认为 member：服务端分发层先解析登录账号在请求目标工作区中的成员身份，再把身份
 // 交给业务实现，业务实现不重复处理认证。只需要登录账号的方法标记 auth=account，
-// 无需登录的方法标记 auth=public。
+// 只允许部署管理员调用的部署级管理方法标记 auth=admin，无需登录的方法标记 auth=public。
 type Backend interface {
-	// InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
+	// InstallationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
 	//appservice:route GET /installation/status auth=public manual=proxy
 	InstallationStatus(context.Context, RequestMeta) (InstallationStatus, error)
 	// Login 校验账号密码并建立登录会话。
 	//appservice:route POST /auth/login auth=public manual=service,proxy
 	Login(context.Context, RequestMeta, LoginInput) (Auth, error)
-	// Register 在部署配置开放注册时注册本地账号并建立登录会话。
+	// Register 在部署开放注册或持有效邀请时注册本地账号并建立登录会话。
 	//appservice:route POST /auth/register auth=public manual=service,proxy
 	Register(context.Context, RequestMeta, RegisterInput) (Auth, error)
 	// Logout 退出当前登录会话。
@@ -33,7 +33,7 @@ type Backend interface {
 	// LoadAccount 返回当前登录账号。
 	//appservice:route GET /account auth=account
 	LoadAccount(context.Context, RequestMeta) (Account, error)
-	// ListWorkspaces 返回当前账号作为有效成员可进入的工作区。
+	// ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
 	//appservice:route GET /workspaces auth=account
 	ListWorkspaces(context.Context, RequestMeta) (WorkspaceList, error)
 	// ListWorkspaceAttention 返回当前账号在各工作区的提醒数量，工作区切换器与应用角标据此提示其他工作区的未读。
@@ -429,6 +429,33 @@ type Backend interface {
 	// AcceptInvitation 由当前账号接受邀请并加入工作区。
 	//appservice:route POST /invitation-acceptances auth=account
 	AcceptInvitation(context.Context, RequestMeta, InvitationTokenInput) (Workspace, error)
+	// GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+	//appservice:route GET /deployment/overview auth=admin
+	GetDeploymentOverview(context.Context, RequestMeta) (DeploymentOverview, error)
+	// GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+	//appservice:route GET /deployment/settings auth=admin
+	GetDeploymentSettings(context.Context, RequestMeta) (DeploymentSettings, error)
+	// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+	//appservice:route PUT /deployment/settings auth=admin
+	UpdateDeploymentSettings(context.Context, RequestMeta, DeploymentSettings) (DeploymentSettings, error)
+	// ListDeploymentAccounts 返回部署内的账号。
+	//appservice:route GET /deployment/accounts auth=admin
+	ListDeploymentAccounts(context.Context, RequestMeta, DeploymentAccountListInput) (DeploymentAccountList, error)
+	// DeactivateDeploymentAccount 停用其他账号并使其登录会话失效。
+	//appservice:route POST /deployment/accounts/:accountID/deactivate auth=admin
+	DeactivateDeploymentAccount(context.Context, RequestMeta, string) (DeploymentAccount, error)
+	// ReactivateDeploymentAccount 恢复已停用的其他账号。
+	//appservice:route POST /deployment/accounts/:accountID/reactivate auth=admin
+	ReactivateDeploymentAccount(context.Context, RequestMeta, string) (DeploymentAccount, error)
+	// GrantDeploymentAdmin 把其他账号设为部署管理员。
+	//appservice:route POST /deployment/accounts/:accountID/admin auth=admin
+	GrantDeploymentAdmin(context.Context, RequestMeta, string) (DeploymentAccount, error)
+	// RevokeDeploymentAdmin 撤销其他账号的部署管理员身份。
+	//appservice:route DELETE /deployment/accounts/:accountID/admin auth=admin
+	RevokeDeploymentAdmin(context.Context, RequestMeta, string) (DeploymentAccount, error)
+	// ListDeploymentWorkspaces 返回部署内的全部工作区。
+	//appservice:route GET /deployment/workspaces auth=admin
+	ListDeploymentWorkspaces(context.Context, RequestMeta, DeploymentWorkspaceListInput) (DeploymentWorkspaceList, error)
 	// UpdateUser 修改企业成员头像、资料、角色和所属团队。
 	//appservice:route PUT /users/:userID
 	UpdateUser(context.Context, RequestMeta, string, UpdateUserInput) (User, error)

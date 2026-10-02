@@ -10,7 +10,7 @@ import { responsibleKnowledgeGapsPath } from "@/features/agents/agent-navigation
 import { agentsModulePaths } from "@/features/agents/agents-module-layout"
 import { useResponsibleKnowledgeGapCount } from "@/features/agents/use-responsible-knowledge-gaps"
 import { ChatRailSections } from "@/features/inbox/chat-rail"
-import { WorkspaceRailToggle } from "@/features/workspace/workspace-rail"
+import { WorkspaceRailToggle } from "@/components/workspace-rail"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { resolveAppPlatform } from "@/platform/app-platform"
