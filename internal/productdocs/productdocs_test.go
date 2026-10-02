@@ -221,7 +221,7 @@ func TestService(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(body, "<h1>基本概念</h1>") || !strings.Contains(body, `href="#工作区"`) || !strings.Contains(body, `aria-current="page"`) {
 		t.Fatalf("page response = %d\n%s", page.Code, body)
 	}
-	if !strings.Contains(body, `href="/docs/en/guide/basics/concepts/"`) {
+	if !strings.Contains(body, `<option value="/docs/en/guide/basics/concepts/" lang="en-US">English</option>`) {
 		t.Fatalf("language switch missing:\n%s", body)
 	}
 	search := serve(http.MethodGet, "/docs/zh-cn/search/?q=工作区", "")

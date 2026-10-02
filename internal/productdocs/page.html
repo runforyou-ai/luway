@@ -31,9 +31,9 @@
   <form class="docs-search" action="{{.SearchPath}}" method="get" role="search">
     <input type="search" name="q" value="{{with .Search}}{{.Query}}{{end}}" aria-label="{{.Labels.search}}">
   </form>
-  <nav class="docs-languages" aria-label="{{.Labels.language}}">
-    {{range .Languages}}<a href="{{.Path}}" hreflang="{{.Lang}}"{{if .Current}} aria-current="true"{{end}}>{{.Label}}</a>{{end}}
-  </nav>
+  <select class="docs-languages" aria-label="{{.Labels.language}}" onchange="location.href = this.value">
+    {{range .Languages}}<option value="{{.Path}}" lang="{{.Lang}}"{{if .Current}} selected{{end}}>{{.Label}}</option>{{end}}
+  </select>
 </header>
 <details class="docs-mobile-nav">
   <summary>{{.Labels.menu}}</summary>
@@ -65,5 +65,29 @@
   </aside>
   {{end}}
 </div>
+<script>(() => {
+  // 翻页时保留侧边栏的展开分组与滚动位置；首次打开时把当前页面滚到侧边栏中部。
+  const sidebar = document.querySelector(".docs-sidebar")
+  if (!sidebar) return
+  const key = "app.docs.sidebar"
+  const groups = [...sidebar.querySelectorAll("details")]
+  let saved = null
+  try { saved = JSON.parse(sessionStorage.getItem(key) || "null") } catch {}
+  const current = sidebar.querySelector('[aria-current="page"]')
+  if (saved) {
+    groups.forEach((group, index) => { if (saved.open.includes(index)) group.open = true })
+    sidebar.scrollTop = saved.scroll
+  }
+  if (current) {
+    const item = current.getBoundingClientRect(), box = sidebar.getBoundingClientRect()
+    if (item.top < box.top || item.bottom > box.bottom) sidebar.scrollTop += item.top - box.top - box.height / 2
+  }
+  const save = () => {
+    const open = groups.flatMap((group, index) => (group.open ? [index] : []))
+    try { sessionStorage.setItem(key, JSON.stringify({ scroll: sidebar.scrollTop, open })) } catch {}
+  }
+  sidebar.addEventListener("click", (event) => { if (event.target.closest("a")) save() })
+  addEventListener("pagehide", save)
+})()</script>
 </body>
 </html>
