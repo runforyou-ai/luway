@@ -1,7 +1,7 @@
-/** Telegram 机器人 Token 测试和保存表单。 */
+/** Telegram 接入方式与机器人 Token 的测试和保存表单。 */
 import { useMemo, useState } from "react"
 import { LoaderCircleIcon } from "lucide-react"
-import { useForm } from "react-hook-form"
+import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -11,12 +11,15 @@ import {
   isNotFoundApiError,
   isTelegramBotReuseConfirmationError,
   saveTelegramChannelConnection,
+  TelegramConnectionMode,
   testTelegramChannelConnection,
   type TelegramChannel,
 } from "@/api"
+import { DetailEditRow } from "@/components/form/detail-edit-row"
 import { InlineEditField } from "@/components/form/inline-edit-field"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { Button } from "@/components/ui/button"
+import { NativeSelect } from "@/components/ui/native-select"
 import { useReturnTo } from "@/hooks/use-return-to"
 import { resolveServerURL } from "@/lib/server-url"
 import {
@@ -27,7 +30,7 @@ import { apiErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
 import { zodResolver } from "@/lib/zod-resolver"
 
-/** 编辑 Telegram 机器人连接。 */
+/** 编辑 Telegram 接入方式与机器人连接。 */
 export function TelegramChannelConnectionForm({
   channel,
   onUpdated,
@@ -55,10 +58,10 @@ export function TelegramChannelConnectionForm({
   const form = useForm<TelegramChannelConnectionFormValues>({
     resolver: zodResolver(schema),
     shouldUseNativeValidation: true,
-    defaultValues: { botToken: channel.connection.botToken },
+    defaultValues: connectionFormValues(channel),
   })
 
-  /** 保存 Token、机器人信息和回调基础地址。 */
+  /** 保存接入方式、Token、机器人信息和回调基础地址。 */
   async function save(
     values: TelegramChannelConnectionFormValues,
     confirmBotReuse = false,
@@ -69,11 +72,12 @@ export function TelegramChannelConnectionForm({
     try {
       const webhookBaseURL = await resolveServerURL()
       const updated = await saveTelegramChannelConnection(channel.id, {
+        connectionMode: values.connectionMode,
         botToken: values.botToken,
         webhookBaseURL,
         confirmBotReuse,
       })
-      form.reset({ botToken: updated.connection.botToken })
+      form.reset(connectionFormValues(updated))
       onUpdated(updated)
     } catch (error) {
       if (recoverSession(error, navigate)) return
@@ -90,9 +94,11 @@ export function TelegramChannelConnectionForm({
         channel_id: channel.id,
         error,
       })
+      // 保存失败时接入方式恢复为已保存的值。
+      form.resetField("connectionMode")
       toast.error(
         isApiError(error)
-          ? apiErrorMessage(error, ["botToken", "webhookBaseURL"])
+          ? apiErrorMessage(error, ["connectionMode", "botToken", "webhookBaseURL"])
           : t("telegramConnection.saveError"),
       )
     } finally {
@@ -146,6 +152,45 @@ export function TelegramChannelConnectionForm({
         onSubmit={form.handleSubmit((values) => save(values))}
         noValidate
       >
+        <Controller
+          control={form.control}
+          name="connectionMode"
+          render={({ field }) => (
+            <DetailEditRow
+              label={t("telegramConnection.form.connectionMode")}
+              required
+              editing
+              editEnabled={false}
+              value={null}
+            >
+              <NativeSelect
+                name={field.name}
+                value={field.value}
+                disabled={saving}
+                aria-label={t("telegramConnection.form.connectionMode")}
+                onChange={(event) => {
+                  field.onChange(event.target.value)
+                  // 已保存 Token 时切换接入方式立即保存。
+                  if (channel.connection.botToken) {
+                    void form.handleSubmit((values) => save(values))()
+                  }
+                }}
+              >
+                <option value={TelegramConnectionMode.TelegramConnectionDirect}>
+                  {t("telegramConnection.mode.direct")}
+                </option>
+                <option value={TelegramConnectionMode.TelegramConnectionGateway}>
+                  {t("telegramConnection.mode.gateway")}
+                </option>
+              </NativeSelect>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {field.value === TelegramConnectionMode.TelegramConnectionGateway
+                  ? t("telegramConnection.mode.gatewayHelp")
+                  : t("telegramConnection.mode.directHelp")}
+              </p>
+            </DetailEditRow>
+          )}
+        />
         <InlineEditField
           name="botToken"
           control={form.control}
@@ -183,10 +228,26 @@ export function TelegramChannelConnectionForm({
         description={t("telegramConnection.reuseConfirmation.description")}
         destructive={false}
         onOpenChange={(open) => {
-          if (!open) setPendingBotReuse(null)
+          if (open) return
+          setPendingBotReuse(null)
+          form.resetField("connectionMode")
         }}
         onConfirm={confirmBotReuse}
       />
     </>
   )
+}
+
+/** 由渠道详情得到连接表单值，未保存过接入方式时按直连处理。 */
+function connectionFormValues(
+  channel: TelegramChannel,
+): TelegramChannelConnectionFormValues {
+  return {
+    connectionMode:
+      channel.connection.connectionMode ===
+      TelegramConnectionMode.TelegramConnectionGateway
+        ? TelegramConnectionMode.TelegramConnectionGateway
+        : TelegramConnectionMode.TelegramConnectionDirect,
+    botToken: channel.connection.botToken,
+  }
 }

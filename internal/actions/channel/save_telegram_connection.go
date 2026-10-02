@@ -22,7 +22,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// SaveTelegramConnectionAction 保存 Telegram Token、机器人身份和 Webhook 注册代次。
+// SaveTelegramConnectionAction 保存 Telegram 接入方式、Token、机器人身份和回调密钥。
 type SaveTelegramConnectionAction struct {
 	db     *bun.DB
 	runner *connectiontest.Runner
@@ -34,7 +34,7 @@ func NewSaveTelegramConnectionAction(db *bun.DB, runner *connectiontest.Runner, 
 	return &SaveTelegramConnectionAction{db: db, runner: runner, api: api}
 }
 
-// Execute 校验 Token，保存机器人信息并尝试注册 Webhook。
+// Execute 校验 Token，保存接入方式与机器人信息；直连时尝试注册 Webhook，网关转发时不注册也不删除 Webhook。
 func (a *SaveTelegramConnectionAction) Execute(ctx context.Context, identity *servermodels.Identity, channelID string, input TelegramChannelConnectionInput) (*TelegramChannelDetail, error) {
 	if !common.ValidUUID(channelID) {
 		return nil, ErrNotFound
@@ -66,6 +66,7 @@ func (a *SaveTelegramConnectionAction) Execute(ctx context.Context, identity *se
 		return withTelegramBotLocks(ctx, conn, identity.Organization.ID, botIDs, func() error {
 			var oldToken string
 			var oldBotID *int64
+			var oldMode domain.TelegramConnectionMode
 			var oldBotUsedByOtherChannel bool
 			var enabled bool
 			var secret string
@@ -103,6 +104,7 @@ func (a *SaveTelegramConnectionAction) Execute(ctx context.Context, identity *se
 
 				oldToken = optionalStringValue(setting.BotToken)
 				oldBotID = setting.BotID
+				oldMode = domain.TelegramConnectionMode(setting.ConnectionMode)
 				if oldBotID != nil && *oldBotID != bot.ID {
 					cancelledRuns, err = chatstate.CancelChannelRuns(ctx, tx, identity.Organization.ID, channelID, domain.AgentRunErrorCodeBotChanged)
 					if err != nil {
@@ -118,7 +120,12 @@ func (a *SaveTelegramConnectionAction) Execute(ctx context.Context, identity *se
 					}
 				}
 				enabled = channel.Enabled
-				if enabled {
+				gateway := input.ConnectionMode == domain.TelegramConnectionGateway
+				// 网关转发沿用业务系统已配置的转发密钥；直连在启用时为本次注册生成新密钥。
+				keepSecret := gateway && oldMode == domain.TelegramConnectionGateway && setting.WebhookSecret != nil
+				if keepSecret {
+					secret = *setting.WebhookSecret
+				} else if gateway || enabled {
 					secret, err = newTelegramWebhookSecret()
 					if err != nil {
 						return fmt.Errorf("generate Telegram webhook secret: %w", err)
@@ -132,17 +139,22 @@ func (a *SaveTelegramConnectionAction) Execute(ctx context.Context, identity *se
 				setting.BotUsername = optionalTelegramString(bot.Username)
 				setting.BotDisplayName = optionalTelegramString(botDisplayName)
 				setting.WebhookBaseURL = optionalTelegramString(input.WebhookBaseURL)
-				setting.WebhookConnectedAt = nil
-				if enabled {
-					setting.WebhookSecret = &secret
-					setting.WebhookStatus = &status
-				} else {
-					setting.WebhookSecret = nil
+				setting.ConnectionMode = string(input.ConnectionMode)
+				// 网关转发在密钥与机器人都未变化时保留已建立的连接状态。
+				if !keepSecret || oldBotID == nil || *oldBotID != bot.ID {
+					setting.WebhookConnectedAt = nil
 					setting.WebhookStatus = nil
+					if enabled {
+						setting.WebhookStatus = &status
+					}
+				}
+				setting.WebhookSecret = nil
+				if secret != "" {
+					setting.WebhookSecret = &secret
 				}
 				_, err = tx.NewUpdate().
 					Model(setting).
-					Column("bot_token", "bot_id", "bot_username", "bot_display_name", "webhook_base_url", "webhook_secret", "webhook_status", "webhook_connected_at").
+					Column("connection_mode", "bot_token", "bot_id", "bot_username", "bot_display_name", "webhook_base_url", "webhook_secret", "webhook_status", "webhook_connected_at").
 					Set("updated_at = now()").
 					WherePK().
 					Exec(ctx)
@@ -156,12 +168,13 @@ func (a *SaveTelegramConnectionAction) Execute(ctx context.Context, identity *se
 				slog.Info("Telegram 更换机器人后取消客服运行", "organization_id", identity.Organization.ID, "channel_id", channelID, "cancelled_run_count", cancelledRuns, "reason", domain.AgentRunErrorCodeBotChanged)
 			}
 
-			if oldBotID != nil && *oldBotID != bot.ID && oldToken != "" && !oldBotUsedByOtherChannel {
+			// 只清理本服务直连时为旧机器人注册的 Webhook，网关转发的 Webhook 由业务系统维护。
+			if oldMode == domain.TelegramConnectionDirect && oldBotID != nil && *oldBotID != bot.ID && oldToken != "" && !oldBotUsedByOtherChannel {
 				if err := runTelegramDeleteWebhook(ctx, a.runner, a.api, oldToken); err != nil {
 					logTelegramRemoteFailure("清理旧 Telegram Webhook 失败", channelID, err)
 				}
 			}
-			if enabled {
+			if enabled && input.ConnectionMode == domain.TelegramConnectionDirect {
 				if err := runTelegramSetWebhook(ctx, a.runner, a.api, input.BotToken, webhookURL, secret); err != nil {
 					logTelegramRemoteFailure("注册 Telegram Webhook 失败", channelID, err)
 				} else {

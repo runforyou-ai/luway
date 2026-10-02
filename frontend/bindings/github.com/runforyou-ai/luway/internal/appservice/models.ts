@@ -1380,7 +1380,7 @@ export enum ContactProfileSource {
 
     ContactProfileSourceMember = "member",
     ContactProfileSourceAI = "ai",
-    ContactProfileSourceWebsite = "website",
+    ContactProfileSourceSignedIdentity = "signed_identity",
 };
 
 /**
@@ -5294,9 +5294,10 @@ export interface TelegramChannel {
 }
 
 /**
- * TelegramChannelConnection 定义 Telegram 机器人和 Webhook 信息。
+ * TelegramChannelConnection 定义 Telegram 接入方式、机器人和回调信息；网关转发时 WebhookURL 与 WebhookSecret 是业务系统转发使用的地址与密钥。
  */
 export interface TelegramChannelConnection {
+    "connectionMode": TelegramConnectionMode;
     "botToken": string;
     "botId": string | null;
     "botUsername": string | null;
@@ -5310,6 +5311,7 @@ export interface TelegramChannelConnection {
  * TelegramChannelConnectionInput 定义 Telegram 连接保存输入。
  */
 export interface TelegramChannelConnectionInput {
+    "connectionMode": TelegramConnectionMode;
     "botToken": string;
     "webhookBaseURL": string;
     "confirmBotReuse": boolean;
@@ -5321,6 +5323,19 @@ export interface TelegramChannelConnectionInput {
 export interface TelegramChannelConnectionTestInput {
     "botToken": string;
 }
+
+/**
+ * TelegramConnectionMode 表示 Telegram 渠道接收消息的接入方式。
+ */
+export enum TelegramConnectionMode {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    TelegramConnectionDirect = "direct",
+    TelegramConnectionGateway = "gateway",
+};
 
 /**
  * TelegramWebhookStatus 表示 Telegram Webhook 的连接状态。

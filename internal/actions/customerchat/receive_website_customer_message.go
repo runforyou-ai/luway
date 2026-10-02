@@ -84,10 +84,10 @@ func (a *ReceiveWebsiteCustomerMessageAction) ExecuteAttachment(ctx context.Cont
 }
 
 // websiteInboundInput 为网站入站消息补充签名身份与访客上下文；签名中的名称写入渠道身份显示名称，省略时不改动，带入的档案随消息写入联系人。
-func websiteInboundInput(customer *WebsiteCustomer, visitorContext *domain.VisitorContext, input InboundCustomerMessageInput) InboundCustomerMessageInput {
+func websiteInboundInput(customer *SignedCustomer, visitorContext *domain.VisitorContext, input InboundCustomerMessageInput) InboundCustomerMessageInput {
 	input.VisitorContext = visitorContext
 	if customer != nil {
-		input.ExternalUserID, input.Email, input.WebsiteProfile = customer.UserID, customer.Email, &customer.Profile
+		input.VerifiedUserID, input.Email, input.SignedProfile = customer.UserID, customer.Email, &customer.Profile
 		if customer.Name != "" {
 			input.DisplayName = &customer.Name
 		}

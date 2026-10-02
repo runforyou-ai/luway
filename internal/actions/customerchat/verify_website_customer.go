@@ -19,7 +19,7 @@ import (
 // VerifiedWebsiteCustomer 是验签通过的网站登录用户及其所属企业。
 type VerifiedWebsiteCustomer struct {
 	OrganizationID string
-	Customer       WebsiteCustomer
+	Customer       SignedCustomer
 	ExpiresAt      time.Time
 }
 
@@ -47,26 +47,31 @@ func (q *VerifyWebsiteCustomerQuery) Execute(ctx context.Context, channelID, tok
 
 // ExecuteForOrganization 按指定企业的客户身份密钥校验签名身份，企业尚未生成密钥时签名一律无效。
 func (q *VerifyWebsiteCustomerQuery) ExecuteForOrganization(ctx context.Context, organizationID, token string) (VerifiedWebsiteCustomer, error) {
-	secret, err := customerserviceaction.LoadCustomerIdentitySecret(ctx, q.db, organizationID)
+	customer, expiresAt, err := verifyCustomerToken(ctx, q.db, organizationID, token)
 	if err != nil {
 		return VerifiedWebsiteCustomer{}, err
 	}
+	return VerifiedWebsiteCustomer{OrganizationID: organizationID, Customer: customer, ExpiresAt: expiresAt}, nil
+}
+
+// verifyCustomerToken 按企业客户身份密钥校验签名身份并返回签名客户与过期时间；企业尚未生成密钥或签名无效时返回 ErrCustomerIdentityInvalid。
+func verifyCustomerToken(ctx context.Context, db bun.IDB, organizationID, token string) (SignedCustomer, time.Time, error) {
+	secret, err := customerserviceaction.LoadCustomerIdentitySecret(ctx, db, organizationID)
+	if err != nil {
+		return SignedCustomer{}, time.Time{}, err
+	}
 	if secret == "" {
-		return VerifiedWebsiteCustomer{}, fmt.Errorf("%w: secret is not generated", conversationaction.ErrCustomerIdentityInvalid)
+		return SignedCustomer{}, time.Time{}, fmt.Errorf("%w: secret is not generated", conversationaction.ErrCustomerIdentityInvalid)
 	}
 	claims, err := customeridentity.Verify(secret, token, time.Now())
 	if errors.Is(err, customeridentity.ErrInvalid) {
-		return VerifiedWebsiteCustomer{}, fmt.Errorf("%w: %w", conversationaction.ErrCustomerIdentityInvalid, err)
+		return SignedCustomer{}, time.Time{}, fmt.Errorf("%w: %w", conversationaction.ErrCustomerIdentityInvalid, err)
 	}
 	if err != nil {
-		return VerifiedWebsiteCustomer{}, err
+		return SignedCustomer{}, time.Time{}, err
 	}
-	return VerifiedWebsiteCustomer{
-		OrganizationID: organizationID,
-		Customer: WebsiteCustomer{
-			UserID: claims.UserID, Name: claims.Name, Email: claims.Email,
-			Profile: domain.WebsiteContactProfile{Attributes: claims.Attributes, Tags: claims.Tags},
-		},
-		ExpiresAt: claims.ExpiresAt,
-	}, nil
+	return SignedCustomer{
+		UserID: claims.UserID, Name: claims.Name, Email: claims.Email,
+		Profile: domain.SignedContactProfile{Attributes: claims.Attributes, Tags: claims.Tags},
+	}, claims.ExpiresAt, nil
 }

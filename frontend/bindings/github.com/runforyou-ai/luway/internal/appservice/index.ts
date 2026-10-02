@@ -96,6 +96,7 @@ export {
     ServiceSummaryStatus,
     ServiceTranscriptSender,
     SessionState,
+    TelegramConnectionMode,
     TelegramWebhookStatus,
     UserStatus,
     WebSearchProvider,

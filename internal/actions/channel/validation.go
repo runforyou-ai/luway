@@ -48,6 +48,7 @@ const (
 	ValidationTelegramTokenTooLong   ValidationCode = "TELEGRAM_BOT_TOKEN_TOO_LONG"
 	ValidationTelegramTokenInvalid   ValidationCode = "TELEGRAM_BOT_TOKEN_INVALID"
 	ValidationTelegramBaseURLInvalid ValidationCode = "TELEGRAM_WEBHOOK_BASE_URL_INVALID"
+	ValidationTelegramModeInvalid    ValidationCode = "TELEGRAM_CONNECTION_MODE_INVALID"
 )
 
 const (
@@ -268,6 +269,9 @@ func normalizeTelegramConnectionTestInput(input TelegramChannelConnectionTestInp
 func normalizeTelegramConnectionInput(input TelegramChannelConnectionInput) (TelegramChannelConnectionInput, map[string]ValidationCode) {
 	testInput, fields := normalizeTelegramConnectionTestInput(TelegramChannelConnectionTestInput{BotToken: input.BotToken})
 	input.BotToken = testInput.BotToken
+	if !input.ConnectionMode.Valid() {
+		fields["connectionMode"] = ValidationTelegramModeInvalid
+	}
 	input.WebhookBaseURL = strings.TrimSpace(input.WebhookBaseURL)
 	if len(input.WebhookBaseURL) > maxTelegramWebhookBaseURLLength {
 		fields["webhookBaseURL"] = ValidationTelegramBaseURLInvalid

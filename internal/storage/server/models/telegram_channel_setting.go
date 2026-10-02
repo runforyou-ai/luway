@@ -14,6 +14,7 @@ type TelegramChannelSetting struct {
 
 	ChannelID          string     `bun:"channel_id,pk"`
 	OrganizationID     string     `bun:"organization_id"`
+	ConnectionMode     string     `bun:"connection_mode"`
 	BotToken           *string    `bun:"bot_token"`
 	BotID              *int64     `bun:"bot_id"`
 	BotUsername        *string    `bun:"bot_username"`

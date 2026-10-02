@@ -63,14 +63,23 @@ const (
 	TelegramWebhookStatusNormal  TelegramWebhookStatus = TelegramWebhookStatus(domain.TelegramWebhookStatusNormal)
 )
 
+// TelegramConnectionMode 表示 Telegram 渠道接收消息的接入方式。
+type TelegramConnectionMode string
+
+const (
+	TelegramConnectionDirect  TelegramConnectionMode = TelegramConnectionMode(domain.TelegramConnectionDirect)
+	TelegramConnectionGateway TelegramConnectionMode = TelegramConnectionMode(domain.TelegramConnectionGateway)
+)
+
 // TelegramChannel 定义 Telegram 渠道详情。
 type TelegramChannel struct {
 	MessageChannelSummary
 	Connection TelegramChannelConnection `json:"connection"`
 }
 
-// TelegramChannelConnection 定义 Telegram 机器人和 Webhook 信息。
+// TelegramChannelConnection 定义 Telegram 接入方式、机器人和回调信息；网关转发时 WebhookURL 与 WebhookSecret 是业务系统转发使用的地址与密钥。
 type TelegramChannelConnection struct {
+	ConnectionMode TelegramConnectionMode `json:"connectionMode"`
 	BotToken       string                 `json:"botToken"`
 	BotID          *string                `json:"botId"`
 	BotUsername    *string                `json:"botUsername"`
@@ -82,9 +91,10 @@ type TelegramChannelConnection struct {
 
 // TelegramChannelConnectionInput 定义 Telegram 连接保存输入。
 type TelegramChannelConnectionInput struct {
-	BotToken        string `json:"botToken"`
-	WebhookBaseURL  string `json:"webhookBaseURL"`
-	ConfirmBotReuse bool   `json:"confirmBotReuse"`
+	ConnectionMode  TelegramConnectionMode `json:"connectionMode"`
+	BotToken        string                 `json:"botToken"`
+	WebhookBaseURL  string                 `json:"webhookBaseURL"`
+	ConfirmBotReuse bool                   `json:"confirmBotReuse"`
 }
 
 // TelegramChannelConnectionTestInput 定义 Telegram 草稿连接测试输入。

@@ -351,7 +351,10 @@ function MessageChannelEditTabs({
 
   // 右侧面板：Telegram 显示接入信息，网站渠道显示聊天窗口实时预览。
   const aside = telegramChannel ? (
-    <TelegramChannelInfoPanel channel={telegramChannel} />
+    <TelegramChannelInfoPanel
+      channel={telegramChannel}
+      onUpdated={onChannelChange}
+    />
   ) : websiteChannel && previewValue ? (
     <WebsiteChatPreview value={previewValue} />
   ) : null

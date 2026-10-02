@@ -273,7 +273,7 @@ func TestAgentTelegramReplies(t *testing.T) {
 				case "更换机器人":
 					api := &telegramBotAPIFake{bot: telegram.Bot{ID: time.Now().UnixNano(), IsBot: true, FirstName: "新机器人", Username: "new_bot"}}
 					var updated *channelaction.TelegramChannelDetail
-					updated, err = channelaction.NewSaveTelegramConnectionAction(db, connectiontest.NewRunner(time.Second), api).Execute(ctx, identity, f.channel.ID, channelaction.TelegramChannelConnectionInput{BotToken: "456:new_token", WebhookBaseURL: "https://example.com"})
+					updated, err = channelaction.NewSaveTelegramConnectionAction(db, connectiontest.NewRunner(time.Second), api).Execute(ctx, identity, f.channel.ID, channelaction.TelegramChannelConnectionInput{ConnectionMode: domain.TelegramConnectionDirect, BotToken: "456:new_token", WebhookBaseURL: "https://example.com"})
 					if err == nil {
 						f.input.Secret = updated.Connection.WebhookSecret
 					}

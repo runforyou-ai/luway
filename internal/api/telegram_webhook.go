@@ -11,7 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/integration/telegram"
 )
 
@@ -46,7 +48,8 @@ func (s *Service) receiveTelegramWebhook(c *gin.Context) {
 		slog.Info("Telegram Update 已按范围忽略", "channel_id", channelID, "update_id", update.ID, "reason", update.IgnoredReason)
 	}
 	err = s.telegramWebhook.Execute(c.Request.Context(), channelID, customerchataction.TelegramWebhookInput{
-		Secret: secret, UpdateID: update.ID, MyChatMember: update.MyChatMember, Message: update.Message,
+		Secret: secret, CustomerToken: c.GetHeader(appservice.CustomerTokenHeader),
+		UpdateID: update.ID, MyChatMember: update.MyChatMember, Message: update.Message,
 	})
 	if writeTelegramWebhookError(c, err) {
 		return
@@ -64,6 +67,8 @@ func writeTelegramWebhookError(c *gin.Context, err error) bool {
 		c.Status(http.StatusNotFound)
 	case errors.Is(err, customerchataction.ErrTelegramWebhookUnauthorized):
 		c.Status(http.StatusUnauthorized)
+	case errors.Is(err, conversationaction.ErrCustomerIdentityInvalid):
+		c.Status(http.StatusForbidden)
 	default:
 		if c.Request.Context().Err() == nil {
 			c.Status(http.StatusServiceUnavailable)

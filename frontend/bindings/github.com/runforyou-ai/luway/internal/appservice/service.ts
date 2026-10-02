@@ -1354,6 +1354,13 @@ export function RegenerateInvitation(meta: $models.RequestMeta, invitationID: st
 }
 
 /**
+ * RegenerateTelegramGatewaySecret 重新生成业务系统转发 Telegram 消息使用的转发密钥。
+ */
+export function RegenerateTelegramGatewaySecret(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.TelegramChannel> {
+    return $Call.ByID(1749546930, meta, channelID);
+}
+
+/**
  * Register 注册本地账号并建立登录会话。
  */
 export function Register(meta: $models.RequestMeta, input: $models.RegisterInput): $CancellablePromise<$models.Auth> {

@@ -20,7 +20,7 @@ import (
 
 const (
 	websiteVisitorHeader      = appservice.WebsiteVisitorTokenHeader
-	websiteCustomerHeader     = appservice.WebsiteCustomerTokenHeader
+	websiteCustomerHeader     = appservice.CustomerTokenHeader
 	websiteCustomerKey        = "website_customer"
 	websiteVisitorTokenSize   = 32
 	websiteVisitorBodyLimit   = 16 * 1024

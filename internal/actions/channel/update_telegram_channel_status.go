@@ -31,7 +31,7 @@ func NewUpdateTelegramChannelStatusAction(db *bun.DB, runner *connectiontest.Run
 	return &UpdateTelegramChannelStatusAction{db: db, runner: runner, api: api}
 }
 
-// Execute 修改渠道状态，并在事务提交后注册或删除 Webhook。
+// Execute 修改渠道状态；直连时在事务提交后注册或删除 Webhook，网关转发时保留转发密钥。
 func (a *UpdateTelegramChannelStatusAction) Execute(ctx context.Context, identity *servermodels.Identity, channelID string, enabled bool) (*MessageChannelRecord, error) {
 	if !common.ValidUUID(channelID) {
 		return nil, ErrNotFound
@@ -49,6 +49,7 @@ func (a *UpdateTelegramChannelStatusAction) Execute(ctx context.Context, identit
 
 		return withTelegramBotLocks(ctx, conn, identity.Organization.ID, botIDs, func() error {
 			var token string
+			var gateway bool
 			var botUsedByOtherChannel bool
 			var webhookURL string
 			var secret string
@@ -61,14 +62,15 @@ func (a *UpdateTelegramChannelStatusAction) Execute(ctx context.Context, identit
 					return err
 				}
 				token = detail.Connection.BotToken
-				if !enabled && detail.Connection.BotID != nil {
+				gateway = detail.Connection.ConnectionMode == string(domain.TelegramConnectionGateway)
+				if !enabled && !gateway && detail.Connection.BotID != nil {
 					botUsedByOtherChannel, err = telegramBotUsedByOtherChannel(ctx, tx, identity.Organization.ID, *detail.Connection.BotID, channelID)
 					if err != nil {
 						return err
 					}
 				}
-				// 尚未保存连接配置时仍可启用，Webhook 留待保存连接后注册。
-				if enabled && token != "" && detail.Connection.WebhookBaseURL != "" {
+				// 尚未保存连接配置时仍可启用，Webhook 留待保存连接后注册；网关转发不注册 Webhook。
+				if enabled && !gateway && token != "" && detail.Connection.WebhookBaseURL != "" {
 					webhookURL, err = telegramWebhookURL(detail.Connection.WebhookBaseURL, channelID)
 					if err != nil {
 						slog.Warn("Telegram Webhook 地址无效，跳过注册", "channel_id", channelID, "error", err)
@@ -116,11 +118,25 @@ func (a *UpdateTelegramChannelStatusAction) Execute(ctx context.Context, identit
 					Set("webhook_connected_at = NULL").
 					Where("channel_id = ?", channelID).
 					Where("organization_id = ?", identity.Organization.ID)
-				if secret != "" {
+				switch {
+				case gateway:
+					// 网关转发保留业务系统已配置的转发密钥，启用后等待下一次转发。
+					if detail.Connection.WebhookSecret == "" {
+						if secret, err = newTelegramWebhookSecret(); err != nil {
+							return fmt.Errorf("generate Telegram webhook secret: %w", err)
+						}
+						query = query.Set("webhook_secret = ?", secret)
+					}
+					if enabled {
+						query = query.Set("webhook_status = ?", domain.TelegramWebhookStatusWaiting)
+					} else {
+						query = query.Set("webhook_status = NULL")
+					}
+				case secret != "":
 					query = query.
 						Set("webhook_secret = ?", secret).
 						Set("webhook_status = ?", domain.TelegramWebhookStatusWaiting)
-				} else {
+				default:
 					query = query.
 						Set("webhook_secret = NULL").
 						Set("webhook_status = NULL")
@@ -142,13 +158,14 @@ func (a *UpdateTelegramChannelStatusAction) Execute(ctx context.Context, identit
 				return err
 			}
 
+			// 网关转发的 Webhook 由业务系统维护，只在直连时注册或删除。
 			if webhookURL != "" {
 				if err := runTelegramSetWebhook(ctx, a.runner, a.api, token, webhookURL, secret); err != nil {
 					logTelegramRemoteFailure("注册 Telegram Webhook 失败", channelID, err)
 				} else {
 					slog.Info("Telegram Webhook 注册成功", "channel_id", channelID)
 				}
-			} else if !enabled && token != "" && !botUsedByOtherChannel {
+			} else if !enabled && !gateway && token != "" && !botUsedByOtherChannel {
 				if err := runTelegramDeleteWebhook(ctx, a.runner, a.api, token); err != nil {
 					logTelegramRemoteFailure("删除 Telegram Webhook 失败", channelID, err)
 				}

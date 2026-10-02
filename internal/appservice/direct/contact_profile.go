@@ -164,8 +164,8 @@ func contactProfileError(ctx context.Context, meta appservice.RequestMeta, err e
 		return appservice.NotFoundError(meta, i18n.ErrorContactFieldNotFound)
 	case errors.Is(err, contactprofileaction.ErrTagNotFound):
 		return appservice.NotFoundError(meta, i18n.ErrorContactTagNotFound)
-	case errors.Is(err, contactprofileaction.ErrSyncedFromWebsite):
-		return appservice.ConflictError(meta, i18n.ErrorContactProfileSyncedFromWebsite, "contact_profile_synced_from_website")
+	case errors.Is(err, contactprofileaction.ErrSyncedFromSignedIdentity):
+		return appservice.ConflictError(meta, i18n.ErrorContactProfileSyncedFromSignedIdentity, "contact_profile_synced_from_signed_identity")
 	}
 	slog.Warn("联系人档案操作失败", "failure", failureKey, "error", err)
 	return appservice.FailedError(meta, failureKey)

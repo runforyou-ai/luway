@@ -22,7 +22,7 @@ func TestParseExternalID(t *testing.T) {
 	if ValidAnonymousToken("gggggggggggggggggggggggggggggggg") || !ValidAnonymousToken(token) {
 		t.Fatal("unexpected anonymous token validation")
 	}
-	if !IsCustomerExternalID(CustomerExternalID("user-42")) || IsCustomerExternalID(AnonymousExternalID(token)) {
-		t.Fatal("unexpected customer external ID detection")
+	if kind, userID, ok := ParseExternalID(CustomerExternalID("user-42")); !ok || kind != ExternalIDCustomer || userID != "user-42" {
+		t.Fatalf("customer external ID = %v %q %v", kind, userID, ok)
 	}
 }

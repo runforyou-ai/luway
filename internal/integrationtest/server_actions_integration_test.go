@@ -360,7 +360,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 		}
 
 		saveTelegram := channelaction.NewSaveTelegramConnectionAction(db, telegramRunner, telegramAPI)
-		savedTelegram, err := saveTelegram.Execute(context.Background(), loggedIn.Identity, telegramChannel.ID, channelaction.TelegramChannelConnectionInput{
+		savedTelegram, err := saveTelegram.Execute(context.Background(), loggedIn.Identity, telegramChannel.ID, channelaction.TelegramChannelConnectionInput{ConnectionMode: domain.TelegramConnectionDirect,
 			BotToken:       "123456:saved_token",
 			WebhookBaseURL: "http://127.0.0.1:34115/app",
 		})
@@ -659,7 +659,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 			t.Fatal(err)
 		}
 		webhookCountBeforeReuse := len(telegramAPI.webhooks())
-		_, err = saveTelegram.Execute(context.Background(), loggedIn.Identity, reusedBotChannel.ID, channelaction.TelegramChannelConnectionInput{
+		_, err = saveTelegram.Execute(context.Background(), loggedIn.Identity, reusedBotChannel.ID, channelaction.TelegramChannelConnectionInput{ConnectionMode: domain.TelegramConnectionDirect,
 			BotToken: "123456:reused_token", WebhookBaseURL: "http://127.0.0.1:34115/app",
 		})
 		if !errors.Is(err, channelaction.ErrTelegramBotReuseConfirmationRequired) {
@@ -672,7 +672,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 		if unconfirmedReuse.Connection.BotToken != "" || len(telegramAPI.webhooks()) != webhookCountBeforeReuse {
 			t.Fatalf("unconfirmed reuse changed state: detail=%#v webhooks=%#v", unconfirmedReuse.Connection, telegramAPI.webhooks())
 		}
-		confirmedReuse, err := saveTelegram.Execute(context.Background(), loggedIn.Identity, reusedBotChannel.ID, channelaction.TelegramChannelConnectionInput{
+		confirmedReuse, err := saveTelegram.Execute(context.Background(), loggedIn.Identity, reusedBotChannel.ID, channelaction.TelegramChannelConnectionInput{ConnectionMode: domain.TelegramConnectionDirect,
 			BotToken: "123456:reused_token", WebhookBaseURL: "http://127.0.0.1:34115/app", ConfirmBotReuse: true,
 		})
 		if err != nil {
@@ -734,7 +734,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 			token := token
 			go func() {
 				<-startSaves
-				_, err := saveTelegram.Execute(context.Background(), loggedIn.Identity, telegramChannel.ID, channelaction.TelegramChannelConnectionInput{
+				_, err := saveTelegram.Execute(context.Background(), loggedIn.Identity, telegramChannel.ID, channelaction.TelegramChannelConnectionInput{ConnectionMode: domain.TelegramConnectionDirect,
 					BotToken: token, WebhookBaseURL: "http://127.0.0.1:34115/app",
 				})
 				saveErrors <- err

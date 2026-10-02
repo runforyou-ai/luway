@@ -152,7 +152,7 @@ func TestServiceBusinessQueries(t *testing.T) {
 		verified bool
 	}{
 		{name: "已登录客户", verified: true, input: customerchataction.WebsiteCustomerTextMessageInput{
-			ExternalID: "web-user:" + userID, Customer: &customerchataction.WebsiteCustomer{UserID: userID, Name: "Ada", Email: "ada@example.com"},
+			ExternalID: "web-user:" + userID, Customer: &customerchataction.SignedCustomer{UserID: userID, Name: "Ada", Email: "ada@example.com"},
 		}},
 		{name: "匿名访客", input: customerchataction.WebsiteCustomerTextMessageInput{ExternalID: "web-session:" + strings.ReplaceAll(uuid.NewV7().String(), "-", "")}},
 	} {
@@ -183,7 +183,7 @@ func TestServiceBusinessQueries(t *testing.T) {
 					t.Fatalf("public service=%+v", public)
 				}
 				customer, ok := mounted[customerService.Name]
-				loginRule := strings.Contains(request.Assignment.Instruction, "客户尚未在企业网站登录")
+				loginRule := strings.Contains(request.Assignment.Instruction, "客户尚未通过企业的身份验证")
 				if scenario.verified {
 					want := map[string]string{mcpintegration.CustomerIDHeader: userID, mcpintegration.CustomerEmailHeader: "ada@example.com"}
 					if !ok || request.MCPConnections[0].Name != customerService.Name || !slices.Equal(customer.Tools, []string{"get_order"}) || !maps.Equal(customer.Config.Headers, want) || loginRule {

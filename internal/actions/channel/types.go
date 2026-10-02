@@ -77,6 +77,7 @@ type WebsiteChannelHelpCenterInput struct {
 
 // TelegramChannelConnectionInput 定义 Telegram 连接可编辑字段。
 type TelegramChannelConnectionInput struct {
+	ConnectionMode  domain.TelegramConnectionMode
 	BotToken        string
 	WebhookBaseURL  string
 	ConfirmBotReuse bool
@@ -125,6 +126,7 @@ type WebsiteChannelSettingRecord struct {
 
 // TelegramChannelSettingRecord 定义 Telegram 机器人和 Webhook 传输字段。
 type TelegramChannelSettingRecord struct {
+	ConnectionMode     string     `json:"connectionMode"`
 	BotToken           string     `json:"botToken"`
 	BotID              *int64     `json:"botId"`
 	BotUsername        *string    `json:"botUsername"`
