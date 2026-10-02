@@ -74,7 +74,7 @@
   let saved = null
   try { saved = JSON.parse(sessionStorage.getItem(key) || "null") } catch {}
   const current = sidebar.querySelector('[aria-current="page"]')
-  if (saved) {
+  if (saved && Array.isArray(saved.open) && typeof saved.scroll === "number") {
     groups.forEach((group, index) => { if (saved.open.includes(index)) group.open = true })
     sidebar.scrollTop = saved.scroll
   }

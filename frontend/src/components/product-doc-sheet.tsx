@@ -1,5 +1,5 @@
 /** 应用内帮助侧栏：在当前页面旁显示产品文档正文，站内链接在侧栏内切换。 */
-import { useEffect, useRef, useState, type MouseEvent } from "react"
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react"
 import { ExternalLinkIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -36,6 +36,11 @@ export function ProductDocSheet({
   const slug = target?.slug ?? (page ? productDocsPages[page] : "")
   const hash = target?.hash ?? ""
   const body = useRef<HTMLDivElement>(null)
+  // 打开时记录触发入口，关闭后把焦点还给它。
+  const trigger = useRef<HTMLElement | null>(null)
+  useLayoutEffect(() => {
+    if (page !== null) trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  }, [page])
   const resource = useResource(
     resourceKeys.productDocPage(locale, slug),
     (signal) => getProductDocPage({ locale, path: slug }, signal),
@@ -78,7 +83,13 @@ export function ProductDocSheet({
         onClose()
       }}
     >
-      <SheetContent className="w-full gap-0 p-0 sm:max-w-2xl">
+      <SheetContent
+        className="w-full gap-0 p-0 sm:max-w-2xl"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault()
+          trigger.current?.focus()
+        }}
+      >
         <SheetHeader className="border-b px-6 py-4 pr-12">
           <SheetTitle>{doc?.title ?? t("productDocs")}</SheetTitle>
         </SheetHeader>
