@@ -4,6 +4,8 @@ const common = {
   closeNotification: "关闭通知",
   notSet: "未设置",
   productDocs: "帮助文档",
+  productDocsLoadError: "无法加载帮助文档。",
+  openFullDocs: "在完整文档中查看",
   errors: {
     network: "无法连接服务器，请稍后重试。",
   },

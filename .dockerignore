@@ -8,8 +8,6 @@
 bin
 data
 frontend/node_modules
-docs/node_modules
-docs/.astro
 build/linux/appimage/build
 build/darwin/Assets.car
 build/windows/nsis/MicrosoftEdgeWebview2Setup.exe

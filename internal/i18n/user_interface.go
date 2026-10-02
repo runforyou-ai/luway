@@ -1,6 +1,18 @@
 package i18n
 
 const (
+	DocsSiteTitle     Key = "docs.site_title"
+	DocsSearch        Key = "docs.search"
+	DocsSearchPrompt  Key = "docs.search_prompt"
+	DocsSearchResults Key = "docs.search_results"
+	DocsSearchEmpty   Key = "docs.search_empty"
+	DocsOnThisPage    Key = "docs.on_this_page"
+	DocsMenu          Key = "docs.menu"
+	DocsLanguage      Key = "docs.language"
+	DocsNotFoundTitle Key = "docs.not_found_title"
+	DocsNotFoundBody  Key = "docs.not_found_body"
+	DocsBackHome      Key = "docs.back_home"
+
 	DialogImageTitle  Key = "dialog.image_title"
 	DialogImageChoose Key = "dialog.image_choose"
 

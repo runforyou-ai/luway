@@ -28,6 +28,8 @@ export const resourceKeys = {
   account: () => ["account"],
   /** 当前账号可进入的工作区。 */
   workspaces: () => ["workspaces"],
+  /** 产品文档页面正文，按语言目录与页面路径区分。 */
+  productDocPage: (locale: string, path: string) => ["productDocPage", locale, path],
   /** 当前账号在各工作区的提醒数量。 */
   workspaceAttention: () => ["workspace-attention"],
   /** 当前工作区待接受的成员邀请。 */

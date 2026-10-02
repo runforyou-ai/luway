@@ -15,6 +15,7 @@ import (
 // publicBackendMethods 是不解析登录会话的方法，与 backend.go 中标记 auth=public 的路由一一对应。
 var publicBackendMethods = map[string]bool{
 	"InstallationStatus": true,
+	"GetProductDocPage":  true,
 	"Login":              true,
 	"Register":           true,
 	"PreviewInvitation":  true,
