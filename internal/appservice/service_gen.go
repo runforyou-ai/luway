@@ -419,6 +419,11 @@ func (s *Service) SaveTelegramChannelConnection(ctx context.Context, meta Reques
 	return WithNormalizedSlices(s.backend.SaveTelegramChannelConnection(ctx, meta, channelID, input))
 }
 
+// RegenerateTelegramGatewaySecret 重新生成业务系统转发 Telegram 消息使用的转发密钥。
+func (s *Service) RegenerateTelegramGatewaySecret(ctx context.Context, meta RequestMeta, channelID string) (TelegramChannel, error) {
+	return WithNormalizedSlices(s.backend.RegenerateTelegramGatewaySecret(ctx, meta, channelID))
+}
+
 // GetMessageChannel 返回消息渠道基础信息。
 func (s *Service) GetMessageChannel(ctx context.Context, meta RequestMeta, channelID string) (MessageChannelSummary, error) {
 	return WithNormalizedSlices(s.backend.GetMessageChannel(ctx, meta, channelID))

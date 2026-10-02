@@ -34,6 +34,7 @@ type channelOps struct {
 	updateWebsiteChannelHome          *channelaction.UpdateWebsiteChannelHomeAction
 	testTelegramConnection            *channelaction.TestTelegramConnectionAction
 	saveTelegramConnection            *channelaction.SaveTelegramConnectionAction
+	regenerateTelegramGatewaySecret   *channelaction.RegenerateTelegramGatewaySecretAction
 	updateMessageChannelStatus        *channelaction.UpdateMessageChannelStatusAction
 	listChannelOptions                *channelaction.ListChannelOptionsQuery
 }
@@ -53,12 +54,16 @@ func newChannelOps(db *bun.DB, connectionRunner *connectiontest.Runner, telegram
 		updateWebsiteChannelHome:          channelaction.NewUpdateWebsiteChannelHomeAction(db),
 		testTelegramConnection:            channelaction.NewTestTelegramConnectionAction(db, connectionRunner, telegramAPI),
 		saveTelegramConnection:            channelaction.NewSaveTelegramConnectionAction(db, connectionRunner, telegramAPI),
+		regenerateTelegramGatewaySecret:   channelaction.NewRegenerateTelegramGatewaySecretAction(db),
 		updateMessageChannelStatus:        channelaction.NewUpdateMessageChannelStatusAction(db, channelaction.NewUpdateTelegramChannelStatusAction(db, connectionRunner, telegramAPI)),
 		listChannelOptions:                channelaction.NewListChannelOptionsQuery(db),
 	}
 }
 
-const telegramBotReuseConfirmationReason = "telegram_bot_reuse_confirmation_required"
+const (
+	telegramBotReuseConfirmationReason = "telegram_bot_reuse_confirmation_required"
+	telegramGatewayModeRequiredReason  = "telegram_gateway_mode_required"
+)
 
 // ListMessageChannels 返回当前企业的消息渠道。
 func (o *directOperations) ListMessageChannels(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.MessageChannelList, error) {
@@ -109,12 +114,26 @@ func (o *directOperations) TestTelegramChannelConnection(ctx context.Context, me
 // SaveTelegramChannelConnection 保存 Telegram 机器人和 Webhook 设置。
 func (o *directOperations) SaveTelegramChannelConnection(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, channelID string, input appservice.TelegramChannelConnectionInput) (appservice.TelegramChannel, error) {
 	detail, err := o.saveTelegramConnection.Execute(ctx, identity, channelID, channelaction.TelegramChannelConnectionInput{
-		BotToken: input.BotToken, WebhookBaseURL: input.WebhookBaseURL, ConfirmBotReuse: input.ConfirmBotReuse,
+		ConnectionMode: domain.TelegramConnectionMode(input.ConnectionMode),
+		BotToken:       input.BotToken, WebhookBaseURL: input.WebhookBaseURL, ConfirmBotReuse: input.ConfirmBotReuse,
 	})
 	if err != nil {
 		return appservice.TelegramChannel{}, o.telegramConnectionError(ctx, meta, err, i18n.ErrorTelegramConnectionSaveFailed, identity.Organization.ID, channelID)
 	}
 	slog.Info("Telegram 渠道连接已保存", "organization_id", identity.Organization.ID, "channel_id", channelID)
+	return telegramChannelFromRecord(detail), nil
+}
+
+// RegenerateTelegramGatewaySecret 重新生成业务系统转发 Telegram 消息使用的转发密钥。
+func (o *directOperations) RegenerateTelegramGatewaySecret(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, channelID string) (appservice.TelegramChannel, error) {
+	detail, err := o.regenerateTelegramGatewaySecret.Execute(ctx, identity, channelID)
+	if errors.Is(err, channelaction.ErrTelegramGatewayModeRequired) {
+		return appservice.TelegramChannel{}, appservice.ConflictError(meta, i18n.ErrorTelegramGatewayModeRequired, telegramGatewayModeRequiredReason)
+	}
+	if err != nil {
+		return appservice.TelegramChannel{}, o.channelError(ctx, meta, err, i18n.ErrorTelegramGatewaySecretRegenerateFailed, identity.Organization.ID, channelID)
+	}
+	slog.Info("Telegram 渠道转发密钥已重新生成", "organization_id", identity.Organization.ID, "channel_id", channelID)
 	return telegramChannelFromRecord(detail), nil
 }
 
@@ -339,7 +358,8 @@ func telegramChannelFromRecord(detail *channelaction.TelegramChannelDetail) apps
 	return appservice.TelegramChannel{
 		MessageChannelSummary: messageChannelFromRecord(&detail.MessageChannelRecord),
 		Connection: appservice.TelegramChannelConnection{
-			BotToken: connection.BotToken, BotID: botID, BotUsername: connection.BotUsername,
+			ConnectionMode: appservice.TelegramConnectionMode(connection.ConnectionMode),
+			BotToken:       connection.BotToken, BotID: botID, BotUsername: connection.BotUsername,
 			BotDisplayName: connection.BotDisplayName, WebhookURL: connection.WebhookURL,
 			WebhookSecret: connection.WebhookSecret, WebhookStatus: status,
 		},
@@ -420,6 +440,7 @@ func channelFieldKeys(fields map[string]common.FieldCode) map[string]i18n.Key {
 		channelaction.ValidationTelegramTokenTooLong:   i18n.FieldTelegramBotTokenTooLong,
 		channelaction.ValidationTelegramTokenInvalid:   i18n.FieldTelegramBotTokenInvalid,
 		channelaction.ValidationTelegramBaseURLInvalid: i18n.FieldTelegramWebhookBaseURLInvalid,
+		channelaction.ValidationTelegramModeInvalid:    i18n.FieldTelegramConnectionModeInvalid,
 	}
 	return translateValidationFields(fields, keys)
 }

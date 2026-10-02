@@ -855,6 +855,16 @@ func (b *Backend) SaveTelegramChannelConnection(ctx context.Context, meta appser
 	return b.ops.SaveTelegramChannelConnection(ctx, meta, identity, channelID, input)
 }
 
+// RegenerateTelegramGatewaySecret 重新生成业务系统转发 Telegram 消息使用的转发密钥。
+func (b *Backend) RegenerateTelegramGatewaySecret(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.TelegramChannel, error) {
+	identity, err := b.ops.authenticate(ctx, meta)
+	if err != nil {
+		var zero appservice.TelegramChannel
+		return zero, err
+	}
+	return b.ops.RegenerateTelegramGatewaySecret(ctx, meta, identity, channelID)
+}
+
 // GetMessageChannel 返回消息渠道基础信息。
 func (b *Backend) GetMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.MessageChannelSummary, error) {
 	identity, err := b.ops.authenticate(ctx, meta)

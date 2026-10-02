@@ -227,7 +227,7 @@ const contacts = {
     saveError: "保存客户资料失败，请重试。",
     aiFilled: "AI 根据对话填写，点击查看对话",
     aiTagged: "AI 根据对话添加，点击查看对话",
-    websiteSynced: "由网站登录信息同步",
+    signedIdentitySynced: "由客户登录身份同步",
   },
   detail: {
     createTitle: "添加联系人",

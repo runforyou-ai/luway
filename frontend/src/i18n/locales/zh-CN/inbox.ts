@@ -267,6 +267,7 @@ const inbox = {
   conversationAssignee: "负责人：{{name}}",
   agentRunSessionClosed: "会话已关闭",
   agentRunBotChanged: "机器人已更换",
+  agentRunCustomerIdentityChanged: "客户身份已变更",
   agentRunAgentRemoved: "AI 员工已退出群聊",
   agentUnavailable: "AI 员工不可用",
   agentRunWaiting: "等待发言：{{names}}",

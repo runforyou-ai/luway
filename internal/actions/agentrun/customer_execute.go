@@ -18,7 +18,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/servicecategory"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
-	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
@@ -420,14 +419,13 @@ func loadCustomerContextMessage(ctx context.Context, db bun.IDB, run *servermode
 func CustomerContextContent(ctx context.Context, db bun.IDB, organizationID, serviceSessionID string, closedBefore *time.Time) (string, error) {
 	row := struct {
 		ContactID      string                 `bun:"contact_id"`
-		ExternalID     string                 `bun:"external_id"`
-		ExternalUserID *string                `bun:"external_user_id"`
+		VerifiedUserID *string                `bun:"verified_user_id"`
 		Name           *string                `bun:"name"`
 		VisitorContext *domain.VisitorContext `bun:"visitor_context,type:jsonb"`
 	}{}
 	if err := db.NewSelect().
 		TableExpr("service_sessions AS ss").
-		ColumnExpr("c.id::text AS contact_id, cci.external_id, c.external_user_id, ss.visitor_context").
+		ColumnExpr("c.id::text AS contact_id, cci.verified_user_id, ss.visitor_context").
 		ColumnExpr("COALESCE(cci.display_name, c.display_name) AS name").
 		Join("JOIN channel_conversations AS cc ON cc.organization_id = ss.organization_id AND cc.conversation_id = ss.conversation_id").
 		Join("JOIN contact_channel_identities AS cci ON cci.id = cc.contact_channel_identity_id AND cci.organization_id = cc.organization_id").
@@ -438,7 +436,7 @@ func CustomerContextContent(ctx context.Context, db bun.IDB, organizationID, ser
 		return "", fmt.Errorf("load customer context: %w", err)
 	}
 	customer := agentruntime.CustomerContext{
-		IdentityVerified: row.ExternalUserID != nil && customeridentity.IsCustomerExternalID(row.ExternalID),
+		IdentityVerified: row.VerifiedUserID != nil,
 	}
 	if row.Name != nil {
 		customer.Name = *row.Name

@@ -60,9 +60,3 @@ func ValidExternalID(value string) bool {
 	_, _, ok := ParseExternalID(value)
 	return ok
 }
-
-// IsCustomerExternalID 判断渠道外部编号是否属于验签通过的网站登录用户。
-func IsCustomerExternalID(value string) bool {
-	kind, _, ok := ParseExternalID(value)
-	return ok && kind == ExternalIDCustomer
-}

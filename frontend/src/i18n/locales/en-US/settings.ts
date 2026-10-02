@@ -258,7 +258,7 @@ const settings = {
     identity: {
       loadError: "Could not load the customer identity secret.",
       secret: "Customer identity secret",
-      secretHelp: "Your website server uses this secret to sign signed-in customers' identities, so the AI agent can recognize them and look up their business data. Keep the secret on your server only.",
+      secretHelp: "Your website or business system server uses this secret to sign signed-in customers' identities for website chat and Telegram business system forwarding, so the AI agent can recognize them and look up their business data. Keep the secret on your server only.",
       copyError: "Could not copy. Select the secret and copy it manually.",
       generate: "Generate secret",
       generating: "Generating…",
@@ -268,7 +268,7 @@ const settings = {
       regenerateTitle: "Regenerate the customer identity secret?",
       regenerateDescription: "The old secret stops working immediately and signed-in customers must sign in again. Update your website configuration right after regenerating.",
       signing: "Sign identities",
-      signingHelp: "Set sub to the customer's user ID on your website as a string. Tokens can be valid for up to 24 hours; name, email, attributes, and tags are optional. Key attributes by customer profile field name and use option names for single-select fields; null or an empty string removes a value synced from your website. List every tag the customer should have in tags; only tags synced from your website are added or removed, and tags added by agents are kept. Undefined fields, invalid values, and unknown tags are skipped. Synced details are read-only. Sign with the secret string as is, without decoding it.",
+      signingHelp: "Set sub to the customer's user ID on your website as a string. Tokens can be valid for up to 24 hours; name, email, attributes, and tags are optional. Key attributes by customer profile field name and use option names for single-select fields; null or an empty string removes a synced value. List every tag the customer should have in tags; only synced tags are added or removed, and tags added by agents are kept. Undefined fields, invalid values, and unknown tags are skipped. Synced details are read-only. Sign with the secret string as is, without decoding it.",
       widget: "Pass to website chat",
       widgetHelp: "Set {{sdkSettings}} before the page loads, or call {{sdkGlobal}}.login after the customer signs in. Call {{sdkGlobal}}.logout when they sign out, and sign a new token when it expires.",
     },

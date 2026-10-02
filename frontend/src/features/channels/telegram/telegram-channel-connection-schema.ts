@@ -1,12 +1,18 @@
 /** Telegram 连接表单校验规则。 */
 import { z } from "zod"
 
+import { TelegramConnectionMode } from "@/api"
+
 /** 创建 Telegram 连接表单校验。 */
 export function createTelegramChannelConnectionSchema(messages: {
   tokenRequired: string
   tokenTooLong: string
 }) {
   return z.object({
+    connectionMode: z.enum([
+      TelegramConnectionMode.TelegramConnectionDirect,
+      TelegramConnectionMode.TelegramConnectionGateway,
+    ]),
     botToken: z
       .string()
       .trim()

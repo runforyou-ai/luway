@@ -17,6 +17,7 @@ type ContactChannelIdentity struct {
 	ContactID       string     `bun:"contact_id"`
 	ChannelID       string     `bun:"channel_id"`
 	ExternalID      string     `bun:"external_id"`
+	VerifiedUserID  *string    `bun:"verified_user_id"`
 	DisplayName     *string    `bun:"display_name"`
 	AvatarFileID    *string    `bun:"avatar_file_id"`
 	AvatarCheckedAt *time.Time `bun:"avatar_checked_at"`

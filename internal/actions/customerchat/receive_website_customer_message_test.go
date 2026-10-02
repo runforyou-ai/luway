@@ -84,7 +84,7 @@ func TestWebsiteCustomerExternalIDMatchesIdentity(t *testing.T) {
 		ExternalID:      customeridentity.CustomerExternalID("user-42"),
 		ClientMessageID: "0198ddf0-a234-7f01-8d99-e3e0af0f5f65",
 		Body:            "你好",
-		Customer:        &WebsiteCustomer{UserID: "user-43"},
+		Customer:        &SignedCustomer{UserID: "user-43"},
 	}
 	if _, fields := normalizeWebsiteMessageInput(input); fields["visitorToken"] != ValidationExternalIDInvalid {
 		t.Fatalf("fields=%#v", fields)

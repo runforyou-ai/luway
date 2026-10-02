@@ -100,6 +100,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/channels/telegram/:channelID", s.getTelegramChannel)
 	router.POST("/channels/telegram/:channelID/connection/test", s.testTelegramChannelConnection)
 	router.PUT("/channels/telegram/:channelID/connection", s.saveTelegramChannelConnection)
+	router.POST("/channels/telegram/:channelID/connection/gateway-secret", s.regenerateTelegramGatewaySecret)
 	router.GET("/channels/:channelID", s.getMessageChannel)
 	router.POST("/channels", s.createMessageChannel)
 	router.PUT("/channels/:channelID", s.updateMessageChannel)
@@ -970,6 +971,12 @@ func (s *Service) saveTelegramChannelConnection(c *gin.Context) {
 		return
 	}
 	output, err := s.application.SaveTelegramChannelConnection(c.Request.Context(), requestMeta(c), c.Param("channelID"), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// regenerateTelegramGatewaySecret 重新生成业务系统转发 Telegram 消息使用的转发密钥。
+func (s *Service) regenerateTelegramGatewaySecret(c *gin.Context) {
+	output, err := s.application.RegenerateTelegramGatewaySecret(c.Request.Context(), requestMeta(c), c.Param("channelID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 

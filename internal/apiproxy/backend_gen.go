@@ -568,6 +568,13 @@ func (b *Backend) SaveTelegramChannelConnection(ctx context.Context, meta appser
 	return output, err
 }
 
+// RegenerateTelegramGatewaySecret 重新生成业务系统转发 Telegram 消息使用的转发密钥。
+func (b *Backend) RegenerateTelegramGatewaySecret(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.TelegramChannel, error) {
+	var output appservice.TelegramChannel
+	err := b.do(ctx, meta, http.MethodPost, "/channels/telegram/"+url.PathEscape(channelID)+"/connection/gateway-secret", nil, nil, &output)
+	return output, err
+}
+
 // GetMessageChannel 返回消息渠道基础信息。
 func (b *Backend) GetMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.MessageChannelSummary, error) {
 	var output appservice.MessageChannelSummary

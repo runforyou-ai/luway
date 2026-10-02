@@ -120,6 +120,7 @@ const channels = {
   },
   telegramConnection: {
     form: {
+      connectionMode: "接入方式",
       botToken: "Bot Token",
       test: "测试连接",
       testing: "正在测试…",
@@ -132,6 +133,19 @@ const channels = {
       description:
         "这个 Bot 已被其他渠道使用。继续保存后，Telegram 会把 Webhook 切换到当前渠道，旧渠道将无法继续接收通知。",
     },
+    mode: {
+      direct: "直接连接",
+      gateway: "业务系统转发",
+      directHelp: "Telegram 直接把消息推送到这里。",
+      gatewayHelp: "业务系统的 Bot 接收消息后转发到这里，可附带客户登录身份。",
+    },
+    gatewaySecret: {
+      regenerate: "重新生成转发密钥",
+      confirmTitle: "重新生成转发密钥？",
+      confirmDescription: "旧密钥立即失效，业务系统改用新密钥后才能继续转发消息。",
+      regenerated: "转发密钥已重新生成。",
+      regenerateError: "重新生成转发密钥失败，请重试。",
+    },
     info: {
       title: "连接信息",
       botDisplayName: "机器人名称",
@@ -140,6 +154,9 @@ const channels = {
       webhookUrl: "Webhook 地址",
       webhookSecret: "Secret Token",
       webhookStatus: "Webhook 状态",
+      forwardUrl: "转发地址",
+      forwardSecret: "转发密钥",
+      forwardStatus: "转发状态",
     },
     status: {
       waiting: "等待连接",

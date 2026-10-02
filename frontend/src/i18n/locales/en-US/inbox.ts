@@ -272,6 +272,7 @@ const inbox = {
   conversationAssignee: "Assignee: {{name}}",
   agentRunSessionClosed: "Conversation closed",
   agentRunBotChanged: "Bot replaced",
+  agentRunCustomerIdentityChanged: "Customer identity changed",
   agentRunAgentRemoved: "The AI teammate left the group",
   agentUnavailable: "AI employee unavailable",
   agentRunWaiting: "Waiting to reply: {{names}}",

@@ -10,8 +10,8 @@ import (
 const (
 	// WebsiteVisitorTokenHeader 是访客直传本地对象和调用公开接口使用的令牌请求头。
 	WebsiteVisitorTokenHeader = "X-Visitor-Token"
-	// WebsiteCustomerTokenHeader 是网站登录用户直传本地对象和调用公开接口携带签名身份的请求头。
-	WebsiteCustomerTokenHeader = "X-Customer-Token"
+	// CustomerTokenHeader 是网站登录用户调用公开接口、业务系统转发 Telegram 消息时携带客户签名身份的请求头。
+	CustomerTokenHeader = "X-Customer-Token"
 	// WebsiteCustomerIdentityInvalidReason 是签名身份失效错误的稳定原因码。
 	WebsiteCustomerIdentityInvalidReason = "customer_identity_invalid"
 )
@@ -34,7 +34,7 @@ type WebsiteVisitorCustomer struct {
 	UserID         string
 	Name           string
 	Email          string
-	Profile        domain.WebsiteContactProfile
+	Profile        domain.SignedContactProfile
 	ExpiresAt      time.Time
 }
 

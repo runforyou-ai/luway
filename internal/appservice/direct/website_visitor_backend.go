@@ -130,11 +130,11 @@ func websiteVisitorCustomerFromAction(value customerchataction.VerifiedWebsiteCu
 }
 
 // websiteCustomerInput 返回访客元信息中已验证的登录用户，匿名访客返回空。
-func websiteCustomerInput(meta appservice.WebsiteVisitorMeta) *customerchataction.WebsiteCustomer {
+func websiteCustomerInput(meta appservice.WebsiteVisitorMeta) *customerchataction.SignedCustomer {
 	if meta.Customer == nil {
 		return nil
 	}
-	return &customerchataction.WebsiteCustomer{UserID: meta.Customer.UserID, Name: meta.Customer.Name, Email: meta.Customer.Email, Profile: meta.Customer.Profile}
+	return &customerchataction.SignedCustomer{UserID: meta.Customer.UserID, Name: meta.Customer.Name, Email: meta.Customer.Email, Profile: meta.Customer.Profile}
 }
 
 // SendTextMessage 持久化网站访客文本消息。
@@ -242,7 +242,7 @@ func (b *WebsiteVisitorBackend) visitorUploadRequest(ctx context.Context, meta a
 		// 登录用户以签名身份直传，匿名访客以访客令牌直传。
 		headers := map[string]string{appservice.WebsiteVisitorTokenHeader: meta.Token, "Content-Type": record.ContentType}
 		if meta.Customer != nil {
-			headers = map[string]string{appservice.WebsiteCustomerTokenHeader: meta.CustomerToken, "Content-Type": record.ContentType}
+			headers = map[string]string{appservice.CustomerTokenHeader: meta.CustomerToken, "Content-Type": record.ContentType}
 		}
 		return appservice.WebsiteVisitorUploadRequest{Method: http.MethodPut, URL: contentURL, Headers: headers}, nil
 	}

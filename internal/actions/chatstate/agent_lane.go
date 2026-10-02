@@ -33,10 +33,22 @@ func CancelServiceSessionRuns(ctx context.Context, db bun.IDB, organizationID, s
 
 // CancelChannelRuns 推进渠道全部客户会话的版本，取消其中当前负责人的在途运行并结算输入队列，调用方已锁定渠道。
 func CancelChannelRuns(ctx context.Context, db bun.IDB, organizationID, channelID string, reason domain.AgentRunErrorCode) (int, error) {
-	conversationIDs, err := TouchConversations(ctx, db, organizationID, db.NewSelect().TableExpr("channel_conversations AS cc").
+	return cancelConversationRuns(ctx, db, organizationID, db.NewSelect().TableExpr("channel_conversations AS cc").
 		Column("cc.conversation_id").
 		Join("JOIN contact_channel_identities AS cci ON cci.organization_id = cc.organization_id AND cci.id = cc.contact_channel_identity_id").
-		Where("cc.organization_id = ? AND cci.channel_id = ?", organizationID, channelID), domain.ConversationChangeTimeline|domain.ConversationChangeService)
+		Where("cc.organization_id = ? AND cci.channel_id = ?", organizationID, channelID), reason)
+}
+
+// CancelChannelIdentityRuns 推进渠道身份全部客户会话的版本，取消其中当前负责人的在途运行并结算输入队列，调用方已锁定渠道身份。
+func CancelChannelIdentityRuns(ctx context.Context, db bun.IDB, organizationID, channelIdentityID string, reason domain.AgentRunErrorCode) (int, error) {
+	return cancelConversationRuns(ctx, db, organizationID, db.NewSelect().TableExpr("channel_conversations AS cc").
+		Column("cc.conversation_id").
+		Where("cc.organization_id = ? AND cc.contact_channel_identity_id = ?", organizationID, channelIdentityID), reason)
+}
+
+// cancelConversationRuns 推进子查询选出的客户会话版本，取消其中当前服务周期负责人的在途运行并结算输入队列。
+func cancelConversationRuns(ctx context.Context, db bun.IDB, organizationID string, conversations *bun.SelectQuery, reason domain.AgentRunErrorCode) (int, error) {
+	conversationIDs, err := TouchConversations(ctx, db, organizationID, conversations, domain.ConversationChangeTimeline|domain.ConversationChangeService)
 	if err != nil || len(conversationIDs) == 0 {
 		return 0, err
 	}
