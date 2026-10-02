@@ -666,13 +666,6 @@ func (b *Backend) ListAgentMCPServerOptions(ctx context.Context, meta appservice
 	return output, err
 }
 
-// ListAgentModelOptions 返回 AI 员工可使用的对话模型。
-func (b *Backend) ListAgentModelOptions(ctx context.Context, meta appservice.RequestMeta) (appservice.AgentModelOptionList, error) {
-	var output appservice.AgentModelOptionList
-	err := b.do(ctx, meta, http.MethodGet, "/agents/model-options", nil, nil, &output)
-	return output, err
-}
-
 // CreateAgent 创建企业 AI 员工。
 func (b *Backend) CreateAgent(ctx context.Context, meta appservice.RequestMeta, input appservice.CreateAgentInput) (appservice.Agent, error) {
 	var output appservice.Agent
@@ -1251,6 +1244,15 @@ func (b *Backend) UpdateRole(ctx context.Context, meta appservice.RequestMeta, r
 // DeleteRole 删除自定义角色。
 func (b *Backend) DeleteRole(ctx context.Context, meta appservice.RequestMeta, roleID string) error {
 	return b.do(ctx, meta, http.MethodDelete, "/settings/roles/"+url.PathEscape(roleID), nil, nil, nil)
+}
+
+// ListAIModelOptions 返回当前工作区满足指定用途的模型。
+func (b *Backend) ListAIModelOptions(ctx context.Context, meta appservice.RequestMeta, usage appservice.AIModelUsage) (appservice.AIModelOptionList, error) {
+	query := url.Values{}
+	query.Set("usage", string(usage))
+	var output appservice.AIModelOptionList
+	err := b.do(ctx, meta, http.MethodGet, "/ai-models", query, nil, &output)
+	return output, err
 }
 
 // ListAIProviders 返回当前企业的模型服务供应商列表。

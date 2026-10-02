@@ -105,7 +105,7 @@ func publishRetrievalDocument(t *testing.T, db *bun.DB, probe *retrievalProbe, i
 	err = worker.Execute(ctx, knowledgeaction.ProcessInput{
 		OrganizationID: identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: document.ID, ProcessingID: document.ProcessingID,
 		ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap,
-		EmbeddingProviderID: document.EmbeddingProviderID, EmbeddingModelIdentifier: document.EmbeddingModelIdentifier, EmbeddingDimension: document.EmbeddingDimension,
+		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -189,7 +189,7 @@ func TestKnowledgeHybridRetrieval(t *testing.T) {
 	if err := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe).Execute(ctx, knowledgeaction.ProcessInput{
 		OrganizationID: identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: refundID, ProcessingID: republished.ProcessingID,
 		ChunkLength: republished.ChunkLength, ChunkOverlap: republished.ChunkOverlap,
-		EmbeddingProviderID: republished.EmbeddingProviderID, EmbeddingModelIdentifier: republished.EmbeddingModelIdentifier, EmbeddingDimension: republished.EmbeddingDimension,
+		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +228,7 @@ func TestKnowledgeHybridRetrieval(t *testing.T) {
 
 	// 召回数量限制作用于重排后的结果。
 	input := newKnowledgeBaseInput(t, db, identity, base.Name, base.Category)
-	input.EmbeddingProviderID, input.RerankProviderID, input.RetrievalCount = base.EmbeddingProviderID, base.EmbeddingProviderID, 2
+	input.EmbeddingModelID, input.RerankModelID, input.RetrievalCount = base.EmbeddingModelID, base.RerankModelID, 2
 	if _, err := knowledgeaction.NewUpdateKnowledgeBaseAction(db, newKnowledgeTasks(t, db)).Execute(ctx, identity, base.ID, input); err != nil {
 		t.Fatal(err)
 	}
@@ -436,7 +436,7 @@ func TestKnowledgeSearchBatchesQueryEmbedding(t *testing.T) {
 	baseIDs = append(baseIDs, first.ID)
 	// 第二个知识库与第一个共用向量模型配置，第三个使用独立供应商。
 	shared := newKnowledgeBaseInput(t, db, identity, "共用向量", domain.KnowledgeBaseCategoryStandard)
-	shared.EmbeddingProviderID, shared.RerankProviderID = first.EmbeddingProviderID, first.RerankProviderID
+	shared.EmbeddingModelID, shared.RerankModelID = first.EmbeddingModelID, first.RerankModelID
 	for _, input := range []knowledgeaction.Input{shared, newKnowledgeBaseInput(t, db, identity, "独立向量", domain.KnowledgeBaseCategoryStandard)} {
 		base, err := knowledgeaction.NewCreateKnowledgeBaseAction(db).Execute(ctx, identity, input)
 		if err != nil {

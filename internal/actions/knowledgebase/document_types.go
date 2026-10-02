@@ -19,17 +19,16 @@ var (
 
 // ProcessInput 固定本次文档任务的内容来源、分段和向量参数。
 type ProcessInput struct {
-	OrganizationID           string                             `json:"organizationId"`
-	KnowledgeBaseID          string                             `json:"knowledgeBaseId"`
-	DocumentID               string                             `json:"documentId"`
-	SourceKind               domain.KnowledgeDocumentSourceKind `json:"sourceKind"`
-	FetchPage                bool                               `json:"fetchPage"`
-	ProcessingID             string                             `json:"processingId"`
-	ChunkLength              int                                `json:"chunkLength"`
-	ChunkOverlap             int                                `json:"chunkOverlap"`
-	EmbeddingProviderID      string                             `json:"embeddingProviderId"`
-	EmbeddingModelIdentifier string                             `json:"embeddingModelIdentifier"`
-	EmbeddingDimension       int                                `json:"embeddingDimension"`
+	OrganizationID     string                             `json:"organizationId"`
+	KnowledgeBaseID    string                             `json:"knowledgeBaseId"`
+	DocumentID         string                             `json:"documentId"`
+	SourceKind         domain.KnowledgeDocumentSourceKind `json:"sourceKind"`
+	FetchPage          bool                               `json:"fetchPage"`
+	ProcessingID       string                             `json:"processingId"`
+	ChunkLength        int                                `json:"chunkLength"`
+	ChunkOverlap       int                                `json:"chunkOverlap"`
+	EmbeddingModelID   string                             `json:"embeddingModelId"`
+	EmbeddingDimension int                                `json:"embeddingDimension"`
 }
 
 // ProcessError 定义知识来源索引的失败原因码和执行阶段。

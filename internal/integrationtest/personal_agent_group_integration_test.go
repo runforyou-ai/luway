@@ -20,7 +20,7 @@ import (
 // TestGroupPersonalAgents 验证个人 AI 员工只能由负责人带进群、在群内被点名时派发到负责人电脑，并随负责人退群、被移出或停用而离开。
 func TestGroupPersonalAgents(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
 	member := newChatLockUser(t, db, identity)
 	device, err := deviceaction.NewRegisterDeviceAction(db).Execute(ctx, member, deviceaction.RegisterInput{InstallID: uuid.NewV7().String(), Name: "成员电脑", Platform: domain.DevicePlatformMacOS})
@@ -28,7 +28,7 @@ func TestGroupPersonalAgents(t *testing.T) {
 		t.Fatal(err)
 	}
 	personalAgent, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, member, device.ID, agentaction.PersonalAgentInput{
-		DisplayName: "成员个人 AI 员工", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: providerID, ModelIdentifier: modelID}},
+		DisplayName: "成员个人 AI 员工", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -253,7 +253,7 @@ func TestGroupPersonalAgents(t *testing.T) {
 			t.Fatal(err)
 		}
 		otherPersonalAgent, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, other, otherDevice.ID, agentaction.PersonalAgentInput{
-			DisplayName: "对方个人 AI 员工", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: providerID, ModelIdentifier: modelID}},
+			DisplayName: "对方个人 AI 员工", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID}},
 		})
 		if err != nil {
 			t.Fatal(err)

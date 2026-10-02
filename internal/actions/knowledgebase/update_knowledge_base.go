@@ -43,6 +43,9 @@ func (a *UpdateKnowledgeBaseAction) Execute(ctx context.Context, identity *serve
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
 		}
+		if err := lockModels(ctx, tx, identity.Organization.ID, input); err != nil {
+			return err
+		}
 		stored, err := lockKnowledgeBase(ctx, tx, identity.Organization.ID, knowledgeBaseID)
 		if err != nil {
 			return err
@@ -63,25 +66,20 @@ func (a *UpdateKnowledgeBaseAction) Execute(ctx context.Context, identity *serve
 				return ErrBaseHasContent
 			}
 		}
-		if err := validateModels(ctx, tx, identity.Organization.ID, input); err != nil {
-			return err
-		}
 		// 向量模型、维度，或标准库的分段长度、重叠变化时重新索引。
-		reindexed = stored.EmbeddingProviderID != input.EmbeddingProviderID || stored.EmbeddingModelIdentifier != input.EmbeddingModelIdentifier || stored.EmbeddingDimension != input.EmbeddingDimension ||
+		reindexed = stored.EmbeddingModelID != input.EmbeddingModelID || stored.EmbeddingDimension != input.EmbeddingDimension ||
 			input.Category == domain.KnowledgeBaseCategoryStandard && (stored.ChunkLength == nil || stored.ChunkOverlap == nil || *stored.ChunkLength != *input.ChunkLength || *stored.ChunkOverlap != *input.ChunkOverlap)
 		result, err := tx.NewUpdate().Model((*servermodels.KnowledgeBase)(nil)).
 			Set("name = ?", input.Name).
 			Set("category = ?", input.Category).
 			Set("description = ?", input.Description).
-			Set("embedding_provider_id = ?", bun.NullZero(input.EmbeddingProviderID)).
-			Set("embedding_model_identifier = ?", input.EmbeddingModelIdentifier).
+			Set("embedding_model_id = ?", input.EmbeddingModelID).
 			Set("embedding_dimension = ?", input.EmbeddingDimension).
 			Set("chunk_length = ?", input.ChunkLength).
 			Set("chunk_overlap = ?", input.ChunkOverlap).
 			Set("retrieval_count = ?", input.RetrievalCount).
 			Set("retrieval_score_threshold = ?", input.RetrievalScoreThreshold).
-			Set("rerank_provider_id = ?", input.RerankProviderID).
-			Set("rerank_model_identifier = ?", input.RerankModelIdentifier).
+			Set("rerank_model_id = ?", input.RerankModelID).
 			Set("updated_at = now()").
 			Where("organization_id = ?", identity.Organization.ID).
 			Where("id = ?", knowledgeBaseID).
@@ -96,9 +94,9 @@ func (a *UpdateKnowledgeBaseAction) Execute(ctx context.Context, identity *serve
 			return err
 		}
 		if reindexed {
-			stored.EmbeddingProviderID, stored.EmbeddingModelIdentifier, stored.EmbeddingDimension = input.EmbeddingProviderID, input.EmbeddingModelIdentifier, input.EmbeddingDimension
+			stored.EmbeddingModelID, stored.EmbeddingDimension = input.EmbeddingModelID, input.EmbeddingDimension
 			stored.ChunkLength, stored.ChunkOverlap = input.ChunkLength, input.ChunkOverlap
-			documentCount, entryCount, err = a.reindex(ctx, tx, identity.Organization.ID, stored)
+			documentCount, entryCount, err = reindexBase(ctx, tx, a.documents, a.qaEntries, identity.Organization.ID, stored)
 			if err != nil {
 				return err
 			}
@@ -117,33 +115,4 @@ func (a *UpdateKnowledgeBaseAction) Execute(ctx context.Context, identity *serve
 		slog.Info("知识库索引参数变更，已清空分段并重新投递索引", "organization_id", identity.Organization.ID, "knowledge_base_id", knowledgeBaseID, "document_count", documentCount, "qa_entry_count", entryCount)
 	}
 	return &record, nil
-}
-
-// reindex 锁定知识库全部文档和问答条目，删除全部分段、清除已发布批次，并按新配置批量投递索引任务。
-func (a *UpdateKnowledgeBaseAction) reindex(ctx context.Context, tx bun.Tx, organizationID string, base *servermodels.KnowledgeBase) (int, int, error) {
-	knowledgeBaseID := base.ID
-	var documents []*servermodels.KnowledgeDocument
-	if err := tx.NewSelect().Model(&documents).Where("kd.knowledge_base_id = ?", knowledgeBaseID).Order("kd.id").For("UPDATE").Scan(ctx); err != nil {
-		return 0, 0, err
-	}
-	var entries []*servermodels.KnowledgeQAEntry
-	if err := tx.NewSelect().Model(&entries).Where("kqe.knowledge_base_id = ?", knowledgeBaseID).Order("kqe.id").For("UPDATE").Scan(ctx); err != nil {
-		return 0, 0, err
-	}
-	if err := deleteKnowledgeBaseSegments(ctx, tx, knowledgeBaseID); err != nil {
-		return 0, 0, err
-	}
-	if _, err := tx.NewUpdate().Model((*servermodels.KnowledgeDocument)(nil)).Set("segment_batch_id = NULL").Set("segment_count = 0").Where("knowledge_base_id = ?", knowledgeBaseID).Exec(ctx); err != nil {
-		return 0, 0, err
-	}
-	if _, err := tx.NewUpdate().Model((*servermodels.KnowledgeQAEntry)(nil)).Set("segment_batch_id = NULL").Set("segment_count = 0").Where("knowledge_base_id = ?", knowledgeBaseID).Exec(ctx); err != nil {
-		return 0, 0, err
-	}
-	if err := a.documents.enqueue(ctx, tx, organizationID, base, false, documents...); err != nil {
-		return 0, 0, err
-	}
-	if err := a.qaEntries.enqueue(ctx, tx, organizationID, base, entries...); err != nil {
-		return 0, 0, err
-	}
-	return len(documents), len(entries), nil
 }

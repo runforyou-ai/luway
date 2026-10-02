@@ -134,8 +134,8 @@ export const resourceKeys = {
   aiProviders: () => ["ai-providers"],
   /** 单个 AI 模型服务商。 */
   aiProvider: (id?: string) => itemKey("ai-provider", id),
-  /** 智能体可选模型选项。 */
-  agentModelOptions: () => ["agent-model-options"],
+  /** 满足指定用途的可选模型，按用途区分。 */
+  aiModelOptions: (usage: string) => ["ai-model-options", usage],
   /** AI 员工配置使用的 MCP 服务摘要。 */
   agentMCPServerOptions: () => ["agent-mcp-server-options"],
   /** MCP 服务列表。 */

@@ -167,12 +167,12 @@ func TestConversationArchive(t *testing.T) {
 // TestConversationArchiveAgentChat 验证 AI 聊天的归档与新消息恢复。
 func TestConversationArchiveAgentChat(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
 	f := pinFixture{db: db, owner: identity}
 	agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		DisplayName: "归档测试助手",
-		Execution:   agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "回答问题"}},
+		Execution:   agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID, SystemInstruction: "回答问题"}},
 	})
 	if err != nil {
 		t.Fatal(err)

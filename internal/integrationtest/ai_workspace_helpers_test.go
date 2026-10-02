@@ -14,7 +14,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// newAIWorkspace 建立带一个对话模型的独立工作区，返回数据库、管理员身份、模型服务编号和模型标识。
+// newAIWorkspace 建立带一个对话模型的独立工作区，返回数据库、管理员身份、模型服务编号和模型编号。
 func newAIWorkspace(t *testing.T) (*bun.DB, *servermodels.Identity, string, string) {
 	t.Helper()
 	ctx := context.Background()
@@ -42,15 +42,36 @@ func newAIWorkspace(t *testing.T) (*bun.DB, *servermodels.Identity, string, stri
 		Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	model := &servermodels.AIProviderModel{
-		ProviderID: provider.ID, OrganizationID: identity.Organization.ID,
-		Identifier: "chat-model", Name: "测试对话模型", Type: string(domain.AIModelTypeChat),
+	model := &servermodels.AIModel{
+		ProviderID: provider.ID, Identifier: "chat-model", Name: "测试对话模型", Type: string(domain.AIModelTypeChat),
 		InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096,
 	}
-	if _, err := db.NewInsert().Model(model).
-		Column("provider_id", "organization_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
-		Exec(ctx); err != nil {
-		t.Fatal(err)
+	insertAIModels(t, db, model)
+	return db, identity, provider.ID, model.ID
+}
+
+// insertAIModels 写入模型目录项并回填模型编号。
+func insertAIModels(t *testing.T, db bun.IDB, models ...*servermodels.AIModel) {
+	t.Helper()
+	for _, model := range models {
+		if _, err := db.NewInsert().Model(model).
+			Column("provider_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
+			Returning("id").
+			Exec(context.Background()); err != nil {
+			t.Fatal(err)
+		}
 	}
-	return db, identity, provider.ID, model.Identifier
+}
+
+// aiModelID 返回供应商下指定上游模型标识的模型编号。
+func aiModelID(t *testing.T, db bun.IDB, providerID, identifier string) string {
+	t.Helper()
+	var id string
+	if err := db.NewSelect().Model((*servermodels.AIModel)(nil)).
+		ColumnExpr("id::text").
+		Where("provider_id = ? AND identifier = ?", providerID, identifier).
+		Scan(context.Background(), &id); err != nil {
+		t.Fatalf("查询模型 %s/%s 编号失败：%v", providerID, identifier, err)
+	}
+	return id
 }

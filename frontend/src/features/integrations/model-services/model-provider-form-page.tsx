@@ -105,6 +105,8 @@ export function ModelProviderFormPage({ mode }: { mode: "create" | "edit" }) {
   const provider = detail.data
   // 服务端最近一次确认的模型目录，目录改动被服务端拒绝时恢复到该目录。
   const savedModels = useRef<AIModelFormValues[]>([])
+  // 新增模型保存后由服务端分配的编号，按表单内标识索引。
+  const savedModelIDs = useRef(new Map<string, string>())
   const providers = useResource(resourceKeys.aiProviders(), () => listAIProviders(), {
     enabled: mode === "create",
   })
@@ -141,6 +143,14 @@ export function ModelProviderFormPage({ mode }: { mode: "create" | "edit" }) {
     form.reset(values)
     markSaved(values)
   }, [form, provider])
+
+  /** 为尚无编号的模型按表单内标识补上保存后分配的编号。 */
+  function withSavedModelIDs(models: AIModelFormValues[]) {
+    return models.map((model) => ({
+      ...model,
+      id: model.id || savedModelIDs.current.get(model.key) || "",
+    }))
+  }
 
   /** 使用当前未保存的地址和密钥测试模型服务连接。 */
   async function testConnection() {
@@ -186,7 +196,8 @@ export function ModelProviderFormPage({ mode }: { mode: "create" | "edit" }) {
         credentialType: values.credentialType,
         apiKey: values.apiKey,
         apiUrl: values.apiUrl,
-        models: values.models.map((model) => ({
+        models: withSavedModelIDs(values.models).map((model) => ({
+          id: model.id,
           identifier: model.identifier,
           name: model.name,
           type: model.type,
@@ -202,7 +213,12 @@ export function ModelProviderFormPage({ mode }: { mode: "create" | "edit" }) {
         await createAIProvider({ ...input, brand: values.brand })
       } else {
         try {
-          await updateAIProvider(providerId, input)
+          const saved = await updateAIProvider(providerId, input)
+          // 服务端按请求顺序返回模型目录。
+          savedModels.current = values.models.map((model, index) => {
+            savedModelIDs.current.set(model.key, saved.models[index].id)
+            return { ...model, id: saved.models[index].id }
+          })
         } catch (error) {
           // 服务端拒绝模型目录时撤回本次请求的目录改动，其余字段和请求后的编辑保留。
           if (isApiError(error) && error.fields.models) {
@@ -212,11 +228,12 @@ export function ModelProviderFormPage({ mode }: { mode: "create" | "edit" }) {
           }
           throw error
         }
-        savedModels.current = values.models
         void invalidateResource(resourceKeys.aiProvider(providerId))
       }
       void invalidateResource(resourceKeys.aiProviders())
     },
+    // 自动保存后用服务端分配的编号回填新增模型。
+    savedValues: (_, values) => ({ ...values, models: withSavedModelIDs(values.models) }),
     onSubmitted: () => {
       toast.success(t("modelServices.form.createSuccess"))
       navigate(listPath)

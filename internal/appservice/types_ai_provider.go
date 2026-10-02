@@ -43,6 +43,18 @@ const (
 	AIModelTypeDecision  AIModelType = AIModelType(domain.AIModelTypeDecision)
 )
 
+// AIModelUsage 表示业务使用模型的用途，每种用途对应确定的模型类型与输入能力要求。
+type AIModelUsage string
+
+const (
+	AIModelUsageAgent       AIModelUsage = AIModelUsage(domain.AIModelUsageAgent)
+	AIModelUsageSummary     AIModelUsage = AIModelUsage(domain.AIModelUsageSummary)
+	AIModelUsageTranslation AIModelUsage = AIModelUsage(domain.AIModelUsageTranslation)
+	AIModelUsageDecision    AIModelUsage = AIModelUsage(domain.AIModelUsageDecision)
+	AIModelUsageEmbedding   AIModelUsage = AIModelUsage(domain.AIModelUsageEmbedding)
+	AIModelUsageRerank      AIModelUsage = AIModelUsage(domain.AIModelUsageRerank)
+)
+
 // AIModelInputModality 表示模型支持的输入模态。
 type AIModelInputModality string
 
@@ -80,8 +92,9 @@ type AIProviderConnectionInput struct {
 	APIURL         string                   `json:"apiUrl"`
 }
 
-// AIProviderModel 定义模型服务供应商的模型目录项。
+// AIProviderModel 定义模型服务供应商的模型目录项，保存时编号为空表示新增模型。
 type AIProviderModel struct {
+	ID              string                 `json:"id"`
 	Identifier      string                 `json:"identifier"`
 	Name            string                 `json:"name"`
 	Type            AIModelType            `json:"type"`
@@ -103,6 +116,7 @@ type AIProvider struct {
 
 // AIProviderModelSummary 定义供应商列表中的模型目录摘要。
 type AIProviderModelSummary struct {
+	ID         string      `json:"id"`
 	Identifier string      `json:"identifier"`
 	Name       string      `json:"name"`
 	Type       AIModelType `json:"type"`
@@ -125,4 +139,21 @@ type AIProviderList struct {
 // AIProviderModelList 定义预设或从服务实例发现的模型目录。
 type AIProviderModelList struct {
 	Models []AIProviderModel `json:"models"`
+}
+
+// AIModelOption 定义模型选择器中的模型及其所属供应商。
+type AIModelOption struct {
+	ID              string                 `json:"id"`
+	Identifier      string                 `json:"identifier"`
+	Name            string                 `json:"name"`
+	Type            AIModelType            `json:"type"`
+	InputModalities []AIModelInputModality `json:"inputModalities"`
+	ProviderID      string                 `json:"providerId"`
+	ProviderName    string                 `json:"providerName"`
+	ProviderBrand   AIProviderBrand        `json:"providerBrand"`
+}
+
+// AIModelOptionList 定义满足某一用途的模型选项。
+type AIModelOptionList struct {
+	Models []AIModelOption `json:"models"`
 }

@@ -35,7 +35,7 @@ func newKnowledgeBaseInput(t *testing.T, db *bun.DB, identity *servermodels.Iden
 		t.Fatal(err)
 	}
 	length, overlap := 512, 50
-	input := knowledgeaction.Input{Name: name, Category: category, EmbeddingProviderID: provider.ID, EmbeddingModelIdentifier: "embedding-a", EmbeddingDimension: 1024, RetrievalCount: 3, RetrievalScoreThreshold: 0.7, RerankProviderID: provider.ID, RerankModelIdentifier: "rerank"}
+	input := knowledgeaction.Input{Name: name, Category: category, EmbeddingModelID: aiModelID(t, db, provider.ID, "embedding-a"), EmbeddingDimension: 1024, RetrievalCount: 3, RetrievalScoreThreshold: 0.7, RerankModelID: aiModelID(t, db, provider.ID, "rerank")}
 	if category == domain.KnowledgeBaseCategoryStandard {
 		input.ChunkLength, input.ChunkOverlap = &length, &overlap
 	}
@@ -55,16 +55,23 @@ func TestKnowledgeBaseSettings(t *testing.T) {
 	identity, qa := newQAFixture(t, db)
 	input := newKnowledgeBaseInput(t, db, identity, "配置测试", domain.KnowledgeBaseCategoryStandard)
 	create, update := knowledgeaction.NewCreateKnowledgeBaseAction(db), knowledgeaction.NewUpdateKnowledgeBaseAction(db, newKnowledgeTasks(t, db))
+	// 读取测试配置所用向量模型的供应商，按上游标识查找同供应商的其他模型。
+	embeddingA := &servermodels.AIModel{ID: input.EmbeddingModelID}
+	if err := db.NewSelect().Model(embeddingA).WherePK().Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	providerID, rerankID := embeddingA.ProviderID, input.RerankModelID
+	embeddingB := aiModelID(t, db, providerID, "embedding-b")
 	base, err := create.Execute(ctx, identity, input)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if base.EmbeddingDimension != 1024 || *base.ChunkLength != 512 || *base.ChunkOverlap != 50 || base.RetrievalCount != 3 || base.RetrievalScoreThreshold != 0.7 || base.RerankModelIdentifier != "rerank" {
+	if base.EmbeddingModelID != embeddingA.ID || base.EmbeddingDimension != 1024 || *base.ChunkLength != 512 || *base.ChunkOverlap != 50 || base.RetrievalCount != 3 || base.RetrievalScoreThreshold != 0.7 || base.RerankModelID != rerankID {
 		t.Fatalf("base=%+v", base)
 	}
-	input.EmbeddingModelIdentifier, input.EmbeddingDimension, input.RetrievalCount, input.RetrievalScoreThreshold = "embedding-b", 768, 20, 0.35
+	input.EmbeddingModelID, input.EmbeddingDimension, input.RetrievalCount, input.RetrievalScoreThreshold = embeddingB, 768, 20, 0.35
 	updated, err := update.Execute(ctx, identity, base.ID, input)
-	if err != nil || updated.EmbeddingModelIdentifier != "embedding-b" || updated.EmbeddingDimension != 768 || updated.RetrievalCount != 20 || updated.RetrievalScoreThreshold != 0.35 || updated.RerankModelIdentifier != "rerank" {
+	if err != nil || updated.EmbeddingModelID != embeddingB || updated.EmbeddingDimension != 768 || updated.RetrievalCount != 20 || updated.RetrievalScoreThreshold != 0.35 || updated.RerankModelID != rerankID {
 		t.Fatalf("updated=%+v err=%v", updated, err)
 	}
 	loaded, err := knowledgeaction.NewGetKnowledgeBaseQuery(db).Execute(ctx, identity, base.ID)
@@ -84,24 +91,24 @@ func TestKnowledgeBaseSettings(t *testing.T) {
 	var fieldError *common.FieldError
 	foreignIdentity, _ := newQAFixture(t, db)
 	_, err = create.Execute(ctx, foreignIdentity, input)
-	if !errors.As(err, &fieldError) || fieldError.Fields["embeddingModelIdentifier"] != knowledgeaction.ValidationEmbeddingModelInvalid {
+	if !errors.As(err, &fieldError) || fieldError.Fields["embeddingModelId"] != knowledgeaction.ValidationEmbeddingModelInvalid {
 		t.Fatalf("foreign model error=%v", err)
 	}
-	input.EmbeddingModelIdentifier = "rerank"
+	input.EmbeddingModelID = rerankID
 	_, err = update.Execute(ctx, identity, base.ID, input)
-	if !errors.As(err, &fieldError) || fieldError.Fields["embeddingModelIdentifier"] != knowledgeaction.ValidationEmbeddingModelInvalid {
+	if !errors.As(err, &fieldError) || fieldError.Fields["embeddingModelId"] != knowledgeaction.ValidationEmbeddingModelInvalid {
 		t.Fatalf("model type error=%v", err)
 	}
-	input.EmbeddingModelIdentifier = "embedding-b"
-	input.RerankProviderID, input.RerankModelIdentifier = input.EmbeddingProviderID, "embedding-a"
+	input.EmbeddingModelID = embeddingB
+	input.RerankModelID = embeddingA.ID
 	_, err = update.Execute(ctx, identity, base.ID, input)
-	if !errors.As(err, &fieldError) || fieldError.Fields["rerankModelIdentifier"] != knowledgeaction.ValidationRerankModelInvalid {
+	if !errors.As(err, &fieldError) || fieldError.Fields["rerankModelId"] != knowledgeaction.ValidationRerankModelInvalid {
 		t.Fatalf("rerank type error=%v", err)
 	}
-	if err := aiprovideraction.NewDeleteAIProviderAction(db).Execute(ctx, identity, input.EmbeddingProviderID); !errors.Is(err, aiprovideraction.ErrInUse) {
+	if err := aiprovideraction.NewDeleteAIProviderAction(db).Execute(ctx, identity, providerID); !errors.Is(err, aiprovideraction.ErrInUse) {
 		t.Fatalf("delete provider error=%v", err)
 	}
-	provider, err := aiprovideraction.NewGetAIProviderQuery(db).Execute(ctx, identity, input.EmbeddingProviderID)
+	provider, err := aiprovideraction.NewGetAIProviderQuery(db).Execute(ctx, identity, providerID)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +116,7 @@ func TestKnowledgeBaseSettings(t *testing.T) {
 	provider.Models = slices.DeleteFunc(provider.Models, func(model aiprovideraction.Model) bool {
 		return model.Identifier == "embedding-b"
 	})
-	_, err = aiprovideraction.NewUpdateAIProviderAction(db).Execute(ctx, identity, provider.ID, aiprovideraction.UpdateInput{Name: provider.Name, CredentialType: provider.CredentialType, APIKey: provider.APIKey, APIURL: provider.APIURL, Models: provider.Models})
+	_, err = aiprovideraction.NewUpdateAIProviderAction(db, knowledgeaction.NewEmbeddingReindexer(db, newKnowledgeTasks(t, db))).Execute(ctx, identity, provider.ID, aiprovideraction.UpdateInput{Name: provider.Name, CredentialType: provider.CredentialType, APIKey: provider.APIKey, APIURL: provider.APIURL, Models: provider.Models})
 	var validation *aiprovideraction.ValidationError
 	if !errors.As(err, &validation) || validation.Fields["models"] != aiprovideraction.ValidationModelsInUse {
 		t.Fatalf("remove model error=%v", err)

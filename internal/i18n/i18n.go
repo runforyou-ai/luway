@@ -7,9 +7,8 @@ import (
 	"maps"
 
 	goi18n "github.com/nicksnyder/go-i18n/v2/i18n"
-	"golang.org/x/text/language"
-
 	"github.com/runforyou-ai/luway/internal/common/brand"
+	"golang.org/x/text/language"
 )
 
 // Key 标识一条后端本地化文案。
@@ -172,7 +171,7 @@ const (
 	ErrorAgentReadFailed                         Key = "error.agent_read_failed"
 	ErrorAgentUpdateFailed                       Key = "error.agent_update_failed"
 	ErrorAgentExecutionUpdateFailed              Key = "error.agent_execution_update_failed"
-	ErrorAgentModelListFailed                    Key = "error.agent_model_list_failed"
+	ErrorAIModelListFailed                       Key = "error.ai_model_list_failed"
 	ErrorAgentStatusUpdateFailed                 Key = "error.agent_status_update_failed"
 	ErrorAgentEvaluationLoadFailed               Key = "error.agent_evaluation_load_failed"
 	ErrorAgentEvaluationCaseNotFound             Key = "error.agent_evaluation_case_not_found"
@@ -448,6 +447,7 @@ const (
 	FieldAIProviderAPIURLInvalid               Key = "field.ai_provider_api_url_invalid"
 	FieldAIProviderModelsInvalid               Key = "field.ai_provider_models_invalid"
 	FieldAIProviderModelsInUse                 Key = "field.ai_provider_models_in_use"
+	FieldAIModelUsageInvalid                   Key = "field.ai_model_usage_invalid"
 	FieldMCPServerTypeInvalid                  Key = "field.mcp_server_type_invalid"
 	FieldMCPServerNameRequired                 Key = "field.mcp_server_name_required"
 	FieldMCPServerNameTooLong                  Key = "field.mcp_server_name_too_long"

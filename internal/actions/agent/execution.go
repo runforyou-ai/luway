@@ -5,7 +5,6 @@ package agent
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -39,8 +39,7 @@ type LocalAgentExecutionInput struct {
 
 // ManagedExecutionInput 定义平台托管执行配置输入。
 type ManagedExecutionInput struct {
-	ProviderID        string
-	ModelIdentifier   string
+	ModelID           string
 	SystemInstruction string
 	KnowledgeBaseIDs  []string
 }
@@ -62,10 +61,7 @@ type LocalAgentExecution struct {
 
 // ManagedExecution 定义平台托管执行配置。
 type ManagedExecution struct {
-	ProviderID        string
-	ProviderName      string
-	ModelIdentifier   string
-	ModelName         string
+	Model             aimodel.Option
 	SystemInstruction string
 	KnowledgeBaseIDs  []string
 }
@@ -85,37 +81,18 @@ type LocalAgentExecutionSummary struct {
 
 // ManagedExecutionSummary 定义平台托管执行配置摘要。
 type ManagedExecutionSummary struct {
-	ProviderID      string
-	ProviderName    string
-	ModelIdentifier string
-	ModelName       string
-}
-
-// ModelOption 定义 AI 员工可用的对话模型。
-type ModelOption struct {
-	ProviderID      string `bun:"provider_id"`
-	ProviderName    string `bun:"provider_name"`
-	ModelIdentifier string `bun:"model_identifier"`
-	ModelName       string `bun:"model_name"`
+	Model aimodel.Option
 }
 
 type managedRevisionConfigurationV1 struct {
-	MCPServerIDs      []string               `json:"mcpServerIds"`
-	Model             managedRevisionModelV1 `json:"model"`
-	SystemInstruction string                 `json:"systemInstruction"`
-	KnowledgeBaseIDs  []string               `json:"knowledgeBaseIds"`
+	MCPServerIDs      []string `json:"mcpServerIds"`
+	SystemInstruction string   `json:"systemInstruction"`
+	KnowledgeBaseIDs  []string `json:"knowledgeBaseIds"`
 }
 
 type localAgentRevisionConfigurationV1 struct {
 	Kind              domain.LocalAgentKind `json:"kind"`
 	SystemInstruction string                `json:"systemInstruction"`
-}
-
-type managedRevisionModelV1 struct {
-	ProviderID   string `json:"providerId"`
-	ProviderName string `json:"providerName"`
-	Identifier   string `json:"identifier"`
-	Name         string `json:"name"`
 }
 
 // normalizeExecutionInput 规范化并校验执行配置，allowLocalAgent 为 false 时只接受平台托管执行。
@@ -146,9 +123,8 @@ func normalizeExecutionInput(input ExecutionInput, allowLocalAgent bool) (Execut
 
 // normalizeManagedExecutionInput 规范化并校验平台托管执行配置。
 func normalizeManagedExecutionInput(input ManagedExecutionInput) (ManagedExecutionInput, error) {
-	var providerIDValid bool
-	input.ProviderID, providerIDValid = common.NormalizeUUID(input.ProviderID)
-	input.ModelIdentifier = strings.TrimSpace(input.ModelIdentifier)
+	var modelIDValid bool
+	input.ModelID, modelIDValid = common.NormalizeUUID(input.ModelID)
 	input.SystemInstruction = strings.TrimSpace(input.SystemInstruction)
 	fields := make(map[string]common.FieldCode)
 	// 规范化知识库编号并按集合保存。
@@ -162,11 +138,8 @@ func normalizeManagedExecutionInput(input ManagedExecutionInput) (ManagedExecuti
 	}
 	slices.Sort(knowledgeBaseIDs)
 	input.KnowledgeBaseIDs = slices.Compact(knowledgeBaseIDs)
-	if !providerIDValid {
-		fields["providerId"] = ValidationModelInvalid
-	}
-	if input.ModelIdentifier == "" {
-		fields["modelIdentifier"] = ValidationModelInvalid
+	if !modelIDValid {
+		fields["modelId"] = ValidationModelInvalid
 	}
 	if utf8.RuneCountInString(input.SystemInstruction) > maxSystemInstructionLength {
 		fields["systemInstruction"] = ValidationSystemInstructionTooLong
@@ -177,29 +150,16 @@ func normalizeManagedExecutionInput(input ManagedExecutionInput) (ManagedExecuti
 	return input, nil
 }
 
-// loadManagedExecutionModel 校验平台托管执行配置使用的文本对话模型。
-func loadManagedExecutionModel(ctx context.Context, db bun.IDB, organizationID string, input ManagedExecutionInput) (ModelOption, error) {
-	model := ModelOption{}
-	if err := managedExecutionModelQuery(db, organizationID, input.ProviderID, input.ModelIdentifier).
-		For("KEY SHARE OF aip, aipm").
-		Scan(ctx, &model); errors.Is(err, sql.ErrNoRows) {
-		return ModelOption{}, &common.FieldError{Fields: map[string]common.FieldCode{"modelIdentifier": ValidationModelInvalid}}
-	} else if err != nil {
-		return ModelOption{}, err
+// lockManagedExecutionModel 校验并锁定平台托管执行配置使用的 AI 员工对话模型。
+func lockManagedExecutionModel(ctx context.Context, tx bun.Tx, organizationID string, input ManagedExecutionInput) (aimodel.Option, error) {
+	model, err := aimodel.Lock(ctx, tx, organizationID, input.ModelID, domain.AIModelUsageAgent)
+	if errors.Is(err, aimodel.ErrUnavailable) {
+		return aimodel.Option{}, &common.FieldError{Fields: map[string]common.FieldCode{"modelId": ValidationModelInvalid}}
 	}
-	return model, nil
-}
-
-// managedExecutionModelQuery 构造平台托管执行配置的模型目录查询。
-func managedExecutionModelQuery(db bun.IDB, organizationID, providerID, modelIdentifier string) *bun.SelectQuery {
-	return db.NewSelect().TableExpr("ai_provider_models AS aipm").
-		ColumnExpr("aip.id::text AS provider_id, aip.name AS provider_name, aipm.identifier AS model_identifier, aipm.name AS model_name").
-		Join("JOIN ai_providers AS aip ON aip.id = aipm.provider_id AND aip.organization_id = aipm.organization_id").
-		Where("aipm.organization_id = ?", organizationID).
-		Where("aipm.provider_id = ?", providerID).
-		Where("aipm.identifier = ?", modelIdentifier).
-		Where("aipm.model_type = ?", domain.AIModelTypeChat).
-		Where("aipm.input_modalities @> ?::jsonb", `["text"]`)
+	if err != nil {
+		return aimodel.Option{}, err
+	}
+	return model.Option(), nil
 }
 
 // lockExecutionKnowledgeBases 校验并锁定托管执行绑定的同企业知识库直至事务结束，须在锁定 AI 员工之前调用。
@@ -221,7 +181,7 @@ func lockExecutionKnowledgeBases(ctx context.Context, db bun.IDB, organizationID
 }
 
 // insertExecutionRevision 创建执行配置版本，model 只用于平台托管执行，绑定的知识库须已由 lockExecutionKnowledgeBases 锁定。
-func insertExecutionRevision(ctx context.Context, db bun.IDB, identity *servermodels.Identity, agentID, revisionID string, input ExecutionInput, model ModelOption, mcpServerIDs []string) (Execution, error) {
+func insertExecutionRevision(ctx context.Context, db bun.IDB, identity *servermodels.Identity, agentID, revisionID string, input ExecutionInput, model aimodel.Option, mcpServerIDs []string) (Execution, error) {
 	if input.Mode == domain.AgentExecutionModeLocalAgent {
 		configuration, err := json.Marshal(localAgentRevisionConfigurationV1{
 			Kind: input.LocalAgent.Kind, SystemInstruction: input.LocalAgent.SystemInstruction,
@@ -229,7 +189,7 @@ func insertExecutionRevision(ctx context.Context, db bun.IDB, identity *servermo
 		if err != nil {
 			return Execution{}, err
 		}
-		if err := insertRevision(ctx, db, identity, agentID, revisionID, input.Mode, configuration); err != nil {
+		if err := insertRevision(ctx, db, identity, agentID, revisionID, input.Mode, "", configuration); err != nil {
 			return Execution{}, err
 		}
 		return Execution{
@@ -238,45 +198,40 @@ func insertExecutionRevision(ctx context.Context, db bun.IDB, identity *servermo
 		}, nil
 	}
 	configuration, err := json.Marshal(managedRevisionConfigurationV1{
-		MCPServerIDs: mcpServerIDs,
-		Model: managedRevisionModelV1{
-			ProviderID: model.ProviderID, ProviderName: model.ProviderName,
-			Identifier: model.ModelIdentifier, Name: model.ModelName,
-		},
+		MCPServerIDs:      mcpServerIDs,
 		SystemInstruction: input.Managed.SystemInstruction,
 		KnowledgeBaseIDs:  input.Managed.KnowledgeBaseIDs,
 	})
 	if err != nil {
 		return Execution{}, err
 	}
-	if err := insertRevision(ctx, db, identity, agentID, revisionID, input.Mode, configuration); err != nil {
+	if err := insertRevision(ctx, db, identity, agentID, revisionID, input.Mode, model.ID, configuration); err != nil {
 		return Execution{}, err
 	}
 	return Execution{
 		RevisionID: revisionID, Mode: input.Mode, MCPServerIDs: mcpServerIDs,
 		Managed: &ManagedExecution{
-			ProviderID: model.ProviderID, ProviderName: model.ProviderName,
-			ModelIdentifier: model.ModelIdentifier, ModelName: model.ModelName,
+			Model:             model,
 			SystemInstruction: input.Managed.SystemInstruction,
 			KnowledgeBaseIDs:  input.Managed.KnowledgeBaseIDs,
 		},
 	}, nil
 }
 
-// insertRevision 写入一条不可变执行配置版本。
-func insertRevision(ctx context.Context, db bun.IDB, identity *servermodels.Identity, agentID, revisionID string, mode domain.AgentExecutionMode, configuration json.RawMessage) error {
+// insertRevision 写入一条不可变执行配置版本，modelID 只用于平台托管执行。
+func insertRevision(ctx context.Context, db bun.IDB, identity *servermodels.Identity, agentID, revisionID string, mode domain.AgentExecutionMode, modelID string, configuration json.RawMessage) error {
 	revision := &servermodels.AgentRevision{
 		ID: revisionID, OrganizationID: identity.Organization.ID, AgentID: agentID,
-		ExecutionMode: string(mode), SchemaVersion: executionSchemaVersion,
+		ExecutionMode: string(mode), ModelID: modelID, SchemaVersion: executionSchemaVersion,
 		Configuration: configuration, CreatedByUserID: identity.User.ID,
 	}
 	_, err := db.NewInsert().Model(revision).
-		Column("id", "organization_id", "agent_id", "execution_mode", "schema_version", "configuration", "created_by_user_id").
+		Column("id", "organization_id", "agent_id", "execution_mode", "model_id", "schema_version", "configuration", "created_by_user_id").
 		Exec(ctx)
 	return err
 }
 
-// decodeRevisionExecution 解码不可变执行配置版本。
+// decodeRevisionExecution 解码不可变执行配置版本，托管执行的模型只填写编号。
 func decodeRevisionExecution(revision servermodels.AgentRevision) (Execution, error) {
 	mode := domain.AgentExecutionMode(revision.ExecutionMode)
 	if revision.SchemaVersion != executionSchemaVersion {
@@ -305,18 +260,13 @@ func decodeRevisionExecution(revision servermodels.AgentRevision) (Execution, er
 	if err := decoder.Decode(&configuration); err != nil {
 		return Execution{}, fmt.Errorf("decode managed execution configuration: %w", err)
 	}
-	if !common.ValidUUID(configuration.Model.ProviderID) ||
-		strings.TrimSpace(configuration.Model.ProviderName) == "" ||
-		strings.TrimSpace(configuration.Model.Identifier) == "" ||
-		strings.TrimSpace(configuration.Model.Name) == "" ||
-		utf8.RuneCountInString(configuration.SystemInstruction) > maxSystemInstructionLength {
+	if !common.ValidUUID(revision.ModelID) || utf8.RuneCountInString(configuration.SystemInstruction) > maxSystemInstructionLength {
 		return Execution{}, errors.New("managed execution configuration is invalid")
 	}
 	return Execution{
 		RevisionID: revision.ID, Mode: mode, MCPServerIDs: configuration.MCPServerIDs,
 		Managed: &ManagedExecution{
-			ProviderID: configuration.Model.ProviderID, ProviderName: configuration.Model.ProviderName,
-			ModelIdentifier: configuration.Model.Identifier, ModelName: configuration.Model.Name,
+			Model:             aimodel.Option{ID: revision.ModelID},
 			SystemInstruction: configuration.SystemInstruction,
 			KnowledgeBaseIDs:  configuration.KnowledgeBaseIDs,
 		},
@@ -337,15 +287,16 @@ func loadAgentExecution(ctx context.Context, db bun.IDB, organizationID, agentID
 	if err != nil || execution.Managed == nil {
 		return execution, err
 	}
-	// 读取已保存平台托管配置当前对应的模型目录项。
-	model := ModelOption{}
-	if err := managedExecutionModelQuery(db, organizationID, execution.Managed.ProviderID, execution.Managed.ModelIdentifier).Scan(ctx, &model); errors.Is(err, sql.ErrNoRows) {
-		return Execution{}, fmt.Errorf("managed execution model %q/%q is unavailable", execution.Managed.ProviderID, execution.Managed.ModelIdentifier)
-	} else if err != nil {
+	// 读取已保存平台托管配置当前对应的模型。
+	models, err := aimodel.LoadOptions(ctx, db, organizationID, []string{execution.Managed.Model.ID}, domain.AIModelUsageAgent)
+	if err != nil {
 		return Execution{}, err
 	}
-	execution.Managed.ProviderName = model.ProviderName
-	execution.Managed.ModelName = model.ModelName
+	model, exists := models[execution.Managed.Model.ID]
+	if !exists {
+		return Execution{}, fmt.Errorf("managed execution model %q is unavailable", execution.Managed.Model.ID)
+	}
+	execution.Managed.Model = model
 	return execution, nil
 }
 
@@ -355,6 +306,7 @@ func loadAgentExecutionSummaries(ctx context.Context, db bun.IDB, organizationID
 		AgentID       string          `bun:"agent_id"`
 		RevisionID    string          `bun:"revision_id"`
 		ExecutionMode string          `bun:"execution_mode"`
+		ModelID       string          `bun:"model_id"`
 		SchemaVersion int             `bun:"schema_version"`
 		Configuration json.RawMessage `bun:"configuration"`
 	}
@@ -363,7 +315,7 @@ func loadAgentExecutionSummaries(ctx context.Context, db bun.IDB, organizationID
 	}
 	records := make([]row, 0, len(agentIDs))
 	if err := db.NewSelect().TableExpr("agents AS a").
-		ColumnExpr("a.id::text AS agent_id, ar.id::text AS revision_id, ar.execution_mode, ar.schema_version, ar.configuration").
+		ColumnExpr("a.id::text AS agent_id, ar.id::text AS revision_id, ar.execution_mode, COALESCE(ar.model_id::text, '') AS model_id, ar.schema_version, ar.configuration").
 		Join("JOIN agent_revisions AS ar ON ar.id = a.active_revision_id AND ar.organization_id = a.organization_id AND ar.agent_id = a.id").
 		Where("a.organization_id = ?", organizationID).
 		Where("a.id IN (?)", bun.In(agentIDs)).
@@ -374,10 +326,10 @@ func loadAgentExecutionSummaries(ctx context.Context, db bun.IDB, organizationID
 		return nil, fmt.Errorf("agent execution revision count %d does not match agent count %d", len(records), len(agentIDs))
 	}
 	executions := make(map[string]Execution, len(records))
-	providerIDs := make(map[string]struct{})
+	modelIDs := make([]string, 0, len(records))
 	for _, record := range records {
 		execution, err := decodeRevisionExecution(servermodels.AgentRevision{
-			ID: record.RevisionID, ExecutionMode: record.ExecutionMode,
+			ID: record.RevisionID, ExecutionMode: record.ExecutionMode, ModelID: record.ModelID,
 			SchemaVersion: record.SchemaVersion, Configuration: record.Configuration,
 		})
 		if err != nil {
@@ -385,29 +337,12 @@ func loadAgentExecutionSummaries(ctx context.Context, db bun.IDB, organizationID
 		}
 		executions[record.AgentID] = execution
 		if execution.Managed != nil {
-			providerIDs[execution.Managed.ProviderID] = struct{}{}
+			modelIDs = append(modelIDs, execution.Managed.Model.ID)
 		}
 	}
-	providerIDList := make([]string, 0, len(providerIDs))
-	for providerID := range providerIDs {
-		providerIDList = append(providerIDList, providerID)
-	}
-	models := make([]ModelOption, 0)
-	if len(providerIDList) > 0 {
-		if err := db.NewSelect().TableExpr("ai_provider_models AS aipm").
-			ColumnExpr("aip.id::text AS provider_id, aip.name AS provider_name, aipm.identifier AS model_identifier, aipm.name AS model_name").
-			Join("JOIN ai_providers AS aip ON aip.id = aipm.provider_id AND aip.organization_id = aipm.organization_id").
-			Where("aipm.organization_id = ?", organizationID).
-			Where("aipm.provider_id IN (?)", bun.In(providerIDList)).
-			Where("aipm.model_type = ?", domain.AIModelTypeChat).
-			Where("aipm.input_modalities @> ?::jsonb", `["text"]`).
-			Scan(ctx, &models); err != nil {
-			return nil, err
-		}
-	}
-	modelByKey := make(map[string]ModelOption, len(models))
-	for _, model := range models {
-		modelByKey[executionModelKey(model.ProviderID, model.ModelIdentifier)] = model
+	models, err := aimodel.LoadOptions(ctx, db, organizationID, modelIDs, domain.AIModelUsageAgent)
+	if err != nil {
+		return nil, err
 	}
 	summaries := make(map[string]ExecutionSummary, len(executions))
 	for agentID, execution := range executions {
@@ -418,22 +353,14 @@ func loadAgentExecutionSummaries(ctx context.Context, db bun.IDB, organizationID
 			}
 			continue
 		}
-		model, exists := modelByKey[executionModelKey(execution.Managed.ProviderID, execution.Managed.ModelIdentifier)]
+		model, exists := models[execution.Managed.Model.ID]
 		if !exists {
 			return nil, fmt.Errorf("agent %q managed execution model is unavailable", agentID)
 		}
 		summaries[agentID] = ExecutionSummary{
 			RevisionID: execution.RevisionID, Mode: execution.Mode,
-			Managed: &ManagedExecutionSummary{
-				ProviderID: model.ProviderID, ProviderName: model.ProviderName,
-				ModelIdentifier: model.ModelIdentifier, ModelName: model.ModelName,
-			},
+			Managed: &ManagedExecutionSummary{Model: model},
 		}
 	}
 	return summaries, nil
-}
-
-// executionModelKey 返回模型服务和模型标识的组合键。
-func executionModelKey(providerID, modelIdentifier string) string {
-	return providerID + "\x00" + modelIdentifier
 }

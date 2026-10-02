@@ -120,11 +120,11 @@ function AgentCreateForms({
   const { t } = useTranslation("agents")
   const [personal, setPersonal] = useState(false)
   const [serviceAudiences, setServiceAudiences] = useState<ServiceAudience[]>([])
-  const [draft, setDraft] = useState<AgentCreateDraft>({ displayName: "", modelSelection: "", systemInstruction: "", knowledgeBaseIds: [] })
+  const [draft, setDraft] = useState<AgentCreateDraft>({ displayName: "", modelId: "", systemInstruction: "", knowledgeBaseIds: [] })
   // 头像上传与已带入的草稿跨表单保留，切换后仍按未保存内容拦截离开。
   const avatar = useAgentAvatarUpload()
   const draftDirty =
-    draft.displayName !== "" || draft.modelSelection !== "" || draft.systemInstruction !== "" || draft.knowledgeBaseIds.length > 0
+    draft.displayName !== "" || draft.modelId !== "" || draft.systemInstruction !== "" || draft.knowledgeBaseIds.length > 0
   const local = useResource(resourceKeys.currentDevice(), () => currentDevice())
   const devices = useResource(resourceKeys.devices(), () => listDevices(), { enabled: personal })
   const localDeviceID = local.data?.deviceId ?? ""

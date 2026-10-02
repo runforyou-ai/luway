@@ -8,14 +8,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"slices"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/internal/storage/server/pgerr"
 	"github.com/uptrace/bun"
 )
+
+// EmbeddingReindexer 在业务事务中重新索引引用指定向量模型的知识库。
+type EmbeddingReindexer interface {
+	// ReindexEmbeddingModels 清空引用这些向量模型的知识库分段并按当前配置重新投递索引。
+	ReindexEmbeddingModels(ctx context.Context, tx bun.Tx, organizationID string, modelIDs []string) error
+}
 
 // loadProvider 读取当前企业中的模型服务供应商。
 func loadProvider(ctx context.Context, db bun.IDB, organizationID, providerID string, lock bool) (*servermodels.AIProvider, error) {
@@ -38,14 +44,13 @@ func loadProvider(ctx context.Context, db bun.IDB, organizationID, providerID st
 	return provider, nil
 }
 
-// loadModels 读取供应商的模型目录。
-func loadModels(ctx context.Context, db bun.IDB, organizationID, providerID string) ([]Model, error) {
-	records := make([]servermodels.AIProviderModel, 0)
+// loadModels 按添加顺序读取供应商的模型目录。
+func loadModels(ctx context.Context, db bun.IDB, providerID string) ([]Model, error) {
+	records := make([]servermodels.AIModel, 0)
 	if err := db.NewSelect().
 		Model(&records).
-		Where("aipm.organization_id = ?", organizationID).
-		Where("aipm.provider_id = ?", providerID).
-		Order("aipm.created_at ASC").
+		Where("aim.provider_id = ?", providerID).
+		Order("aim.id ASC").
 		Scan(ctx); err != nil {
 		return nil, err
 	}
@@ -53,131 +58,147 @@ func loadModels(ctx context.Context, db bun.IDB, organizationID, providerID stri
 	for _, record := range records {
 		inputModalities := make([]domain.AIModelInputModality, 0)
 		if err := json.Unmarshal(record.InputModalities, &inputModalities); err != nil {
-			return nil, fmt.Errorf("decode model %q input modalities: %w", record.Identifier, err)
+			return nil, fmt.Errorf("decode model %q input modalities: %w", record.ID, err)
 		}
 		models = append(models, Model{
-			Identifier: record.Identifier, Name: record.Name, Type: domain.AIModelType(record.Type),
+			ID: record.ID, Identifier: record.Identifier, Name: record.Name, Type: domain.AIModelType(record.Type),
 			InputModalities: inputModalities, ContextWindow: record.ContextWindow, MaxOutputTokens: record.MaxOutputTokens,
 		})
 	}
 	return models, nil
 }
 
-// replaceModels 替换供应商的全部已启用模型。
-func replaceModels(ctx context.Context, tx bun.Tx, organizationID, providerID string, models []Model) error {
-	if _, err := tx.NewDelete().
-		Model((*servermodels.AIProviderModel)(nil)).
-		Where("organization_id = ?", organizationID).
-		Where("provider_id = ?", providerID).
-		Exec(ctx); err != nil {
-		return err
+// modelChanges 定义一次模型目录保存的增删改。
+type modelChanges struct {
+	inserted []Model
+	updated  []Model
+	deleted  []string
+	// renamedEmbeddings 是上游模型标识发生变化的向量模型编号。
+	renamedEmbeddings []string
+}
+
+// diffModels 按模型编号比较已保存目录与新目录；新目录引用不存在的编号时返回校验错误。
+func diffModels(stored, models []Model) (modelChanges, error) {
+	storedByID := make(map[string]Model, len(stored))
+	for _, model := range stored {
+		storedByID[model.ID] = model
 	}
-	records := make([]servermodels.AIProviderModel, 0, len(models))
+	changes := modelChanges{}
+	kept := make(map[string]struct{}, len(models))
 	for _, model := range models {
-		inputModalities, err := json.Marshal(model.InputModalities)
-		if err != nil {
-			return err
+		if model.ID == "" {
+			changes.inserted = append(changes.inserted, model)
+			continue
 		}
-		records = append(records, servermodels.AIProviderModel{
-			ProviderID: providerID, OrganizationID: organizationID, Identifier: model.Identifier,
-			Name: model.Name, Type: string(model.Type), ContextWindow: model.ContextWindow, MaxOutputTokens: model.MaxOutputTokens,
-			InputModalities: inputModalities,
-		})
+		previous, exists := storedByID[model.ID]
+		if !exists {
+			return modelChanges{}, &ValidationError{Fields: map[string]ValidationCode{"models": ValidationModelsInvalid}}
+		}
+		kept[model.ID] = struct{}{}
+		changes.updated = append(changes.updated, model)
+		if previous.Type == domain.AIModelTypeEmbedding && model.Type == domain.AIModelTypeEmbedding && previous.Identifier != model.Identifier {
+			changes.renamedEmbeddings = append(changes.renamedEmbeddings, model.ID)
+		}
 	}
-	_, err := tx.NewInsert().
-		Model(&records).
-		Column(
-			"provider_id", "organization_id", "identifier", "name", "model_type", "input_modalities",
-			"context_window", "max_output_tokens",
-		).
-		Exec(ctx)
-	return err
+	for _, model := range stored {
+		if _, exists := kept[model.ID]; !exists {
+			changes.deleted = append(changes.deleted, model.ID)
+		}
+	}
+	return changes, nil
 }
 
-// modelReference 表示业务配置对供应商模型的一处引用，字段为模型标识和该用途要求的模型类型与文本输入。
-type modelReference struct {
-	Identifier   string
-	Type         domain.AIModelType
-	RequiresText bool
+// storedReferences 读取业务配置对供应商已保存模型的全部引用。
+func storedReferences(ctx context.Context, db bun.IDB, organizationID string, stored []Model) ([]aimodel.Reference, error) {
+	ids := make([]string, 0, len(stored))
+	for _, model := range stored {
+		ids = append(ids, model.ID)
+	}
+	return aimodel.References(ctx, db, organizationID, ids)
 }
 
-// providerReferences 读取 AI 员工当前版本、知识库和客服设置对指定供应商模型的全部引用。
-func providerReferences(ctx context.Context, db bun.IDB, organizationID, providerID string) ([]modelReference, error) {
-	references := make([]modelReference, 0)
-	// AI 员工当前版本引用的对话模型须支持文本输入。
-	agentIdentifiers := make([]string, 0)
-	if err := db.NewSelect().TableExpr("agents AS a").
-		ColumnExpr("DISTINCT ar.configuration #>> '{model,identifier}'").
-		Join("JOIN agent_revisions AS ar ON ar.id = a.active_revision_id AND ar.organization_id = a.organization_id AND ar.agent_id = a.id").
-		Where("a.organization_id = ?", organizationID).
-		Where("ar.execution_mode = ?", domain.AgentExecutionModeManaged).
-		Where("ar.configuration #>> '{model,providerId}' = ?", providerID).
-		Scan(ctx, &agentIdentifiers); err != nil {
-		return nil, err
-	}
-	for _, identifier := range agentIdentifiers {
-		references = append(references, modelReference{Identifier: identifier, Type: domain.AIModelTypeChat, RequiresText: true})
-	}
-	// 知识库引用向量模型和重排模型。
-	bases := make([]servermodels.KnowledgeBase, 0)
-	if err := db.NewSelect().Model(&bases).Where("organization_id = ?", organizationID).
-		Where("embedding_provider_id = ? OR rerank_provider_id = ?", providerID, providerID).Scan(ctx); err != nil {
-		return nil, err
-	}
-	for _, base := range bases {
-		if base.EmbeddingProviderID == providerID {
-			references = append(references, modelReference{Identifier: base.EmbeddingModelIdentifier, Type: domain.AIModelTypeEmbedding})
-		}
-		if base.RerankProviderID == providerID {
-			references = append(references, modelReference{Identifier: base.RerankModelIdentifier, Type: domain.AIModelTypeRerank})
-		}
-	}
-	// 客服设置引用判断模型，以及须支持文本输入的小结模型和翻译模型。
-	setting := &servermodels.CustomerServiceSetting{}
-	err := db.NewSelect().Model(setting).
-		Column("decision_provider_id", "decision_model_identifier", "summary_provider_id", "summary_model_identifier",
-			"translation_provider_id", "translation_model_identifier").
-		Where("organization_id = ?", organizationID).
-		Where("decision_provider_id = ? OR summary_provider_id = ? OR translation_provider_id = ?", providerID, providerID, providerID).
-		Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		return references, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	for _, reference := range []struct {
-		providerID, identifier *string
-		modelType              domain.AIModelType
-	}{
-		{setting.DecisionProviderID, setting.DecisionModelIdentifier, domain.AIModelTypeDecision},
-		{setting.SummaryProviderID, setting.SummaryModelIdentifier, domain.AIModelTypeChat},
-		{setting.TranslationProviderID, setting.TranslationModelIdentifier, domain.AIModelTypeChat},
-	} {
-		if reference.providerID != nil && *reference.providerID == providerID && reference.identifier != nil {
-			references = append(references, modelReference{Identifier: *reference.identifier, Type: reference.modelType, RequiresText: reference.modelType == domain.AIModelTypeChat})
-		}
-	}
-	return references, nil
-}
-
-// validateReferencedModels 校验新目录按原有用途保留供应商被引用的全部模型。
-func validateReferencedModels(ctx context.Context, db bun.IDB, organizationID, providerID string, models []Model) error {
-	references, err := providerReferences(ctx, db, organizationID, providerID)
+// validateReferencedModels 校验业务配置引用的模型仍保留在新目录中且满足引用用途。
+func validateReferencedModels(ctx context.Context, db bun.IDB, organizationID string, stored, models []Model) error {
+	references, err := storedReferences(ctx, db, organizationID, stored)
 	if err != nil {
 		return err
+	}
+	modelByID := make(map[string]Model, len(models))
+	for _, model := range models {
+		modelByID[model.ID] = model
 	}
 	for _, reference := range references {
-		found := false
-		for _, model := range models {
-			textInput := !reference.RequiresText || slices.Contains(model.InputModalities, domain.AIModelInputModalityText)
-			found = found || (model.Identifier == reference.Identifier && model.Type == reference.Type && textInput)
-		}
-		if !found {
+		model, exists := modelByID[reference.ModelID]
+		if !exists || !aimodel.Satisfies(reference.Usage, model.Type, model.InputModalities) {
 			return &ValidationError{Fields: map[string]ValidationCode{"models": ValidationModelsInUse}}
 		}
 	}
 	return nil
+}
+
+// saveModels 按增删改保存供应商模型目录，返回带编号的完整目录。
+func saveModels(ctx context.Context, tx bun.Tx, providerID string, models []Model, changes modelChanges) ([]Model, error) {
+	if len(changes.deleted) > 0 {
+		if _, err := tx.NewDelete().Model((*servermodels.AIModel)(nil)).
+			Where("provider_id = ?", providerID).
+			Where("id IN (?)", bun.In(changes.deleted)).
+			Exec(ctx); err != nil {
+			return nil, err
+		}
+	}
+	for _, model := range changes.updated {
+		record, err := modelRecord(providerID, model)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := tx.NewUpdate().Model(&record).
+			Column("identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
+			Set("updated_at = now()").
+			Where("provider_id = ?", providerID).
+			WherePK().
+			Exec(ctx); err != nil {
+			return nil, err
+		}
+	}
+	inserted := make([]servermodels.AIModel, 0, len(changes.inserted))
+	for _, model := range changes.inserted {
+		record, err := modelRecord(providerID, model)
+		if err != nil {
+			return nil, err
+		}
+		inserted = append(inserted, record)
+	}
+	if len(inserted) > 0 {
+		if _, err := tx.NewInsert().Model(&inserted).
+			Column("provider_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
+			Returning("id").
+			Exec(ctx); err != nil {
+			return nil, err
+		}
+	}
+	// 按请求顺序为新增模型补齐编号。
+	saved := make([]Model, len(models))
+	next := 0
+	for index, model := range models {
+		if model.ID == "" {
+			model.ID = inserted[next].ID
+			next++
+		}
+		saved[index] = model
+	}
+	return saved, nil
+}
+
+// modelRecord 把模型目录项转换为存储模型。
+func modelRecord(providerID string, model Model) (servermodels.AIModel, error) {
+	inputModalities, err := json.Marshal(model.InputModalities)
+	if err != nil {
+		return servermodels.AIModel{}, err
+	}
+	return servermodels.AIModel{
+		ID: model.ID, ProviderID: providerID, Identifier: model.Identifier, Name: model.Name, Type: string(model.Type),
+		InputModalities: inputModalities, ContextWindow: model.ContextWindow, MaxOutputTokens: model.MaxOutputTokens,
+	}, nil
 }
 
 // recordFromModel 转换模型服务供应商存储模型。
@@ -189,7 +210,14 @@ func recordFromModel(provider servermodels.AIProvider, models []Model) Record {
 	}
 }
 
-// isNameConflict 判断企业内供应商名称是否重复。
-func isNameConflict(err error) bool {
-	return pgerr.UniqueViolationOn(err, "ai_providers_organization_name_unique")
+// conflictError 把供应商名称或模型标识的唯一约束冲突转换为字段校验错误，其他错误返回 nil。
+func conflictError(err error) error {
+	switch {
+	case pgerr.UniqueViolationOn(err, "ai_providers_organization_name_unique"):
+		return &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+	case pgerr.UniqueViolationOn(err, "ai_models_provider_identifier_unique"):
+		return &ValidationError{Fields: map[string]ValidationCode{"models": ValidationModelsInvalid}}
+	default:
+		return nil
+	}
 }

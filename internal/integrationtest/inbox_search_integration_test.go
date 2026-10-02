@@ -103,20 +103,15 @@ func TestInboxSearch(t *testing.T) {
 		Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	model := &servermodels.AIProviderModel{
-		ProviderID: provider.ID, OrganizationID: f.owner.Organization.ID,
-		Identifier: "chat-model", Name: "检索测试对话模型", Type: string(domain.AIModelTypeChat),
+	model := &servermodels.AIModel{
+		ProviderID: provider.ID, Identifier: "chat-model", Name: "检索测试对话模型", Type: string(domain.AIModelTypeChat),
 		InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096,
 	}
-	if _, err := f.db.NewInsert().Model(model).
-		Column("provider_id", "organization_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
-		Exec(ctx); err != nil {
-		t.Fatal(err)
-	}
+	insertAIModels(t, f.db, model)
 	agent, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "检索个人 AI 员工",
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: provider.ID, ModelIdentifier: model.Identifier, SystemInstruction: "负责检索测试。",
+			ModelID: model.ID, SystemInstruction: "负责检索测试。",
 		}},
 	})
 	if err != nil {

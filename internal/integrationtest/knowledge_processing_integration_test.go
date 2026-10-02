@@ -96,7 +96,7 @@ func TestKnowledgeProcessingRetryAndPublication(t *testing.T) {
 	if document.Status != domain.KnowledgeIndexQueued || document.ChunkLength != 512 || document.ProcessingID == "" {
 		t.Fatalf("document=%+v", document)
 	}
-	input := knowledgeaction.ProcessInput{OrganizationID: installed.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: documentID, ProcessingID: document.ProcessingID, ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap, EmbeddingProviderID: document.EmbeddingProviderID, EmbeddingModelIdentifier: document.EmbeddingModelIdentifier, EmbeddingDimension: document.EmbeddingDimension}
+	input := knowledgeaction.ProcessInput{OrganizationID: installed.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: documentID, ProcessingID: document.ProcessingID, ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap, EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension}
 	probe := &processingProbe{fail: true}
 	worker := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
 	err = worker.Execute(ctx, input)
@@ -151,9 +151,12 @@ func TestKnowledgeProcessingRetryAndPublication(t *testing.T) {
 	if err != nil || completed.Status != domain.KnowledgeIndexSucceeded || completed.SegmentCount != 1 || completed.SegmentBatchID != input.ProcessingID {
 		t.Fatalf("completed=%+v %v", completed, err)
 	}
-	// 核验向量配置快照、执行时解析的模型凭据和落库的分段维度。
-	if document.EmbeddingModelIdentifier != "embedding-a" || document.EmbeddingDimension != 1024 {
-		t.Fatalf("snapshot=%+v", document)
+	// 核验任务载荷的向量配置快照、执行时解析的模型凭据和落库的分段维度。
+	snapshots, err := db.NewSelect().Model((*servermodels.TaskRun)(nil)).
+		Where("action_name = ? AND payload->>'documentId' = ? AND payload->>'embeddingModelId' = ? AND payload->>'embeddingDimension' = '1024'", knowledgeaction.ProcessDocumentActionName, documentID, base.EmbeddingModelID).
+		Count(ctx)
+	if err != nil || snapshots == 0 {
+		t.Fatalf("snapshots=%d %v", snapshots, err)
 	}
 	if probe.credential.BaseURL != "https://models.test/v1" || probe.credential.APIKey != "test-key" {
 		t.Fatalf("credential=%+v", probe.credential)
@@ -197,7 +200,7 @@ func TestKnowledgeRetryAllStates(t *testing.T) {
 	if err := db.NewSelect().Model(&document).Where("kd.id = ?", docs[0].ID).Scan(ctx); err != nil {
 		t.Fatal(err)
 	}
-	input := knowledgeaction.ProcessInput{OrganizationID: owner.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: document.ID, ProcessingID: document.ProcessingID, ChunkLength: 512, ChunkOverlap: 50, EmbeddingProviderID: document.EmbeddingProviderID, EmbeddingModelIdentifier: document.EmbeddingModelIdentifier, EmbeddingDimension: document.EmbeddingDimension}
+	input := knowledgeaction.ProcessInput{OrganizationID: owner.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: document.ID, ProcessingID: document.ProcessingID, ChunkLength: 512, ChunkOverlap: 50, EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension}
 	probe := &processingProbe{}
 	worker := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
 	if err := worker.Execute(ctx, input); err != nil {
@@ -287,7 +290,7 @@ func TestKnowledgeProcessingMissingFile(t *testing.T) {
 	}
 	probe := &processingProbe{}
 	worker := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
-	input := knowledgeaction.ProcessInput{OrganizationID: owner.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: document.ID, ProcessingID: document.ProcessingID, ChunkLength: 512, ChunkOverlap: 50, EmbeddingProviderID: document.EmbeddingProviderID, EmbeddingModelIdentifier: document.EmbeddingModelIdentifier, EmbeddingDimension: document.EmbeddingDimension}
+	input := knowledgeaction.ProcessInput{OrganizationID: owner.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: document.ID, ProcessingID: document.ProcessingID, ChunkLength: 512, ChunkOverlap: 50, EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension}
 	err = worker.Execute(ctx, input)
 	if err == nil {
 		t.Fatalf("failure=%v", err)
@@ -343,8 +346,7 @@ func TestKnowledgeProcessingPublishesSegments(t *testing.T) {
 	input := knowledgeaction.ProcessInput{
 		OrganizationID: owner.Identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: document.ID,
 		ProcessingID: document.ProcessingID, ChunkLength: 256, ChunkOverlap: 50,
-		EmbeddingProviderID: document.EmbeddingProviderID, EmbeddingModelIdentifier: document.EmbeddingModelIdentifier,
-		EmbeddingDimension: document.EmbeddingDimension,
+		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
 	}
 	action := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe)
 	if err := action.Execute(ctx, input); err != nil {

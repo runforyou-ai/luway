@@ -33,14 +33,14 @@ export function createKnowledgeBaseSchema(
   return z.object({
     name: z.string().trim().min(1, messages.nameRequired).max(knowledgeBaseNameMaxLength, messages.nameTooLong),
     description: z.string().trim().max(knowledgeBaseDescriptionMaxLength, messages.descriptionTooLong),
-    embeddingModel: z.string().min(1, messages.embeddingModelRequired),
+    embeddingModelId: z.string().min(1, messages.embeddingModelRequired),
     embeddingDimension: z.string().refine((value) => knowledgeEmbeddingDimensions.includes(Number(value)), messages.embeddingDimensionInvalid),
     chunkLength: isQA ? z.string() : integerField(messages.chunkLengthInvalid, 256, 2048),
     chunkOverlap: isQA ? z.string() : integerField(messages.chunkOverlapInvalid, 0, 200),
     retrievalCount: integerField(messages.retrievalCountInvalid, 1, 20),
     // 相关性阈值取 0 至 1 之间的数值。
     retrievalScoreThreshold: z.string().refine((value) => value.trim() !== "" && Number(value) >= 0 && Number(value) <= 1, messages.retrievalScoreThresholdInvalid),
-    rerankModel: z.string().min(1, messages.rerankModelRequired),
+    rerankModelId: z.string().min(1, messages.rerankModelRequired),
   })
 }
 

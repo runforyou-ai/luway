@@ -59,11 +59,9 @@ func newInboxPaginationFixture(t *testing.T) inboxPaginationFixture {
 	if _, err := f.db.NewInsert().Model(provider).Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	model := &servermodels.AIProviderModel{ProviderID: provider.ID, OrganizationID: f.owner.Organization.ID, Identifier: "test-model", Name: "分页模型", Type: "chat", InputModalities: json.RawMessage(`["text"]`), ContextWindow: 1000, MaxOutputTokens: 100}
-	if _, err := f.db.NewInsert().Model(model).Column("provider_id", "organization_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").Exec(ctx); err != nil {
-		t.Fatal(err)
-	}
-	agent, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "分页助手", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: provider.ID, ModelIdentifier: model.Identifier, SystemInstruction: "测试分页"}}})
+	model := &servermodels.AIModel{ProviderID: provider.ID, Identifier: "test-model", Name: "分页模型", Type: "chat", InputModalities: json.RawMessage(`["text"]`), ContextWindow: 1000, MaxOutputTokens: 100}
+	insertAIModels(t, f.db, model)
+	agent, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "分页助手", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: model.ID, SystemInstruction: "测试分页"}}})
 	if err != nil {
 		t.Fatal(err)
 	}

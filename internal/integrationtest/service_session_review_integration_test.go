@@ -49,8 +49,8 @@ func TestServiceSessionReviews(t *testing.T) {
 	summaryProviderID := seedSummaryModels(t, db, identity)
 	settings := customerservice.NewUpdateServiceSummarySettingsAction(db)
 	if _, err := settings.Execute(ctx, identity, domain.ServiceSummarySettings{
-		Decision: &domain.AIModelReference{ProviderID: summaryProviderID, ModelIdentifier: "decision-model"},
-		Locale:   domain.LocaleChineseSimplified,
+		DecisionModelID: new(aiModelID(t, db, summaryProviderID, "decision-model")),
+		Locale:          domain.LocaleChineseSimplified,
 	}); err != nil {
 		t.Fatal(err)
 	}

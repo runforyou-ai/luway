@@ -65,7 +65,7 @@ func TestAgentAttachmentInputs(t *testing.T) {
 	agent, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "附件助手",
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: provider.ID, ModelIdentifier: "vision", SystemInstruction: "阅读附件并回答",
+			ModelID: aiModelID(t, f.db, provider.ID, "vision"), SystemInstruction: "阅读附件并回答",
 		}},
 	})
 	if err != nil {

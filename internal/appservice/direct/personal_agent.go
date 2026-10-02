@@ -114,8 +114,7 @@ func (o *directOperations) GetPersonalAgent(ctx context.Context, meta appservice
 	output := appservice.AgentExecution{MCPServerIDs: execution.MCPServerIDs, RevisionID: execution.RevisionID, Mode: appservice.AgentExecutionMode(execution.Mode)}
 	if execution.Managed != nil {
 		output.Managed = &appservice.AgentManagedExecution{
-			ProviderID: execution.Managed.ProviderID, ProviderName: execution.Managed.ProviderName,
-			ModelIdentifier: execution.Managed.ModelIdentifier, ModelName: execution.Managed.ModelName,
+			Model:             aiModelOptionFromAction(execution.Managed.Model),
 			SystemInstruction: execution.Managed.SystemInstruction, KnowledgeBaseIDs: execution.Managed.KnowledgeBaseIDs,
 		}
 	}
@@ -281,7 +280,7 @@ func personalAgentExecutionInput(input appservice.AgentExecutionInput) agentacti
 	output := agentaction.ExecutionInput{Mode: domain.AgentExecutionMode(input.Mode)}
 	if input.Managed != nil {
 		output.Managed = &agentaction.ManagedExecutionInput{
-			ProviderID: input.Managed.ProviderID, ModelIdentifier: input.Managed.ModelIdentifier,
+			ModelID:           input.Managed.ModelID,
 			SystemInstruction: input.Managed.SystemInstruction, KnowledgeBaseIDs: input.Managed.KnowledgeBaseIDs,
 		}
 	}
@@ -298,8 +297,7 @@ func personalAgentFromAction(record agentaction.PersonalAgent, avatarURL string,
 	execution := appservice.AgentExecutionSummary{RevisionID: record.Execution.RevisionID, Mode: appservice.AgentExecutionMode(record.Execution.Mode)}
 	if record.Execution.Managed != nil {
 		execution.Managed = &appservice.AgentManagedExecutionSummary{
-			ProviderID: record.Execution.Managed.ProviderID, ProviderName: record.Execution.Managed.ProviderName,
-			ModelIdentifier: record.Execution.Managed.ModelIdentifier, ModelName: record.Execution.Managed.ModelName,
+			Model: aiModelOptionFromAction(record.Execution.Managed.Model),
 		}
 	}
 	if record.Execution.LocalAgent != nil {

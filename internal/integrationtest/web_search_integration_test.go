@@ -67,7 +67,7 @@ func TestWebSearchSettingsAndAgentTools(t *testing.T) {
 	created, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{
 		DisplayName: "资料助手 " + uuid.NewV7().String()[:8],
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: providerID, ModelIdentifier: "chat-model",
+			ModelID: aiModelID(t, f.db, providerID, "chat-model"),
 		}},
 	})
 	if err != nil {

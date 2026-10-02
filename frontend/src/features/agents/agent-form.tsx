@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/field"
 import { Textarea } from "@/components/ui/textarea"
 import { AgentModelField } from "@/components/agent-fields/agent-model-field"
-import { parseAgentModelSelection } from "@/lib/agent-model-selection"
 import {
   createAgentSchema,
   type AgentFormValues,
@@ -54,7 +53,7 @@ export type AgentAvatarUpload = ReturnType<typeof useAgentAvatarUpload>
 /** 创建页切换服务对象时在两个表单间保留的名称与托管执行配置。 */
 export type AgentCreateDraft = {
   displayName: string
-  modelSelection: string
+  modelId: string
   systemInstruction: string
   knowledgeBaseIds: string[]
 }
@@ -102,7 +101,7 @@ export function AgentForm({
       execution: {
         mode: AgentExecutionMode.AgentExecutionModeManaged,
         managed: {
-          modelSelection: draft?.modelSelection ?? "",
+          modelId: draft?.modelId ?? "",
           systemInstruction: draft?.systemInstruction ?? "",
           knowledgeBaseIds: draft?.knowledgeBaseIds ?? [],
         },
@@ -118,9 +117,6 @@ export function AgentForm({
     const avatarFileId = await avatar.ensureUploaded()
     if (avatarFileId === null) return
     try {
-      const model = parseAgentModelSelection(
-        values.execution.managed.modelSelection,
-      )
       await createAgent({
         displayName: values.displayName,
         teamIds: values.teamIds,
@@ -129,7 +125,7 @@ export function AgentForm({
         execution: {
           mode: values.execution.mode,
           managed: {
-            ...model,
+            modelId: values.execution.managed.modelId,
             systemInstruction: values.execution.managed.systemInstruction,
             knowledgeBaseIds: values.execution.managed.knowledgeBaseIds,
           },
@@ -149,8 +145,7 @@ export function AgentForm({
         requestErrorMessage(error, [
           "displayName",
           "execution",
-          "providerId",
-          "modelIdentifier",
+          "modelId",
           "systemInstruction",
           "knowledgeBaseIds",
           "teamIds",
@@ -186,7 +181,7 @@ export function AgentForm({
                     const values = form.getValues()
                     personal.onSelect({
                       displayName: values.displayName,
-                      modelSelection: values.execution.managed.modelSelection,
+                      modelId: values.execution.managed.modelId,
                       systemInstruction: values.execution.managed.systemInstruction,
                       knowledgeBaseIds: values.execution.managed.knowledgeBaseIds,
                     })
@@ -237,7 +232,7 @@ function AgentManagedExecutionFields({
     <>
       <AgentModelField
         control={control}
-        name="execution.managed.modelSelection"
+        name="execution.managed.modelId"
         disabled={disabled}
       />
       <Controller

@@ -35,22 +35,16 @@ type ServiceTimeouts struct {
 	AICloseMinutes          int `json:"aiCloseMinutes"`
 }
 
-// AIModelReference 指向模型服务中的一个模型。
-type AIModelReference struct {
-	ProviderID      string `json:"providerId"`
-	ModelIdentifier string `json:"modelIdentifier"`
-}
-
-// ServiceSummarySettings 定义周期小结使用的判断模型、小结模型与小结语言；模型为空表示不使用。
+// ServiceSummarySettings 定义周期小结使用的判断模型编号、小结模型编号与小结语言；模型为空表示不使用。
 type ServiceSummarySettings struct {
-	Decision *AIModelReference `json:"decision"`
-	Summary  *AIModelReference `json:"summary"`
-	Locale   Locale            `json:"locale"`
+	DecisionModelID *string `json:"decisionModelId"`
+	SummaryModelID  *string `json:"summaryModelId"`
+	Locale          Locale  `json:"locale"`
 }
 
-// TranslationSettings 定义企业翻译客户会话消息使用的模型，为空时不提供翻译。
+// TranslationSettings 定义企业翻译客户会话消息使用的模型编号，为空时不提供翻译。
 type TranslationSettings struct {
-	Model *AIModelReference `json:"model"`
+	ModelID *string `json:"modelId"`
 }
 
 // ServiceSummaryStatus 表示服务周期小结的生成状态。

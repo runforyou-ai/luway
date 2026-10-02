@@ -112,7 +112,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		agentEvaluationOps: newAgentEvaluationOps(db, taskEnqueuer),
 		personalAgentOps:   newPersonalAgentOps(db),
 		knowledgeOps:       newKnowledgeOps(db, taskEnqueuer, documentQuery),
-		integrationOps:     newIntegrationOps(db, connectionRunner, modelProviderRegistry, mcpTest, mcpScheduler),
+		integrationOps:     newIntegrationOps(db, taskEnqueuer, connectionRunner, modelProviderRegistry, mcpTest, mcpScheduler),
 		deviceOps:          newDeviceOps(db),
 		fileOps:            newFileOps(db, localFiles, s3, serverfilecontent.NewLinks("", s3.PublicBaseURL)),
 		translationOps:     newTranslationOps(db, translator),

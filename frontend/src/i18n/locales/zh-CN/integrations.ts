@@ -154,7 +154,7 @@ const integrations = {
       contextWindowSummary: "上下文 {{value}}",
       maxOutputTokensSummary: "最大输出 {{value}}",
       removeTitle: "移除模型“{{name}}”？",
-      removeDescription: "AI 员工或知识库正在使用的模型不能移除。",
+      removeDescription: "AI 员工、知识库或客服设置正在使用的模型不能移除。",
       types: {
         chat: "对话",
         embedding: "嵌入",

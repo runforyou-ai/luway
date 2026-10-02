@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/customerservice"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -238,10 +239,10 @@ func ensureDecisionModel(ctx context.Context, db bun.IDB, organizationID string)
 }
 
 // loadDecisionModel 读取工作区的判断模型，未设置或模型已不存在时返回 nil。
-func loadDecisionModel(ctx context.Context, db bun.IDB, organizationID string) (*customerservice.ModelCredential, error) {
+func loadDecisionModel(ctx context.Context, db bun.IDB, organizationID string) (*aimodel.Model, error) {
 	settings, err := customerservice.LoadServiceSummarySettings(ctx, db, organizationID)
 	if err != nil {
 		return nil, err
 	}
-	return customerservice.LoadModel(ctx, db, organizationID, settings.Decision, domain.AIModelTypeDecision)
+	return customerservice.LoadModel(ctx, db, organizationID, settings.DecisionModelID, domain.AIModelUsageDecision)
 }

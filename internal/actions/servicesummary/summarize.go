@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/customerservice"
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
@@ -55,14 +56,14 @@ func MarkClosed(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer,
 	if err != nil {
 		return err
 	}
-	if settings.Decision != nil || settings.Summary != nil {
+	if settings.DecisionModelID != nil || settings.SummaryModelID != nil {
 		if err := enqueue(ctx, db, enqueuer, ExtractContactProfileActionName, ExtractContactProfileInput{
 			OrganizationID: session.OrganizationID, ServiceSessionID: session.ID, ClosedAt: *session.ClosedAt,
 		}); err != nil {
 			return err
 		}
 	}
-	if settings.Decision != nil {
+	if settings.DecisionModelID != nil {
 		if err := enqueue(ctx, db, enqueuer, ReviewActionName, ReviewInput{
 			OrganizationID: session.OrganizationID, ServiceSessionID: session.ID, ClosedAt: *session.ClosedAt,
 		}); err != nil {
@@ -77,7 +78,7 @@ func MarkClosed(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer,
 		resolved = new(true)
 	}
 	var status *string
-	if settings.Decision != nil || settings.Summary != nil {
+	if settings.DecisionModelID != nil || settings.SummaryModelID != nil {
 		status = new(string(domain.ServiceSessionSummaryPending))
 	}
 	if _, err := db.NewUpdate().Model(session).
@@ -144,11 +145,11 @@ func (w *Worker) Summarize(ctx context.Context, input SummarizeInput) error {
 	if err != nil {
 		return err
 	}
-	decisionModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.Decision, domain.AIModelTypeDecision)
+	decisionModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.DecisionModelID, domain.AIModelUsageDecision)
 	if err != nil {
 		return err
 	}
-	summaryModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.Summary, domain.AIModelTypeChat)
+	summaryModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.SummaryModelID, domain.AIModelUsageSummary)
 	if err != nil {
 		return err
 	}
@@ -232,7 +233,7 @@ func summaryPending(session *servermodels.ServiceSession, closedAt time.Time) bo
 
 // generateSummary 先由判断模型标注实质诉求、咨询分类与是否解决，有实质诉求时再由小结模型生成正文；没有客户发言的周期直接记为无实质诉求。
 func (w *Worker) generateSummary(ctx context.Context, session *servermodels.ServiceSession, locale domain.Locale,
-	decisionModel, summaryModel *customerservice.ModelCredential, transcript []TranscriptEntry) (summaryResult, error) {
+	decisionModel, summaryModel *aimodel.Model, transcript []TranscriptEntry) (summaryResult, error) {
 	// 周期内没有客户发言时不需要模型判断。
 	customerSpoke := slices.ContainsFunc(transcript, func(entry TranscriptEntry) bool { return entry.Sender == "customer" })
 	if !customerSpoke {

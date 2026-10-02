@@ -1394,30 +1394,25 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 			Exec(context.Background()); err != nil {
 			t.Fatal(err)
 		}
-		model := &servermodels.AIProviderModel{
-			ProviderID: provider.ID, OrganizationID: loggedIn.Identity.Organization.ID,
-			Identifier: "chat-model", Name: "测试对话模型", Type: string(domain.AIModelTypeChat),
+		model := &servermodels.AIModel{
+			ProviderID: provider.ID, Identifier: "chat-model", Name: "测试对话模型", Type: string(domain.AIModelTypeChat),
 			InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096,
 		}
-		if _, err := db.NewInsert().Model(model).
-			Column("provider_id", "organization_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
-			Exec(context.Background()); err != nil {
-			t.Fatal(err)
-		}
+		insertAIModels(t, db, model)
 		createdAgent, err := agentaction.NewCreateAgentAction(db).Execute(context.Background(), loggedIn.Identity, agentaction.CreateInput{
 			ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "接待智能体",
 			TeamIDs: []string{team.ID},
 			Execution: agentaction.ExecutionInput{
 				Mode: domain.AgentExecutionModeManaged,
 				Managed: &agentaction.ManagedExecutionInput{
-					ProviderID: provider.ID, ModelIdentifier: model.Identifier, SystemInstruction: "负责接待客户。",
+					ModelID: model.ID, SystemInstruction: "负责接待客户。",
 				},
 			},
 		})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(createdAgent.Teams) != 1 || createdAgent.Teams[0].ID != team.ID || createdAgent.CreatedAt.IsZero() || createdAgent.Execution.Managed == nil || createdAgent.Execution.Managed.ModelIdentifier != model.Identifier {
+		if len(createdAgent.Teams) != 1 || createdAgent.Teams[0].ID != team.ID || createdAgent.CreatedAt.IsZero() || createdAgent.Execution.Managed == nil || createdAgent.Execution.Managed.Model.ID != model.ID {
 			t.Fatalf("created agent = %#v", createdAgent)
 		}
 		serviceAssignees, err := inboxaction.NewListServiceAssigneesQuery(db).Execute(context.Background(), loggedIn.Identity)
@@ -1438,7 +1433,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 		agentWithUpdatedExecution, err := agentaction.NewUpdateExecutionAction(db).Execute(context.Background(), loggedIn.Identity, createdAgent.ID, agentaction.UpdateExecutionInput{ExecutionInput: agentaction.ExecutionInput{
 			Mode: domain.AgentExecutionModeManaged,
 			Managed: &agentaction.ManagedExecutionInput{
-				ProviderID: provider.ID, ModelIdentifier: model.Identifier, SystemInstruction: "负责接待并回答客户问题。",
+				ModelID: model.ID, SystemInstruction: "负责接待并回答客户问题。",
 			},
 		}})
 		if err != nil || agentWithUpdatedExecution.Execution.RevisionID == originalRevisionID || agentWithUpdatedExecution.Execution.Managed.SystemInstruction != "负责接待并回答客户问题。" {
@@ -2141,7 +2136,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 		testAgentFailureMessages(t, db, loggedIn.Identity, taskRuntime, agentConversation.ID, failedRun.ID, exhaustedRun.ID, nextRun.ID)
 
 		t.Run("Agent 运行期 MCP 服务", func(t *testing.T) {
-			testAgentRunMCPServices(t, db, loggedIn.Identity, provider.ID, model.Identifier, taskRuntime)
+			testAgentRunMCPServices(t, db, loggedIn.Identity, model.ID, taskRuntime)
 		})
 
 		closedWebsite, err := closeServiceSession.Execute(context.Background(), loggedIn.Identity, websiteInbound.Conversation.ID)

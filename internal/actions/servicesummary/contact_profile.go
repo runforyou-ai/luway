@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	"github.com/runforyou-ai/luway/internal/actions/customerservice"
@@ -78,11 +79,11 @@ func (w *Worker) ExtractContactProfile(ctx context.Context, input ExtractContact
 	if err != nil {
 		return err
 	}
-	decisionModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.Decision, domain.AIModelTypeDecision)
+	decisionModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.DecisionModelID, domain.AIModelUsageDecision)
 	if err != nil {
 		return err
 	}
-	summaryModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.Summary, domain.AIModelTypeChat)
+	summaryModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.SummaryModelID, domain.AIModelUsageSummary)
 	if err != nil {
 		return err
 	}
@@ -167,7 +168,7 @@ func stillClosedAt(session *servermodels.ServiceSession, closedAt time.Time) boo
 }
 
 // extractProfile 由小结模型从沟通记录中抽取客户明确说出、且与现有档案不同的字段取值与联系方式。
-func (w *Worker) extractProfile(ctx context.Context, model *customerservice.ModelCredential, profile contactprofile.ExtractionContext, transcript []TranscriptEntry) (contactprofile.Extraction, error) {
+func (w *Worker) extractProfile(ctx context.Context, model *aimodel.Model, profile contactprofile.ExtractionContext, transcript []TranscriptEntry) (contactprofile.Extraction, error) {
 	type fieldMaterial struct {
 		Name        string   `json:"name"`
 		Type        string   `json:"type"`
@@ -232,7 +233,7 @@ func (w *Worker) extractProfile(ctx context.Context, model *customerservice.Mode
 }
 
 // judgeTags 由判断模型把每个标签的添加条件作为一道是否题，返回概率达到阈值的标签编号。
-func (w *Worker) judgeTags(ctx context.Context, model *customerservice.ModelCredential, tags []contactprofile.ExtractionTag, transcript []TranscriptEntry) ([]string, error) {
+func (w *Worker) judgeTags(ctx context.Context, model *aimodel.Model, tags []contactprofile.ExtractionTag, transcript []TranscriptEntry) ([]string, error) {
 	questions := make(map[string]decision.Question, len(tags))
 	for index, tag := range tags {
 		questions["tag_"+strconv.Itoa(index)] = decision.Question{Kind: decision.KindYesNo,

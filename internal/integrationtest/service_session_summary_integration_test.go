@@ -67,9 +67,9 @@ func TestServiceSessionSummaryLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := customerservice.NewUpdateServiceSummarySettingsAction(f.db).Execute(ctx, f.owner, domain.ServiceSummarySettings{
-		Decision: &domain.AIModelReference{ProviderID: providerID, ModelIdentifier: "decision-model"},
-		Summary:  &domain.AIModelReference{ProviderID: providerID, ModelIdentifier: "chat-model"},
-		Locale:   domain.LocaleChineseSimplified,
+		DecisionModelID: new(aiModelID(t, f.db, providerID, "decision-model")),
+		SummaryModelID:  new(aiModelID(t, f.db, providerID, "chat-model")),
+		Locale:          domain.LocaleChineseSimplified,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestHandoffSummary(t *testing.T) {
 	tasks := newTestTasks(f.db)
 	providerID := seedSummaryModels(t, f.db, f.owner)
 	if _, err := customerservice.NewUpdateServiceSummarySettingsAction(f.db).Execute(ctx, f.owner, domain.ServiceSummarySettings{
-		Summary: &domain.AIModelReference{ProviderID: providerID, ModelIdentifier: "chat-model"}, Locale: domain.LocaleEnglishUnitedStates,
+		SummaryModelID: new(aiModelID(t, f.db, providerID, "chat-model")), Locale: domain.LocaleEnglishUnitedStates,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -289,15 +289,12 @@ func seedSummaryModels(t *testing.T, db *bun.DB, identity *servermodels.Identity
 	if _, err := db.NewInsert().Model(provider).Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	models := []servermodels.AIProviderModel{
-		{ProviderID: provider.ID, OrganizationID: identity.Organization.ID, Identifier: "chat-model", Name: "对话模型", Type: string(domain.AIModelTypeChat),
+	insertAIModels(t, db,
+		&servermodels.AIModel{ProviderID: provider.ID, Identifier: "chat-model", Name: "对话模型", Type: string(domain.AIModelTypeChat),
 			InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096},
-		{ProviderID: provider.ID, OrganizationID: identity.Organization.ID, Identifier: "decision-model", Name: "判断模型", Type: string(domain.AIModelTypeDecision),
+		&servermodels.AIModel{ProviderID: provider.ID, Identifier: "decision-model", Name: "判断模型", Type: string(domain.AIModelTypeDecision),
 			InputModalities: json.RawMessage(`["text"]`), ContextWindow: 32000},
-	}
-	if _, err := db.NewInsert().Model(&models).Column("provider_id", "organization_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").Exec(ctx); err != nil {
-		t.Fatal(err)
-	}
+	)
 	return provider.ID
 }
 

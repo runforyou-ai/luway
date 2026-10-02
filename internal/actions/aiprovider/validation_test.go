@@ -112,3 +112,34 @@ func TestNormalizeInputCredentialTypes(t *testing.T) {
 		t.Fatalf("normalizeInput() fields = %#v", fields)
 	}
 }
+
+// TestNormalizeInputModelIDs 验证已有模型编号规范化为小写 UUID，非法或重复的编号会被拒绝。
+func TestNormalizeInputModelIDs(t *testing.T) {
+	model := func(id, identifier string) Model {
+		return Model{
+			ID: id, Identifier: identifier, Name: identifier, Type: domain.AIModelTypeChat,
+			InputModalities: []domain.AIModelInputModality{domain.AIModelInputModalityText},
+			ContextWindow:   8_000, MaxOutputTokens: 1_000,
+		}
+	}
+	base := Input{
+		Brand: domain.AIProviderBrandDeepSeek, Name: "供应商", CredentialType: domain.AIProviderCredentialTypeAPIKey,
+		APIKey: "secret", APIURL: "https://api.deepseek.com",
+	}
+	input := base
+	input.Models = []Model{model(" 019C7F37-8C0B-7EF0-8ECA-CB672194D28D ", "a"), model("", "b")}
+	normalized, fields := normalizeInput(input)
+	if len(fields) != 0 || normalized.Models[0].ID != "019c7f37-8c0b-7ef0-8eca-cb672194d28d" || normalized.Models[1].ID != "" {
+		t.Fatalf("normalizeInput() models = %#v fields = %#v", normalized.Models, fields)
+	}
+	for name, models := range map[string][]Model{
+		"非法编号": {model("invalid", "a")},
+		"重复编号": {model("019c7f37-8c0b-7ef0-8eca-cb672194d28d", "a"), model("019c7f37-8c0b-7ef0-8eca-cb672194d28d", "b")},
+	} {
+		input := base
+		input.Models = models
+		if _, fields := normalizeInput(input); fields["models"] != ValidationModelsInvalid {
+			t.Fatalf("%s fields = %#v", name, fields)
+		}
+	}
+}

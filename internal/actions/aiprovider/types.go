@@ -32,8 +32,9 @@ type ConnectionInput struct {
 	APIURL         string
 }
 
-// Model 定义供应商模型目录项。
+// Model 定义供应商模型目录项，编号为空表示新增模型。
 type Model struct {
+	ID              string
 	Identifier      string
 	Name            string
 	Type            domain.AIModelType
@@ -55,6 +56,7 @@ type Record struct {
 
 // ModelSummary 定义供应商列表中的模型目录摘要。
 type ModelSummary struct {
+	ID         string
 	Identifier string
 	Name       string
 	Type       domain.AIModelType

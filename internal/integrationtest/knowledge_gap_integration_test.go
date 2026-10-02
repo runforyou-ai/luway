@@ -5,11 +5,11 @@ package integrationtest
 import (
 	"context"
 	"errors"
-	agentevaluationaction "github.com/runforyou-ai/luway/internal/actions/agentevaluation"
 	"strings"
 	"testing"
 	"uuid"
 
+	agentevaluationaction "github.com/runforyou-ai/luway/internal/actions/agentevaluation"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
@@ -53,9 +53,9 @@ func TestKnowledgeGaps(t *testing.T) {
 	summaryProviderID := seedSummaryModels(t, db, identity)
 	settings := customerservice.NewUpdateServiceSummarySettingsAction(db)
 	if _, err := settings.Execute(ctx, identity, domain.ServiceSummarySettings{
-		Decision: &domain.AIModelReference{ProviderID: summaryProviderID, ModelIdentifier: "decision-model"},
-		Summary:  &domain.AIModelReference{ProviderID: summaryProviderID, ModelIdentifier: "chat-model"},
-		Locale:   domain.LocaleChineseSimplified,
+		DecisionModelID: new(aiModelID(t, db, summaryProviderID, "decision-model")),
+		SummaryModelID:  new(aiModelID(t, db, summaryProviderID, "chat-model")),
+		Locale:          domain.LocaleChineseSimplified,
 	}); err != nil {
 		t.Fatal(err)
 	}

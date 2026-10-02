@@ -76,8 +76,7 @@ type AgentMCPServerOptionList struct {
 
 // AgentManagedExecutionInput 定义平台托管执行配置输入。
 type AgentManagedExecutionInput struct {
-	ProviderID        string   `json:"providerId"`
-	ModelIdentifier   string   `json:"modelIdentifier"`
+	ModelID           string   `json:"modelId"`
 	SystemInstruction string   `json:"systemInstruction"`
 	KnowledgeBaseIDs  []string `json:"knowledgeBaseIds"`
 }
@@ -160,12 +159,9 @@ type AgentLocalAgentExecution struct {
 
 // AgentManagedExecution 定义平台托管执行配置。
 type AgentManagedExecution struct {
-	ProviderID        string   `json:"providerId"`
-	ProviderName      string   `json:"providerName"`
-	ModelIdentifier   string   `json:"modelIdentifier"`
-	ModelName         string   `json:"modelName"`
-	SystemInstruction string   `json:"systemInstruction"`
-	KnowledgeBaseIDs  []string `json:"knowledgeBaseIds"`
+	Model             AIModelOption `json:"model"`
+	SystemInstruction string        `json:"systemInstruction"`
+	KnowledgeBaseIDs  []string      `json:"knowledgeBaseIds"`
 }
 
 // AgentExecutionSummary 定义当前执行配置摘要。
@@ -183,23 +179,7 @@ type AgentLocalAgentExecutionSummary struct {
 
 // AgentManagedExecutionSummary 定义平台托管执行配置摘要。
 type AgentManagedExecutionSummary struct {
-	ProviderID      string `json:"providerId"`
-	ProviderName    string `json:"providerName"`
-	ModelIdentifier string `json:"modelIdentifier"`
-	ModelName       string `json:"modelName"`
-}
-
-// AgentModelOption 定义 AI 员工可使用的对话模型选项。
-type AgentModelOption struct {
-	ProviderID      string `json:"providerId"`
-	ProviderName    string `json:"providerName"`
-	ModelIdentifier string `json:"modelIdentifier"`
-	ModelName       string `json:"modelName"`
-}
-
-// AgentModelOptionList 定义 AI 员工对话模型选项列表。
-type AgentModelOptionList struct {
-	Models []AgentModelOption `json:"models"`
+	Model AIModelOption `json:"model"`
 }
 
 // AgentList 定义 AI 员工分页结果。

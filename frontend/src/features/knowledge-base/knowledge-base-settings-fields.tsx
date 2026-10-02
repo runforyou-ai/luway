@@ -1,7 +1,8 @@
 /** 在知识库表单中展示独立的模型与处理参数。 */
 import { Controller, type Control } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { AIModelType, type AIProviderSummaryData } from "@/api"
+import type { AIModelOptionData } from "@/api"
+import { AIModelOptionGroups } from "@/components/ai-model-options"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -9,15 +10,16 @@ import { NativeSelect } from "@/components/ui/native-select"
 import { knowledgeEmbeddingDimensions, type KnowledgeBaseFormValues } from "./knowledge-base-schema"
 
 /** 渲染向量模型、数值参数和可清空的重排模型选择。 */
-export function KnowledgeBaseSettingsFields({ control, isQA, providers }: {
+export function KnowledgeBaseSettingsFields({ control, isQA, embeddingModels, rerankModels }: {
   control: Control<KnowledgeBaseFormValues>
   isQA: boolean
-  providers: AIProviderSummaryData[]
+  embeddingModels: AIModelOptionData[]
+  rerankModels: AIModelOptionData[]
 }) {
   const { t } = useTranslation(["knowledgeBase", "common"])
   return (
     <>
-      <KnowledgeModelField control={control} name="embeddingModel" providers={providers} />
+      <KnowledgeModelField control={control} name="embeddingModelId" models={embeddingModels} />
       <Controller control={control} name="embeddingDimension" render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid}>
           <FieldLabel htmlFor="embeddingDimension" required>{t("form.embeddingDimension")}</FieldLabel>
@@ -43,39 +45,28 @@ export function KnowledgeBaseSettingsFields({ control, isQA, providers }: {
           <FieldDescription>{t("form.retrievalScoreThresholdDescription")}</FieldDescription>
         </Field>
       )} />
-      <KnowledgeModelField control={control} name="rerankModel" providers={providers} />
+      <KnowledgeModelField control={control} name="rerankModelId" models={rerankModels} />
     </>
   )
 }
 
-/** 按供应商和模型用途展示知识库的模型选项。 */
-function KnowledgeModelField({ control, name, providers }: {
+/** 按供应商展示满足向量或重排用途的知识库模型选项。 */
+function KnowledgeModelField({ control, name, models }: {
   control: Control<KnowledgeBaseFormValues>
-  name: "embeddingModel" | "rerankModel"
-  providers: AIProviderSummaryData[]
+  name: "embeddingModelId" | "rerankModelId"
+  models: AIModelOptionData[]
 }) {
   const { t } = useTranslation("knowledgeBase")
-  const embedding = name === "embeddingModel"
-  const type = embedding ? AIModelType.AIModelTypeEmbedding : AIModelType.AIModelTypeRerank
-  const groups = providers.map((provider) => ({
-    ...provider,
-    models: provider.models.filter((model) => model.type === type),
-  })).filter((provider) => provider.models.length > 0)
+  const embedding = name === "embeddingModelId"
   return (
     <Controller control={control} name={name} render={({ field, fieldState }) => (
       <Field data-invalid={fieldState.invalid}>
-        <FieldLabel htmlFor={name} required>{t(`form.${name}`)}</FieldLabel>
+        <FieldLabel htmlFor={name} required>{t(embedding ? "form.embeddingModel" : "form.rerankModel")}</FieldLabel>
         <NativeSelect {...field} id={name} required aria-invalid={fieldState.invalid}>
           <option value="">{t(embedding ? "form.selectEmbeddingModel" : "form.selectRerankModel")}</option>
-          {groups.map((provider) => (
-            <optgroup key={provider.id} label={provider.name}>
-              {provider.models.map((model) => (
-                <option key={model.identifier} value={JSON.stringify([provider.id, model.identifier])}>{model.name}</option>
-              ))}
-            </optgroup>
-          ))}
+          <AIModelOptionGroups models={models} />
         </NativeSelect>
-        {groups.length === 0 && <FieldDescription>{t(embedding ? "form.noEmbeddingModels" : "form.noRerankModels")}</FieldDescription>}
+        {models.length === 0 && <FieldDescription>{t(embedding ? "form.noEmbeddingModels" : "form.noRerankModels")}</FieldDescription>}
       </Field>
     )} />
   )

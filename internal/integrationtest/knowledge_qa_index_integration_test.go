@@ -17,16 +17,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// qaProcessInput 按条目当前的任务快照构造索引任务载荷。
+// qaProcessInput 按条目当前的处理编号和知识库向量配置构造索引任务载荷。
 func qaProcessInput(t *testing.T, db *bun.DB, organizationID, baseID, entryID string) (knowledgeaction.ProcessQAInput, servermodels.KnowledgeQAEntry) {
 	t.Helper()
 	var entry servermodels.KnowledgeQAEntry
 	if err := db.NewSelect().Model(&entry).Where("kqe.id = ?", entryID).Scan(context.Background()); err != nil {
 		t.Fatal(err)
 	}
+	base := &servermodels.KnowledgeBase{ID: baseID}
+	if err := db.NewSelect().Model(base).WherePK().Scan(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	return knowledgeaction.ProcessQAInput{
 		OrganizationID: organizationID, KnowledgeBaseID: baseID, EntryID: entryID, ProcessingID: entry.ProcessingID,
-		EmbeddingProviderID: entry.EmbeddingProviderID, EmbeddingModelIdentifier: entry.EmbeddingModelIdentifier, EmbeddingDimension: entry.EmbeddingDimension,
+		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
 	}, entry
 }
 
@@ -64,7 +68,7 @@ func TestKnowledgeQAIndexLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	input, entry := qaProcessInput(t, db, identity.Organization.ID, base.ID, created.ID)
-	if entry.Status != domain.KnowledgeIndexQueued || entry.ProcessingID == "" || entry.EmbeddingModelIdentifier != "embedding-a" || entry.EmbeddingDimension != 1024 {
+	if entry.Status != domain.KnowledgeIndexQueued || entry.ProcessingID == "" || input.EmbeddingModelID != base.EmbeddingModelID || input.EmbeddingDimension != 1024 {
 		t.Fatalf("entry=%+v", entry)
 	}
 	count, err := db.NewSelect().Model((*servermodels.TaskRun)(nil)).Where("action_name = ? AND payload->>'entryId' = ?", knowledgeaction.ProcessQAEntryActionName, created.ID).Count(ctx)

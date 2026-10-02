@@ -59,7 +59,7 @@ func removeRevisionReference(ctx context.Context, tx bun.Tx, identity *servermod
 	// 等待员工锁期间可能切换了版本，取锁后重新读取并只移除该引用。
 	var rewritten []*servermodels.AgentRevision
 	if err := tx.NewSelect().Model(&rewritten).
-		Column("organization_id", "agent_id", "execution_mode", "schema_version").
+		Column("organization_id", "agent_id", "execution_mode", "model_id", "schema_version").
 		ColumnExpr("jsonb_set(ar.configuration, ARRAY[?::text], (ar.configuration->?) - ?::text) AS configuration", key, key, referenceID).
 		Join("JOIN agents AS a ON a.active_revision_id = ar.id AND a.organization_id = ar.organization_id AND a.id = ar.agent_id").
 		Where("a.organization_id = ?", identity.Organization.ID).Where("a.id IN (?)", bun.In(agentIDs)).
@@ -77,7 +77,7 @@ func removeRevisionReference(ctx context.Context, tx bun.Tx, identity *servermod
 		revisionAgentIDs[index], revisionIDs[index] = revision.AgentID, revision.ID
 	}
 	if _, err := tx.NewInsert().Model(&rewritten).
-		Column("id", "organization_id", "agent_id", "execution_mode", "schema_version", "configuration", "created_by_user_id").Exec(ctx); err != nil {
+		Column("id", "organization_id", "agent_id", "execution_mode", "model_id", "schema_version", "configuration", "created_by_user_id").Exec(ctx); err != nil {
 		return 0, err
 	}
 	if _, err := tx.NewUpdate().Model((*servermodels.Agent)(nil)).

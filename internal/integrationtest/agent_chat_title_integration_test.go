@@ -36,13 +36,13 @@ func (titleReplyRuntime) Run(ctx context.Context, _ agentruntime.RunRequest, fee
 // TestAgentChatTitles 验证 AI 聊天只在首条文本回复后投递标题任务，任务按对话开头生成标题并推进会话版本，无效输出不写入，已写入、回复不存在或 AI 员工停用时跳过模型调用。
 func TestAgentChatTitles(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	t.Helper()
 	ctx := context.Background()
 	created, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		DisplayName: "出差助手",
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "安排出差",
+			ModelID: modelID, SystemInstruction: "安排出差",
 		}},
 	})
 	if err != nil {

@@ -63,7 +63,7 @@ func (f handoffFixture) newAgent(t *testing.T, name string) *agentaction.Agent {
 	t.Helper()
 	created, err := agentaction.NewCreateAgentAction(f.db).Execute(context.Background(), f.identity, agentaction.CreateInput{
 		DisplayName: name, ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer},
-		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: f.providerID, ModelIdentifier: f.modelID}},
+		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: f.modelID}},
 	})
 	if err != nil {
 		t.Fatal(err)

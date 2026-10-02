@@ -41,7 +41,7 @@ func TestServiceReplySuggestions(t *testing.T) {
 	ctx := context.Background()
 	created, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "回复建议助手",
-		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "你是售后客服"}},
+		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID, SystemInstruction: "你是售后客服"}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +109,7 @@ func TestServiceReplySuggestions(t *testing.T) {
 		request.History[1].Role != agentruntime.MessageRoleAssistant || request.History[1].Content != "我来帮您查询" {
 		t.Fatalf("history = %#v", request.History)
 	}
-	if request.Model.Identifier != modelID || !strings.HasPrefix(request.Instruction, "你是售后客服") || !strings.Contains(request.Instruction, `{"candidates":`) {
+	if request.Model.Identifier != "chat-model" || !strings.HasPrefix(request.Instruction, "你是售后客服") || !strings.Contains(request.Instruction, `{"candidates":`) {
 		t.Fatalf("request configuration = %#v", request)
 	}
 	for _, expected := range []string{"改写客服草稿", "友好", `回复针对的引用消息：{"sender":"customer","content":"订单还没发货"}`, `客服草稿："帮您催一下"`} {

@@ -28,10 +28,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { AgentKnowledgeField } from "@/components/agent-fields/agent-knowledge-field"
 import { AgentMCPField } from "@/components/agent-fields/agent-mcp-field"
 import { AgentModelField } from "@/components/agent-fields/agent-model-field"
-import {
-  agentModelSelection,
-  parseAgentModelSelection,
-} from "@/lib/agent-model-selection"
 import { usePersonalAgentInvalidator } from "@/hooks/use-personal-agent-invalidator"
 import { AgentServiceAudiencesField } from "@/features/agents/agent-service-audiences-field"
 import { useAgentAvatarUpload, type AgentAvatarUpload, type AgentCreateDraft } from "@/features/agents/agent-form"
@@ -46,7 +42,7 @@ import { requestErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
 import { zodResolver } from "@/lib/zod-resolver"
 
-const personalAgentErrorFields = ["displayName", "providerId", "modelIdentifier", "localAgent", "systemInstruction", "knowledgeBaseIds", "mcpServerIds"]
+const personalAgentErrorFields = ["displayName", "modelId", "localAgent", "systemInstruction", "knowledgeBaseIds", "mcpServerIds"]
 
 /** 创建个人 AI 员工表单的校验规则。 */
 function usePersonalAgentSchema() {
@@ -82,7 +78,7 @@ function personalAgentInput(values: PersonalAgentFormValues, avatarFileId: strin
     execution: {
       mode: AgentExecutionMode.AgentExecutionModeManaged,
       managed: {
-        ...parseAgentModelSelection(values.modelSelection),
+        modelId: values.modelId,
         systemInstruction: values.systemInstruction,
         knowledgeBaseIds: values.knowledgeBaseIds,
       },
@@ -129,7 +125,7 @@ export function PersonalAgentCreateForm({
     const values = form.getValues()
     onServiceAudiencesChange(audiences, {
       displayName: values.displayName,
-      modelSelection: values.modelSelection,
+      modelId: values.modelId,
       systemInstruction: values.systemInstruction,
       knowledgeBaseIds: values.knowledgeBaseIds,
     })
@@ -196,7 +192,7 @@ export function PersonalAgentEditForm({
       execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent
         ? {
             displayName: agent.displayName,
-            modelSelection: "",
+            modelId: "",
             localAgent: execution.localAgent.kind,
             systemInstruction: execution.localAgent.systemInstruction,
             knowledgeBaseIds: [],
@@ -204,7 +200,7 @@ export function PersonalAgentEditForm({
           }
         : {
             displayName: agent.displayName,
-            modelSelection: agentModelSelection(execution.managed.providerId, execution.managed.modelIdentifier),
+            modelId: execution.managed.model.id,
             localAgent: "",
             systemInstruction: execution.managed.systemInstruction,
             knowledgeBaseIds: execution.managed.knowledgeBaseIds,
@@ -333,7 +329,7 @@ function PersonalAgentFields({
           )}
         />
       ) : null}
-      {localAgent ? null : <AgentModelField control={control} name="modelSelection" disabled={disabled} />}
+      {localAgent ? null : <AgentModelField control={control} name="modelId" disabled={disabled} />}
       <Controller
         name="systemInstruction"
         control={control}

@@ -33,24 +33,22 @@ func (a *CreateKnowledgeBaseAction) Execute(ctx context.Context, identity *serve
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
 		}
-		if err := validateModels(ctx, tx, identity.Organization.ID, input); err != nil {
+		if err := lockModels(ctx, tx, identity.Organization.ID, input); err != nil {
 			return err
 		}
 		knowledgeBase := &servermodels.KnowledgeBase{
 			OrganizationID: identity.Organization.ID, CreatedByUserID: identity.User.ID,
 			Name: input.Name, Category: string(input.Category), Description: input.Description,
-			EmbeddingProviderID:      input.EmbeddingProviderID,
-			EmbeddingModelIdentifier: input.EmbeddingModelIdentifier,
-			EmbeddingDimension:       input.EmbeddingDimension,
-			ChunkLength:              input.ChunkLength,
-			ChunkOverlap:             input.ChunkOverlap,
-			RetrievalCount:           input.RetrievalCount,
-			RetrievalScoreThreshold:  input.RetrievalScoreThreshold,
-			RerankProviderID:         input.RerankProviderID,
-			RerankModelIdentifier:    input.RerankModelIdentifier,
+			EmbeddingModelID:        input.EmbeddingModelID,
+			EmbeddingDimension:      input.EmbeddingDimension,
+			ChunkLength:             input.ChunkLength,
+			ChunkOverlap:            input.ChunkOverlap,
+			RetrievalCount:          input.RetrievalCount,
+			RetrievalScoreThreshold: input.RetrievalScoreThreshold,
+			RerankModelID:           input.RerankModelID,
 		}
 		_, err := tx.NewInsert().Model(knowledgeBase).
-			Column("organization_id", "created_by_user_id", "name", "category", "description", "embedding_provider_id", "embedding_model_identifier", "embedding_dimension", "chunk_length", "chunk_overlap", "retrieval_count", "retrieval_score_threshold", "rerank_provider_id", "rerank_model_identifier").
+			Column("organization_id", "created_by_user_id", "name", "category", "description", "embedding_model_id", "embedding_dimension", "chunk_length", "chunk_overlap", "retrieval_count", "retrieval_score_threshold", "rerank_model_id").
 			Returning("*").
 			Exec(ctx)
 		if isConstraintConflict(err, "knowledge_bases_organization_name_unique") {

@@ -58,7 +58,7 @@ func (w *Worker) Review(ctx context.Context, input ReviewInput) error {
 	if err != nil {
 		return err
 	}
-	decisionModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.Decision, domain.AIModelTypeDecision)
+	decisionModel, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.DecisionModelID, domain.AIModelUsageDecision)
 	if err != nil || decisionModel == nil {
 		return err
 	}

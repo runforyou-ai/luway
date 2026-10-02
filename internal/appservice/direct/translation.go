@@ -13,7 +13,6 @@ import (
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
-	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -88,16 +87,12 @@ func (o *directOperations) GetTranslationSettings(ctx context.Context, meta apps
 		slog.Warn("读取翻译设置失败", "organization_id", identity.Organization.ID, "error", err)
 		return appservice.TranslationSettings{}, appservice.FailedError(meta, i18n.ErrorTranslationSettingsLoadFailed)
 	}
-	return translationSettingsFromDomain(model), nil
+	return appservice.TranslationSettings{ModelID: model}, nil
 }
 
 // UpdateTranslationSettings 修改当前企业的翻译设置。
 func (o *directOperations) UpdateTranslationSettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.TranslationSettings) (appservice.TranslationSettings, error) {
-	var model *domain.AIModelReference
-	if input.Model != nil {
-		model = &domain.AIModelReference{ProviderID: input.Model.ProviderID, ModelIdentifier: input.Model.ModelIdentifier}
-	}
-	saved, err := o.updateTranslationSettings.Execute(ctx, identity, model)
+	saved, err := o.updateTranslationSettings.Execute(ctx, identity, input.ModelID)
 	if err != nil {
 		if ctx.Err() != nil {
 			return appservice.TranslationSettings{}, ctx.Err()
@@ -112,15 +107,7 @@ func (o *directOperations) UpdateTranslationSettings(ctx context.Context, meta a
 		slog.Warn("修改翻译设置失败", "organization_id", identity.Organization.ID, "error", err)
 		return appservice.TranslationSettings{}, appservice.FailedError(meta, i18n.ErrorTranslationSettingsUpdateFailed)
 	}
-	return translationSettingsFromDomain(saved), nil
-}
-
-// translationSettingsFromDomain 转换企业翻译设置契约。
-func translationSettingsFromDomain(model *domain.AIModelReference) appservice.TranslationSettings {
-	if model == nil {
-		return appservice.TranslationSettings{}
-	}
-	return appservice.TranslationSettings{Model: &appservice.AIModelReference{ProviderID: model.ProviderID, ModelIdentifier: model.ModelIdentifier}}
+	return appservice.TranslationSettings{ModelID: saved}, nil
 }
 
 // conversationTranslationFromAction 转换成员在客户会话中的翻译状态。

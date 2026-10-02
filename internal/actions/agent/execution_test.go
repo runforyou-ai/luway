@@ -18,8 +18,7 @@ func TestNormalizeExecutionInputNormalizesValues(t *testing.T) {
 	input, err := normalizeExecutionInput(ExecutionInput{
 		Mode: domain.AgentExecutionModeManaged,
 		Managed: &ManagedExecutionInput{
-			ProviderID:        " 019C7F37-8C0B-7EF0-8ECA-CB672194D28D ",
-			ModelIdentifier:   " chat-model ",
+			ModelID:           " 019C7F37-8C0B-7EF0-8ECA-CB672194D28D ",
 			SystemInstruction: " 负责回答产品问题。 ",
 			KnowledgeBaseIDs:  []string{" 019C7F37-8C0B-7EF0-8ECA-CB672194D28D ", "019c7f37-8c0b-7ef0-8eca-cb672194d28d"},
 		},
@@ -27,7 +26,7 @@ func TestNormalizeExecutionInputNormalizesValues(t *testing.T) {
 	if err != nil {
 		t.Fatalf("normalizeExecutionInput() error = %v", err)
 	}
-	if !slices.Equal(input.Managed.KnowledgeBaseIDs, []string{"019c7f37-8c0b-7ef0-8eca-cb672194d28d"}) || input.Managed.ProviderID != "019c7f37-8c0b-7ef0-8eca-cb672194d28d" || input.Managed.ModelIdentifier != "chat-model" || input.Managed.SystemInstruction != "负责回答产品问题。" {
+	if !slices.Equal(input.Managed.KnowledgeBaseIDs, []string{"019c7f37-8c0b-7ef0-8eca-cb672194d28d"}) || input.Managed.ModelID != "019c7f37-8c0b-7ef0-8eca-cb672194d28d" || input.Managed.SystemInstruction != "负责回答产品问题。" {
 		t.Fatalf("normalizeExecutionInput() = %#v", input)
 	}
 }
@@ -44,9 +43,9 @@ func TestNormalizeExecutionInputRejectsInvalidEnvelope(t *testing.T) {
 func TestNormalizeExecutionInputRejectsRequiredFields(t *testing.T) {
 	fields := executionValidationFields(t, ExecutionInput{
 		Mode:    domain.AgentExecutionModeManaged,
-		Managed: &ManagedExecutionInput{ProviderID: "invalid", KnowledgeBaseIDs: []string{"invalid"}},
+		Managed: &ManagedExecutionInput{ModelID: "invalid", KnowledgeBaseIDs: []string{"invalid"}},
 	})
-	if fields["knowledgeBaseIds"] != ValidationKnowledgeBaseInvalid || fields["providerId"] != ValidationModelInvalid || fields["modelIdentifier"] != ValidationModelInvalid || fields["systemInstruction"] != "" {
+	if fields["knowledgeBaseIds"] != ValidationKnowledgeBaseInvalid || fields["modelId"] != ValidationModelInvalid || fields["systemInstruction"] != "" {
 		t.Fatalf("normalizeExecutionInput() fields = %#v", fields)
 	}
 }
@@ -56,8 +55,7 @@ func TestNormalizeExecutionInputRejectsLongInstruction(t *testing.T) {
 	fields := executionValidationFields(t, ExecutionInput{
 		Mode: domain.AgentExecutionModeManaged,
 		Managed: &ManagedExecutionInput{
-			ProviderID:        "019c7f37-8c0b-7ef0-8eca-cb672194d28d",
-			ModelIdentifier:   "chat-model",
+			ModelID:           "019c7f37-8c0b-7ef0-8eca-cb672194d28d",
 			SystemInstruction: strings.Repeat("鹿", maxSystemInstructionLength+1),
 		},
 	})
@@ -71,13 +69,14 @@ func TestDecodeRevisionExecutionReadsManagedV1(t *testing.T) {
 	execution, err := decodeRevisionExecution(servermodels.AgentRevision{
 		ID:            "revision-1",
 		ExecutionMode: string(domain.AgentExecutionModeManaged),
+		ModelID:       "019c7f37-8c0b-7ef0-8eca-cb672194d28d",
 		SchemaVersion: executionSchemaVersion,
-		Configuration: []byte(`{"model":{"providerId":"019c7f37-8c0b-7ef0-8eca-cb672194d28d","providerName":"企业模型","identifier":"chat-model","name":"对话模型"},"systemInstruction":"回答产品问题。","knowledgeBaseIds":["019c7f37-8c0b-7ef0-8eca-cb672194d28d"],"mcpServerIds":["019c7f37-8c0b-7ef0-8eca-cb672194d28d"]}`),
+		Configuration: []byte(`{"systemInstruction":"回答产品问题。","knowledgeBaseIds":["019c7f37-8c0b-7ef0-8eca-cb672194d28d"],"mcpServerIds":["019c7f37-8c0b-7ef0-8eca-cb672194d28d"]}`),
 	})
 	if err != nil {
 		t.Fatalf("decodeRevisionExecution() error = %v", err)
 	}
-	if !slices.Equal(execution.MCPServerIDs, []string{"019c7f37-8c0b-7ef0-8eca-cb672194d28d"}) || execution.RevisionID != "revision-1" || execution.Mode != domain.AgentExecutionModeManaged || execution.Managed == nil || execution.Managed.ProviderName != "企业模型" || execution.Managed.ModelIdentifier != "chat-model" || execution.Managed.SystemInstruction != "回答产品问题。" || !slices.Equal(execution.Managed.KnowledgeBaseIDs, []string{"019c7f37-8c0b-7ef0-8eca-cb672194d28d"}) {
+	if !slices.Equal(execution.MCPServerIDs, []string{"019c7f37-8c0b-7ef0-8eca-cb672194d28d"}) || execution.RevisionID != "revision-1" || execution.Mode != domain.AgentExecutionModeManaged || execution.Managed == nil || execution.Managed.Model.ID != "019c7f37-8c0b-7ef0-8eca-cb672194d28d" || execution.Managed.SystemInstruction != "回答产品问题。" || !slices.Equal(execution.Managed.KnowledgeBaseIDs, []string{"019c7f37-8c0b-7ef0-8eca-cb672194d28d"}) {
 		t.Fatalf("decodeRevisionExecution() = %#v", execution)
 	}
 }
@@ -111,7 +110,8 @@ func TestDecodeRevisionExecutionRejectsUnknownFields(t *testing.T) {
 	_, err := decodeRevisionExecution(servermodels.AgentRevision{
 		ExecutionMode: string(domain.AgentExecutionModeManaged),
 		SchemaVersion: executionSchemaVersion,
-		Configuration: []byte(`{"model":{"providerId":"019c7f37-8c0b-7ef0-8eca-cb672194d28d","providerName":"企业模型","identifier":"chat-model","name":"对话模型"},"systemInstruction":"回答产品问题。","unknown":true}`),
+		ModelID:       "019c7f37-8c0b-7ef0-8eca-cb672194d28d",
+		Configuration: []byte(`{"systemInstruction":"回答产品问题。","unknown":true}`),
 	})
 	if err == nil {
 		t.Fatal("decodeRevisionExecution() error = nil")

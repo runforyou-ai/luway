@@ -28,9 +28,9 @@ func TestContactProfileExtraction(t *testing.T) {
 	coordinator := newGroupAgentCoordinator(f.db)
 	providerID := seedSummaryModels(t, f.db, f.owner)
 	if _, err := customerservice.NewUpdateServiceSummarySettingsAction(f.db).Execute(ctx, f.owner, domain.ServiceSummarySettings{
-		Decision: &domain.AIModelReference{ProviderID: providerID, ModelIdentifier: "decision-model"},
-		Summary:  &domain.AIModelReference{ProviderID: providerID, ModelIdentifier: "chat-model"},
-		Locale:   domain.LocaleChineseSimplified,
+		DecisionModelID: new(aiModelID(t, f.db, providerID, "decision-model")),
+		SummaryModelID:  new(aiModelID(t, f.db, providerID, "chat-model")),
+		Locale:          domain.LocaleChineseSimplified,
 	}); err != nil {
 		t.Fatal(err)
 	}

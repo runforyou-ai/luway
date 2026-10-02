@@ -179,7 +179,7 @@ func loadCopilotBackground(ctx context.Context, db bun.IDB, run *servermodels.Ag
 		ColumnExpr("(SELECT cm.value FROM contact_methods AS cm WHERE cm.organization_id = c.organization_id AND cm.contact_id = c.id AND cm.type = ? ORDER BY cm.is_primary DESC, cm.created_at ASC LIMIT 1) AS contact_phone", domain.ContactMethodTypePhone).
 		ColumnExpr("ch.type AS channel_type, ch.name AS channel_name").
 		ColumnExpr("ss.status AS session_status, assignee.display_name AS assignee_name, assignee.type AS assignee_type").
-		ColumnExpr("COALESCE(aipm.context_window, 0) AS context_window").
+		ColumnExpr("COALESCE(aim.context_window, 0) AS context_window").
 		Join("JOIN service_conversations AS svc ON svc.organization_id = sct.organization_id AND svc.conversation_id = sct.served_conversation_id").
 		Join("JOIN conversations AS cv ON cv.organization_id = svc.organization_id AND cv.id = svc.conversation_id").
 		Join("JOIN chat_subjects AS requester_cs ON requester_cs.id = svc.requester_subject_id AND requester_cs.organization_id = svc.organization_id").
@@ -191,7 +191,7 @@ func loadCopilotBackground(ctx context.Context, db bun.IDB, run *servermodels.Ag
 		Join("JOIN service_sessions AS ss ON ss.id = svc.current_service_session_id AND ss.organization_id = svc.organization_id AND ss.service_conversation_id = svc.id").
 		Join("LEFT JOIN organization_identities AS assignee ON assignee.organization_id = ss.organization_id AND assignee.id = ss.assignee_identity_id").
 		Join("LEFT JOIN agent_revisions AS ar ON ar.organization_id = sct.organization_id AND ar.id = ?", run.AgentRevisionID).
-		Join("LEFT JOIN ai_provider_models AS aipm ON aipm.organization_id = ar.organization_id AND aipm.provider_id = (ar.configuration->'model'->>'providerId')::uuid AND aipm.identifier = ar.configuration->'model'->>'identifier'").
+		Join("LEFT JOIN ai_models AS aim ON aim.id = ar.model_id").
 		Where("sct.organization_id = ? AND sct.conversation_id = ?", run.OrganizationID, run.ConversationID).
 		Scan(ctx, &header); err != nil {
 		return agentruntime.Message{}, fmt.Errorf("load copilot customer conversation background: %w", err)

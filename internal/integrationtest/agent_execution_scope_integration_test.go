@@ -50,7 +50,7 @@ func newExecutionScopeFixture(t *testing.T) executionScopeFixture {
 	agent, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "执行范围助手",
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: provider.ID, ModelIdentifier: "chat-a", SystemInstruction: "回答客户问题",
+			ModelID: aiModelID(t, f.db, provider.ID, "chat-a"), SystemInstruction: "回答客户问题",
 		}},
 	})
 	if err != nil {

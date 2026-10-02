@@ -68,7 +68,7 @@ func newKnowledgeAgent(t *testing.T, db *bun.DB, identity *servermodels.Identity
 	agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "资料助手",
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: provider.ID, ModelIdentifier: "chat", SystemInstruction: "依据知识库回答", KnowledgeBaseIDs: knowledgeBaseIDs,
+			ModelID: aiModelID(t, db, provider.ID, "chat"), SystemInstruction: "依据知识库回答", KnowledgeBaseIDs: knowledgeBaseIDs,
 		}},
 	})
 	if err != nil {
@@ -257,7 +257,7 @@ func TestAgentKnowledgeSearchRevisionAndQA(t *testing.T) {
 	// 首次运行排队后改为只绑定文档库，已排队的运行仍使用排队时的问答库范围。
 	_, err = agentaction.NewUpdateExecutionAction(db).Execute(ctx, identity, agent.ID, agentaction.UpdateExecutionInput{ExecutionInput: agentaction.ExecutionInput{
 		Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: providerID, ModelIdentifier: "chat", SystemInstruction: "依据知识库回答", KnowledgeBaseIDs: []string{documentBase.ID},
+			ModelID: aiModelID(t, db, providerID, "chat"), SystemInstruction: "依据知识库回答", KnowledgeBaseIDs: []string{documentBase.ID},
 		},
 	}})
 	if err != nil {

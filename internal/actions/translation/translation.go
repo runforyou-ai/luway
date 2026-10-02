@@ -82,16 +82,13 @@ func LanguageName(tag string) string {
 	return tag
 }
 
-// loadModel 读取企业翻译模型的调用配置，未设置或模型已不存在时返回 ErrDisabled。
+// loadModel 读取企业翻译模型的调用配置，未设置或模型已不可用时返回 ErrDisabled。
 func loadModel(ctx context.Context, db bun.IDB, organizationID string) (agentruntime.ModelConfig, error) {
-	reference, err := customerserviceaction.LoadTranslationModel(ctx, db, organizationID)
+	modelID, err := customerserviceaction.LoadTranslationModelID(ctx, db, organizationID)
 	if err != nil {
 		return agentruntime.ModelConfig{}, err
 	}
-	if reference == nil {
-		return agentruntime.ModelConfig{}, ErrDisabled
-	}
-	credential, err := customerserviceaction.LoadModel(ctx, db, organizationID, reference, domain.AIModelTypeChat)
+	credential, err := customerserviceaction.LoadModel(ctx, db, organizationID, modelID, domain.AIModelUsageTranslation)
 	if err != nil {
 		return agentruntime.ModelConfig{}, fmt.Errorf("load translation model: %w", err)
 	}

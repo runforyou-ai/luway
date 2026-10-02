@@ -28,6 +28,7 @@ func (a *CreateAIProviderAction) Execute(ctx context.Context, identity *servermo
 		return nil, &ValidationError{Fields: fields}
 	}
 	var provider servermodels.AIProvider
+	var models []Model
 	err := a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
@@ -43,14 +44,19 @@ func (a *CreateAIProviderAction) Execute(ctx context.Context, identity *servermo
 			Exec(ctx); err != nil {
 			return err
 		}
-		return replaceModels(ctx, tx, identity.Organization.ID, provider.ID, input.Models)
+		changes, err := diffModels(nil, input.Models)
+		if err != nil {
+			return err
+		}
+		models, err = saveModels(ctx, tx, provider.ID, input.Models, changes)
+		return err
 	})
-	if isNameConflict(err) {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+	if conflict := conflictError(err); conflict != nil {
+		return nil, conflict
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create AI provider: %w", err)
 	}
-	output := recordFromModel(provider, input.Models)
+	output := recordFromModel(provider, models)
 	return &output, nil
 }

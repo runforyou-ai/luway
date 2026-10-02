@@ -69,10 +69,38 @@ const (
 	AIModelTypeDecision  AIModelType = "decision"
 )
 
-// AIModelReference 指向企业模型服务中的一个模型。
-type AIModelReference struct {
-	ProviderID      string
-	ModelIdentifier string
+// AIModelUsage 定义业务使用模型的用途，每种用途对应确定的模型类型与输入能力要求。
+type AIModelUsage string
+
+const (
+	AIModelUsageAgent       AIModelUsage = "agent"
+	AIModelUsageSummary     AIModelUsage = "summary"
+	AIModelUsageTranslation AIModelUsage = "translation"
+	AIModelUsageDecision    AIModelUsage = "decision"
+	AIModelUsageEmbedding   AIModelUsage = "embedding"
+	AIModelUsageRerank      AIModelUsage = "rerank"
+)
+
+// AIModelRequirement 定义用途对模型类型与文本输入能力的要求。
+type AIModelRequirement struct {
+	Type         AIModelType
+	RequiresText bool
+}
+
+// Requirement 返回用途要求的模型类型与输入能力；未知用途返回 false。
+func (u AIModelUsage) Requirement() (AIModelRequirement, bool) {
+	switch u {
+	case AIModelUsageAgent, AIModelUsageSummary, AIModelUsageTranslation:
+		return AIModelRequirement{Type: AIModelTypeChat, RequiresText: true}, true
+	case AIModelUsageDecision:
+		return AIModelRequirement{Type: AIModelTypeDecision}, true
+	case AIModelUsageEmbedding:
+		return AIModelRequirement{Type: AIModelTypeEmbedding}, true
+	case AIModelUsageRerank:
+		return AIModelRequirement{Type: AIModelTypeRerank}, true
+	default:
+		return AIModelRequirement{}, false
+	}
 }
 
 // AIModelInputModality 定义模型支持的输入模态。

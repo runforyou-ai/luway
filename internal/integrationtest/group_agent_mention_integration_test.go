@@ -45,7 +45,7 @@ func newGroupAgentCollaborators(t *testing.T, db *bun.DB, identity *servermodels
 		agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 			DisplayName: fmt.Sprintf("群协作助手 %d", i),
 			Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-				ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "协助群内成员",
+				ModelID: modelID, SystemInstruction: "协助群内成员",
 			}},
 		})
 		if err != nil {

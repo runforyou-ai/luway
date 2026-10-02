@@ -56,7 +56,7 @@ func TestCustomerConversationTranslation(t *testing.T) {
 
 	providerID := seedSummaryModels(t, f.db, f.owner)
 	if _, err := customerservice.NewUpdateTranslationSettingsAction(f.db).Execute(ctx, f.owner,
-		&domain.AIModelReference{ProviderID: providerID, ModelIdentifier: "chat-model"}); err != nil {
+		new(aiModelID(t, f.db, providerID, "chat-model"))); err != nil {
 		t.Fatal(err)
 	}
 

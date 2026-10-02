@@ -124,15 +124,13 @@ func (o *directOperations) ListKnowledgeBaseAgents(ctx context.Context, meta app
 func (o *directOperations) CreateKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.KnowledgeBaseInput) (appservice.KnowledgeBase, error) {
 	record, err := o.createKnowledgeBase.Execute(ctx, identity, knowledgebaseaction.Input{
 		Name: input.Name, Category: domain.KnowledgeBaseCategory(input.Category), Description: input.Description,
-		EmbeddingProviderID:      input.EmbeddingProviderID,
-		EmbeddingModelIdentifier: input.EmbeddingModelIdentifier,
-		EmbeddingDimension:       input.EmbeddingDimension,
-		ChunkLength:              input.ChunkLength,
-		ChunkOverlap:             input.ChunkOverlap,
-		RetrievalCount:           input.RetrievalCount,
-		RetrievalScoreThreshold:  input.RetrievalScoreThreshold,
-		RerankProviderID:         input.RerankProviderID,
-		RerankModelIdentifier:    input.RerankModelIdentifier,
+		EmbeddingModelID:        input.EmbeddingModelID,
+		EmbeddingDimension:      input.EmbeddingDimension,
+		ChunkLength:             input.ChunkLength,
+		ChunkOverlap:            input.ChunkOverlap,
+		RetrievalCount:          input.RetrievalCount,
+		RetrievalScoreThreshold: input.RetrievalScoreThreshold,
+		RerankModelID:           input.RerankModelID,
 	})
 	if err != nil {
 		return appservice.KnowledgeBase{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeBaseCreateFailed, identity.Organization.ID, "")
@@ -145,15 +143,13 @@ func (o *directOperations) CreateKnowledgeBase(ctx context.Context, meta appserv
 func (o *directOperations) UpdateKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, knowledgeBaseID string, input appservice.KnowledgeBaseInput) (appservice.KnowledgeBase, error) {
 	record, err := o.updateKnowledgeBase.Execute(ctx, identity, knowledgeBaseID, knowledgebaseaction.Input{
 		Name: input.Name, Category: domain.KnowledgeBaseCategory(input.Category), Description: input.Description,
-		EmbeddingProviderID:      input.EmbeddingProviderID,
-		EmbeddingModelIdentifier: input.EmbeddingModelIdentifier,
-		EmbeddingDimension:       input.EmbeddingDimension,
-		ChunkLength:              input.ChunkLength,
-		ChunkOverlap:             input.ChunkOverlap,
-		RetrievalCount:           input.RetrievalCount,
-		RetrievalScoreThreshold:  input.RetrievalScoreThreshold,
-		RerankProviderID:         input.RerankProviderID,
-		RerankModelIdentifier:    input.RerankModelIdentifier,
+		EmbeddingModelID:        input.EmbeddingModelID,
+		EmbeddingDimension:      input.EmbeddingDimension,
+		ChunkLength:             input.ChunkLength,
+		ChunkOverlap:            input.ChunkOverlap,
+		RetrievalCount:          input.RetrievalCount,
+		RetrievalScoreThreshold: input.RetrievalScoreThreshold,
+		RerankModelID:           input.RerankModelID,
 	})
 	if err != nil {
 		return appservice.KnowledgeBase{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeBaseUpdateFailed, identity.Organization.ID, knowledgeBaseID)
@@ -245,15 +241,13 @@ func (o *directOperations) knowledgeBaseError(ctx context.Context, meta appservi
 func knowledgeBaseFromAction(record knowledgebaseaction.Record) appservice.KnowledgeBase {
 	return appservice.KnowledgeBase{
 		ID: record.ID, Name: record.Name, Category: appservice.KnowledgeBaseCategory(record.Category), Description: record.Description,
-		EmbeddingProviderID:      record.EmbeddingProviderID,
-		EmbeddingModelIdentifier: record.EmbeddingModelIdentifier,
-		EmbeddingDimension:       record.EmbeddingDimension,
-		ChunkLength:              record.ChunkLength,
-		ChunkOverlap:             record.ChunkOverlap,
-		RetrievalCount:           record.RetrievalCount,
-		RetrievalScoreThreshold:  record.RetrievalScoreThreshold,
-		RerankProviderID:         record.RerankProviderID,
-		RerankModelIdentifier:    record.RerankModelIdentifier,
+		EmbeddingModelID:        record.EmbeddingModelID,
+		EmbeddingDimension:      record.EmbeddingDimension,
+		ChunkLength:             record.ChunkLength,
+		ChunkOverlap:            record.ChunkOverlap,
+		RetrievalCount:          record.RetrievalCount,
+		RetrievalScoreThreshold: record.RetrievalScoreThreshold,
+		RerankModelID:           record.RerankModelID,
 
 		CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt,
 	}

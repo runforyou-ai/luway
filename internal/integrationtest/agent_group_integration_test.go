@@ -20,14 +20,14 @@ import (
 // TestGroupAgentMembership 验证活跃 Agent 建群、添加、移除和群主边界。
 func TestGroupAgentMembership(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
 	agents := make([]*agentaction.Agent, 0, 2)
 	for i := range 2 {
 		agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 			DisplayName: fmt.Sprintf("群成员助手 %d", i),
 			Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-				ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "协助企业成员",
+				ModelID: modelID, SystemInstruction: "协助企业成员",
 			}},
 		})
 		if err != nil {

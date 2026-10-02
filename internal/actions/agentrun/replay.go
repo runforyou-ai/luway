@@ -45,9 +45,9 @@ func (a *ExecuteAction) Replay(ctx context.Context, input ReplayInput) (agentrun
 		// 以子查询提供指定的配置版本编号，供配置关联使用。
 		Join("CROSS JOIN (SELECT ?::uuid AS id) AS replay_revision", input.RevisionID).
 		ColumnExpr("oi.display_name AS agent_name").
-		ColumnExpr("aipm.input_modalities").
+		ColumnExpr("aim.input_modalities").
 		ColumnExpr("ar.configuration->'knowledgeBaseIds' AS knowledge_base_ids").
-		ColumnExpr("aip.id::text AS provider_id, ? = ANY(a.service_audiences) AS handles_customers, o.name AS organization_name", domain.ServiceAudienceCustomer).
+		ColumnExpr("aim.id::text AS model_id, ? = ANY(a.service_audiences) AS handles_customers, o.name AS organization_name", domain.ServiceAudienceCustomer).
 		Join("JOIN organizations AS o ON o.id = a.organization_id").
 		Apply(func(query *bun.SelectQuery) *bun.SelectQuery {
 			return withManagedAgentConfiguration(query, "replay_revision.id")

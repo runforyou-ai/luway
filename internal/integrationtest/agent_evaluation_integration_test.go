@@ -59,7 +59,7 @@ func (d *evaluationDecider) Decide(_ context.Context, _ decision.Credential, _ s
 // TestAgentEvaluation 验证评测用例的校验与版本、发起运行的前置条件、按处理方式与判断模型判定、评测异常不计入通过、单条重跑不改变运行计数，以及新失败只标记快照版本未变的用例。
 func TestAgentEvaluation(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
 	tasks := newTestTasks(db)
 	if err := tasks.Registry().RegisterJSON(agentevaluation.EvaluateActionName, func(context.Context, agentevaluation.EvaluateInput) error { return nil }); err != nil {
@@ -68,7 +68,7 @@ func TestAgentEvaluation(t *testing.T) {
 	agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "评测客服",
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "回答退款问题",
+			ModelID: modelID, SystemInstruction: "回答退款问题",
 		}},
 	})
 	if err != nil {
@@ -101,8 +101,8 @@ func TestAgentEvaluation(t *testing.T) {
 	}
 	summaryProviderID := seedSummaryModels(t, db, identity)
 	if _, err := customerservice.NewUpdateServiceSummarySettingsAction(db).Execute(ctx, identity, domain.ServiceSummarySettings{
-		Decision: &domain.AIModelReference{ProviderID: summaryProviderID, ModelIdentifier: "decision-model"},
-		Locale:   domain.LocaleChineseSimplified,
+		DecisionModelID: new(aiModelID(t, db, summaryProviderID, "decision-model")),
+		Locale:          domain.LocaleChineseSimplified,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -237,7 +237,7 @@ func TestAgentEvaluation(t *testing.T) {
 	decider.probabilities["质量问题运费由我们承担"] = 0.2
 	if _, err := agentaction.NewUpdateExecutionAction(db).Execute(ctx, identity, agent.ID, agentaction.UpdateExecutionInput{
 		ExecutionInput: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "回答退款与运费问题",
+			ModelID: modelID, SystemInstruction: "回答退款与运费问题",
 		}},
 	}); err != nil {
 		t.Fatal(err)
@@ -264,12 +264,12 @@ func TestAgentEvaluation(t *testing.T) {
 // TestAgentEvaluationReplay 验证回放使用指定配置版本解析服务场景的有效配置，只以给定消息为输入，且不写入会话、消息和运行记录。
 func TestAgentEvaluationReplay(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
 	agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer, domain.ServiceAudienceEmployee}, DisplayName: "回放客服",
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "第一版指令",
+			ModelID: modelID, SystemInstruction: "第一版指令",
 		}},
 	})
 	if err != nil {
@@ -278,7 +278,7 @@ func TestAgentEvaluationReplay(t *testing.T) {
 	firstRevision := agent.Execution.RevisionID
 	if _, err := agentaction.NewUpdateExecutionAction(db).Execute(ctx, identity, agent.ID, agentaction.UpdateExecutionInput{
 		ExecutionInput: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "第二版指令",
+			ModelID: modelID, SystemInstruction: "第二版指令",
 		}},
 	}); err != nil {
 		t.Fatal(err)
@@ -499,7 +499,7 @@ func TestAgentEvaluationCapturedCases(t *testing.T) {
 	// 回放以客户上下文开头，前文按发送方区分角色，客户历史检索只看提问之前关闭的周期。
 	summaryProviderID := seedSummaryModels(t, db, identity)
 	if _, err := customerservice.NewUpdateServiceSummarySettingsAction(db).Execute(ctx, identity, domain.ServiceSummarySettings{
-		Decision: &domain.AIModelReference{ProviderID: summaryProviderID, ModelIdentifier: "decision-model"}, Locale: domain.LocaleChineseSimplified,
+		DecisionModelID: new(aiModelID(t, db, summaryProviderID, "decision-model")), Locale: domain.LocaleChineseSimplified,
 	}); err != nil {
 		t.Fatal(err)
 	}
