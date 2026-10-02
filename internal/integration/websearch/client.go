@@ -25,6 +25,8 @@ const (
 	maxSnippetRunes = 500
 	// maxErrorBodyBytes 是失败响应保留到错误中的最大字节数。
 	maxErrorBodyBytes = 1024
+	// maxResponseBytes 是单个搜索响应允许读取的最大字节数。
+	maxResponseBytes = 8 << 20
 )
 
 // htmlTag 匹配摘要中服务商用于高亮关键词的 HTML 标签。
@@ -162,9 +164,12 @@ func (c *Client) do(request *http.Request, out any) error {
 		return connectiontest.ClassifyTransportError(connectiontest.StageConnect, err)
 	}
 	defer response.Body.Close()
-	body, err := io.ReadAll(response.Body)
+	body, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil {
 		return connectiontest.NewError(connectiontest.StageCapability, connectiontest.FailureProtocol, err)
+	}
+	if len(body) > maxResponseBytes {
+		return connectiontest.NewError(connectiontest.StageCapability, connectiontest.FailureProtocol, errors.New("search response too large"))
 	}
 	slog.Info("联网搜索请求", "host", request.URL.Host, "path", request.URL.Path,
 		"status_code", response.StatusCode, "duration_ms", time.Since(startedAt).Milliseconds())

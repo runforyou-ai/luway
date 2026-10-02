@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -37,6 +38,8 @@ const (
 	minScoreLevels = 2
 	// maxScoreLevels 是评分题的最多等级数。
 	maxScoreLevels = 10
+	// maxResponseBytes 是判定响应允许读取的最大字节数。
+	maxResponseBytes = 1 << 20
 )
 
 // Credential 提供访问判断模型所需的接口地址和密钥，地址为 systemone 接口所在的基础路径。
@@ -149,7 +152,7 @@ func (c *Client) Decide(ctx context.Context, credential Credential, model string
 			Confidence    float64            `json:"confidence"`
 		} `json:"answers"`
 	}
-	if err := json.NewDecoder(response.Body).Decode(&decoded); err != nil {
+	if err := json.NewDecoder(io.LimitReader(response.Body, maxResponseBytes)).Decode(&decoded); err != nil {
 		return nil, &Error{Code: "decision_failed"}
 	}
 	answers := make(map[string]Answer, len(questions))
