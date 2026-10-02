@@ -12,6 +12,13 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
+// GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+func (b *Backend) GetProductDocPage(ctx context.Context, meta appservice.RequestMeta, input appservice.ProductDocPageInput) (appservice.ProductDocPage, error) {
+	var output appservice.ProductDocPage
+	err := b.do(ctx, meta, http.MethodGet, "/product-docs/page", encodeProductDocPageInputQuery(input), nil, &output)
+	return output, err
+}
+
 // LoadAccount 返回当前登录账号。
 func (b *Backend) LoadAccount(ctx context.Context, meta appservice.RequestMeta) (appservice.Account, error) {
 	var output appservice.Account
@@ -1931,6 +1938,14 @@ func encodeMemberOptionListInputQuery(input appservice.MemberOptionListInput) ur
 	setQuery(query, "query", input.Query)
 	setPositiveQuery(query, "page", input.Page)
 	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodeProductDocPageInputQuery 将 appservice.ProductDocPageInput 编码为查询参数。
+func encodeProductDocPageInputQuery(input appservice.ProductDocPageInput) url.Values {
+	query := url.Values{}
+	setQuery(query, "locale", input.Locale)
+	setQuery(query, "path", input.Path)
 	return query
 }
 

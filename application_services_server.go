@@ -3,6 +3,7 @@
 package main
 
 import (
+	"github.com/runforyou-ai/luway/docs"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
@@ -17,6 +18,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/ingress"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
+	"github.com/runforyou-ai/luway/internal/productdocs"
 	"github.com/runforyou-ai/luway/internal/publicweb"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	"github.com/runforyou-ai/luway/internal/realtime/gateway"
@@ -80,8 +82,19 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		return nil, nil, err
 	}
 
+	// 产品文档按部署状态过滤页面：当前部署使用实例授权且未配对商业服务。
+	productDocs, err := productdocs.Load(docs.Content, productdocs.Conditions{productdocs.ConditionInstanceLicense: true})
+	if err != nil {
+		return nil, nil, err
+	}
+	productDocsService, err := productdocs.NewService(productDocs)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// 组装企业成员与网站匿名访客各自的业务入口。
 	deployment := directDeploymentConfig(config, emailSender)
+	deployment.ProductDocs = productDocs
 	translator := translationaction.NewTranslator(db, agentRuntime)
 	directBackend := direct.New(db, deployment, localFiles, fileS3, agentRunScheduler, executeAgentRun, tasks, serviceReplySuggestions, translator)
 	boundService := appservice.New(directBackend)
@@ -115,6 +128,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewService(&serverTaskLifecycle{runtime: tasks}),
 		application.NewServiceWithOptions(publicweb.NewEmbedService(publicLookup), application.ServiceOptions{Route: "/embed"}),
 		application.NewServiceWithOptions(publicweb.NewChatService(publicLookup), application.ServiceOptions{Route: "/chat/"}),
+		application.NewServiceWithOptions(productDocsService, application.ServiceOptions{Route: "/docs"}),
 	}
 	return services, realtimeGateway.Middleware, nil
 }

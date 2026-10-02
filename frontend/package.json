@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:dev": "tsc && vite build --minify false --mode development && vite build --config vite.messenger.config.ts",
-    "build": "tsc && vite build --mode production && vite build --config vite.messenger.config.ts",
+    "build:dev": "tsc && vite build --minify false --mode development && vite build --config vite.messenger.config.ts && vite build --config vite.docs.config.ts",
+    "build": "tsc && vite build --mode production && vite build --config vite.messenger.config.ts && vite build --config vite.docs.config.ts",
     "preview": "vite preview",
-    "build:messenger": "vite build --config vite.messenger.config.ts"
+    "build:messenger": "vite build --config vite.messenger.config.ts",
+    "build:docs": "vite build --config vite.docs.config.ts"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",

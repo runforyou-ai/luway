@@ -1,0 +1,28 @@
+# 侧边栏导航：每个栏目包含栏目首页和若干分组，分组内的页面按 frontmatter 的 order 排序。
+sections:
+  - path: guide
+    title: { zh-cn: 使用手册, en: User guide }
+    groups:
+      - { dir: guide/basics, title: { zh-cn: 入门, en: Basics } }
+      - { dir: guide/daily, title: { zh-cn: 日常工作, en: Daily work } }
+      - { dir: guide/ai-employees, title: { zh-cn: AI 员工, en: AI employees } }
+      - { dir: guide/workspace, title: { zh-cn: 工作区管理, en: Workspace administration } }
+      - { dir: guide/admin, title: { zh-cn: 部署管理, en: Deployment administration } }
+      - { dir: guide/personal, title: { zh-cn: 个人与客户端, en: Personal and clients } }
+  - path: integrations
+    title: { zh-cn: 接入指南, en: Integrations }
+    groups:
+      - { dir: integrations/channels, title: { zh-cn: 客服渠道, en: Customer channels } }
+      - { dir: integrations/im, title: { zh-cn: 外部 IM, en: External IM } }
+      - { dir: integrations/business, title: { zh-cn: 业务系统, en: Business systems } }
+      - { dir: integrations/computers, title: { zh-cn: 电脑, en: Computers } }
+  - path: deployment
+    title: { zh-cn: 部署与运维, en: Deployment }
+    groups:
+      - { dir: deployment/install, title: { zh-cn: 安装, en: Installation } }
+      - { dir: deployment/configure, title: { zh-cn: 配置, en: Configuration } }
+      - { dir: deployment/operate, title: { zh-cn: 运维, en: Operations } }
+  - path: developers
+    title: { zh-cn: 开发者, en: Developers }
+  - path: releases
+    title: { zh-cn: 版本说明, en: Release notes }

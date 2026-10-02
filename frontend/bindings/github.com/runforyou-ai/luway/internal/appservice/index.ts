@@ -384,6 +384,8 @@ export type {
     PersonalAgentInput,
     PersonalAgentList,
     PersonalAgentResponsible,
+    ProductDocPage,
+    ProductDocPageInput,
     ProfileInput,
     ReadInboxConversationsInput,
     RealtimeConnection,

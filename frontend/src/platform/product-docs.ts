@@ -5,5 +5,10 @@ import { openExternalURL } from "@/platform/external-navigation"
 
 /** 按界面语言打开当前服务器上的产品文档页面。 */
 export async function openProductDocs(page: ProductDocsPage, language: string) {
-  await openExternalURL(`${await resolveServerURL()}${productDocsPath(page, language)}`)
+  await openProductDocsPath(productDocsPath(page, language))
+}
+
+/** 打开当前服务器上相对服务器地址的文档路径。 */
+export async function openProductDocsPath(path: string) {
+  await openExternalURL(`${await resolveServerURL()}${path}`)
 }

@@ -15,6 +15,11 @@ func (b *Backend) InstallationStatus(ctx context.Context, meta appservice.Reques
 	return b.ops.InstallationStatus(ctx, meta)
 }
 
+// GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+func (b *Backend) GetProductDocPage(ctx context.Context, meta appservice.RequestMeta, input appservice.ProductDocPageInput) (appservice.ProductDocPage, error) {
+	return b.ops.GetProductDocPage(ctx, meta, input)
+}
+
 // Login 校验账号密码并建立登录会话。
 func (b *Backend) Login(ctx context.Context, meta appservice.RequestMeta, input appservice.LoginInput) (appservice.Auth, error) {
 	return b.ops.Login(ctx, meta, input)
