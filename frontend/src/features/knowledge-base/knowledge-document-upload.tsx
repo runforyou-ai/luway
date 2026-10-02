@@ -2,7 +2,7 @@
 import { useRef, useState } from "react"
 import { PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { Link, useLocation } from "react-router"
+import { Link } from "react-router"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -13,13 +13,14 @@ import {
 import { AttachmentName } from "@/components/attachment-name"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { formatFileSize } from "@/lib/file-size"
+import { useReturnLink } from "@/hooks/use-return-to"
 import { useKnowledgeDocumentUpload, knowledgeDocumentFormats } from "./use-knowledge-document-upload"
 import { KnowledgeWebImportDialog } from "./knowledge-web-import-dialog"
 
 /** 在文档列表中提供新增入口、显示批次进度并保留失败重试入口。 */
 export function KnowledgeDocumentUpload({ baseId }: { baseId: string }) {
   const { t } = useTranslation(["knowledgeBase", "common"])
-  const location = useLocation()
+  const returnLink = useReturnLink()
   const picker = useRef<HTMLInputElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const [dragging, setDragging] = useState(false)
@@ -47,7 +48,7 @@ export function KnowledgeDocumentUpload({ baseId }: { baseId: string }) {
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
             <Link
-              to={`/knowledge-bases/${baseId}/documents/new${location.search}`}
+              to={returnLink(`/knowledge-bases/${baseId}/documents/new`)}
             >
               {t("documents.create.write")}
             </Link>

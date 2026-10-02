@@ -21,8 +21,6 @@ const settings = {
     roles: "角色与权限",
     modelServices: "模型服务",
     webSearch: "联网搜索",
-    webhooks: "Webhook",
-    openApi: "开放接口",
   },
   profile: {
     title: "个人资料",

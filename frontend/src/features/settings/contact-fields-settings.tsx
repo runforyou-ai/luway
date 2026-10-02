@@ -26,6 +26,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { NativeSelect } from "@/components/ui/native-select"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { useFormLifetime } from "@/hooks/use-form-lifetime"
 import { useResource } from "@/hooks/use-resource"
 import { apiErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
@@ -155,6 +156,8 @@ function ContactFieldForm({
       aiInstruction: field?.aiInstruction ?? "",
     },
   })
+  // 登记未保存状态，弹窗关闭前确认放弃修改。
+  useFormLifetime(form.formState.isDirty)
   const options = useFieldArray({ control: form.control, name: "options" })
   const type = form.watch("type")
   useEffect(() => {

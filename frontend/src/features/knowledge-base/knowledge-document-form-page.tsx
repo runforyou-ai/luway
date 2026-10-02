@@ -2,7 +2,7 @@
 import { useEffect, useId, useMemo, useState } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { useLocation, useNavigate, useParams } from "react-router"
+import { useParams } from "react-router"
 import { toast } from "sonner"
 import { z } from "zod"
 
@@ -24,6 +24,7 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { zodResolver } from "@/lib/zod-resolver"
 import { KnowledgeDocumentEditor } from "./knowledge-document-editor"
 import { knowledgeDocumentTitleMaxLength } from "./knowledge-base-schema"
@@ -57,7 +58,7 @@ export function KnowledgeDocumentFormPage({
     knowledgeBaseId = "",
     documentId = "",
   } = useParams()
-  const location = useLocation()
+  const { returnTo } = useReturnTo(`/knowledge-bases/${knowledgeBaseId}/documents`)
   const base = useResource(
     resourceKeys.knowledgeBase(knowledgeBaseId),
     (signal) => getKnowledgeBase(knowledgeBaseId, signal),
@@ -84,7 +85,7 @@ export function KnowledgeDocumentFormPage({
             ? "documents.createDescription"
             : "documents.editDescription",
         )}
-        backTo={mode === "edit" ? `/knowledge-bases/${knowledgeBaseId}/documents${location.search}` : undefined}
+        backTo={mode === "edit" ? returnTo : undefined}
       />
       <PageContent variant="form">
         <ResourceContent
@@ -117,8 +118,7 @@ function KnowledgeDocumentForm({
   stored?: KnowledgeDocumentContentData
 }) {
   const { t } = useTranslation(["knowledgeBase", "common"])
-  const navigate = useNavigate()
-  const location = useLocation()
+  const { leave } = useReturnTo(`/knowledge-bases/${baseId}/documents`)
   const invalidate = useResourceInvalidator()
   const id = useId()
   const schema = useMemo(
@@ -140,7 +140,6 @@ function KnowledgeDocumentForm({
       content: stored?.content ?? "",
     },
   })
-  const returnPath = `/knowledge-bases/${baseId}/documents${location.search}`
   // 表单未编辑时跟随最新读取到的名称与正文，编辑器按内容版本重建。
   const [contentVersion, setContentVersion] = useState(0)
   useEffect(() => {
@@ -170,7 +169,7 @@ function KnowledgeDocumentForm({
     },
     onSubmitted: () => {
       toast.success(t("documents.saveSuccess"))
-      navigate(returnPath, { replace: true })
+      leave({ replace: true })
     },
     errorMessage: t("documents.saveError"),
     logLabel: "保存在线文档",
@@ -215,7 +214,7 @@ function KnowledgeDocumentForm({
       {stored ? null : (
         <FormActions
           saving={disabled}
-          onCancel={() => navigate(returnPath, { replace: true })}
+          onCancel={() => leave({ replace: true })}
         />
       )}
     </form>

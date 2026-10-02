@@ -16,6 +16,7 @@ import { usePendingIds } from "@/hooks/use-pending-ids"
 import { useResourceInvalidator, type PagedResourceMore } from "@/hooks/use-resource"
 import { apiErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
+import { useReturnLink } from "@/hooks/use-return-to"
 import {
   Tooltip,
   TooltipContent,
@@ -30,7 +31,6 @@ export function KnowledgeQATable({
   more,
   loading,
   listPath,
-  search,
   filtered,
   onDelete,
 }: {
@@ -39,12 +39,12 @@ export function KnowledgeQATable({
   more: PagedResourceMore
   loading: boolean
   listPath: string
-  search: string
   filtered: boolean
   onDelete: (entry: KnowledgeQASummaryData) => void
 }) {
   const { t } = useTranslation(["knowledgeBase", "common"])
   const navigate = useNavigate()
+  const returnLink = useReturnLink()
   const invalidate = useResourceInvalidator()
   const { formatDateTime } = useDateTime()
   const retrying = usePendingIds()
@@ -126,7 +126,7 @@ export function KnowledgeQATable({
         rows={entries}
         rowKey={(entry) => entry.id}
         empty={filtered ? t("qa.filteredEmpty") : t("qa.empty")}
-        onRowActivate={(entry) => navigate(`${listPath}/${entry.id}/edit${search}`)}
+        onRowActivate={(entry) => navigate(returnLink(`${listPath}/${entry.id}/edit`))}
         rowActions={(entry) => [
           {
             key: "reprocess",

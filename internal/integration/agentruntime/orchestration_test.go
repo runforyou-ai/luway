@@ -57,14 +57,14 @@ func (m *orchestrationChatModel) Stream(ctx context.Context, input []*schema.Age
 	return singleChunkStream(m.Generate(ctx, input, opts...))
 }
 
-// runOrchestration 以带计算器的运行时执行一次内部单聊运行，工具清单追加任务清单与委派工具并提供子 Agent 指令，返回结果与收到的运行流增量。
+// runOrchestration 以带回显工具的运行时执行一次内部单聊运行，工具清单追加任务清单与委派工具并提供子 Agent 指令，返回结果与收到的运行流增量。
 func runOrchestration(t *testing.T, chatModel *orchestrationChatModel, request RunRequest) (RunResult, []runstream.Delta) {
 	t.Helper()
-	calculator, err := newCalculatorTool()
+	echoTool, err := newEchoTool()
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }, tools: []tool.BaseTool{calculator}}
+	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }, tools: []tool.BaseTool{echoTool}}
 	feed := &testInputFeed{}
 	feed.appendUser("帮我把报价整理一下")
 	var mu sync.Mutex
@@ -181,8 +181,8 @@ func TestSubagentDelegation(t *testing.T) {
 			last := input[len(input)-1]
 			task := messageText(input[1])
 			if last.Role == schema.AgenticRoleTypeUser && toolResult(last) == nil {
-				// 计算器延时返回，委派调用的活动在发布周期内可见。
-				return assistantReply("", terminalCall("k-"+task, "calculator", `{"operation":"add","left":1,"right":2,"delayMilliseconds":150}`))
+				// 回显工具延时返回，委派调用的活动在发布周期内可见。
+				return assistantReply("", terminalCall("k-"+task, "echo", `{"text":"3","delayMilliseconds":150}`))
 			}
 			return assistantReply(task + "：结果是 3")
 		},
@@ -205,7 +205,7 @@ func TestSubagentDelegation(t *testing.T) {
 		for i, info := range tools {
 			names[i] = info.Name
 		}
-		if !slices.Contains(names, "calculator") || slices.Contains(names, subagentToolName) || slices.Contains(names, "TaskCreate") {
+		if !slices.Contains(names, "echo") || slices.Contains(names, subagentToolName) || slices.Contains(names, "TaskCreate") {
 			t.Fatalf("subagent tools = %v", names)
 		}
 	}
@@ -216,7 +216,7 @@ func TestSubagentDelegation(t *testing.T) {
 				continue
 			}
 			described = described || operation.Block.ToolCall.Description == "计算 A"
-			active = active || operation.Block.ToolCall.Activity == "calculator"
+			active = active || operation.Block.ToolCall.Activity == "echo"
 		}
 	}
 	if !described || !active {

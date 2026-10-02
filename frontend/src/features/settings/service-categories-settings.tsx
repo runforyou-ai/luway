@@ -25,6 +25,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { NativeSelect } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { useFormLifetime } from "@/hooks/use-form-lifetime"
 import { useResource } from "@/hooks/use-resource"
 import { apiErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
@@ -134,6 +135,8 @@ function ServiceCategoryForm({
       teamId: category?.team?.id ?? "",
     },
   })
+  // 登记未保存状态，弹窗关闭前确认放弃修改。
+  useFormLifetime(form.formState.isDirty)
   useEffect(() => {
     if (!category) form.setFocus("name")
   }, [category, form])

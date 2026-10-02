@@ -69,6 +69,7 @@ const channels = {
   create: {
     title: "Add {{type}} channel",
     description: "Fill in the channel details and connect it",
+    success: "Channel added",
   },
   edit: {
     title: "{{type}} channel settings",

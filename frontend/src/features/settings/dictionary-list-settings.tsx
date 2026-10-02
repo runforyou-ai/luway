@@ -6,9 +6,9 @@ import { useTranslation } from "react-i18next"
 
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { ResourceTable } from "@/components/resource-table"
+import { UnsavedDialog } from "@/components/unsaved-dialog"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -112,7 +112,7 @@ export function DictionaryListSettings<T extends { id: string; name: string }>({
         />
       </section>
 
-      <Dialog
+      <UnsavedDialog
         open={editor.editing !== null}
         onOpenChange={(open) => !open && editor.close()}
       >
@@ -131,7 +131,7 @@ export function DictionaryListSettings<T extends { id: string; name: string }>({
               })
             : null}
         </DialogContent>
-      </Dialog>
+      </UnsavedDialog>
 
       <ConfirmationDialog
         {...remove.dialog}

@@ -14,7 +14,7 @@ import {
 } from "@/api"
 import { recoverSession } from "@/lib/session-navigation"
 import { FormInputField } from "@/components/form/form-input-field"
-import { SwitchCardField } from "@/components/form/switch-card-field"
+import { SwitchField } from "@/components/form/switch-field"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { TabsContent } from "@/components/ui/tabs"
@@ -26,6 +26,7 @@ import {
   type WebsiteChannelChatInterfaceFormValues,
 } from "@/features/channels/website/website-channel-chat-interface-schema"
 import { useAutoSave } from "@/hooks/use-auto-save"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { requestErrorMessage } from "@/lib/form-errors"
 import { zodResolver } from "@/lib/zod-resolver"
 
@@ -49,6 +50,7 @@ export function WebsiteChannelChatInterfaceForm({
 }) {
   const { t } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
+  const { leave } = useReturnTo("/channels")
   const formId = useId()
   const schema = useMemo(
     () =>
@@ -120,7 +122,7 @@ export function WebsiteChannelChatInterfaceForm({
       }
       if (isNotFoundApiError(error)) {
         console.warn("网站渠道不存在", { channel_id: channel.id })
-        navigate("/channels", { replace: true })
+        leave({ replace: true })
         return false
       }
       console.warn("保存网站渠道聊天窗口设置失败", error)
@@ -290,7 +292,7 @@ function ChatInterfaceSwitch({
       name={name}
       control={control}
       render={({ field }) => (
-        <SwitchCardField
+        <SwitchField
           id={`${idPrefix}-${field.name}`}
           name={field.name}
           label={label}

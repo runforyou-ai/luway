@@ -17,6 +17,7 @@ import {
   type ChannelReceptionSettingsFormValues,
 } from "@/features/channels/reception/channel-reception-schema"
 import { useAutoSave } from "@/hooks/use-auto-save"
+import { useReturnTo } from "@/hooks/use-return-to"
 import { requestErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
 import { zodResolver } from "@/lib/zod-resolver"
@@ -31,6 +32,7 @@ export function ChannelReceptionSettingsForm({
 }) {
   const { t } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
+  const { leave } = useReturnTo("/channels")
   const schema = useMemo(
     () =>
       createChannelReceptionSchema({
@@ -66,7 +68,7 @@ export function ChannelReceptionSettingsForm({
       if (recoverSession(error, navigate)) return false
       if (isNotFoundApiError(error)) {
         console.warn("消息渠道不存在", { channel_id: channel.id })
-        navigate("/channels", { replace: true })
+        leave({ replace: true })
         return false
       }
       console.warn("保存消息渠道接待设置失败", error)

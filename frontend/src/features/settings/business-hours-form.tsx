@@ -17,7 +17,7 @@ import {
   type BusinessHoursData,
 } from "@/api"
 import { ResourceContent } from "@/components/resource-content"
-import { SwitchCardField } from "@/components/form/switch-card-field"
+import { SwitchField } from "@/components/form/switch-field"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -146,7 +146,7 @@ function BusinessHoursForm({ hours }: { hours: BusinessHoursData }) {
           name="enabled"
           control={form.control}
           render={({ field }) => (
-            <SwitchCardField
+            <SwitchField
               id={field.name}
               name={field.name}
               label={t("customerService.businessHours.enabled")}

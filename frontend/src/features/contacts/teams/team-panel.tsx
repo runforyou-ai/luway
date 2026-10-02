@@ -2,15 +2,17 @@
 import { useEffect, useState } from "react"
 import { PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { useLocation, useNavigate } from "react-router"
+import { useNavigate } from "react-router"
 
 import {
   OrganizationIdentityType,
   WorkStatus,
+  deleteTeam,
   getTeam,
   isNotFoundApiError,
   listTeamMembers,
   removeTeamMembers,
+  type Team,
   type TeamMember,
 } from "@/api"
 import {
@@ -22,6 +24,7 @@ import {
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable } from "@/components/resource-table"
+import { UnsavedDialog } from "@/components/unsaved-dialog"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -33,6 +36,7 @@ import {
 import { WorkStatusDot, workStatusLabel } from "@/components/work-status"
 import { useWorkspace } from "@/contexts/workspace-context"
 import { ContactListSection } from "@/features/contacts/contact-list-section"
+import { TeamForm } from "@/features/contacts/teams/team-form"
 import { TeamMemberPicker } from "@/features/contacts/teams/team-member-picker"
 import { teamMembershipCacheKeys } from "@/features/contacts/teams/team-membership-cache"
 import { useContactSearch } from "@/hooks/use-contact-search"
@@ -40,6 +44,7 @@ import { useDateTime } from "@/hooks/use-date-time"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 import { usePagedResource, useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { useReturnLink, useReturnTo } from "@/hooks/use-return-to"
 import { optionalWailsEnum } from "@/lib/wails-enum"
 
 /** 单个团队的成员列表、批量移出和添加成员弹窗。 */
@@ -48,7 +53,6 @@ export function TeamPanel({ teamId }: { teamId: string }) {
   const { t: tCommon } = useTranslation("common")
   const { identity } = useWorkspace()
   const navigate = useNavigate()
-  const location = useLocation()
   const { formatDateTime } = useDateTime()
   const invalidate = useResourceInvalidator()
   const {
@@ -63,16 +67,26 @@ export function TeamPanel({ teamId }: { teamId: string }) {
     searchParams.get("workStatus"),
   )
   const addingTeamMembers = searchParams.get("addMembers") === "1"
-  // 返回来源团队列表并保留其搜索与滚动位置。
-  const returnParameter = searchParams.get("returnTo") ?? ""
-  const returnTo =
-    returnParameter.split("?")[0] === "/contacts/teams"
-      ? returnParameter
-      : "/contacts/teams"
   const teamResource = useResource(resourceKeys.team(teamId), () =>
     getTeam(teamId),
   )
   const selectedTeam = teamResource.data
+  // 返回来源团队列表并保留其搜索与滚动位置。
+  const { returnTo, leave } = useReturnTo("/contacts/teams", {
+    notFound: isNotFoundApiError(teamResource.error),
+    logFields: { team_id: teamId },
+  })
+  const [editingTeam, setEditingTeam] = useState(false)
+  // 删除团队后回到来源列表。
+  const teamDeletion = useConfirmedAction<Team>({
+    action: (team) => deleteTeam(team.id),
+    invalidateKeys: () => [resourceKeys.teams(), resourceKeys.serviceCategories(), ...teamMembershipCacheKeys],
+    successMessage: () => t("teams.delete.success"),
+    errorMessage: () => t("teams.delete.error"),
+    logLabel: "删除团队",
+    onSuccess: () => leave({ replace: true }),
+  })
+  const returnLink = useReturnLink()
   const [selectedTeamMemberIdentityIDs, setSelectedTeamMemberIdentityIDs] =
     useState<Set<string>>(new Set())
 
@@ -86,13 +100,6 @@ export function TeamPanel({ teamId }: { teamId: string }) {
   useEffect(() => {
     setSelectedTeamMemberIdentityIDs(new Set())
   }, [query, teamId, workStatus])
-
-  // 团队不存在时回到来源列表。
-  useEffect(() => {
-    if (!isNotFoundApiError(teamResource.error)) return
-    console.warn("团队不存在", { team_id: teamId })
-    navigate(returnTo, { replace: true })
-  }, [navigate, returnTo, teamId, teamResource.error])
 
 
   /** 返回团队成员行显示的工作状态。 */
@@ -188,6 +195,12 @@ export function TeamPanel({ teamId }: { teamId: string }) {
                   })}
                 </Button>
               ) : null}
+              <Button variant="outline" size="sm" onClick={() => setEditingTeam(true)}>
+                {tCommon("actions.edit")}
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => teamDeletion.select(selectedTeam)}>
+                {tCommon("actions.delete")}
+              </Button>
               <Button
                 variant="subtle"
                 size="icon-sm"
@@ -326,7 +339,7 @@ export function TeamPanel({ teamId }: { teamId: string }) {
           onRowActivate={(member) =>
             navigate(
               member.identityType === OrganizationIdentityType.OrganizationIdentityTypeAgent
-                ? `/ai-employees/${member.agentId}?returnTo=${encodeURIComponent(location.pathname + location.search)}`
+                ? returnLink(`/ai-employees/${member.agentId}`)
                 : `/chats?target=${member.identityId}`,
             )
           }
@@ -376,6 +389,37 @@ export function TeamPanel({ teamId }: { teamId: string }) {
           </DialogContent>
         </Dialog>
       ) : null}
+
+      <UnsavedDialog
+        open={editingTeam && Boolean(selectedTeam)}
+        onOpenChange={(open) => !open && setEditingTeam(false)}
+      >
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t("teams.edit")}</DialogTitle>
+            <DialogDescription>{t("teams.editDescription")}</DialogDescription>
+          </DialogHeader>
+          {editingTeam && selectedTeam ? (
+            <TeamForm
+              team={selectedTeam}
+              onSaved={() => {
+                setEditingTeam(false)
+                void invalidate(resourceKeys.team(teamId))
+              }}
+              onCancel={() => setEditingTeam(false)}
+            />
+          ) : null}
+        </DialogContent>
+      </UnsavedDialog>
+
+      <ConfirmationDialog
+        {...teamDeletion.dialog}
+        title={t("teams.delete.title", { name: teamDeletion.item?.name ?? "" })}
+        description={t("teams.delete.description", {
+          count: teamDeletion.item?.memberCount ?? 0,
+        })}
+        pendingLabel={tCommon("actions.deleting")}
+      />
 
       <ConfirmationDialog
         {...memberRemoval.dialog}

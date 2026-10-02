@@ -17,7 +17,7 @@ import (
 func TestToolArgumentsNormalizerFillsEmptyArguments(t *testing.T) {
 	original := assistantReply("",
 		&schema.FunctionToolCall{CallID: "empty-call", Name: "list_items"},
-		&schema.FunctionToolCall{CallID: "filled-call", Name: "calculator", Arguments: `{"left":1}`},
+		&schema.FunctionToolCall{CallID: "filled-call", Name: "echo", Arguments: `{"text":"1"}`},
 	)
 	state := &adk.TypedChatModelAgentState[*schema.AgenticMessage]{Messages: []*schema.AgenticMessage{schema.UserAgenticMessage("问题"), original}}
 	_, state, err := (&toolArgumentsNormalizer{}).BeforeModelRewriteState(context.Background(), state, nil)
@@ -25,7 +25,7 @@ func TestToolArgumentsNormalizerFillsEmptyArguments(t *testing.T) {
 		t.Fatal(err)
 	}
 	calls := toolCalls(state.Messages[1])
-	if calls[0].Arguments != "{}" || calls[1].Arguments != `{"left":1}` {
+	if calls[0].Arguments != "{}" || calls[1].Arguments != `{"text":"1"}` {
 		t.Fatalf("tool calls = %#v", calls)
 	}
 	if toolCalls(original)[0].Arguments != "" {

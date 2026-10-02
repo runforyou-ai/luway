@@ -93,6 +93,13 @@ jobs:
       - name: Test Go server build
         run: wails3 task test:server
 
+      - name: Stop integration test dependencies
+        if: always()
+        run: |
+          docker logs luway-postgres || true
+          docker logs luway-nats || true
+          docker rm --force luway-postgres luway-nats || true
+
       - name: Save Go cache
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

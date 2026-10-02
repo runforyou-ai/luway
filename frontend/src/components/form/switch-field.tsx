@@ -1,4 +1,4 @@
-/** 表单共用的开关设置卡片。 */
+/** 表单共用的开关设置行。 */
 import type { ReactNode, Ref } from "react"
 
 import {
@@ -9,8 +9,8 @@ import {
 } from "@/components/ui/field"
 import { Switch } from "@/components/ui/switch"
 
-/** 以带边框的卡片展示开关，标题和说明在左、开关在右。 */
-export function SwitchCardField({
+/** 以表单行展示开关，标题和说明在左、开关在右。 */
+export function SwitchField({
   id,
   name,
   label,
@@ -32,7 +32,7 @@ export function SwitchCardField({
   ref: Ref<HTMLButtonElement>
 }) {
   return (
-    <Field orientation="horizontal" className="rounded-lg border p-4">
+    <Field orientation="horizontal">
       <FieldContent>
         <FieldLabel htmlFor={id}>{label}</FieldLabel>
         {description ? (

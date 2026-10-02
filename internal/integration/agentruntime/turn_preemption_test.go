@@ -39,7 +39,7 @@ func TestTurnPreemptionDoesNotSendEmptyAssistant(t *testing.T) {
 					}
 					output := assistantReply("")
 					if kind == "reasoning-with-skipped-tool" {
-						output = assistantReply("", &schema.FunctionToolCall{CallID: "skipped", Name: "calculator", Arguments: `{"operation":"add","left":1,"right":2}`})
+						output = assistantReply("", &schema.FunctionToolCall{CallID: "skipped", Name: "echo", Arguments: `{"text":"3"}`})
 					}
 					if kind != "empty" {
 						output = withReasoning(output, "需要先计算")
@@ -68,7 +68,7 @@ func TestTurnPreemptionDoesNotSendEmptyAssistant(t *testing.T) {
 				}
 				return assistantReply("已按新问题回答"), nil
 			}}
-			calculator, err := newCalculatorTool()
+			echoTool, err := newEchoTool()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -81,7 +81,7 @@ func TestTurnPreemptionDoesNotSendEmptyAssistant(t *testing.T) {
 			}
 			agent, err := adk.NewTypedChatModelAgent(ctx, &adk.TypedChatModelAgentConfig[*schema.AgenticMessage]{
 				Name: "test", Model: chatModel, Handlers: []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]{recorder, patch},
-				ToolsConfig: adk.ToolsConfig{ToolsNodeConfig: compose.ToolsNodeConfig{Tools: []tool.BaseTool{calculator}}},
+				ToolsConfig: adk.ToolsConfig{ToolsNodeConfig: compose.ToolsNodeConfig{Tools: []tool.BaseTool{echoTool}}},
 			})
 			if err != nil {
 				t.Fatal(err)

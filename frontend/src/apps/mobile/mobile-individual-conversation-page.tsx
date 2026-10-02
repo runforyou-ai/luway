@@ -1,5 +1,5 @@
-/** 移动端真人单聊与 AI 聊天详情及其会话头。 */
-import { Suspense } from "react"
+/** 移动端真人单聊与 AI 聊天详情及其会话头，真人单聊草稿与正式会话共用同一页面实例。 */
+import { Suspense, useState } from "react"
 import { BellOffIcon, MoreHorizontalIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
@@ -40,9 +40,14 @@ import { useAccountDisabledReason } from "@/features/inbox/use-account-disabled-
 import { useConversationTypingLabel } from "@/features/inbox/use-conversation-typing"
 import { useConversationArchive } from "@/features/inbox/use-conversation-archive"
 import { useConversationListActions } from "@/features/inbox/conversation-list-menu"
-type MobileIndividualLocationState = MobileLocateState & {
+import { useFirstChatMessage } from "@/features/inbox/use-first-chat-message"
+import { useMountedRef } from "@/hooks/use-mounted-ref"
+/** 移动端真人单聊路由状态：draftPeer 为草稿对端，handoffFrom 为首发后替换前的草稿路由编号。 */
+export type MobileIndividualLocationState = MobileLocateState & {
   memberUserID?: string
   conversation?: DirectInboxConversationData
+  draftPeer?: { identityId: string; displayName: string }
+  handoffFrom?: string
 }
 
 /** 双方会话页向资料子页提供的会话。 */
@@ -172,26 +177,69 @@ export function MobileIndividualHeader({
   )
 }
 
-/** 加载并显示移动端真人单聊历史和文本发送区；资料子页打开时保留会话。 */
+/** 按会话编号隔离页面状态，草稿首发后的正式会话沿用草稿编号作为实例键，保留同一实例。 */
 export function MobileIndividualConversationPage() {
-  const { t } = useTranslation(["inbox", "common"])
-  const { chatsURL } = useMobileNavigation()
   const { conversationID = "" } = useParams()
   const location = useLocation()
+  const [handoff, setHandoff] = useState<{ from: string; to: string } | null>(null)
+  const handoffFrom = (location.state as MobileIndividualLocationState | null)?.handoffFrom
+  // 记录草稿编号到正式会话编号的交接，后续进入资料子页时沿用同一实例键。
+  if (handoffFrom && (handoff?.from !== handoffFrom || handoff.to !== conversationID)) {
+    setHandoff({ from: handoffFrom, to: conversationID })
+  }
+  return (
+    <MobileIndividualConversation
+      key={handoff?.to === conversationID ? handoff.from : conversationID}
+      conversationID={conversationID}
+    />
+  )
+}
+
+/** 加载并显示移动端真人单聊历史和文本发送区，草稿首发后就地切换为正式会话；资料子页打开时保留会话。 */
+function MobileIndividualConversation({ conversationID }: { conversationID: string }) {
+  const { t } = useTranslation(["inbox", "common"])
+  const { chatsURL } = useMobileNavigation()
+  const navigate = useNavigate()
+  const location = useLocation()
   const childOpen = !useMatch("/chats/direct/:conversationID")
-  const summary = useConversationSummary(conversationID, false)
-  // 路由携带的摘要保持首屏线程，查询完成后由服务端结果接管。
-  const initial = (location.state as MobileIndividualLocationState | null)?.conversation
-  const data = summary.data === undefined && initial?.id === conversationID
+  const [draftPeer] = useState(
+    () => (location.state as MobileIndividualLocationState | null)?.draftPeer ?? null,
+  )
+  const [created, setCreated] = useState<DirectInboxConversationData | null>(null)
+  const persisted = !draftPeer || Boolean(created)
+  // 首发响应确定当前会话编号，路由交接期间继续展示同一线程。
+  const activeConversationID = created?.id ?? conversationID
+  const alive = useMountedRef()
+  const firstChat = useFirstChatMessage()
+  const summary = useConversationSummary(persisted ? activeConversationID : "", false)
+  // 路由携带或首发返回的摘要保持首屏线程，查询完成后由服务端结果接管。
+  const initial = created ?? (location.state as MobileIndividualLocationState | null)?.conversation
+  const data = summary.data === undefined && initial?.id === activeConversationID
     ? initial : summary.data
   const conversation = data && isDirectInboxConversation(data) ? data : null
   const disabledReason = useAccountDisabledReason(conversation)
-  if (!conversationID) return <Navigate to={chatsURL} replace />
+  if (!activeConversationID) return <Navigate to={chatsURL} replace />
   const peerName =
     conversation?.direct.peerName.trim() ||
+    draftPeer?.displayName ||
     t("unknownSender")
 
   const covered = childOpen && Boolean(conversation)
+
+  /** 首发确认后保留页面实例，用正式会话编号替换草稿路由。 */
+  function handleCreated(next: DirectInboxConversationData) {
+    if (!alive.current) return
+    setCreated(next)
+    void navigate(`/chats/direct/${next.id}`, {
+      replace: true,
+      state: {
+        ...(location.state as MobileIndividualLocationState | null),
+        conversation: next,
+        draftPeer: undefined,
+        handoffFrom: conversationID,
+      } satisfies MobileIndividualLocationState,
+    })
+  }
 
   return (
     <div className="relative h-full min-h-0">
@@ -204,7 +252,23 @@ export function MobileIndividualConversationPage() {
           peerName={peerName}
           covered={covered}
         />
-        {summary.loading && !conversation ? (
+        {!persisted && draftPeer ? (
+          <MobileIndividualThread
+            conversationID=""
+            conversationType={ConversationType.ConversationTypeDirect}
+            peerIdentityID={draftPeer.identityId}
+            onAttachmentConversationCreated={(next) => {
+              if (!isDirectInboxConversation(next)) return
+              firstChat.refreshStarted(next, draftPeer.identityId)
+              handleCreated(next)
+            }}
+            sendIndividualMessage={async (input) => {
+              const result = await firstChat.sendDirect(draftPeer.identityId, input)
+              handleCreated(result.conversation)
+              return result.message
+            }}
+          />
+        ) : summary.loading && !conversation ? (
           <LoadingIndicator className="min-h-0 flex-1 justify-center">
             {t("messagesLoading")}
           </LoadingIndicator>
@@ -223,8 +287,7 @@ export function MobileIndividualConversationPage() {
           </div>
         ) : (
           <MobileIndividualThread
-            key={conversationID}
-            conversationID={conversationID}
+            conversationID={activeConversationID}
             conversationType={ConversationType.ConversationTypeDirect}
             peerIdentityID={conversation.direct.peerIdentityId}
             disabledReason={disabledReason}
