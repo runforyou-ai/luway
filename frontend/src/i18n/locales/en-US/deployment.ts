@@ -1,16 +1,8 @@
-/** 美式英语·部署管理文案。 */
-const admin = {
-  entry: "Deployment admin",
-  navigationLabel: "Deployment admin navigation",
-  backToApp: "Back to workspace",
-  navigation: {
-    overview: "Overview",
-    accounts: "Accounts",
-    workspaces: "Workspaces",
-    registration: "Sign-up & creation",
-  },
+/** 美式英语·部署设置文案。 */
+const deployment = {
+  accountLoadError: "Couldn't load your account. Try again later.",
   overview: {
-    title: "Overview",
+    title: "Deployment overview",
     description: "See this deployment's instance details and usage.",
     instanceId: "Instance ID",
     instanceIdHelp: "Provide this ID when requesting a license or contacting support.",
@@ -24,7 +16,7 @@ const admin = {
     loadError: "Couldn't load the deployment overview. Try again later.",
   },
   accounts: {
-    title: "Accounts",
+    title: "All accounts",
     description: "Manage every account on this deployment.",
     search: "Search accounts",
     statusFilter: "Account status",
@@ -38,6 +30,7 @@ const admin = {
     workspaceCount_other: "Member of {{count}} workspaces",
     noWorkspace: "Not in any workspace",
     registeredAt: "Signed up {{time}}",
+    workspacesColumn: "Workspaces",
     registeredAtColumn: "Signed up",
     empty: "No matching accounts",
     loadError: "Couldn't load accounts. Try again later.",
@@ -52,7 +45,7 @@ const admin = {
     grantAdminTitle: "Make {{name}} a deployment admin?",
     grantAdminDescription: "Deployment admins can manage this deployment's accounts, workspaces, and sign-up settings.",
     revokeAdminTitle: "Remove {{name}} as a deployment admin?",
-    revokeAdminDescription: "The account can no longer open deployment admin.",
+    revokeAdminDescription: "The account can no longer manage this deployment's accounts, workspaces, and sign-up settings.",
     saving: "Saving…",
     deactivated: "Account deactivated",
     reactivated: "Account reactivated",
@@ -61,7 +54,7 @@ const admin = {
     updateError: "Couldn't update the account. Try again later.",
   },
   workspaces: {
-    title: "Workspaces",
+    title: "All workspaces",
     description: "See every workspace on this deployment.",
     search: "Search workspaces",
     memberCount_one: "1 member",
@@ -96,4 +89,4 @@ const admin = {
   },
 }
 
-export default admin
+export default deployment

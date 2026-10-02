@@ -6,6 +6,7 @@ const settings = {
     personal: "个人",
     organization: "工作区",
     integrations: "集成",
+    deployment: "部署",
   },
   navigation: {
     profile: "个人资料",
@@ -21,6 +22,10 @@ const settings = {
     roles: "角色与权限",
     modelServices: "模型服务",
     webSearch: "联网搜索",
+    deploymentOverview: "部署概览",
+    deploymentAccounts: "全部账号",
+    deploymentWorkspaces: "全部工作区",
+    deploymentRegistration: "注册与创建",
   },
   profile: {
     title: "个人资料",

@@ -180,6 +180,9 @@ func deploymentError(ctx context.Context, meta appservice.RequestMeta, err error
 	if errors.Is(err, deploymentaction.ErrSelfChange) {
 		return appservice.InvalidError(meta, i18n.ErrorDeploymentAccountSelfChange, nil)
 	}
+	if errors.Is(err, deploymentaction.ErrNoActiveMembership) {
+		return appservice.InvalidError(meta, i18n.ErrorDeploymentAccountNoWorkspace, nil)
+	}
 	attributes := []any{"account_id", account.Account.ID, "failure", failureKey, "error", err}
 	if accountID != "" {
 		attributes = append(attributes, "target_account_id", accountID)

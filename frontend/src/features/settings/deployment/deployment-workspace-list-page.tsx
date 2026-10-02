@@ -1,4 +1,4 @@
-/** 部署管理的工作区页：搜索并查看部署内的全部工作区及其成员规模。 */
+/** 部署设置的全部工作区页：搜索并查看部署内的全部工作区及其成员规模。 */
 import { LayoutGridIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -14,8 +14,8 @@ import { useListSearchParams } from "@/hooks/use-list-search-params"
 import { usePagedResource } from "@/hooks/use-resource"
 
 /** 按创建先后列出部署工作区，只读展示名称、标识、有效成员数和创建时间。 */
-export function AdminWorkspaceListPage() {
-  const { t } = useTranslation("admin")
+export function DeploymentWorkspaceListPage() {
+  const { t } = useTranslation("deployment")
   const { formatDateTime } = useDateTime()
   const { query, search, setSearch } = useListSearchParams()
   const list = usePagedResource(

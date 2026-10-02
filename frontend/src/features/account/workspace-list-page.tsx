@@ -1,4 +1,4 @@
-/** 工作区选择页：列出账号已加入的工作区，进入其中之一或在允许时前往创建工作区，Web 与桌面端的部署管理员可进入部署管理；带返回地址进入时可返回原工作区页面。 */
+/** 工作区选择页：列出账号已加入的工作区，进入其中之一或在允许时前往创建工作区；带返回地址进入时可返回原工作区页面。 */
 import { useEffect, useState } from "react"
 import { ArrowLeftIcon, ChevronRightIcon, LayoutGridIcon, PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -16,20 +16,18 @@ import { updateNotificationUnreadIndicator } from "@/platform/notifications"
 import { useWorkspaceActivityConnection, useWorkspaceAttention } from "@/hooks/use-workspace-attention"
 import { useResource } from "@/hooks/use-resource"
 import { resolveServerURL } from "@/lib/server-url"
-import { resolveAppPlatform } from "@/platform/app-platform"
 import { enterWorkspace, navigateToHashPath, returnToPath } from "@/lib/workspace-route"
 
 /** 展示工作区列表；没有工作区时在允许创建时引导创建。 */
 export function WorkspaceListPage() {
-  const { t } = useTranslation(["account", "admin", "common"])
+  const { t } = useTranslation(["account", "common"])
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   // 从工作区内进入时返回原工作区页面，不依赖浏览历史。
   const returnTo = returnToPath(searchParams)
   // 从进不去的工作区地址回到列表时，页头说明原因。
   const unavailable = searchParams.get("unavailable") === "1"
-  // 部署管理员身份可能被其他管理员修改，进入本页时重新读取账号。
-  const account = useResource(resourceKeys.account(), (signal) => loadAccount(signal), { staleTime: 0 })
+  const account = useResource(resourceKeys.account(), (signal) => loadAccount(signal))
   const workspaces = useResource(resourceKeys.workspaces(), (signal) => listWorkspaces(signal), { staleTime: 0 })
   // 各工作区的未读数量只用于提示，读取失败时不影响进入工作区；停在本页时同样保持工作区动态事件流。
   useWorkspaceActivityConnection("", workspaces.data?.items.map((workspace) => workspace.id) ?? [])
@@ -91,18 +89,6 @@ export function WorkspaceListPage() {
     <span className="inline-flex max-w-full items-center gap-1.5">
       <span className="min-w-0 truncate">{t("signedInAs", { email: account.data.email })}</span>
       <span aria-hidden="true">·</span>
-      {account.data.isDeploymentAdmin && resolveAppPlatform() !== "mobile" ? (
-        <>
-          <button
-            type="button"
-            className="shrink-0 font-medium text-foreground/80 underline-offset-4 hover:text-foreground hover:underline"
-            onClick={() => navigate("/admin")}
-          >
-            {t("admin:entry")}
-          </button>
-          <span aria-hidden="true">·</span>
-        </>
-      ) : null}
       <button
         type="button"
         className="shrink-0 font-medium text-foreground/80 underline-offset-4 hover:text-foreground hover:underline disabled:opacity-50"

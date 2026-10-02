@@ -7,14 +7,19 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 	"uuid"
 
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
+	useraction "github.com/runforyou-ai/luway/internal/actions/user"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 
@@ -230,6 +235,11 @@ func TestDeploymentAdministration(t *testing.T) {
 	_, err = backend.GrantDeploymentAdmin(ctx, adminMeta, "00000000-0000-0000-0000-000000000000")
 	requireErrorKind(t, err, appservice.ErrorKindNotFound)
 
+	// 未加入工作区的账号不能设为部署管理员。
+	_, err = backend.GrantDeploymentAdmin(ctx, adminMeta, member.Account.ID)
+	requireErrorKind(t, err, appservice.ErrorKindInvalid)
+	addAccountWorkspace(t, db, member.Token, "成员工作区")
+
 	// 授予部署管理员后新管理员可以撤销原管理员，原管理员随即失去部署管理入口。
 	granted, err := backend.GrantDeploymentAdmin(ctx, adminMeta, member.Account.ID)
 	if err != nil || !granted.IsDeploymentAdmin {
@@ -267,6 +277,79 @@ func TestDeploymentAdministration(t *testing.T) {
 	}
 	_, err = backend.ListDeploymentAccounts(ctx, memberMeta, appservice.DeploymentAccountListInput{Status: "deleted"})
 	requireFieldError(t, err, "status", i18n.FieldUserStatusInvalid)
+}
+
+// TestDeploymentAdminMembershipCannotBeDeactivated 验证工作区内不能停用部署管理员的成员身份，并发停用与授予部署管理员时不会留下无成员身份的部署管理员。
+func TestDeploymentAdminMembershipCannotBeDeactivated(t *testing.T) {
+	t.Parallel()
+	store, err := serverstorage.Open(context.Background(), servertest.DatabaseConfig(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+	db := store.DB()
+	ctx := context.Background()
+
+	owner := installWorkspace(t, db, workspaceSpec{Name: "成员停用", DisplayName: "负责人", Email: uniqueEmail("owner"), Password: "password123"}).Identity
+	memberEmail := uniqueEmail("member")
+	if _, err := newTestMemberCreator(db, newTestTasks(db)).Execute(ctx, owner, memberSpec{
+		DisplayName: "成员", Email: memberEmail, Password: "password123", RoleID: owner.User.RoleID, MaxServiceSessions: 10,
+	}); err != nil {
+		t.Fatal(err)
+	}
+	member := loginMember(t, db, owner.Organization.ID, memberEmail, "password123").Identity
+	setDeploymentAdmin := func(value bool) {
+		t.Helper()
+		if _, err := db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_deployment_admin = ?", value).
+			Where("id = ?", member.User.AccountID).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	setDeploymentAdmin(true)
+	if _, err := testUserStatusAction(db).Execute(ctx, owner, member.User.ID, domain.IdentityStatusInactive); !errors.Is(err, useraction.ErrDeploymentAdmin) {
+		t.Fatalf("deactivate deployment admin error = %v", err)
+	}
+	setDeploymentAdmin(false)
+	if _, err := db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_deployment_admin = true").
+		Where("id = ?", owner.User.AccountID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	// 成员停用读取部署管理员身份后暂停，并发授予等待同一账号行，停用提交后授予因无有效成员身份失败。
+	lockCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	blocker, err := db.BeginTx(lockCtx, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = blocker.Rollback() }()
+	if _, err := blocker.NewSelect().Model((*servermodels.Role)(nil)).Column("id").
+		Where("organization_id = ?", owner.Organization.ID).Where("kind = ?", domain.RoleKindAdmin).
+		For("UPDATE").Exec(lockCtx); err != nil {
+		t.Fatal(err)
+	}
+	deactivated := make(chan error, 1)
+	go func() {
+		_, err := testUserStatusAction(db).Execute(lockCtx, owner, member.User.ID, domain.IdentityStatusInactive)
+		deactivated <- err
+	}()
+	waitChatDatabaseLock(t, lockCtx, db, `FROM "roles"`, owner.Organization.ID)
+	granted := make(chan error, 1)
+	go func() {
+		_, err := deploymentaction.NewUpdateAccountAction(db).SetDeploymentAdmin(lockCtx, &servermodels.AccountIdentity{Account: owner.Account}, member.User.AccountID, true)
+		granted <- err
+	}()
+	waitChatDatabaseLock(t, lockCtx, db, `FROM "accounts"`, member.User.AccountID)
+	if err := blocker.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if err := waitChatResult(t, lockCtx, deactivated); err != nil {
+		t.Fatalf("deactivate member: %v", err)
+	}
+	if err := waitChatResult(t, lockCtx, granted); !errors.Is(err, deploymentaction.ErrNoActiveMembership) {
+		t.Fatalf("grant deployment admin error = %v", err)
+	}
 }
 
 // TestAccountWorkspacesAreIsolated 验证账号加入多个工作区后可分别进入，且无法进入不属于自己的工作区。

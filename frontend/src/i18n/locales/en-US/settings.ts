@@ -6,6 +6,7 @@ const settings = {
     personal: "Personal",
     organization: "Workspace",
     integrations: "Integrations",
+    deployment: "Deployment",
   },
   navigation: {
     profile: "Profile",
@@ -21,6 +22,10 @@ const settings = {
     roles: "Roles and permissions",
     modelServices: "Model services",
     webSearch: "Web search",
+    deploymentOverview: "Deployment overview",
+    deploymentAccounts: "All accounts",
+    deploymentWorkspaces: "All workspaces",
+    deploymentRegistration: "Sign-up & creation",
   },
   profile: {
     title: "Profile",

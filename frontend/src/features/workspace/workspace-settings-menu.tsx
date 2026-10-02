@@ -1,4 +1,4 @@
-/** 设置页的一级导航，进入设置后替换模块栏内容。 */
+/** 设置页的一级导航，进入设置后替换模块栏内容；部署管理员额外看到部署分组。 */
 import type { ReactNode } from "react"
 import {
   ArchiveIcon,
@@ -8,17 +8,24 @@ import {
   Building2Icon,
   HeadsetIcon,
   ChevronLeftIcon,
+  CircleUserRoundIcon,
+  GaugeIcon,
+  LayoutGridIcon,
   LockKeyholeIcon,
   HardDriveIcon,
   MonitorSmartphoneIcon,
   ShieldCheckIcon,
   SlidersHorizontalIcon,
+  UserPlusIcon,
   UserRoundIcon,
   UsersRoundIcon,
 } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
+import { loadAccount } from "@/api"
 import { PagePaneGroup, PagePaneLink } from "@/components/page-split"
+import { resourceKeys } from "@/hooks/resource-keys"
+import { useResource } from "@/hooks/use-resource"
 import { cn } from "@/lib/utils"
 import { resolveAppPlatform } from "@/platform/app-platform"
 
@@ -33,6 +40,8 @@ export function WorkspaceSettingsMenu({
   railToggle: ReactNode
 }) {
   const { t } = useTranslation("settings")
+  // 部署分组只对部署管理员显示，进入设置时重新读取账号，读取失败时不显示。
+  const account = useResource(resourceKeys.account(), (signal) => loadAccount(signal), { staleTime: 0 })
 
   const backToApp = (
     <PagePaneLink
@@ -164,6 +173,38 @@ export function WorkspaceSettingsMenu({
           {t("navigation.webSearch")}
         </PagePaneLink>
       </PagePaneGroup>
+      {account.data?.isDeploymentAdmin ? (
+        <PagePaneGroup title={t("groups.deployment")} collapsed={collapsed}>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/overview"
+            icon={GaugeIcon}
+          >
+            {t("navigation.deploymentOverview")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/accounts"
+            icon={CircleUserRoundIcon}
+          >
+            {t("navigation.deploymentAccounts")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/workspaces"
+            icon={LayoutGridIcon}
+          >
+            {t("navigation.deploymentWorkspaces")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/registration"
+            icon={UserPlusIcon}
+          >
+            {t("navigation.deploymentRegistration")}
+          </PagePaneLink>
+        </PagePaneGroup>
+      ) : null}
     </nav>
   )
 }

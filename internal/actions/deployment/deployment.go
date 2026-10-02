@@ -23,6 +23,8 @@ var (
 	ErrAccountNotFound = errors.New("account not found")
 	// ErrSelfChange 表示部署管理员试图修改自己的账号状态或管理员身份。
 	ErrSelfChange = errors.New("deployment admin cannot change own account")
+	// ErrNoActiveMembership 表示目标账号没有有效的工作区成员身份，不能设为部署管理员。
+	ErrNoActiveMembership = errors.New("account has no active workspace membership")
 )
 
 const (

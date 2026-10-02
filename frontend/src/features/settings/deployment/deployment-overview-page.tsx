@@ -1,4 +1,4 @@
-/** 部署管理的概览页：实例标识、服务端版本、安装时间、账号与工作区规模和工作区上限。 */
+/** 部署设置的概览页：实例标识、服务端版本、安装时间、账号与工作区规模和工作区上限。 */
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -15,8 +15,8 @@ import { useDateTime } from "@/hooks/use-date-time"
 import { useResource } from "@/hooks/use-resource"
 
 /** 只读展示部署概况，实例标识可一键复制。 */
-export function AdminOverviewPage() {
-  const { t } = useTranslation(["admin", "common"])
+export function DeploymentOverviewPage() {
+  const { t } = useTranslation(["deployment", "common"])
   const { formatDateTime } = useDateTime()
   const { copied, copy } = useCopyFeedback<"instance">()
   const overview = useResource(resourceKeys.deploymentOverview(), (signal) => getDeploymentOverview(signal), { staleTime: 0 })

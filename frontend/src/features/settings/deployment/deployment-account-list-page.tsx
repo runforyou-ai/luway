@@ -1,4 +1,4 @@
-/** 部署管理的账号页：按状态筛选和搜索部署内账号，停用或恢复账号，授予或撤销部署管理员。 */
+/** 部署设置的全部账号页：按状态筛选和搜索部署内账号，停用或恢复账号，授予或撤销部署管理员。 */
 import { useTranslation } from "react-i18next"
 
 import {
@@ -59,8 +59,8 @@ const accountChangeDialogs = {
 } as const
 
 /** 列出部署账号；当前账号只展示，其他账号的修改经确认后执行。 */
-export function AdminAccountListPage({ account }: { account: Account }) {
-  const { t } = useTranslation("admin")
+export function DeploymentAccountListPage({ account }: { account: Account }) {
+  const { t } = useTranslation("deployment")
   const { formatDateTime } = useDateTime()
   const { searchParams, setParameters, query, search, setSearch } = useListSearchParams()
   const status = optionalWailsEnum(AccountStatus, searchParams.get("status")) ?? AccountStatus.AccountStatusActive
@@ -78,13 +78,14 @@ export function AdminAccountListPage({ account }: { account: Account }) {
   })
   const dialog = pending.item ? accountChangeDialogs[pending.item.change] : null
 
-  /** 返回其他账号的行操作：授予管理员与恢复在前，撤销管理员与停用作为危险操作放在分隔线之后。 */
+  /** 返回其他账号的行操作：授予管理员与恢复在前，撤销管理员与停用作为危险操作放在分隔线之后；未加入工作区的账号不能设为管理员。 */
   function rowActions(item: DeploymentAccount): ResourceRowAction[] {
     if (item.id === account.id) return []
     const action = (change: AccountChange) => ({
       key: change,
       label: t(`accounts.${change}`),
       onSelect: () => pending.select({ account: item, change }),
+      disabled: change === "grantAdmin" && item.workspaceCount === 0,
       destructive: change === "revokeAdmin" || change === "deactivate",
     })
     const changes: AccountChange[] = [
@@ -133,7 +134,7 @@ export function AdminAccountListPage({ account }: { account: Account }) {
             },
             {
               key: "workspaces",
-              header: t("navigation.workspaces"),
+              header: t("accounts.workspacesColumn"),
               cellClassName: "hidden w-px whitespace-nowrap text-muted-foreground sm:table-cell",
               cell: (item) =>
                 item.workspaceCount > 0 ? t("accounts.workspaceCount", { count: item.workspaceCount }) : t("accounts.noWorkspace"),

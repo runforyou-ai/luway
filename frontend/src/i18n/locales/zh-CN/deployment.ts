@@ -1,16 +1,8 @@
-/** 简体中文·部署管理文案。 */
-const admin = {
-  entry: "部署管理",
-  navigationLabel: "部署管理导航",
-  backToApp: "返回工作区",
-  navigation: {
-    overview: "概览",
-    accounts: "账号",
-    workspaces: "工作区",
-    registration: "注册与创建",
-  },
+/** 简体中文·部署设置文案。 */
+const deployment = {
+  accountLoadError: "读取账号失败，请稍后重试。",
   overview: {
-    title: "概览",
+    title: "部署概览",
     description: "查看本部署的实例信息和使用规模。",
     instanceId: "实例标识",
     instanceIdHelp: "申请授权或联系技术支持时提供此标识。",
@@ -24,7 +16,7 @@ const admin = {
     loadError: "读取部署概况失败，请稍后重试。",
   },
   accounts: {
-    title: "账号",
+    title: "全部账号",
     description: "管理本部署中的全部账号。",
     search: "搜索账号",
     statusFilter: "账号状态",
@@ -38,6 +30,7 @@ const admin = {
     workspaceCount_other: "加入 {{count}} 个工作区",
     noWorkspace: "未加入工作区",
     registeredAt: "{{time}} 注册",
+    workspacesColumn: "工作区",
     registeredAtColumn: "注册时间",
     empty: "没有符合条件的账号",
     loadError: "读取账号失败，请稍后重试。",
@@ -52,7 +45,7 @@ const admin = {
     grantAdminTitle: "将 {{name}} 设为部署管理员？",
     grantAdminDescription: "部署管理员可以管理本部署的账号、工作区和注册设置。",
     revokeAdminTitle: "撤销 {{name}} 的部署管理员身份？",
-    revokeAdminDescription: "撤销后该账号不能再进入部署管理。",
+    revokeAdminDescription: "撤销后该账号不能再管理本部署的账号、工作区和注册设置。",
     saving: "正在保存…",
     deactivated: "账号已停用",
     reactivated: "账号已恢复",
@@ -61,7 +54,7 @@ const admin = {
     updateError: "修改账号失败，请稍后重试。",
   },
   workspaces: {
-    title: "工作区",
+    title: "全部工作区",
     description: "查看本部署中的全部工作区。",
     search: "搜索工作区",
     memberCount_one: "{{count}} 名成员",
@@ -96,4 +89,4 @@ const admin = {
   },
 }
 
-export default admin
+export default deployment

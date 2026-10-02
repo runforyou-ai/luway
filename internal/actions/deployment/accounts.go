@@ -137,9 +137,22 @@ func (a *UpdateAccountAction) SetStatus(ctx context.Context, operator *servermod
 	})
 }
 
-// SetDeploymentAdmin 授予或撤销其他账号的部署管理员身份。
+// SetDeploymentAdmin 授予或撤销其他账号的部署管理员身份；授予时目标账号须至少有一个有效的工作区成员身份。
 func (a *UpdateAccountAction) SetDeploymentAdmin(ctx context.Context, operator *servermodels.AccountIdentity, accountID string, admin bool) (AccountRecord, error) {
 	return a.update(ctx, operator, accountID, func(ctx context.Context, tx bun.Tx) error {
+		// 授予时检查目标账号的有效成员身份；目标账号行已锁定，与成员停用串行。
+		if admin {
+			member, err := tx.NewSelect().Model((*servermodels.User)(nil)).
+				Where("account_id = ?", accountID).
+				Where("status = ?", domain.IdentityStatusActive).
+				Exists(ctx)
+			if err != nil {
+				return err
+			}
+			if !member {
+				return ErrNoActiveMembership
+			}
+		}
 		_, err := tx.NewUpdate().Model((*servermodels.Account)(nil)).
 			Set("is_deployment_admin = ?", admin).
 			Set("updated_at = now()").

@@ -39,7 +39,7 @@ import {
   useWorkspaceRail,
   WorkspaceRailResizer,
   WorkspaceRailToggle,
-} from "@/components/workspace-rail"
+} from "@/features/workspace/workspace-rail"
 import { isDesktopMacOS, resolveAppPlatform } from "@/platform/app-platform"
 import { useDesktopWindowMode } from "@/platform/desktop-window"
 import { updateNotificationUnreadIndicator } from "@/platform/notifications"

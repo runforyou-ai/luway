@@ -85,6 +85,11 @@ const MemberFormPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import("@/features/settings/settings-page").then((module) => ({ default: module.SettingsPage })),
 )
+const DeploymentSettingsPage = lazy(() =>
+  import("@/features/settings/deployment/deployment-settings-page").then((module) => ({
+    default: module.DeploymentSettingsPage,
+  })),
+)
 
 /** 需要公共外壳的路由前缀，同一前缀下的页面渲染在对应布局内。 */
 const workspaceRouteLayouts = agentsModulePaths.map((prefix) => ({
@@ -305,6 +310,22 @@ const workspaceRouteDefinitions = [
       </SettingsPage>
     ),
   },
+  {
+    path: "/settings/deployment/overview",
+    element: <DeploymentSettingsPage section="overview" />,
+  },
+  {
+    path: "/settings/deployment/accounts",
+    element: <DeploymentSettingsPage section="accounts" />,
+  },
+  {
+    path: "/settings/deployment/workspaces",
+    element: <DeploymentSettingsPage section="workspaces" />,
+  },
+  {
+    path: "/settings/deployment/registration",
+    element: <DeploymentSettingsPage section="registration" />,
+  },
 ] as const satisfies readonly {
   path: string
   element: ReactElement
@@ -345,6 +366,7 @@ const workspaceRouteObjects: RouteObject[] = [
 
 const workspaceRedirects: Readonly<Record<string, string>> = {
   "/settings": "/settings/profile",
+  "/settings/deployment": "/settings/deployment/overview",
   "/contacts": "/contacts/employees",
 }
 

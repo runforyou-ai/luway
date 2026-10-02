@@ -1,4 +1,4 @@
-/** 部署管理的注册与创建页：设置账号注册方式和可以创建工作区的账号范围。 */
+/** 部署设置的注册与创建页：设置账号注册方式和可以创建工作区的账号范围。 */
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
@@ -18,15 +18,15 @@ import { NativeSelect } from "@/components/ui/native-select"
 import {
   registrationSettingsSchema,
   type RegistrationSettingsFormValues,
-} from "@/features/admin/admin-registration-schema"
+} from "@/features/settings/deployment/deployment-registration-schema"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 import { zodResolver } from "@/lib/zod-resolver"
 
 /** 每次进入页面读取最新策略后渲染自动保存的设置表单；策略不缓存，表单只以本次读取结果为初始值。 */
-export function AdminRegistrationPage() {
-  const { t } = useTranslation("admin")
+export function DeploymentRegistrationPage() {
+  const { t } = useTranslation("deployment")
   const settings = useResource(resourceKeys.deploymentSettings(), (signal) => getDeploymentSettings(signal), {
     gcTime: 0,
     refetchOnWindowFocus: false,
@@ -63,7 +63,7 @@ function RegistrationSettingsForm({
   settings: DeploymentSettings
   workspaceLimit: number | undefined
 }) {
-  const { t } = useTranslation("admin")
+  const { t } = useTranslation("deployment")
   const invalidate = useResourceInvalidator()
   const form = useForm<RegistrationSettingsFormValues>({
     resolver: zodResolver(registrationSettingsSchema),
