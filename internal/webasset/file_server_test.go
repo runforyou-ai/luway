@@ -87,6 +87,11 @@ func TestFileServerCachePolicy(t *testing.T) {
 		t.Fatalf("/assets: status=%d headers=%v", directory.Code, directory.Header())
 	}
 
+	// 目录下没有 index.html 时返回 404。
+	if directory := serve(http.MethodGet, "/pdfjs/", nil); directory.Code != http.StatusNotFound {
+		t.Fatalf("/pdfjs/: status=%d", directory.Code)
+	}
+
 	// 设置 404 内容后，未命中路径返回该内容与 404 状态。
 	if err := server.SetNotFound("404.html"); err != nil {
 		t.Fatal(err)
