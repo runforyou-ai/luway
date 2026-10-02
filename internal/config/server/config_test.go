@@ -113,7 +113,7 @@ func clearServerEnvironment(t *testing.T) {
 		"S3_ENABLED", "S3_ENDPOINT", "S3_PUBLIC_BASE_URL", "S3_REGION", "S3_BUCKET",
 		"S3_ACCESS_KEY_ID", "S3_SECRET_ACCESS_KEY", "S3_FORCE_PATH_STYLE",
 		"SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_SECURITY", "SMTP_FROM_ADDRESS",
-		"PUBLIC_URL", "DEPLOYMENT_NAME", "REGISTRATION_OPEN",
+		"PUBLIC_URL", "DEPLOYMENT_NAME",
 		"BRAND_NAME", "BRAND_SDK_NAME", "BRAND_ICON_PATH",
 	} {
 		t.Setenv(name, "")
@@ -247,7 +247,6 @@ func TestDeploymentEnvironment(t *testing.T) {
 	t.Setenv("NATS_URL", "nats://127.0.0.1:4222")
 	t.Setenv("NATS_NAMESPACE", "app")
 	t.Setenv("DEPLOYMENT_NAME", " 总部 ")
-	t.Setenv("REGISTRATION_OPEN", "true")
 
 	config, err := Load("")
 	if err != nil {
@@ -255,9 +254,6 @@ func TestDeploymentEnvironment(t *testing.T) {
 	}
 	if config.Deployment.Name != "总部" {
 		t.Fatalf("部署名称未按环境变量覆盖: %q", config.Deployment.Name)
-	}
-	if !config.Deployment.RegistrationOpen {
-		t.Fatal("注册开关未按环境变量覆盖")
 	}
 }
 
@@ -323,29 +319,6 @@ func TestPublicURLValidation(t *testing.T) {
 		if err := config.validate(); err == nil {
 			t.Fatalf("部署地址 %q 通过了校验", value)
 		}
-	}
-}
-
-// TestRegistrationOpenEnvironment 验证自托管注册开关默认关闭，并可由环境变量开启。
-func TestRegistrationOpenEnvironment(t *testing.T) {
-	clearServerEnvironment(t)
-	t.Setenv("PUBLIC_URL", "https://app.example.com")
-	t.Setenv("POSTGRES_HOST", "127.0.0.1")
-	t.Setenv("POSTGRES_PORT", "5432")
-	t.Setenv("POSTGRES_USER", "app")
-	t.Setenv("POSTGRES_PASSWORD", "secret")
-	t.Setenv("POSTGRES_DB", "app")
-	t.Setenv("POSTGRES_SSLMODE", "disable")
-	t.Setenv("NATS_URL", "nats://127.0.0.1:4222")
-	t.Setenv("NATS_NAMESPACE", "app")
-	config, err := Load("")
-	if err != nil || config.Deployment.RegistrationOpen {
-		t.Fatalf("默认注册开关 = %v, err = %v", config.Deployment.RegistrationOpen, err)
-	}
-	t.Setenv("REGISTRATION_OPEN", "true")
-	config, err = Load("")
-	if err != nil || !config.Deployment.RegistrationOpen {
-		t.Fatalf("环境变量开启后注册开关 = %v, err = %v", config.Deployment.RegistrationOpen, err)
 	}
 }
 

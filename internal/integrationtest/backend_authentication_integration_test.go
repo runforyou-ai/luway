@@ -4,6 +4,7 @@ package integrationtest
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
 
@@ -32,8 +33,21 @@ var accountBackendMethods = map[string]bool{
 	"AcceptInvitation":       true,
 }
 
+// adminBackendMethods 是只允许部署管理员调用的方法，与 backend.go 中标记 auth=admin 的路由一一对应。
+var adminBackendMethods = map[string]bool{
+	"GetDeploymentOverview":       true,
+	"GetDeploymentSettings":       true,
+	"UpdateDeploymentSettings":    true,
+	"ListDeploymentAccounts":      true,
+	"DeactivateDeploymentAccount": true,
+	"ReactivateDeploymentAccount": true,
+	"GrantDeploymentAdmin":        true,
+	"RevokeDeploymentAdmin":       true,
+	"ListDeploymentWorkspaces":    true,
+}
+
 // TestBackendMethodsRequireAuthentication 验证非公开方法在无会话时都被挡回登录入口，
-// 工作区级方法在会话有效但未指定目标工作区时进入工作区选择，且方法名单与接口闭合。
+// 部署管理方法拒绝非部署管理员，工作区级方法在会话有效但未指定目标工作区时进入工作区选择，且方法名单与接口闭合。
 func TestBackendMethodsRequireAuthentication(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -73,7 +87,13 @@ func TestBackendMethodsRequireAuthentication(t *testing.T) {
 		if state := appservice.SessionStateOf(call(name, appservice.RequestMeta{})); state != appservice.SessionStateLogin {
 			t.Errorf("%s 未登录调用的会话入口 = %q, want %q", name, state, appservice.SessionStateLogin)
 		}
-		if !accountBackendMethods[name] {
+		switch {
+		case adminBackendMethods[name]:
+			err := call(name, appservice.RequestMeta{Token: member.Token})
+			if appErr, ok := errors.AsType[*appservice.Error](err); !ok || appErr.Kind != appservice.ErrorKindForbidden {
+				t.Errorf("%s 非部署管理员调用的错误 = %v, want forbidden", name, err)
+			}
+		case !accountBackendMethods[name]:
 			err := call(name, appservice.RequestMeta{Token: member.Token})
 			if state := appservice.SessionStateOf(err); state != appservice.SessionStateWorkspace {
 				t.Errorf("%s 未指定工作区调用的会话入口 = %q, want %q（错误：%v）", name, state, appservice.SessionStateWorkspace, err)
@@ -81,7 +101,7 @@ func TestBackendMethodsRequireAuthentication(t *testing.T) {
 		}
 		checked++
 	}
-	for _, methods := range []map[string]bool{publicBackendMethods, accountBackendMethods} {
+	for _, methods := range []map[string]bool{publicBackendMethods, accountBackendMethods, adminBackendMethods} {
 		for name := range methods {
 			if _, exists := backendInterface.MethodByName(name); !exists {
 				t.Errorf("方法名单中的 %s 已不在 Backend 接口上", name)

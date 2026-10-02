@@ -185,7 +185,7 @@ wails3 task build:server
 - `Service` 的每个带结果方法都对结果调用 `normalizeSlices`，nil 切片输出为空数组；`manual=service` 的手写方法同样遵守。
 - `appservice/backend.go` 的 `Backend` 接口是业务调用的唯一契约源，每个方法必须带 `appservice:route` 指令。`Service` 委托、服务端认证分发、Gin 路由与 Handler、API Proxy 转发由 `go generate ./internal/appservice` 生成到各包的 `*_gen.go`，禁止手改。
 - 新增业务方法：在 `Backend` 补方法与指令（GET 的查询结构体在 `types.go` 为每个字段显式加 `query` 标签，不传输的字段用 `query:"-"`），运行生成器，然后只手写 `appservice/direct` 中的 `directOperations` 实现和 Action。无法按统一模式生成的层用 `manual=service,api,proxy` 标记并在对应包手写。服务端经 `filecontent.Links` 生成文件地址，本地存储返回服务端相对路径；API Proxy 在统一解码处把字段名以 `URL` 结尾的本地存储相对路径补全为当前连接地址，不重复切片归一化。
-- 认证由 `appservice/direct/backend_gen.go` 生成的分发层统一处理：`auth` 默认 `member`，先解析账号会话在目标工作区中的成员身份再调用业务实现；只需要登录账号的方法（账号资料、工作区列表与创建、部署设置等）标记 `auth=account`，无需登录的方法标记 `auth=public`。
+- 认证由 `appservice/direct/backend_gen.go` 生成的分发层统一处理：`auth` 默认 `member`，先解析账号会话在目标工作区中的成员身份再调用业务实现；只需要登录账号的方法（账号资料、工作区列表与创建等）标记 `auth=account`，部署级管理方法（部署概况、部署账号与工作区、注册与创建策略等）标记 `auth=admin` 并要求当前账号是部署管理员，无需登录的方法标记 `auth=public`。
 - `directOperations` 直接接收已解析的 `identity`，不重复认证，只负责把 Action 返回的语言无关错误码转成结构化、本地化错误并调用 Action。其 Action 与 Query 字段按业务域分组在 `<域>Ops` 结构体中，新增依赖只改对应实现文件。
 - 只读 Query 信任分发层已解析的身份，不重复查询用户状态；写 Action 在事务开始时通过 `actions/identity.LockActiveUser` 校验并锁定活跃用户。
 - Action 直接使用 Bun，按需调用 `common`；记录关联、组织边界和业务规则在事务中显式校验和维护。

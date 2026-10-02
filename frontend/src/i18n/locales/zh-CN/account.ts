@@ -4,6 +4,7 @@ const account = {
   description: "选择要进入的工作区。",
   emptyTitle: "还没有工作区",
   emptyDescription: "创建一个工作区，开始与团队协作。",
+  emptyDescriptionJoin: "请联系工作区管理员邀请你加入。",
   signedInAs: "当前账号 {{email}}",
   logout: "退出登录",
   loadError: "读取工作区失败，请稍后重试。",

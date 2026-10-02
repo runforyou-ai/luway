@@ -45,6 +45,7 @@ type installedWorkspace struct {
 func installWorkspace(t testing.TB, db *bun.DB, spec workspaceSpec) installedWorkspace {
 	t.Helper()
 	ctx := context.Background()
+	ensureTestDeployment(t, db)
 	if spec.Locale == "" {
 		spec.Locale = domain.LocaleChineseSimplified
 	}
@@ -79,6 +80,38 @@ func installWorkspace(t testing.TB, db *bun.DB, spec workspaceSpec) installedWor
 		t.Fatal(err)
 	}
 	return resolveMemberSession(t, db, organizationID, token)
+}
+
+// ensureTestDeployment 在共享测试库中写入部署实例行，注册仅限受邀、工作区仅部署管理员可创建；已存在时保留原行。
+func ensureTestDeployment(t testing.TB, db *bun.DB) {
+	t.Helper()
+	if _, err := db.NewInsert().Model(&servermodels.Deployment{
+		RegistrationPolicy:      string(domain.RegistrationPolicyInvitationOnly),
+		WorkspaceCreationPolicy: string(domain.WorkspaceCreationPolicyDeploymentAdmin),
+	}).Column("registration_policy", "workspace_creation_policy").On("CONFLICT DO NOTHING").Exec(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// addAccountWorkspace 为登录令牌所属账号直接创建一个标识随机的工作区，账号成为首位管理员成员；不经过部署创建策略与工作区上限。
+func addAccountWorkspace(t testing.TB, db *bun.DB, token, name string) *servermodels.Identity {
+	t.Helper()
+	ctx := context.Background()
+	account, err := authaction.NewResolveAccountQuery(db).Execute(ctx, token)
+	if err != nil {
+		t.Fatalf("resolve account: %v", err)
+	}
+	var created *servermodels.Identity
+	err = db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		created, err = organizationaction.Create(ctx, tx, organizationaction.CreateInput{
+			Name: name, Slug: "ws-" + strings.ReplaceAll(uuid.NewV7().String(), "-", ""), Account: &account.Account, AdminDisplayName: account.Account.DisplayName,
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return created
 }
 
 // loginMember 用账号密码登录，并解析该账号在目标工作区中的成员身份。

@@ -4,7 +4,7 @@ package appservice
 
 import "context"
 
-// InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
+// InstallationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
 func (s *Service) InstallationStatus(ctx context.Context, meta RequestMeta) (InstallationStatus, error) {
 	return WithNormalizedSlices(s.backend.InstallationStatus(ctx, meta))
 }
@@ -24,7 +24,7 @@ func (s *Service) LoadAccount(ctx context.Context, meta RequestMeta) (Account, e
 	return WithNormalizedSlices(s.backend.LoadAccount(ctx, meta))
 }
 
-// ListWorkspaces 返回当前账号作为有效成员可进入的工作区。
+// ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
 func (s *Service) ListWorkspaces(ctx context.Context, meta RequestMeta) (WorkspaceList, error) {
 	return WithNormalizedSlices(s.backend.ListWorkspaces(ctx, meta))
 }
@@ -672,6 +672,51 @@ func (s *Service) PreviewInvitation(ctx context.Context, meta RequestMeta, input
 // AcceptInvitation 由当前账号接受邀请并加入工作区。
 func (s *Service) AcceptInvitation(ctx context.Context, meta RequestMeta, input InvitationTokenInput) (Workspace, error) {
 	return WithNormalizedSlices(s.backend.AcceptInvitation(ctx, meta, input))
+}
+
+// GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+func (s *Service) GetDeploymentOverview(ctx context.Context, meta RequestMeta) (DeploymentOverview, error) {
+	return WithNormalizedSlices(s.backend.GetDeploymentOverview(ctx, meta))
+}
+
+// GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+func (s *Service) GetDeploymentSettings(ctx context.Context, meta RequestMeta) (DeploymentSettings, error) {
+	return WithNormalizedSlices(s.backend.GetDeploymentSettings(ctx, meta))
+}
+
+// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+func (s *Service) UpdateDeploymentSettings(ctx context.Context, meta RequestMeta, input DeploymentSettings) (DeploymentSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdateDeploymentSettings(ctx, meta, input))
+}
+
+// ListDeploymentAccounts 返回部署内的账号。
+func (s *Service) ListDeploymentAccounts(ctx context.Context, meta RequestMeta, input DeploymentAccountListInput) (DeploymentAccountList, error) {
+	return WithNormalizedSlices(s.backend.ListDeploymentAccounts(ctx, meta, input))
+}
+
+// DeactivateDeploymentAccount 停用其他账号并使其登录会话失效。
+func (s *Service) DeactivateDeploymentAccount(ctx context.Context, meta RequestMeta, accountID string) (DeploymentAccount, error) {
+	return WithNormalizedSlices(s.backend.DeactivateDeploymentAccount(ctx, meta, accountID))
+}
+
+// ReactivateDeploymentAccount 恢复已停用的其他账号。
+func (s *Service) ReactivateDeploymentAccount(ctx context.Context, meta RequestMeta, accountID string) (DeploymentAccount, error) {
+	return WithNormalizedSlices(s.backend.ReactivateDeploymentAccount(ctx, meta, accountID))
+}
+
+// GrantDeploymentAdmin 把其他账号设为部署管理员。
+func (s *Service) GrantDeploymentAdmin(ctx context.Context, meta RequestMeta, accountID string) (DeploymentAccount, error) {
+	return WithNormalizedSlices(s.backend.GrantDeploymentAdmin(ctx, meta, accountID))
+}
+
+// RevokeDeploymentAdmin 撤销其他账号的部署管理员身份。
+func (s *Service) RevokeDeploymentAdmin(ctx context.Context, meta RequestMeta, accountID string) (DeploymentAccount, error) {
+	return WithNormalizedSlices(s.backend.RevokeDeploymentAdmin(ctx, meta, accountID))
+}
+
+// ListDeploymentWorkspaces 返回部署内的全部工作区。
+func (s *Service) ListDeploymentWorkspaces(ctx context.Context, meta RequestMeta, input DeploymentWorkspaceListInput) (DeploymentWorkspaceList, error) {
+	return WithNormalizedSlices(s.backend.ListDeploymentWorkspaces(ctx, meta, input))
 }
 
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。

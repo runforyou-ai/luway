@@ -9,16 +9,17 @@ import (
 	"strings"
 
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	invitationaction "github.com/runforyou-ai/luway/internal/actions/invitation"
-	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/domain"
 	commonemail "github.com/runforyou-ai/luway/pkg/email"
 	commonpassword "github.com/runforyou-ai/luway/pkg/password"
 	"github.com/uptrace/bun"
 )
 
 var (
-	// ErrRegistrationClosed 表示部署未开放账号注册。
+	// ErrRegistrationClosed 表示部署注册策略为仅限受邀，且注册未携带邀请令牌。
 	ErrRegistrationClosed = errors.New("account registration is closed")
 	// ErrInstallationRequired 表示部署尚未完成首次安装，第一个账号只能由首次安装创建。
 	ErrInstallationRequired = errors.New("deployment installation is required")
@@ -26,20 +27,16 @@ var (
 
 // RegisterAction 注册本地账号并签发登录会话。
 type RegisterAction struct {
-	db   *bun.DB
-	open bool
+	db *bun.DB
 }
 
-// NewRegisterAction 创建本地账号注册操作，open 为部署配置的注册开关。
-func NewRegisterAction(db *bun.DB, open bool) *RegisterAction {
-	return &RegisterAction{db: db, open: open}
+// NewRegisterAction 创建本地账号注册操作。
+func NewRegisterAction(db *bun.DB) *RegisterAction {
+	return &RegisterAction{db: db}
 }
 
-// Execute 在部署已完成首次安装时校验字段、创建账号并签发登录会话；部署未开放注册时只接受带有效邀请令牌且邮箱与受邀邮箱一致的注册。
+// Execute 在部署已完成首次安装时校验字段、创建账号并签发登录会话；部署注册策略为仅限受邀时只接受带有效邀请令牌且邮箱与受邀邮箱一致的注册。
 func (a *RegisterAction) Execute(ctx context.Context, input NewAccountInput, invitationToken string) (authaction.SessionOutput, error) {
-	if !a.open && invitationToken == "" {
-		return authaction.SessionOutput{}, ErrRegistrationClosed
-	}
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	input.Email = commonemail.Normalize(input.Email)
 	if fields := ValidateNewAccount(input); len(fields) > 0 {
@@ -51,13 +48,15 @@ func (a *RegisterAction) Execute(ctx context.Context, input NewAccountInput, inv
 	}
 	var output authaction.SessionOutput
 	err = a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		// 账号只增不删，已存在任一账号即表示首次安装已提交。
-		installed, err := tx.NewSelect().Model((*servermodels.Account)(nil)).Exists(ctx)
+		deployment, err := deploymentaction.Load(ctx, tx)
+		if errors.Is(err, deploymentaction.ErrNotInstalled) {
+			return ErrInstallationRequired
+		}
 		if err != nil {
 			return err
 		}
-		if !installed {
-			return ErrInstallationRequired
+		if deployment.RegistrationPolicy != string(domain.RegistrationPolicyOpen) && invitationToken == "" {
+			return ErrRegistrationClosed
 		}
 		if invitationToken != "" {
 			invitedEmail, err := invitationaction.PendingEmail(ctx, tx, invitationToken)

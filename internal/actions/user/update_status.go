@@ -37,7 +37,7 @@ func NewUpdateStatusAction(db *bun.DB, returner ServiceSessionReturner, retirer 
 	return &UpdateStatusAction{db: db, returner: returner, retirer: retirer}
 }
 
-// Execute 禁用或恢复用户账号，并在禁用时清理渠道分配、把其负责的开放客服周期退回原队列、停用其负责的个人 AI 员工；恢复时个人 AI 员工保持停用。
+// Execute 禁用或恢复用户账号，并在禁用时清理渠道分配、把其负责的开放客服周期退回原队列、停用其负责的个人 AI 员工；恢复时个人 AI 员工保持停用。部署管理员的成员身份不可停用。
 func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels.Identity, userID string, status domain.IdentityStatus) (*User, error) {
 	if !common.ValidUUID(userID) {
 		return nil, ErrNotFound
@@ -50,6 +50,24 @@ func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUserAccounts(ctx, tx, identity, []string{userID}); err != nil {
 			return err
+		}
+		// 部署管理员须保留成员身份；共享锁定目标账号行，与授予部署管理员串行。
+		if status == domain.IdentityStatusInactive {
+			var deploymentAdmin bool
+			err := tx.NewSelect().Model((*servermodels.Account)(nil)).
+				Column("acc.is_deployment_admin").
+				Where("acc.id = (SELECT u.account_id FROM users AS u WHERE u.organization_id = ? AND u.id = ?)", identity.Organization.ID, userID).
+				For("SHARE").
+				Scan(ctx, &deploymentAdmin)
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrNotFound
+			}
+			if err != nil {
+				return err
+			}
+			if deploymentAdmin {
+				return ErrDeploymentAdmin
+			}
 		}
 		administratorRoleID, err := roleaction.LockAdministratorRole(ctx, tx, identity.Organization.ID)
 		if err != nil {

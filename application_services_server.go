@@ -145,7 +145,6 @@ func fileContentS3Config(config serverconfig.S3Config) serverfilecontent.S3Confi
 // directDeploymentConfig 返回成员业务入口的部署配置。
 func directDeploymentConfig(config serverconfig.Config, invitationMailer customernotify.Sender) direct.DeploymentConfig {
 	return direct.DeploymentConfig{
-		Name: config.Deployment.Name, PublicURL: config.Server.PublicURL, RegistrationOpen: config.Deployment.RegistrationOpen,
-		InvitationMailer: invitationMailer,
+		Name: config.Deployment.Name, PublicURL: config.Server.PublicURL, InvitationMailer: invitationMailer,
 	}
 }

@@ -15,4 +15,6 @@ var (
 	ErrQueryInvalid = errors.New("user list query invalid")
 	// ErrLastActiveAdministrator 表示企业至少需要保留一名账号正常的管理员。
 	ErrLastActiveAdministrator = roleaction.ErrLastActiveAdministrator
+	// ErrDeploymentAdmin 表示停用的成员所属账号是部署管理员，需先撤销其部署管理员身份。
+	ErrDeploymentAdmin = errors.New("user account is an active deployment admin")
 )

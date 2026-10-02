@@ -1,4 +1,4 @@
-/** 提供当前工作区及账号可进入的全部工作区。 */
+/** 提供当前工作区、账号可进入的全部工作区及账号能否再创建工作区。 */
 import { createContext, createElement, useContext, type ReactNode } from "react"
 
 import type { Workspace } from "@/api"
@@ -6,6 +6,7 @@ import type { Workspace } from "@/api"
 type WorkspaceScope = {
   current: Workspace
   workspaces: Workspace[]
+  canCreate: boolean
 }
 
 const WorkspaceScopeContext = createContext<WorkspaceScope | null>(null)
@@ -15,7 +16,7 @@ export function WorkspaceScopeProvider({ value, children }: { value: WorkspaceSc
   return createElement(WorkspaceScopeContext.Provider, { value }, children)
 }
 
-/** 返回当前工作区与账号可进入的全部工作区。 */
+/** 返回当前工作区、账号可进入的全部工作区及账号能否再创建工作区。 */
 export function useWorkspaceScope() {
   const context = useContext(WorkspaceScopeContext)
   if (!context) {

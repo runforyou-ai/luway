@@ -38,6 +38,14 @@ export const resourceKeys = {
   invitationPreview: (token?: string) => itemKey("invitation-preview", token),
   /** 部署的安装状态与注册开关。 */
   installationStatus: () => ["installation-status"],
+  /** 部署概况。 */
+  deploymentOverview: () => ["deployment-overview"],
+  /** 部署注册策略和工作区创建策略。 */
+  deploymentSettings: () => ["deployment-settings"],
+  /** 部署账号列表，可带筛选分页参数。 */
+  deploymentAccounts: (parameters?: KeyParameters) => listKey("deployment-accounts", parameters),
+  /** 部署工作区列表，可带筛选分页参数。 */
+  deploymentWorkspaces: (parameters?: KeyParameters) => listKey("deployment-workspaces", parameters),
   /** 当前账号在当前工作区中的成员身份、所属工作区和用户偏好。 */
   identity: () => ["identity"],
   /** 服务会话发起人的资料，随会话内容变化重读。 */
@@ -271,5 +279,9 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.workspaces()[0],
   resourceKeys.workspaceAttention()[0],
   resourceKeys.installationStatus()[0],
+  resourceKeys.deploymentOverview()[0],
+  resourceKeys.deploymentSettings()[0],
+  resourceKeys.deploymentAccounts()[0],
+  resourceKeys.deploymentWorkspaces()[0],
   resourceKeys.serverURL()[0],
 ])

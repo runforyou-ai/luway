@@ -36,12 +36,10 @@ type Config struct {
 	Email      EmailConfig      `yaml:"email"`
 }
 
-// DeploymentConfig 定义部署名称和注册开关。
+// DeploymentConfig 定义部署名称。
 type DeploymentConfig struct {
 	// Name 是展示给连接者的部署名称，桌面端与移动端连接服务器后据此确认连对了部署；为空时界面展示部署地址。
 	Name string `yaml:"name"`
-	// RegistrationOpen 表示部署是否允许任何人在登录页注册本地账号。
-	RegistrationOpen bool `yaml:"registrationOpen"`
 }
 
 // BrandingConfig 定义部署级品牌覆盖，留空的字段沿用构建品牌。
@@ -244,9 +242,6 @@ func applyEnvironment(config *Config) error {
 		return err
 	}
 	config.Email.SMTP.Port = smtpPort
-	if err := applyBoolEnvironment("REGISTRATION_OPEN", &config.Deployment.RegistrationOpen); err != nil {
-		return err
-	}
 	if err := applyBoolEnvironment("S3_ENABLED", &config.Storage.S3.Enabled); err != nil {
 		return err
 	}

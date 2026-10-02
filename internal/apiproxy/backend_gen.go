@@ -26,7 +26,7 @@ func (b *Backend) LoadAccount(ctx context.Context, meta appservice.RequestMeta) 
 	return output, err
 }
 
-// ListWorkspaces 返回当前账号作为有效成员可进入的工作区。
+// ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
 func (b *Backend) ListWorkspaces(ctx context.Context, meta appservice.RequestMeta) (appservice.WorkspaceList, error) {
 	var output appservice.WorkspaceList
 	err := b.do(ctx, meta, http.MethodGet, "/workspaces", nil, nil, &output)
@@ -915,6 +915,69 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return output, err
 }
 
+// GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentOverview, error) {
+	var output appservice.DeploymentOverview
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/overview", nil, nil, &output)
+	return output, err
+}
+
+// GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentSettings, error) {
+	var output appservice.DeploymentSettings
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/settings", nil, nil, &output)
+	return output, err
+}
+
+// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentSettings) (appservice.DeploymentSettings, error) {
+	var output appservice.DeploymentSettings
+	err := b.do(ctx, meta, http.MethodPut, "/deployment/settings", nil, input, &output)
+	return output, err
+}
+
+// ListDeploymentAccounts 返回部署内的账号。
+func (b *Backend) ListDeploymentAccounts(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentAccountListInput) (appservice.DeploymentAccountList, error) {
+	var output appservice.DeploymentAccountList
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/accounts", encodeDeploymentAccountListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// DeactivateDeploymentAccount 停用其他账号并使其登录会话失效。
+func (b *Backend) DeactivateDeploymentAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+	var output appservice.DeploymentAccount
+	err := b.do(ctx, meta, http.MethodPost, "/deployment/accounts/"+url.PathEscape(accountID)+"/deactivate", nil, nil, &output)
+	return output, err
+}
+
+// ReactivateDeploymentAccount 恢复已停用的其他账号。
+func (b *Backend) ReactivateDeploymentAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+	var output appservice.DeploymentAccount
+	err := b.do(ctx, meta, http.MethodPost, "/deployment/accounts/"+url.PathEscape(accountID)+"/reactivate", nil, nil, &output)
+	return output, err
+}
+
+// GrantDeploymentAdmin 把其他账号设为部署管理员。
+func (b *Backend) GrantDeploymentAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+	var output appservice.DeploymentAccount
+	err := b.do(ctx, meta, http.MethodPost, "/deployment/accounts/"+url.PathEscape(accountID)+"/admin", nil, nil, &output)
+	return output, err
+}
+
+// RevokeDeploymentAdmin 撤销其他账号的部署管理员身份。
+func (b *Backend) RevokeDeploymentAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+	var output appservice.DeploymentAccount
+	err := b.do(ctx, meta, http.MethodDelete, "/deployment/accounts/"+url.PathEscape(accountID)+"/admin", nil, nil, &output)
+	return output, err
+}
+
+// ListDeploymentWorkspaces 返回部署内的全部工作区。
+func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentWorkspaceListInput) (appservice.DeploymentWorkspaceList, error) {
+	var output appservice.DeploymentWorkspaceList
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/workspaces", encodeDeploymentWorkspaceListInputQuery(input), nil, &output)
+	return output, err
+}
+
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。
 func (b *Backend) UpdateUser(ctx context.Context, meta appservice.RequestMeta, userID string, input appservice.UpdateUserInput) (appservice.User, error) {
 	var output appservice.User
@@ -1764,6 +1827,25 @@ func encodeConversationMessageWindowInputQuery(input appservice.ConversationMess
 	query := url.Values{}
 	setQuery(query, "start", input.Start)
 	setQuery(query, "end", input.End)
+	return query
+}
+
+// encodeDeploymentAccountListInputQuery 将 appservice.DeploymentAccountListInput 编码为查询参数。
+func encodeDeploymentAccountListInputQuery(input appservice.DeploymentAccountListInput) url.Values {
+	query := url.Values{}
+	setQuery(query, "query", input.Query)
+	setQuery(query, "status", string(input.Status))
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodeDeploymentWorkspaceListInputQuery 将 appservice.DeploymentWorkspaceListInput 编码为查询参数。
+func encodeDeploymentWorkspaceListInputQuery(input appservice.DeploymentWorkspaceListInput) url.Values {
+	query := url.Values{}
+	setQuery(query, "query", input.Query)
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
 	return query
 }
 

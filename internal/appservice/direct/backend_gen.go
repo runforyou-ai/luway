@@ -10,7 +10,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
-// InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
+// InstallationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
 func (b *Backend) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
 	return b.ops.InstallationStatus(ctx, meta)
 }
@@ -25,7 +25,7 @@ func (b *Backend) Login(ctx context.Context, meta appservice.RequestMeta, input 
 	return b.ops.Login(ctx, meta, input)
 }
 
-// Register 在部署配置开放注册时注册本地账号并建立登录会话。
+// Register 在部署开放注册或持有效邀请时注册本地账号并建立登录会话。
 func (b *Backend) Register(ctx context.Context, meta appservice.RequestMeta, input appservice.RegisterInput) (appservice.Auth, error) {
 	return b.ops.Register(ctx, meta, input)
 }
@@ -49,7 +49,7 @@ func (b *Backend) LoadAccount(ctx context.Context, meta appservice.RequestMeta) 
 	return b.ops.LoadAccount(ctx, meta, account)
 }
 
-// ListWorkspaces 返回当前账号作为有效成员可进入的工作区。
+// ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
 func (b *Backend) ListWorkspaces(ctx context.Context, meta appservice.RequestMeta) (appservice.WorkspaceList, error) {
 	account, err := b.ops.authenticateAccount(ctx, meta)
 	if err != nil {
@@ -1348,6 +1348,96 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 		return zero, err
 	}
 	return b.ops.AcceptInvitation(ctx, meta, account, input)
+}
+
+// GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentOverview, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentOverview
+		return zero, err
+	}
+	return b.ops.GetDeploymentOverview(ctx, meta, account)
+}
+
+// GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentSettings, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentSettings
+		return zero, err
+	}
+	return b.ops.GetDeploymentSettings(ctx, meta, account)
+}
+
+// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentSettings) (appservice.DeploymentSettings, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentSettings
+		return zero, err
+	}
+	return b.ops.UpdateDeploymentSettings(ctx, meta, account, input)
+}
+
+// ListDeploymentAccounts 返回部署内的账号。
+func (b *Backend) ListDeploymentAccounts(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentAccountListInput) (appservice.DeploymentAccountList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentAccountList
+		return zero, err
+	}
+	return b.ops.ListDeploymentAccounts(ctx, meta, account, input)
+}
+
+// DeactivateDeploymentAccount 停用其他账号并使其登录会话失效。
+func (b *Backend) DeactivateDeploymentAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentAccount
+		return zero, err
+	}
+	return b.ops.DeactivateDeploymentAccount(ctx, meta, account, accountID)
+}
+
+// ReactivateDeploymentAccount 恢复已停用的其他账号。
+func (b *Backend) ReactivateDeploymentAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentAccount
+		return zero, err
+	}
+	return b.ops.ReactivateDeploymentAccount(ctx, meta, account, accountID)
+}
+
+// GrantDeploymentAdmin 把其他账号设为部署管理员。
+func (b *Backend) GrantDeploymentAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentAccount
+		return zero, err
+	}
+	return b.ops.GrantDeploymentAdmin(ctx, meta, account, accountID)
+}
+
+// RevokeDeploymentAdmin 撤销其他账号的部署管理员身份。
+func (b *Backend) RevokeDeploymentAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentAccount
+		return zero, err
+	}
+	return b.ops.RevokeDeploymentAdmin(ctx, meta, account, accountID)
+}
+
+// ListDeploymentWorkspaces 返回部署内的全部工作区。
+func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentWorkspaceListInput) (appservice.DeploymentWorkspaceList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentWorkspaceList
+		return zero, err
+	}
+	return b.ops.ListDeploymentWorkspaces(ctx, meta, account, input)
 }
 
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。

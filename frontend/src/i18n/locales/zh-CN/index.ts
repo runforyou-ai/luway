@@ -3,6 +3,7 @@ import common from "./common"
 import setup from "./setup"
 import auth from "./auth"
 import account from "./account"
+import deployment from "./deployment"
 import connection from "./connection"
 import mobile from "./mobile"
 import workspace from "./workspace"
@@ -20,6 +21,7 @@ const zhCN = {
   setup,
   auth,
   account,
+  deployment,
   connection,
   mobile,
   workspace,

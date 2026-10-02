@@ -10,6 +10,7 @@ import (
 
 	accountaction "github.com/runforyou-ai/luway/internal/actions/account"
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	installationaction "github.com/runforyou-ai/luway/internal/actions/installation"
 	invitationaction "github.com/runforyou-ai/luway/internal/actions/invitation"
@@ -25,29 +26,31 @@ import (
 
 // authOps 持有首次安装、账号会话和工作区列表的 Action 和 Query。
 type authOps struct {
-	deploymentName   string
-	registrationOpen bool
-	installWorkspace *installationaction.InstallWorkspaceAction
-	login            *authaction.LoginAction
-	register         *accountaction.RegisterAction
-	logout           *authaction.LogoutAction
-	changePassword   *accountaction.ChangePasswordAction
-	listWorkspaces   *organizationaction.ListAccountWorkspacesQuery
-	createWorkspace  *organizationaction.CreateWorkspaceAction
+	deploymentName     string
+	deploymentSettings *deploymentaction.SettingsQuery
+	installWorkspace   *installationaction.InstallWorkspaceAction
+	login              *authaction.LoginAction
+	register           *accountaction.RegisterAction
+	logout             *authaction.LogoutAction
+	changePassword     *accountaction.ChangePasswordAction
+	listWorkspaces     *organizationaction.ListAccountWorkspacesQuery
+	canCreateWorkspace *organizationaction.CanCreateWorkspaceQuery
+	createWorkspace    *organizationaction.CreateWorkspaceAction
 }
 
-// newAuthOps 创建首次安装、账号会话和工作区入口的业务实现依赖，注册开关取自部署配置。
+// newAuthOps 创建首次安装、账号会话和工作区入口的业务实现依赖。
 func newAuthOps(db *bun.DB, deployment DeploymentConfig) authOps {
 	return authOps{
-		deploymentName:   deployment.Name,
-		registrationOpen: deployment.RegistrationOpen,
-		installWorkspace: installationaction.NewInstallWorkspaceAction(db),
-		login:            authaction.NewLoginAction(db),
-		register:         accountaction.NewRegisterAction(db, deployment.RegistrationOpen),
-		logout:           authaction.NewLogoutAction(db),
-		changePassword:   accountaction.NewChangePasswordAction(db),
-		listWorkspaces:   organizationaction.NewListAccountWorkspacesQuery(db),
-		createWorkspace:  organizationaction.NewCreateWorkspaceAction(db),
+		deploymentName:     deployment.Name,
+		deploymentSettings: deploymentaction.NewSettingsQuery(db),
+		installWorkspace:   installationaction.NewInstallWorkspaceAction(db),
+		login:              authaction.NewLoginAction(db),
+		register:           accountaction.NewRegisterAction(db),
+		logout:             authaction.NewLogoutAction(db),
+		changePassword:     accountaction.NewChangePasswordAction(db),
+		listWorkspaces:     organizationaction.NewListAccountWorkspacesQuery(db),
+		canCreateWorkspace: organizationaction.NewCanCreateWorkspaceQuery(db),
+		createWorkspace:    organizationaction.NewCreateWorkspaceAction(db),
 	}
 }
 
@@ -56,10 +59,11 @@ func authFromSession(output authaction.SessionOutput) appservice.Auth {
 	return appservice.Auth{Account: accountFromModel(*output.Account), Token: output.Token, ExpiresAt: output.ExpiresAt}
 }
 
-// InstallationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
+// InstallationStatus 返回部署名称、首次安装状态、注册策略是否开放注册和产品品牌。
 func (o *directOperations) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
-	installed, err := o.installationStatus.Execute(ctx)
-	if err != nil {
+	settings, err := o.deploymentSettings.Execute(ctx)
+	installed := !errors.Is(err, deploymentaction.ErrNotInstalled)
+	if err != nil && installed {
 		if ctx.Err() != nil {
 			return appservice.InstallationStatus{}, ctx.Err()
 		}
@@ -68,7 +72,7 @@ func (o *directOperations) InstallationStatus(ctx context.Context, meta appservi
 	}
 	current := brand.Current()
 	return appservice.InstallationStatus{
-		DeploymentName: o.deploymentName, Installed: installed, RegistrationOpen: o.registrationOpen,
+		DeploymentName: o.deploymentName, Installed: installed, RegistrationOpen: settings.RegistrationPolicy == domain.RegistrationPolicyOpen,
 		Brand: appservice.Brand{Names: current.Names, SDKName: current.SDKName, LinkScheme: current.Slug},
 	}, nil
 }
@@ -119,7 +123,7 @@ func (o *directOperations) Login(ctx context.Context, meta appservice.RequestMet
 	return authFromSession(output), nil
 }
 
-// Register 在部署开放注册时注册本地账号并返回登录会话。
+// Register 在部署开放注册或持有效邀请时注册本地账号并返回登录会话。
 func (o *directOperations) Register(ctx context.Context, meta appservice.RequestMeta, input appservice.RegisterInput) (appservice.Auth, error) {
 	output, err := o.register.Execute(ctx, accountaction.NewAccountInput{
 		DisplayName: input.DisplayName,
@@ -195,28 +199,41 @@ func (o *directOperations) ChangePassword(ctx context.Context, meta appservice.R
 	return nil
 }
 
-// ListWorkspaces 返回当前账号作为有效成员可进入的工作区。
+// ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
 func (o *directOperations) ListWorkspaces(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.WorkspaceList, error) {
-	workspaces, err := o.listWorkspaces.Execute(ctx, account)
-	if err != nil {
+	failed := func(err error) (appservice.WorkspaceList, error) {
 		if ctx.Err() != nil {
 			return appservice.WorkspaceList{}, ctx.Err()
 		}
 		slog.Warn("读取工作区列表失败", "account_id", account.Account.ID, "error", err)
 		return appservice.WorkspaceList{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed)
 	}
+	workspaces, err := o.listWorkspaces.Execute(ctx, account)
+	if err != nil {
+		return failed(err)
+	}
+	canCreate, err := o.canCreateWorkspace.Execute(ctx, account)
+	if err != nil {
+		return failed(err)
+	}
 	items := make([]appservice.Workspace, 0, len(workspaces))
 	for _, workspace := range workspaces {
 		items = append(items, appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug})
 	}
-	return appservice.WorkspaceList{Items: items}, nil
+	return appservice.WorkspaceList{Items: items, CanCreate: canCreate}, nil
 }
 
-// CreateWorkspace 创建工作区，当前账号成为首位管理员成员。
+// CreateWorkspace 在部署创建策略和实例工作区上限允许时创建工作区，当前账号成为首位管理员成员。
 func (o *directOperations) CreateWorkspace(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.WorkspaceInput) (appservice.Workspace, error) {
 	workspace, err := o.createWorkspace.Execute(ctx, account, organizationaction.WorkspaceInput{Name: input.Name, Slug: input.Slug})
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		return appservice.Workspace{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, workspaceFieldKeys(validationError.Fields))
+	}
+	if errors.Is(err, organizationaction.ErrCreationNotAllowed) {
+		return appservice.Workspace{}, appservice.ForbiddenError(meta, i18n.ErrorWorkspaceCreationNotAllowed)
+	}
+	if errors.Is(err, organizationaction.ErrWorkspaceLimitReached) {
+		return appservice.Workspace{}, appservice.ConflictError(meta, i18n.ErrorWorkspaceLimitReached, "workspace_limit_reached")
 	}
 	if err != nil {
 		if ctx.Err() != nil {

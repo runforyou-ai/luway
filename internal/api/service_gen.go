@@ -151,6 +151,15 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.DELETE("/invitations/:invitationID", s.revokeInvitation)
 	router.POST("/invitation-previews", s.previewInvitation)
 	router.POST("/invitation-acceptances", s.acceptInvitation)
+	router.GET("/deployment/overview", s.getDeploymentOverview)
+	router.GET("/deployment/settings", s.getDeploymentSettings)
+	router.PUT("/deployment/settings", s.updateDeploymentSettings)
+	router.GET("/deployment/accounts", s.listDeploymentAccounts)
+	router.POST("/deployment/accounts/:accountID/deactivate", s.deactivateDeploymentAccount)
+	router.POST("/deployment/accounts/:accountID/reactivate", s.reactivateDeploymentAccount)
+	router.POST("/deployment/accounts/:accountID/admin", s.grantDeploymentAdmin)
+	router.DELETE("/deployment/accounts/:accountID/admin", s.revokeDeploymentAdmin)
+	router.GET("/deployment/workspaces", s.listDeploymentWorkspaces)
 	router.PUT("/users/:userID", s.updateUser)
 	router.PATCH("/roles/assignments", s.updateRoleAssignments)
 	router.POST("/users/:userID/deactivate", s.deactivateUser)
@@ -266,7 +275,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.DELETE("/devices/:deviceID", s.revokeDevice)
 }
 
-// installationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
+// installationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
 func (s *Service) installationStatus(c *gin.Context) {
 	output, err := s.application.InstallationStatus(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -292,7 +301,7 @@ func (s *Service) login(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// register 在部署配置开放注册时注册本地账号并建立登录会话。
+// register 在部署开放注册或持有效邀请时注册本地账号并建立登录会话。
 func (s *Service) register(c *gin.Context) {
 	var input appservice.RegisterInput
 	if !bindJSON(c, &input) {
@@ -313,7 +322,7 @@ func (s *Service) loadAccount(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listWorkspaces 返回当前账号作为有效成员可进入的工作区。
+// listWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
 func (s *Service) listWorkspaces(c *gin.Context) {
 	output, err := s.application.ListWorkspaces(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1368,6 +1377,72 @@ func (s *Service) acceptInvitation(c *gin.Context) {
 		return
 	}
 	output, err := s.application.AcceptInvitation(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+func (s *Service) getDeploymentOverview(c *gin.Context) {
+	output, err := s.application.GetDeploymentOverview(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getDeploymentSettings 返回部署注册策略和工作区创建策略。
+func (s *Service) getDeploymentSettings(c *gin.Context) {
+	output, err := s.application.GetDeploymentSettings(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// updateDeploymentSettings 修改部署注册策略和工作区创建策略。
+func (s *Service) updateDeploymentSettings(c *gin.Context) {
+	var input appservice.DeploymentSettings
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.UpdateDeploymentSettings(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listDeploymentAccounts 返回部署内的账号。
+func (s *Service) listDeploymentAccounts(c *gin.Context) {
+	input, ok := bindDeploymentAccountListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListDeploymentAccounts(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// deactivateDeploymentAccount 停用其他账号并使其登录会话失效。
+func (s *Service) deactivateDeploymentAccount(c *gin.Context) {
+	output, err := s.application.DeactivateDeploymentAccount(c.Request.Context(), requestMeta(c), c.Param("accountID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// reactivateDeploymentAccount 恢复已停用的其他账号。
+func (s *Service) reactivateDeploymentAccount(c *gin.Context) {
+	output, err := s.application.ReactivateDeploymentAccount(c.Request.Context(), requestMeta(c), c.Param("accountID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// grantDeploymentAdmin 把其他账号设为部署管理员。
+func (s *Service) grantDeploymentAdmin(c *gin.Context) {
+	output, err := s.application.GrantDeploymentAdmin(c.Request.Context(), requestMeta(c), c.Param("accountID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// revokeDeploymentAdmin 撤销其他账号的部署管理员身份。
+func (s *Service) revokeDeploymentAdmin(c *gin.Context) {
+	output, err := s.application.RevokeDeploymentAdmin(c.Request.Context(), requestMeta(c), c.Param("accountID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listDeploymentWorkspaces 返回部署内的全部工作区。
+func (s *Service) listDeploymentWorkspaces(c *gin.Context) {
+	input, ok := bindDeploymentWorkspaceListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListDeploymentWorkspaces(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -2447,6 +2522,41 @@ func bindConversationMessageWindowInputQuery(c *gin.Context) (appservice.Convers
 	return appservice.ConversationMessageWindowInput{
 		Start: c.Query("start"),
 		End:   c.Query("end"),
+	}, true
+}
+
+// bindDeploymentAccountListInputQuery 从查询参数解析 appservice.DeploymentAccountListInput。
+func bindDeploymentAccountListInputQuery(c *gin.Context) (appservice.DeploymentAccountListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.DeploymentAccountListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.DeploymentAccountListInput{}, false
+	}
+	return appservice.DeploymentAccountListInput{
+		Query:    c.Query("query"),
+		Status:   appservice.AccountStatus(c.DefaultQuery("status", "active")),
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindDeploymentWorkspaceListInputQuery 从查询参数解析 appservice.DeploymentWorkspaceListInput。
+func bindDeploymentWorkspaceListInputQuery(c *gin.Context) (appservice.DeploymentWorkspaceListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.DeploymentWorkspaceListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.DeploymentWorkspaceListInput{}, false
+	}
+	return appservice.DeploymentWorkspaceListInput{
+		Query:    c.Query("query"),
+		Page:     page,
+		PageSize: pageSize,
 	}, true
 }
 

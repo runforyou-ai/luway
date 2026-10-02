@@ -20,9 +20,9 @@ func NewStatusQuery(db *bun.DB) *StatusQuery {
 	return &StatusQuery{db: db}
 }
 
-// Execute 返回部署是否已有账号。
+// Execute 返回部署是否已写入部署实例。
 func (q *StatusQuery) Execute(ctx context.Context) (bool, error) {
-	installed, err := q.db.NewSelect().Model((*servermodels.Account)(nil)).Exists(ctx)
+	installed, err := q.db.NewSelect().Model((*servermodels.Deployment)(nil)).Exists(ctx)
 	if err != nil {
 		return false, fmt.Errorf("check installation: %w", err)
 	}

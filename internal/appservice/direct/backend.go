@@ -76,14 +76,14 @@ type directOperations struct {
 	translationOps
 	webSearchOps
 	invitationOps
+	deploymentOps
 	productDocsOps
 }
 
-// DeploymentConfig 定义直接后端的部署名称、部署地址、注册开关、邀请邮件发送和产品文档；邮件发送只在配置了 SMTP 时设置。
+// DeploymentConfig 定义直接后端的部署名称、部署地址、邀请邮件发送和产品文档；邮件发送只在配置了 SMTP 时设置。
 type DeploymentConfig struct {
 	Name             string
 	PublicURL        string
-	RegistrationOpen bool
 	InvitationMailer invitationaction.Mailer
 	ProductDocs      *productdocs.Site
 }
@@ -121,6 +121,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
+		deploymentOps:      newDeploymentOps(db),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}
 	return &Backend{ops: ops}
@@ -198,6 +199,19 @@ func (g sessionGuard) authenticateAccount(ctx context.Context, meta appservice.R
 		}
 		slog.Warn("读取登录会话失败", "error", err)
 		return nil, appservice.FailedError(meta, i18n.ErrorAuthenticationStatusFailed)
+	}
+	return account, nil
+}
+
+// authenticateAdmin 校验登录会话并确认当前账号是部署管理员。
+func (g sessionGuard) authenticateAdmin(ctx context.Context, meta appservice.RequestMeta) (*servermodels.AccountIdentity, error) {
+	account, err := g.authenticateAccount(ctx, meta)
+	if err != nil {
+		return nil, err
+	}
+	if !account.Account.IsDeploymentAdmin {
+		slog.Info("非部署管理员调用部署管理接口", "account_id", account.Account.ID)
+		return nil, appservice.ForbiddenError(meta, i18n.ErrorDeploymentAdminRequired)
 	}
 	return account, nil
 }

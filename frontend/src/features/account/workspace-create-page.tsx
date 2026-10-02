@@ -1,12 +1,12 @@
-/** 创建工作区页：填写名称和标识，创建后进入新工作区。 */
+/** 创建工作区页：填写名称和标识，创建后进入新工作区；账号不能创建工作区时回到工作区选择页。 */
 import { useEffect, useMemo, useState } from "react"
 import { ArrowLeftIcon, LoaderCircleIcon } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
-import { useNavigate, useSearchParams } from "react-router"
+import { Navigate, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
-import { createWorkspace, isApiError } from "@/api"
+import { createWorkspace, isApiError, listWorkspaces } from "@/api"
 import { EntryLayout } from "@/components/entry-layout"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Button } from "@/components/ui/button"
@@ -33,6 +33,7 @@ export function WorkspaceCreatePage() {
   // 从工作区内直接进入时返回原工作区页面；经工作区列表进入时返回列表并保留列表的返回地址。
   const returnTo = returnToPath(searchParams)
   const viaList = searchParams.get("via") === "list"
+  const workspaces = useResource(resourceKeys.workspaces(), (signal) => listWorkspaces(signal), { staleTime: 0 })
   const serverURL = useResource(resourceKeys.serverURL(), () => resolveServerURL())
   const host = serverURL.data ? new URL(serverURL.data).host : ""
   const schema = useMemo(
@@ -74,6 +75,10 @@ export function WorkspaceCreatePage() {
   }
 
   const { isSubmitting } = form.formState
+
+  if (workspaces.data && !workspaces.data.canCreate) {
+    return <Navigate to={returnTo ? `/workspaces?returnTo=${encodeURIComponent(returnTo)}` : "/workspaces"} replace />
+  }
 
   return (
     <EntryLayout

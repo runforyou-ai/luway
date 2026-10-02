@@ -201,17 +201,21 @@ export function WorkspaceUserMenu({
                   ) : null}
                 </DropdownMenuItem>
               ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onSelect={async () => {
-                  setUserMenuOpen(false)
-                  if (unsavedChanges && !(await unsavedChanges.confirmDiscard())) return
-                  navigateToHashPath(withReturnTo("/workspaces/new"))
-                }}
-              >
-                <PlusIcon />
-                {t("account:create")}
-              </DropdownMenuItem>
+              {workspaceScope.canCreate ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={async () => {
+                      setUserMenuOpen(false)
+                      if (unsavedChanges && !(await unsavedChanges.confirmDiscard())) return
+                      navigateToHashPath(withReturnTo("/workspaces/new"))
+                    }}
+                  >
+                    <PlusIcon />
+                    {t("account:create")}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </DropdownMenuSubContent>
           </DropdownMenuSub>
           <DropdownMenuSeparator />

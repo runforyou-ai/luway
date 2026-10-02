@@ -19,7 +19,7 @@ export function WorkspaceGate({ slug, children }: { slug: string; children: Reac
   const workspace = data?.items.find((item) => item.slug === slug)
   const [readyID, setReadyID] = useState("")
   const scope = useMemo(
-    () => (workspace && data ? { current: workspace, workspaces: data.items } : null),
+    () => (workspace && data ? { current: workspace, workspaces: data.items, canCreate: data.canCreate } : null),
     [workspace, data],
   )
 
