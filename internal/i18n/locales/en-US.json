@@ -639,5 +639,17 @@
   "error.invitation_already_member": "You are already a member of this workspace.",
   "error.invitation_accept_failed": "Couldn't join the workspace. Please try again.",
   "field.invitation_email_member": "An account with this email is already a member of this workspace.",
-  "field.invitation_email_pending": "This email already has a pending invitation. You can regenerate its link in the invitation list."
+  "field.invitation_email_pending": "This email already has a pending invitation. You can regenerate its link in the invitation list.",
+  "docs.site_title": "{{.Product}} Docs",
+  "docs.search": "Search",
+  "docs.search_prompt": "Enter keywords to search the docs.",
+  "docs.search_results": "Results for “{{.Query}}”",
+  "docs.search_empty": "No results found.",
+  "docs.on_this_page": "On this page",
+  "docs.menu": "Menu",
+  "docs.language": "Language",
+  "docs.not_found_title": "Page not found",
+  "docs.not_found_body": "This page doesn't exist or isn't available on this deployment.",
+  "docs.back_home": "Back to docs home",
+  "error.product_doc_not_found": "The documentation page doesn't exist."
 }

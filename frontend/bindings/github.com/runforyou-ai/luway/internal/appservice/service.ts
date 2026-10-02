@@ -661,6 +661,13 @@ export function GetPersonalAgent(meta: $models.RequestMeta, agentID: string): $C
 }
 
 /**
+ * GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+ */
+export function GetProductDocPage(meta: $models.RequestMeta, input: $models.ProductDocPageInput): $CancellablePromise<$models.ProductDocPage> {
+    return $Call.ByID(1601301655, meta, input);
+}
+
+/**
  * GetRequesterProfile 返回服务会话发起人的资料；发起人是客户时给出客户身份与当前周期访客上下文。
  */
 export function GetRequesterProfile(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.RequesterProfile> {

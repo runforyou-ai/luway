@@ -23,6 +23,7 @@ import (
 	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
 	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
 	"github.com/runforyou-ai/luway/internal/integration/telegram"
+	"github.com/runforyou-ai/luway/internal/productdocs"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
@@ -75,14 +76,16 @@ type directOperations struct {
 	translationOps
 	webSearchOps
 	invitationOps
+	productDocsOps
 }
 
-// DeploymentConfig 定义直接后端的部署名称、部署地址、注册开关和邀请邮件发送；邮件发送只在配置了 SMTP 时设置。
+// DeploymentConfig 定义直接后端的部署名称、部署地址、注册开关、邀请邮件发送和产品文档；邮件发送只在配置了 SMTP 时设置。
 type DeploymentConfig struct {
 	Name             string
 	PublicURL        string
 	RegistrationOpen bool
 	InvitationMailer invitationaction.Mailer
+	ProductDocs      *productdocs.Site
 }
 
 // New 创建直接访问服务端存储的应用后端。
@@ -118,6 +121,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
+		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}
 	return &Backend{ops: ops}
 }
