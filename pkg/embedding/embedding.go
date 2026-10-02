@@ -22,6 +22,8 @@ const (
 	BatchSize = 20
 	// maxErrorBodyBytes 是请求失败时记入日志的响应体字节上限。
 	maxErrorBodyBytes = 2 << 10
+	// maxResponseBytes 是单批向量响应允许读取的最大字节数。
+	maxResponseBytes = 32 << 20
 )
 
 // Credential 提供访问向量模型所需的兼容入口和密钥。
@@ -92,7 +94,7 @@ func (c *Client) Embed(ctx context.Context, credential Credential, model string,
 				Embedding []float32 `json:"embedding"`
 			} `json:"data"`
 		}
-		decodeErr := json.NewDecoder(response.Body).Decode(&output)
+		decodeErr := json.NewDecoder(io.LimitReader(response.Body, maxResponseBytes)).Decode(&output)
 		response.Body.Close()
 		if decodeErr != nil {
 			return nil, fmt.Errorf("decode embedding response: %w", decodeErr)
