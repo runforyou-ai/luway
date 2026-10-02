@@ -19,6 +19,10 @@ jobs:
   server:
     name: Server
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        repeat: [1, 2, 3, 4, 5, 6]
     timeout-minutes: 20
 
     steps:
@@ -39,7 +43,15 @@ jobs:
             --publish 5432:5432 \
             --health-cmd='pg_isready -U luway -d main' \
             --health-interval=2s --health-timeout=5s --health-retries=15 \
-            pgvector/pgvector:0.8.6-pg18-bookworm@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a
+            pgvector/pgvector:0.8.6-pg18-bookworm@sha256:2ba9ca5f2e7daa0f0e7723cba1ee9167bab54efd3640516a44ac1a928dd67e7a \
+            -c 'log_line_prefix=%m [%p] %d %a %x ' \
+            -c log_min_duration_statement=1000 \
+            -c log_lock_waits=on -c deadlock_timeout=1s \
+            -c log_checkpoints=on -c log_autovacuum_min_duration=0 \
+            -c log_temp_files=0 -c track_io_timing=on \
+            -c shared_preload_libraries=auto_explain \
+            -c auto_explain.log_min_duration=1000 -c auto_explain.log_analyze=on \
+            -c auto_explain.log_buffers=on -c auto_explain.log_timing=off -c auto_explain.log_nested_statements=on
           docker run --detach --name luway-nats \
             --publish 4222:4222 --publish 8222:8222 \
             --health-cmd='wget --spider --quiet http://127.0.0.1:8222/healthz?js-enabled-only=true' \
@@ -91,11 +103,26 @@ jobs:
           done
 
       - name: Test Go server build
-        run: wails3 task test:server
+        shell: bash
+        run: |
+          # 每秒采样执行超过 2 秒的会话及其等待事件和阻塞者。
+          (
+            while true; do
+              docker exec luway-postgres psql -U luway -d main -AtX -c "SELECT now()::time(3), pid, datname, state, wait_event_type, wait_event, pg_blocking_pids(pid), round(extract(epoch FROM now() - query_start)::numeric, 1), round(extract(epoch FROM now() - xact_start)::numeric, 1), left(regexp_replace(query, '\\s+', ' ', 'g'), 300) FROM pg_stat_activity WHERE pid <> pg_backend_pid() AND state <> 'idle' AND backend_type = 'client backend' AND now() - query_start > interval '2 seconds'" >> /tmp/pg-activity.log 2>&1 || true
+              sleep 1
+            done
+          ) &
+          sampler=$!
+          status=0
+          wails3 task test:server || status=$?
+          kill $sampler || true
+          exit $status
 
       - name: Stop integration test dependencies
         if: always()
         run: |
+          echo "===== pg_stat_activity samples ====="
+          cat /tmp/pg-activity.log || true
           docker logs luway-postgres || true
           docker logs luway-nats || true
           docker rm --force luway-postgres luway-nats || true
