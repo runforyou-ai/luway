@@ -18,13 +18,12 @@ const ProcessQAEntryActionName = "knowledge.qa_entry.process"
 
 // ProcessQAInput 固定本次问答索引任务的来源和向量参数，问题与答案在执行时读取。
 type ProcessQAInput struct {
-	OrganizationID           string `json:"organizationId"`
-	KnowledgeBaseID          string `json:"knowledgeBaseId"`
-	EntryID                  string `json:"entryId"`
-	ProcessingID             string `json:"processingId"`
-	EmbeddingProviderID      string `json:"embeddingProviderId"`
-	EmbeddingModelIdentifier string `json:"embeddingModelIdentifier"`
-	EmbeddingDimension       int    `json:"embeddingDimension"`
+	OrganizationID     string `json:"organizationId"`
+	KnowledgeBaseID    string `json:"knowledgeBaseId"`
+	EntryID            string `json:"entryId"`
+	ProcessingID       string `json:"processingId"`
+	EmbeddingModelID   string `json:"embeddingModelId"`
+	EmbeddingDimension int    `json:"embeddingDimension"`
 }
 
 // ProcessQAEntryAction 把问答条目的主问题、相似问题和答案分段、向量化并发布批次。
@@ -69,10 +68,9 @@ func (a *ProcessQAEntryAction) Execute(ctx context.Context, input ProcessQAInput
 	}
 
 	published, err := embedAndPublish(ctx, a.db, a.embedder, indexPublication{
-		Model:                    (*servermodels.KnowledgeQAEntry)(nil),
-		Batch:                    segmentBatch{OrganizationID: input.OrganizationID, KnowledgeBaseID: input.KnowledgeBaseID, SourceType: domain.KnowledgeSourceQAEntry, SourceID: input.EntryID, BatchID: input.ProcessingID, EmbeddingDimension: input.EmbeddingDimension},
-		EmbeddingProviderID:      input.EmbeddingProviderID,
-		EmbeddingModelIdentifier: input.EmbeddingModelIdentifier,
+		Model:            (*servermodels.KnowledgeQAEntry)(nil),
+		Batch:            segmentBatch{OrganizationID: input.OrganizationID, KnowledgeBaseID: input.KnowledgeBaseID, SourceType: domain.KnowledgeSourceQAEntry, SourceID: input.EntryID, BatchID: input.ProcessingID, EmbeddingDimension: input.EmbeddingDimension},
+		EmbeddingModelID: input.EmbeddingModelID,
 	}, segments)
 	if err == nil && published {
 		slog.Info("知识问答分段与向量完成", "entry_id", input.EntryID, "processing_id", input.ProcessingID, "segment_count", len(segments), "embedding_dimension", input.EmbeddingDimension, "duration_ms", time.Since(started).Milliseconds())

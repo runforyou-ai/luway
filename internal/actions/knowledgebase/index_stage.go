@@ -4,46 +4,38 @@ package knowledgebase
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
-	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/luway/pkg/embedding"
 	"github.com/runforyou-ai/luway/pkg/textsplit"
 	"github.com/uptrace/bun"
 )
 
-// resolveEmbeddingCredential 读取同企业的向量模型供应商并解析 OpenAI 兼容入口。
-func resolveEmbeddingCredential(ctx context.Context, db bun.IDB, organizationID, providerID string) (embedding.Credential, error) {
-	provider := &servermodels.AIProvider{}
-	err := db.NewSelect().Model(provider).Where("id = ? AND organization_id = ?", providerID, organizationID).Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		return embedding.Credential{}, &embedding.Error{Code: "embedding_model_unavailable"}
+// resolveEmbeddingModel 读取同企业可用的向量模型，返回 OpenAI 兼容入口凭据与上游模型标识。
+func resolveEmbeddingModel(ctx context.Context, db bun.IDB, organizationID, modelID string) (embedding.Credential, string, error) {
+	model, err := aimodel.Resolve(ctx, db, organizationID, modelID, domain.AIModelUsageEmbedding)
+	if errors.Is(err, aimodel.ErrUnavailable) {
+		return embedding.Credential{}, "", &embedding.Error{Code: "embedding_model_unavailable"}
 	}
 	if err != nil {
-		return embedding.Credential{}, err
+		return embedding.Credential{}, "", err
 	}
-	return embeddingCredential(provider)
-}
-
-// embeddingCredential 按供应商品牌解析 OpenAI 兼容入口并组装向量接口凭据。
-func embeddingCredential(provider *servermodels.AIProvider) (embedding.Credential, error) {
-	baseURL, err := modelprovider.CompatibleBaseURL(provider.Brand, provider.APIURL)
+	baseURL, err := modelprovider.CompatibleBaseURL(string(model.Brand), model.APIURL)
 	if err != nil {
-		return embedding.Credential{}, &embedding.Error{Code: "embedding_model_unavailable"}
+		return embedding.Credential{}, "", &embedding.Error{Code: "embedding_model_unavailable"}
 	}
-	return embedding.Credential{BaseURL: baseURL, APIKey: provider.APIKey}, nil
+	return embedding.Credential{BaseURL: baseURL, APIKey: model.APIKey}, model.Identifier, nil
 }
 
-// indexPublication 固定一次分段发布的来源模型、分段批次和向量模型。
+// indexPublication 固定一次分段发布的来源模型、分段批次和向量模型编号。
 type indexPublication struct {
-	Model                    any
-	Batch                    segmentBatch
-	EmbeddingProviderID      string
-	EmbeddingModelIdentifier string
+	Model            any
+	Batch            segmentBatch
+	EmbeddingModelID string
 }
 
 // embedAndPublish 向量化来源分段，并在当前任务仍有效时于同一事务中替换分段、发布批次；返回是否已发布。
@@ -52,7 +44,7 @@ func embedAndPublish(ctx context.Context, db *bun.DB, embedder segmentEmbedder, 
 	if current, err := updateIndexStage(ctx, db, publication.Model, batch.SourceID, batch.BatchID, domain.KnowledgeIndexEmbedding); err != nil || !current {
 		return false, err
 	}
-	credential, err := resolveEmbeddingCredential(ctx, db, batch.OrganizationID, publication.EmbeddingProviderID)
+	credential, modelIdentifier, err := resolveEmbeddingModel(ctx, db, batch.OrganizationID, publication.EmbeddingModelID)
 	var failure *embedding.Error
 	if errors.As(err, &failure) {
 		return false, &ProcessError{Code: failure.Code, Stage: domain.KnowledgeIndexEmbedding}
@@ -64,7 +56,7 @@ func embedAndPublish(ctx context.Context, db *bun.DB, embedder segmentEmbedder, 
 	for _, segment := range segments {
 		texts = append(texts, textsplit.IndexText(segment.Context, segment.Content))
 	}
-	vectors, err := embedder.Embed(ctx, credential, publication.EmbeddingModelIdentifier, batch.EmbeddingDimension, texts)
+	vectors, err := embedder.Embed(ctx, credential, modelIdentifier, batch.EmbeddingDimension, texts)
 	if errors.As(err, &failure) {
 		return false, &ProcessError{Code: failure.Code, Stage: domain.KnowledgeIndexEmbedding}
 	}

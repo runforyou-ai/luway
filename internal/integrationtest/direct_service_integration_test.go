@@ -57,7 +57,7 @@ func newDirectServiceFixture(t *testing.T) directServiceFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.execution = agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: provider.ID, ModelIdentifier: "chat-a"}}
+	f.execution = agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: aiModelID(t, f.db, provider.ID, "chat-a")}}
 	if f.team, err = teamaction.NewCreateTeamAction(f.db).Execute(ctx, f.owner, teamaction.Input{Name: "IT 支持"}); err != nil {
 		t.Fatal(err)
 	}

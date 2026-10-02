@@ -9,6 +9,7 @@ export {
 export {
     AIModelInputModality,
     AIModelType,
+    AIModelUsage,
     AIProviderBrand,
     AIProviderCredentialType,
     AccountStatus,
@@ -105,7 +106,8 @@ export {
 
 export type {
     AIHandoffReasonCount,
-    AIModelReference,
+    AIModelOption,
+    AIModelOptionList,
     AIPerformanceBreakdown,
     AIPerformanceBreakdownInput,
     AIPerformanceBreakdownList,
@@ -153,8 +155,6 @@ export type {
     AgentMemory,
     AgentMemoryInput,
     AgentMemoryList,
-    AgentModelOption,
-    AgentModelOptionList,
     AgentPlanTask,
     AgentResponsible,
     AgentRunContentBlock,

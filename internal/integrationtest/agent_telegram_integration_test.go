@@ -40,7 +40,7 @@ func newAgentTelegramFixture(t *testing.T, db *bun.DB, identity *models.Identity
 	ctx := context.Background()
 	agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "Telegram AI 客服",
-		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "回答客户问题"}},
+		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID, SystemInstruction: "回答客户问题"}},
 	})
 	if err != nil {
 		t.Fatal(err)

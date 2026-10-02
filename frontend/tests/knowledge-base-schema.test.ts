@@ -10,8 +10,8 @@ const messages = {
   retrievalScoreThresholdInvalid: "retrievalScoreThresholdInvalid", rerankModelRequired: "rerankModelRequired",
 }
 const valid = {
-  name: "知识库", description: "", embeddingModel: '["provider","embedding"]', embeddingDimension: "1024",
-  chunkLength: "512", chunkOverlap: "50", retrievalCount: "3", retrievalScoreThreshold: "0.7", rerankModel: '["provider","rerank"]',
+  name: "知识库", description: "", embeddingModelId: "019c7f37-8c0b-7ef0-8eca-cb672194d28d", embeddingDimension: "1024",
+  chunkLength: "512", chunkOverlap: "50", retrievalCount: "3", retrievalScoreThreshold: "0.7", rerankModelId: "019c7f37-8c0b-7ef0-8eca-cb672194d28e",
 }
 
 test("文档库必填数值接收边界值，拒绝空值、非法格式和越界值", () => {
@@ -33,8 +33,8 @@ test("文档库必填数值接收边界值，拒绝空值、非法格式和越�
       if (!result.success) assert.equal(result.error.issues[0].message, `${field}Invalid`)
     }
   }
-  assert.equal(schema.safeParse({ ...valid, embeddingModel: "" }).success, false)
-  const missingRerank = schema.safeParse({ ...valid, rerankModel: "" })
+  assert.equal(schema.safeParse({ ...valid, embeddingModelId: "" }).success, false)
+  const missingRerank = schema.safeParse({ ...valid, rerankModelId: "" })
   assert.equal(missingRerank.success, false)
   if (!missingRerank.success) assert.equal(missingRerank.error.issues[0].message, "rerankModelRequired")
 })
@@ -43,5 +43,5 @@ test("问答库无需分段参数，重排模型同样必填", () => {
   const schema = createKnowledgeBaseSchema(messages, true)
   const input = { ...valid, chunkLength: "", chunkOverlap: "" }
   assert.equal(schema.safeParse(input).success, true)
-  assert.equal(schema.safeParse({ ...input, rerankModel: "" }).success, false)
+  assert.equal(schema.safeParse({ ...input, rerankModelId: "" }).success, false)
 })

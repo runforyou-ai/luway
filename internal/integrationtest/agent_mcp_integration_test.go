@@ -39,11 +39,11 @@ func newAgentMCPService(t *testing.T, db *bun.DB, identity *servermodels.Identit
 // TestAgentMCPServices 验证整体保存、企业隔离、删除联动和并发事务。
 func TestAgentMCPServices(t *testing.T) {
 	t.Parallel()
-	db, owner, providerID, modelID := newAIWorkspace(t)
+	db, owner, _, modelID := newAIWorkspace(t)
 	t.Helper()
 	ctx := context.Background()
 	execution := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-		ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "回答产品问题",
+		ModelID: modelID, SystemInstruction: "回答产品问题",
 	}}
 	create := agentaction.NewCreateAgentAction(db)
 	update := agentaction.NewUpdateExecutionAction(db)
@@ -103,7 +103,7 @@ func TestAgentMCPServices(t *testing.T) {
 		}
 	}
 	// 核验字段校验失败后配置版本与当前版本指针保持原值。
-	invalid := agentaction.ExecutionInput{Mode: execution.Mode, Managed: &agentaction.ManagedExecutionInput{ProviderID: providerID, ModelIdentifier: "missing-model", SystemInstruction: "新指令"}}
+	invalid := agentaction.ExecutionInput{Mode: execution.Mode, Managed: &agentaction.ManagedExecutionInput{ModelID: uuid.NewV7().String(), SystemInstruction: "新指令"}}
 	if _, err := update.Execute(ctx, owner, agents[0].ID, agentaction.UpdateExecutionInput{ExecutionInput: invalid}); err == nil {
 		t.Fatal("invalid model saved")
 	}
@@ -392,11 +392,11 @@ func testAgentMCPDeleteLatestRevision(t *testing.T, db *bun.DB, owner, colleague
 }
 
 // testAgentRunMCPServices 验证运行按配置版本装配同企业 MCP 服务，未绑定的服务不进入本次运行。
-func testAgentRunMCPServices(t *testing.T, db *bun.DB, owner *servermodels.Identity, providerID, modelID string, tasks *servertask.Runtime) {
+func testAgentRunMCPServices(t *testing.T, db *bun.DB, owner *servermodels.Identity, modelID string, tasks *servertask.Runtime) {
 	t.Helper()
 	ctx := context.Background()
 	execution := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-		ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "调用外部工具",
+		ModelID: modelID, SystemInstruction: "调用外部工具",
 	}}
 	agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, owner, agentaction.CreateInput{DisplayName: "MCP 运行助手", Execution: execution})
 	if err != nil {

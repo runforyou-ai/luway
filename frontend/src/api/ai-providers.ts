@@ -1,9 +1,10 @@
-/** 模型服务供应商调用。 */
+/** 模型服务供应商与模型选项调用。 */
 import {
   CreateAIProvider,
   DeleteAIProvider,
   DiscoverAIProviderModels,
   GetAIProvider,
+  ListAIModelOptions,
   ListAIProviders,
   ListAvailableAIModels,
   TestAIProviderConnection,
@@ -12,8 +13,10 @@ import {
 import {
   AIModelInputModality,
   AIModelType,
+  AIModelUsage,
   AIProviderBrand,
   AIProviderCredentialType,
+  type AIModelOption,
   type AIProvider,
   type AIProviderConnectionInput,
   type AIProviderInput,
@@ -72,6 +75,17 @@ export type AIProviderSummaryData = Omit<
   models: AIProviderModelSummaryData[]
 }
 
+export type AIModelUsageId = Exclude<AIModelUsage, AIModelUsage.$zero>
+
+export type AIModelOptionData = Omit<
+  NonNullArrays<AIModelOption>,
+  "type" | "inputModalities" | "providerBrand"
+> & {
+  type: AIModelTypeId
+  inputModalities: AIModelInputModalityId[]
+  providerBrand: AIProviderBrandId
+}
+
 type AIProviderListData = Omit<
   NonNullArrays<AIProviderList>,
   "providers"
@@ -79,12 +93,20 @@ type AIProviderListData = Omit<
   providers: AIProviderSummaryData[]
 }
 
+const listAIModelOptionsBound = bind(ListAIModelOptions)
 const listAIProvidersBound = bind(ListAIProviders)
 const getAIProviderBound = bind(GetAIProvider)
 const listAvailableAIModelsBound = bind(ListAvailableAIModels)
 const discoverAIProviderModelsBound = bind(DiscoverAIProviderModels)
 const createAIProviderBound = bind(CreateAIProvider)
 const updateAIProviderBound = bind(UpdateAIProvider)
+
+/** 读取当前工作区满足指定用途的模型。 */
+export function listAIModelOptions(usage: AIModelUsageId) {
+  return listAIModelOptionsBound(usage).then(
+    (output) => output.models as AIModelOptionData[],
+  )
+}
 
 /** 读取当前企业的模型服务供应商列表。 */
 export function listAIProviders() {

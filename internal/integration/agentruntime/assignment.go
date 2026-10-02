@@ -26,9 +26,9 @@ type HandoffCategory struct {
 	Description string `json:"description"`
 }
 
-// AssignmentModel 记录一次运行固定使用的模型标识、品牌、参数与输入模态，不含供应商凭据。
+// AssignmentModel 记录一次运行固定使用的模型编号、上游模型标识、品牌、参数与输入模态，不含供应商凭据。
 type AssignmentModel struct {
-	ProviderID      string                        `json:"providerId"`
+	ModelID         string                        `json:"modelId"`
 	Brand           string                        `json:"brand"`
 	Identifier      string                        `json:"identifier"`
 	MaxOutputTokens int64                         `json:"maxOutputTokens"`

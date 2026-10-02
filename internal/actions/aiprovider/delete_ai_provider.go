@@ -31,7 +31,11 @@ func (a *DeleteAIProviderAction) Execute(ctx context.Context, identity *servermo
 		if err != nil {
 			return err
 		}
-		references, err := providerReferences(ctx, tx, identity.Organization.ID, provider.ID)
+		stored, err := loadModels(ctx, tx, provider.ID)
+		if err != nil {
+			return err
+		}
+		references, err := storedReferences(ctx, tx, identity.Organization.ID, stored)
 		if err != nil {
 			return err
 		}
@@ -39,8 +43,7 @@ func (a *DeleteAIProviderAction) Execute(ctx context.Context, identity *servermo
 			return ErrInUse
 		}
 		if _, err := tx.NewDelete().
-			Model((*servermodels.AIProviderModel)(nil)).
-			Where("organization_id = ?", identity.Organization.ID).
+			Model((*servermodels.AIModel)(nil)).
 			Where("provider_id = ?", provider.ID).
 			Exec(ctx); err != nil {
 			return err

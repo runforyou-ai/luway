@@ -299,7 +299,7 @@ function MobilePersonalAgentDetail({ agent }: { agent: PersonalAgentData }) {
             <dd className="mt-1 break-words text-sm">
               {agent.execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent
                 ? t("personal.form.executorLocalAgent", { name: localAgentName(agent.execution.localAgent.kind) })
-                : `${agent.execution.managed.providerName} · ${agent.execution.managed.modelName}`}
+                : `${agent.execution.managed.model.providerName} · ${agent.execution.managed.model.name}`}
             </dd>
           </div>
         </dl>

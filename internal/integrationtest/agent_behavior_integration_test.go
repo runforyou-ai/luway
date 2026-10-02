@@ -50,7 +50,7 @@ func TestAgentRoleBehavior(t *testing.T) {
 	// 空企业指令可以创建、读取详情并再次保存。
 	agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "行为助手",
-		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: provider.ID, ModelIdentifier: "chat", SystemInstruction: "   "}},
+		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: aiModelID(t, db, provider.ID, "chat"), SystemInstruction: "   "}},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +60,7 @@ func TestAgentRoleBehavior(t *testing.T) {
 		t.Fatalf("agent detail with empty instruction = %+v, error = %v", detail, err)
 	}
 	if _, err := agentaction.NewUpdateExecutionAction(db).Execute(ctx, identity, agent.ID, agentaction.UpdateExecutionInput{
-		ExecutionInput: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: provider.ID, ModelIdentifier: "chat", SystemInstruction: ""}},
+		ExecutionInput: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: aiModelID(t, db, provider.ID, "chat"), SystemInstruction: ""}},
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestAgentRoleBehavior(t *testing.T) {
 		MCPServers        []string `json:"mcpServers"`
 		Grounding         string   `json:"grounding"`
 		Model             struct {
-			ProviderID    string `json:"providerId"`
+			ModelID       string `json:"modelId"`
 			Identifier    string `json:"identifier"`
 			ContextWindow int64  `json:"contextWindow"`
 		} `json:"model"`
@@ -123,7 +123,7 @@ func TestAgentRoleBehavior(t *testing.T) {
 	sum := sha256.Sum256([]byte(captured.Assignment.Instruction))
 	if !snapshot.HandlesCustomers || snapshot.Scene != string(agentruntime.SceneAgentChat) || snapshot.RulesVersion != agentruntime.AssignmentRulesVersion ||
 		snapshot.Instruction != captured.Assignment.Instruction || snapshot.InstructionSHA256 != hex.EncodeToString(sum[:]) ||
-		snapshot.Model.ProviderID != provider.ID || snapshot.Model.Identifier != "chat" || snapshot.Model.ContextWindow != 32000 ||
+		snapshot.Model.ModelID != aiModelID(t, db, provider.ID, "chat") || snapshot.Model.Identifier != "chat" || snapshot.Model.ContextWindow != 32000 ||
 		strings.Join(snapshot.Tools, ",") != "web_fetch,TaskCreate,TaskGet,TaskUpdate,TaskList,agent" || len(snapshot.MCPServers) != 0 || snapshot.Grounding != "" {
 		t.Fatalf("behavior snapshot = %+v", snapshot)
 	}

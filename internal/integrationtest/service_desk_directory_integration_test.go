@@ -32,7 +32,7 @@ func TestServiceDeskDirectory(t *testing.T) {
 		t.Fatalf("创建模型服务失败：%v", err)
 	}
 	execution := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-		ProviderID: provider.ID, ModelIdentifier: "chat-a", SystemInstruction: "回答同事的问题",
+		ModelID: aiModelID(t, f.db, provider.ID, "chat-a"), SystemInstruction: "回答同事的问题",
 	}}
 	createAgent := func(name string, audiences ...domain.ServiceAudience) *agentaction.Agent {
 		agent, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{DisplayName: name, ServiceAudiences: audiences, Execution: execution})

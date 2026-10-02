@@ -27,7 +27,7 @@ func (e executionContext) assignmentFacts(scene agentruntime.SceneContext) agent
 		AgentName:        e.AgentName,
 		Instruction:      e.Instruction,
 		Model: agentruntime.AssignmentModel{
-			ProviderID:      e.ProviderID,
+			ModelID:         e.ModelID,
 			Brand:           e.Brand,
 			Identifier:      e.ModelIdentifier,
 			MaxOutputTokens: e.MaxOutputTokens,

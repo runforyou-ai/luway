@@ -18,10 +18,6 @@ import { AgentKnowledgeField } from "@/components/agent-fields/agent-knowledge-f
 import { AgentMCPField } from "@/components/agent-fields/agent-mcp-field"
 import { AgentModelField } from "@/components/agent-fields/agent-model-field"
 import {
-  agentModelSelection,
-  parseAgentModelSelection,
-} from "@/lib/agent-model-selection"
-import {
   createAgentExecutionSchema,
   type AgentExecutionFormValues,
 } from "@/features/agents/agent-schema"
@@ -55,10 +51,7 @@ export function AgentExecutionForm({
     shouldUseNativeValidation: true,
     mode: "onBlur",
     defaultValues: {
-      modelSelection: agentModelSelection(
-        managed.providerId,
-        managed.modelIdentifier,
-      ),
+      modelId: managed.model.id,
       systemInstruction: managed.systemInstruction,
       knowledgeBaseIds: managed.knowledgeBaseIds,
       mcpServerIds: agent.execution.mcpServerIds,
@@ -82,7 +75,7 @@ export function AgentExecutionForm({
         mode: agent.execution.mode,
         mcpServerIds: values.mcpServerIds,
         managed: {
-          ...parseAgentModelSelection(values.modelSelection),
+          modelId: values.modelId,
           systemInstruction: values.systemInstruction,
           knowledgeBaseIds: values.knowledgeBaseIds,
         },
@@ -100,8 +93,7 @@ export function AgentExecutionForm({
         isApiError(error)
           ? apiErrorMessage(error, [
               "execution",
-              "providerId",
-              "modelIdentifier",
+              "modelId",
               "systemInstruction",
               "knowledgeBaseIds",
               "mcpServerIds",
@@ -117,7 +109,7 @@ export function AgentExecutionForm({
       <FieldGroup>
         <AgentModelField
           control={form.control}
-          name="modelSelection"
+          name="modelId"
           disabled={form.formState.isSubmitting}
         />
         <Controller

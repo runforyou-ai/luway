@@ -32,14 +32,14 @@ func (q *ListAIProvidersQuery) Execute(ctx context.Context, identity *servermode
 		Scan(ctx); err != nil {
 		return nil, fmt.Errorf("list AI providers: %w", err)
 	}
-	modelRecords := make([]servermodels.AIProviderModel, 0)
+	modelRecords := make([]servermodels.AIModel, 0)
 	if err := q.db.NewSelect().
 		Model(&modelRecords).
-		Column("provider_id", "identifier", "name", "model_type").
-		Where("aipm.organization_id = ?", identity.Organization.ID).
-		Order("aipm.provider_id ASC").
-		Order("aipm.created_at ASC").
-		Order("aipm.identifier ASC").
+		Column("aim.id", "aim.provider_id", "aim.identifier", "aim.name", "aim.model_type").
+		Join("JOIN ai_providers AS aip ON aip.id = aim.provider_id").
+		Where("aip.organization_id = ?", identity.Organization.ID).
+		Order("aim.provider_id ASC").
+		Order("aim.id ASC").
 		Scan(ctx); err != nil {
 		return nil, fmt.Errorf("list AI provider models: %w", err)
 	}
@@ -48,6 +48,7 @@ func (q *ListAIProvidersQuery) Execute(ctx context.Context, identity *servermode
 		modelsByProvider[record.ProviderID] = append(
 			modelsByProvider[record.ProviderID],
 			ModelSummary{
+				ID:         record.ID,
 				Identifier: record.Identifier,
 				Name:       record.Name,
 				Type:       domain.AIModelType(record.Type),

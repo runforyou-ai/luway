@@ -46,16 +46,14 @@ func loadKnowledgeBaseRecord(ctx context.Context, db bun.IDB, organizationID, kn
 func recordFromModel(knowledgeBase servermodels.KnowledgeBase) Record {
 	return Record{
 		ID: knowledgeBase.ID, Name: knowledgeBase.Name, Category: domain.KnowledgeBaseCategory(knowledgeBase.Category),
-		Description:              knowledgeBase.Description,
-		EmbeddingProviderID:      knowledgeBase.EmbeddingProviderID,
-		EmbeddingModelIdentifier: knowledgeBase.EmbeddingModelIdentifier,
-		EmbeddingDimension:       knowledgeBase.EmbeddingDimension,
-		ChunkLength:              knowledgeBase.ChunkLength,
-		ChunkOverlap:             knowledgeBase.ChunkOverlap,
-		RetrievalCount:           knowledgeBase.RetrievalCount,
-		RetrievalScoreThreshold:  knowledgeBase.RetrievalScoreThreshold,
-		RerankProviderID:         knowledgeBase.RerankProviderID,
-		RerankModelIdentifier:    knowledgeBase.RerankModelIdentifier,
+		Description:             knowledgeBase.Description,
+		EmbeddingModelID:        knowledgeBase.EmbeddingModelID,
+		EmbeddingDimension:      knowledgeBase.EmbeddingDimension,
+		ChunkLength:             knowledgeBase.ChunkLength,
+		ChunkOverlap:            knowledgeBase.ChunkOverlap,
+		RetrievalCount:          knowledgeBase.RetrievalCount,
+		RetrievalScoreThreshold: knowledgeBase.RetrievalScoreThreshold,
+		RerankModelID:           knowledgeBase.RerankModelID,
 
 		CreatedAt: knowledgeBase.CreatedAt, UpdatedAt: knowledgeBase.UpdatedAt,
 	}

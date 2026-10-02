@@ -30,6 +30,10 @@ export function createAIModelSchema(
 ) {
   return z
     .object({
+      // 表单内稳定标识，新增模型保存后据此回填服务端编号。
+      key: z.string(),
+      // 已保存模型的编号，新增模型为空。
+      id: z.string(),
       identifier: z
         .string()
         .trim()

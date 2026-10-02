@@ -34,7 +34,7 @@ func TestAgentServiceScope(t *testing.T) {
 		t.Fatalf("创建模型服务失败：%v", err)
 	}
 	execution := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-		ProviderID: provider.ID, ModelIdentifier: "chat-a", SystemInstruction: "回答同事和客户的问题",
+		ModelID: aiModelID(t, f.db, provider.ID, "chat-a"), SystemInstruction: "回答同事和客户的问题",
 	}}
 	fieldCode := func(err error, field string) common.FieldCode {
 		var fieldError *common.FieldError

@@ -41,7 +41,7 @@ func MarkHandedOff(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueu
 	if err != nil {
 		return err
 	}
-	if settings.Summary == nil {
+	if settings.SummaryModelID == nil {
 		return nil
 	}
 	return enqueue(ctx, db, enqueuer, HandoffSummaryActionName, HandoffSummaryInput{
@@ -66,7 +66,7 @@ func (w *Worker) HandoffSummary(ctx context.Context, input HandoffSummaryInput) 
 	if err != nil {
 		return err
 	}
-	model, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.Summary, domain.AIModelTypeChat)
+	model, err := customerservice.LoadModel(ctx, w.db, input.OrganizationID, settings.SummaryModelID, domain.AIModelUsageSummary)
 	if err != nil || model == nil {
 		return err
 	}

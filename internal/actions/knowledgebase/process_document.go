@@ -86,10 +86,9 @@ func (a *ProcessDocumentAction) Execute(ctx context.Context, input ProcessInput)
 		return &ProcessError{Code: "empty_content", Stage: domain.KnowledgeIndexSplitting}
 	}
 	published, err := embedAndPublish(ctx, a.db, a.embedder, indexPublication{
-		Model:                    (*servermodels.KnowledgeDocument)(nil),
-		Batch:                    segmentBatch{OrganizationID: input.OrganizationID, KnowledgeBaseID: input.KnowledgeBaseID, SourceType: domain.KnowledgeSourceDocument, SourceID: input.DocumentID, BatchID: input.ProcessingID, EmbeddingDimension: input.EmbeddingDimension},
-		EmbeddingProviderID:      input.EmbeddingProviderID,
-		EmbeddingModelIdentifier: input.EmbeddingModelIdentifier,
+		Model:            (*servermodels.KnowledgeDocument)(nil),
+		Batch:            segmentBatch{OrganizationID: input.OrganizationID, KnowledgeBaseID: input.KnowledgeBaseID, SourceType: domain.KnowledgeSourceDocument, SourceID: input.DocumentID, BatchID: input.ProcessingID, EmbeddingDimension: input.EmbeddingDimension},
+		EmbeddingModelID: input.EmbeddingModelID,
 	}, segments)
 	if err == nil && published {
 		slog.Info("知识文档分段与向量完成", "document_id", input.DocumentID, "processing_id", input.ProcessingID, "segment_count", len(segments), "embedding_dimension", input.EmbeddingDimension, "duration_ms", time.Since(started).Milliseconds())

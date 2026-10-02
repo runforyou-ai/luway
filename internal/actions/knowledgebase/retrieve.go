@@ -14,6 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
@@ -77,6 +78,7 @@ type knowledgeSource struct {
 	base         servermodels.KnowledgeBase
 	embeddings   *queryEmbeddings
 	rerank       rerank.Credential
+	rerankModel  string
 	articlesOnly bool
 }
 
@@ -162,18 +164,6 @@ func (s *RetrievalService) sources(ctx context.Context, organizationID string, k
 	if len(bases) != len(knowledgeBaseIDs) {
 		return nil, ErrNotFound
 	}
-	providerIDs := make([]string, 0, len(bases)*2)
-	for _, base := range bases {
-		providerIDs = append(providerIDs, base.EmbeddingProviderID, base.RerankProviderID)
-	}
-	var providers []servermodels.AIProvider
-	if err := s.db.NewSelect().Model(&providers).Where("aip.organization_id = ? AND aip.id IN (?)", organizationID, bun.In(providerIDs)).Scan(ctx); err != nil {
-		return nil, err
-	}
-	byID := make(map[string]servermodels.AIProvider, len(providers))
-	for _, provider := range providers {
-		byID[provider.ID] = provider
-	}
 	sources := make([]*knowledgeSource, 0, len(bases))
 	embeddings := make(map[queryEmbeddingKey]*queryEmbeddings, len(bases))
 	for _, id := range knowledgeBaseIDs {
@@ -182,32 +172,33 @@ func (s *RetrievalService) sources(ctx context.Context, organizationID string, k
 				continue
 			}
 			source := &knowledgeSource{service: s, base: base}
-			provider, ok := byID[base.EmbeddingProviderID]
-			if !ok {
-				return nil, &embedding.Error{Code: "embedding_model_unavailable"}
-			}
-			key := queryEmbeddingKey{providerID: provider.ID, model: base.EmbeddingModelIdentifier, dimension: base.EmbeddingDimension}
+			key := queryEmbeddingKey{modelID: base.EmbeddingModelID, dimension: base.EmbeddingDimension}
 			if source.embeddings = embeddings[key]; source.embeddings == nil {
-				credential, err := embeddingCredential(&provider)
+				credential, model, err := resolveEmbeddingModel(ctx, s.db, organizationID, base.EmbeddingModelID)
 				if err != nil {
 					return nil, err
 				}
-				source.embeddings = newQueryEmbeddings(s.embedder, credential, key)
+				source.embeddings = newQueryEmbeddings(s.embedder, credential, model, key)
 				embeddings[key] = source.embeddings
 			}
-			if provider, ok = byID[base.RerankProviderID]; !ok {
+			model, err := aimodel.Resolve(ctx, s.db, organizationID, base.RerankModelID, domain.AIModelUsageRerank)
+			if errors.Is(err, aimodel.ErrUnavailable) {
 				return nil, &rerank.Error{Code: "rerank_model_unavailable"}
 			}
-			rerankBaseURL, err := modelprovider.CompatibleBaseURL(provider.Brand, provider.APIURL)
+			if err != nil {
+				return nil, err
+			}
+			rerankBaseURL, err := modelprovider.CompatibleBaseURL(string(model.Brand), model.APIURL)
 			if err != nil {
 				return nil, &rerank.Error{Code: "rerank_model_unavailable"}
 			}
 			// 阿里云使用 DashScope 原生重排接口，其余品牌使用通用的 rerank 接口格式。
 			protocol := rerank.ProtocolCompatible
-			if provider.Brand == string(domain.AIProviderBrandAlibaba) {
+			if model.Brand == domain.AIProviderBrandAlibaba {
 				protocol = rerank.ProtocolDashScope
 			}
-			source.rerank = rerank.Credential{Protocol: protocol, BaseURL: rerankBaseURL, APIKey: provider.APIKey}
+			source.rerank = rerank.Credential{Protocol: protocol, BaseURL: rerankBaseURL, APIKey: model.APIKey}
+			source.rerankModel = model.Identifier
 			sources = append(sources, source)
 		}
 	}
@@ -287,7 +278,7 @@ func (k *knowledgeSource) retrieve(ctx context.Context, query string) ([]Retriev
 		for _, item := range ordered {
 			documents = append(documents, textsplit.IndexText(item.hit.Context, item.hit.Content))
 		}
-		scores, err := k.service.reranker.Rerank(ctx, k.rerank, k.base.RerankModelIdentifier, query, documents, len(documents))
+		scores, err := k.service.reranker.Rerank(ctx, k.rerank, k.rerankModel, query, documents, len(documents))
 		if err != nil {
 			return nil, fmt.Errorf("rerank knowledge candidates: %w", err)
 		}

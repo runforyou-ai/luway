@@ -4,44 +4,29 @@ package knowledgebase
 
 import (
 	"context"
-	"slices"
+	"errors"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
-	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 
-// validateModels 锁定同企业供应商并校验知识库所选模型用途。
-func validateModels(ctx context.Context, tx bun.Tx, organizationID string, input Input) error {
-	providerIDs := []string{input.EmbeddingProviderID, input.RerankProviderID}
-	slices.Sort(providerIDs)
-	providers := make([]servermodels.AIProvider, 0)
-	if err := tx.NewSelect().Model(&providers).Where("organization_id = ?", organizationID).
-		Where("id IN (?)", bun.In(providerIDs)).Order("id ASC").For("SHARE").Scan(ctx); err != nil {
-		return err
-	}
+// lockModels 校验并锁定知识库所选的向量模型和重排模型直至事务结束，须在锁定知识库之前调用。
+func lockModels(ctx context.Context, tx bun.Tx, organizationID string, input Input) error {
 	fields := make(map[string]common.FieldCode)
 	for _, selected := range []struct {
-		providerID, identifier, field string
-		modelType                     domain.AIModelType
-		code                          common.FieldCode
+		modelID, field string
+		usage          domain.AIModelUsage
+		code           common.FieldCode
 	}{
-		{input.EmbeddingProviderID, input.EmbeddingModelIdentifier, "embeddingModelIdentifier", domain.AIModelTypeEmbedding, ValidationEmbeddingModelInvalid},
-		{input.RerankProviderID, input.RerankModelIdentifier, "rerankModelIdentifier", domain.AIModelTypeRerank, ValidationRerankModelInvalid},
+		{input.EmbeddingModelID, "embeddingModelId", domain.AIModelUsageEmbedding, ValidationEmbeddingModelInvalid},
+		{input.RerankModelID, "rerankModelId", domain.AIModelUsageRerank, ValidationRerankModelInvalid},
 	} {
-		found := slices.ContainsFunc(providers, func(provider servermodels.AIProvider) bool { return provider.ID == selected.providerID })
-		if found {
-			var err error
-			found, err = tx.NewSelect().Model((*servermodels.AIProviderModel)(nil)).
-				Where("organization_id = ?", organizationID).Where("provider_id = ?", selected.providerID).
-				Where("identifier = ?", selected.identifier).Where("model_type = ?", selected.modelType).Exists(ctx)
-			if err != nil {
-				return err
-			}
-		}
-		if !found {
+		if _, err := aimodel.Lock(ctx, tx, organizationID, selected.modelID, selected.usage); errors.Is(err, aimodel.ErrUnavailable) {
 			fields[selected.field] = selected.code
+		} else if err != nil {
+			return err
 		}
 	}
 	if len(fields) > 0 {

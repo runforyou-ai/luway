@@ -17,6 +17,7 @@ type AgentRevision struct {
 	OrganizationID  string          `bun:"organization_id"`
 	AgentID         string          `bun:"agent_id"`
 	ExecutionMode   string          `bun:"execution_mode"`
+	ModelID         string          `bun:"model_id,nullzero"`
 	SchemaVersion   int             `bun:"schema_version"`
 	Configuration   json.RawMessage `bun:"configuration,type:jsonb"`
 	CreatedByUserID string          `bun:"created_by_user_id"`

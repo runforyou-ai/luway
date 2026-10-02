@@ -14,15 +14,16 @@ import (
 
 // UpdateAIProviderAction 修改模型服务供应商。
 type UpdateAIProviderAction struct {
-	db *bun.DB
+	db        *bun.DB
+	reindexer EmbeddingReindexer
 }
 
 // NewUpdateAIProviderAction 创建模型服务供应商修改操作。
-func NewUpdateAIProviderAction(db *bun.DB) *UpdateAIProviderAction {
-	return &UpdateAIProviderAction{db: db}
+func NewUpdateAIProviderAction(db *bun.DB, reindexer EmbeddingReindexer) *UpdateAIProviderAction {
+	return &UpdateAIProviderAction{db: db, reindexer: reindexer}
 }
 
-// Execute 修改模型服务供应商和模型目录。
+// Execute 修改模型服务供应商和模型目录；被引用的模型须保留并满足引用用途，在用向量模型的上游标识变化时重新索引相关知识库。
 func (a *UpdateAIProviderAction) Execute(ctx context.Context, identity *servermodels.Identity, providerID string, update UpdateInput) (*Record, error) {
 	var provider *servermodels.AIProvider
 	var models []Model
@@ -41,7 +42,15 @@ func (a *UpdateAIProviderAction) Execute(ctx context.Context, identity *servermo
 		if len(fields) > 0 {
 			return &ValidationError{Fields: fields}
 		}
-		if err := validateReferencedModels(ctx, tx, identity.Organization.ID, current.ID, input.Models); err != nil {
+		stored, err := loadModels(ctx, tx, current.ID)
+		if err != nil {
+			return err
+		}
+		changes, err := diffModels(stored, input.Models)
+		if err != nil {
+			return err
+		}
+		if err := validateReferencedModels(ctx, tx, identity.Organization.ID, stored, input.Models); err != nil {
 			return err
 		}
 		current.Name = input.Name
@@ -58,15 +67,19 @@ func (a *UpdateAIProviderAction) Execute(ctx context.Context, identity *servermo
 			Exec(ctx); err != nil {
 			return err
 		}
-		if err := replaceModels(ctx, tx, identity.Organization.ID, current.ID, input.Models); err != nil {
+		if models, err = saveModels(ctx, tx, current.ID, input.Models, changes); err != nil {
 			return err
 		}
+		if len(changes.renamedEmbeddings) > 0 {
+			if err := a.reindexer.ReindexEmbeddingModels(ctx, tx, identity.Organization.ID, changes.renamedEmbeddings); err != nil {
+				return err
+			}
+		}
 		provider = current
-		models = input.Models
 		return nil
 	})
-	if isNameConflict(err) {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+	if conflict := conflictError(err); conflict != nil {
+		return nil, conflict
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update AI provider: %w", err)

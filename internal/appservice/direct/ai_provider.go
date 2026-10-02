@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 
+	aimodelaction "github.com/runforyou-ai/luway/internal/actions/aimodel"
 	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -15,6 +16,35 @@ import (
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
+
+// ListAIModelOptions 返回当前工作区满足指定用途的模型。
+func (o *directOperations) ListAIModelOptions(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, usage appservice.AIModelUsage) (appservice.AIModelOptionList, error) {
+	options, err := o.listAIModelOptions.Execute(ctx, identity, domain.AIModelUsage(usage))
+	if errors.Is(err, aimodelaction.ErrUsageInvalid) {
+		return appservice.AIModelOptionList{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, map[string]i18n.Key{"usage": i18n.FieldAIModelUsageInvalid})
+	}
+	if err != nil {
+		return appservice.AIModelOptionList{}, o.aiProviderError(ctx, meta, err, i18n.ErrorAIModelListFailed, identity.Organization.ID, "usage", usage)
+	}
+	output := make([]appservice.AIModelOption, 0, len(options))
+	for _, option := range options {
+		output = append(output, aiModelOptionFromAction(option))
+	}
+	return appservice.AIModelOptionList{Models: output}, nil
+}
+
+// aiModelOptionFromAction 转换模型选项。
+func aiModelOptionFromAction(option aimodelaction.Option) appservice.AIModelOption {
+	inputModalities := make([]appservice.AIModelInputModality, 0, len(option.InputModalities))
+	for _, modality := range option.InputModalities {
+		inputModalities = append(inputModalities, appservice.AIModelInputModality(modality))
+	}
+	return appservice.AIModelOption{
+		ID: option.ID, Identifier: option.Identifier, Name: option.Name, Type: appservice.AIModelType(option.Type),
+		InputModalities: inputModalities, ProviderID: option.ProviderID, ProviderName: option.ProviderName,
+		ProviderBrand: appservice.AIProviderBrand(option.Brand),
+	}
+}
 
 // ListAIProviders 返回当前企业的模型服务供应商列表。
 func (o *directOperations) ListAIProviders(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.AIProviderList, error) {
@@ -27,6 +57,7 @@ func (o *directOperations) ListAIProviders(ctx context.Context, meta appservice.
 		models := make([]appservice.AIProviderModelSummary, 0, len(provider.Models))
 		for _, model := range provider.Models {
 			models = append(models, appservice.AIProviderModelSummary{
+				ID:         model.ID,
 				Identifier: model.Identifier,
 				Name:       model.Name,
 				Type:       appservice.AIModelType(model.Type),
@@ -186,7 +217,7 @@ func aiProviderModelsInput(input []appservice.AIProviderModel) []aiprovideractio
 			inputModalities = append(inputModalities, domain.AIModelInputModality(modality))
 		}
 		models = append(models, aiprovideraction.Model{
-			Identifier: model.Identifier, Name: model.Name, Type: domain.AIModelType(model.Type),
+			ID: model.ID, Identifier: model.Identifier, Name: model.Name, Type: domain.AIModelType(model.Type),
 			InputModalities: inputModalities,
 			ContextWindow:   model.ContextWindow, MaxOutputTokens: model.MaxOutputTokens,
 		})
@@ -214,7 +245,7 @@ func aiProviderModelsFromAction(input []aiprovideraction.Model) []appservice.AIP
 			inputModalities = append(inputModalities, appservice.AIModelInputModality(modality))
 		}
 		models = append(models, appservice.AIProviderModel{
-			Identifier: model.Identifier, Name: model.Name, Type: appservice.AIModelType(model.Type),
+			ID: model.ID, Identifier: model.Identifier, Name: model.Name, Type: appservice.AIModelType(model.Type),
 			InputModalities: inputModalities,
 			ContextWindow:   model.ContextWindow, MaxOutputTokens: model.MaxOutputTokens,
 		})

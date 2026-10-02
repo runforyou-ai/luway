@@ -352,13 +352,7 @@ func (o *directOperations) GetServiceSummarySettings(ctx context.Context, meta a
 
 // UpdateServiceSummarySettings 修改当前企业的周期小结设置。
 func (o *directOperations) UpdateServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ServiceSummarySettings) (appservice.ServiceSummarySettings, error) {
-	settings := domain.ServiceSummarySettings{Locale: domain.Locale(input.Locale)}
-	if input.Decision != nil {
-		settings.Decision = &domain.AIModelReference{ProviderID: input.Decision.ProviderID, ModelIdentifier: input.Decision.ModelIdentifier}
-	}
-	if input.Summary != nil {
-		settings.Summary = &domain.AIModelReference{ProviderID: input.Summary.ProviderID, ModelIdentifier: input.Summary.ModelIdentifier}
-	}
+	settings := domain.ServiceSummarySettings{DecisionModelID: input.DecisionModelID, SummaryModelID: input.SummaryModelID, Locale: domain.Locale(input.Locale)}
 	saved, err := o.updateSummarySettings.Execute(ctx, identity, settings)
 	if err != nil {
 		if ctx.Err() != nil {
@@ -379,20 +373,15 @@ func (o *directOperations) UpdateServiceSummarySettings(ctx context.Context, met
 		return appservice.ServiceSummarySettings{}, appservice.FailedError(meta, i18n.ErrorSummarySettingsUpdateFailed)
 	}
 	slog.Info("周期小结设置已更新", "organization_id", identity.Organization.ID,
-		"decision_configured", saved.Decision != nil, "summary_configured", saved.Summary != nil, "locale", saved.Locale)
+		"decision_configured", saved.DecisionModelID != nil, "summary_configured", saved.SummaryModelID != nil, "locale", saved.Locale)
 	return serviceSummarySettingsFromDomain(saved), nil
 }
 
 // serviceSummarySettingsFromDomain 把周期小结设置转换为传输结构。
 func serviceSummarySettingsFromDomain(settings domain.ServiceSummarySettings) appservice.ServiceSummarySettings {
-	result := appservice.ServiceSummarySettings{Locale: appservice.Locale(settings.Locale)}
-	if settings.Decision != nil {
-		result.Decision = &appservice.AIModelReference{ProviderID: settings.Decision.ProviderID, ModelIdentifier: settings.Decision.ModelIdentifier}
+	return appservice.ServiceSummarySettings{
+		DecisionModelID: settings.DecisionModelID, SummaryModelID: settings.SummaryModelID, Locale: appservice.Locale(settings.Locale),
 	}
-	if settings.Summary != nil {
-		result.Summary = &appservice.AIModelReference{ProviderID: settings.Summary.ProviderID, ModelIdentifier: settings.Summary.ModelIdentifier}
-	}
-	return result
 }
 
 // GetServiceSummaries 返回服务会话当前周期的交接摘要与同一发起人已关闭周期的小结。

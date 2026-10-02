@@ -13,7 +13,7 @@ func customerFacts() AssignmentFacts {
 	return AssignmentFacts{
 		HandlesCustomers: true, OrganizationName: "演示公司", AgentName: "小鹿", Instruction: "只回答售后问题。",
 		Model: AssignmentModel{
-			ProviderID: "provider", Brand: "deepseek", Identifier: "model", MaxOutputTokens: 1024, ContextWindow: 8192,
+			ModelID: "model-id", Brand: "deepseek", Identifier: "model", MaxOutputTokens: 1024, ContextWindow: 8192,
 			InputModalities: []domain.AIModelInputModality{domain.AIModelInputModalityText},
 		},
 		Scene: SceneContext{Scene: SceneCustomer},
@@ -99,7 +99,7 @@ func TestResolveAssignment(t *testing.T) {
 		t.Fatalf("有效配置指令 = %q", assignment.Instruction)
 	}
 	if len(assignment.InstructionSHA256) != 64 || assignment.AgentName != "小鹿" || assignment.Model.Brand != "deepseek" ||
-		assignment.Model.ProviderID != "provider" || assignment.Model.ContextWindow != 8192 ||
+		assignment.Model.ModelID != "model-id" || assignment.Model.ContextWindow != 8192 ||
 		len(assignment.Model.InputModalities) != 1 || len(assignment.MCPServers) != 1 {
 		t.Fatalf("有效配置元数据 = %+v", assignment)
 	}

@@ -192,7 +192,7 @@ export function AgentListPage() {
                 <span className="block truncate">
                   {agent.execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent
                     ? t("personal.form.executorLocalAgent", { name: localAgentName(agent.execution.localAgent.kind) })
-                    : `${agent.execution.managed.providerName} · ${agent.execution.managed.modelName}`}
+                    : `${agent.execution.managed.model.providerName} · ${agent.execution.managed.model.name}`}
                 </span>
               ),
             },

@@ -18,7 +18,6 @@ import (
 	"uuid"
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
-
 	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
@@ -62,7 +61,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	}
 	personalAgent, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, identity, registered.ID, agentaction.PersonalAgentInput{
 		DisplayName: "小码", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-			ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier,
+			ModelID: employee.Execution.Managed.Model.ID,
 		}},
 	})
 	if err != nil {
@@ -82,7 +81,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		other := newChatLockUser(t, db, identity)
 		// 其他成员不能在别人的电脑上创建个人 AI 员工，也不能与别人的个人 AI 员工单聊。
 		if _, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, other, registered.ID, agentaction.PersonalAgentInput{
-			DisplayName: "冒用", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier}},
+			DisplayName: "冒用", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: employee.Execution.Managed.Model.ID}},
 		}); !errors.Is(err, agentaction.ErrPersonalAgentDeviceNotFound) {
 			t.Fatalf("create on foreign device=%v", err)
 		}
@@ -150,7 +149,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 			t.Helper()
 			if _, err := agentaction.NewUpdatePersonalAgentAction(db).Execute(ctx, identity, personalAgent.ID, agentaction.PersonalAgentInput{
 				DisplayName: personalAgent.DisplayName, Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-					ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier, KnowledgeBaseIDs: ids,
+					ModelID: employee.Execution.Managed.Model.ID, KnowledgeBaseIDs: ids,
 				}},
 			}); err != nil {
 				t.Fatal(err)
@@ -251,7 +250,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 			t.Helper()
 			_, err := agentaction.NewUpdatePersonalAgentAction(db).Execute(ctx, identity, personalAgent.ID, agentaction.PersonalAgentInput{
 				DisplayName: personalAgent.DisplayName, MCPServerIDs: ids, Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-					ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier,
+					ModelID: employee.Execution.Managed.Model.ID,
 				}},
 			})
 			return err
@@ -324,7 +323,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 			t.Helper()
 			if _, err := agentaction.NewUpdateExecutionAction(db).Execute(ctx, identity, employee.ID, agentaction.UpdateExecutionInput{
 				ExecutionInput: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-					ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier,
+					ModelID:           employee.Execution.Managed.Model.ID,
 					SystemInstruction: employee.Execution.Managed.SystemInstruction, KnowledgeBaseIDs: employee.Execution.Managed.KnowledgeBaseIDs,
 				}},
 				MCPServerIDs: ids,
@@ -706,7 +705,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		}
 		// 改回由个人 AI 员工自己完成，后续用例沿用托管执行。
 		if _, err := update.Execute(ctx, identity, personalAgent.ID, agentaction.PersonalAgentInput{DisplayName: personalAgent.DisplayName, Execution: agentaction.ExecutionInput{
-			Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: employee.Execution.Managed.ProviderID, ModelIdentifier: employee.Execution.Managed.ModelIdentifier},
+			Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: employee.Execution.Managed.Model.ID},
 		}}); err != nil {
 			t.Fatal(err)
 		}

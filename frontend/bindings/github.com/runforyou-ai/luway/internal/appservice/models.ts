@@ -25,11 +25,24 @@ export enum AIModelInputModality {
 };
 
 /**
- * AIModelReference 指向模型服务中的一个模型。
+ * AIModelOption 定义模型选择器中的模型及其所属供应商。
  */
-export interface AIModelReference {
+export interface AIModelOption {
+    "id": string;
+    "identifier": string;
+    "name": string;
+    "type": AIModelType;
+    "inputModalities": AIModelInputModality[] | null;
     "providerId": string;
-    "modelIdentifier": string;
+    "providerName": string;
+    "providerBrand": AIProviderBrand;
+}
+
+/**
+ * AIModelOptionList 定义满足某一用途的模型选项。
+ */
+export interface AIModelOptionList {
+    "models": AIModelOption[] | null;
 }
 
 /**
@@ -45,6 +58,23 @@ export enum AIModelType {
     AIModelTypeEmbedding = "embedding",
     AIModelTypeRerank = "rerank",
     AIModelTypeDecision = "decision",
+};
+
+/**
+ * AIModelUsage 表示业务使用模型的用途，每种用途对应确定的模型类型与输入能力要求。
+ */
+export enum AIModelUsage {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    AIModelUsageAgent = "agent",
+    AIModelUsageSummary = "summary",
+    AIModelUsageTranslation = "translation",
+    AIModelUsageDecision = "decision",
+    AIModelUsageEmbedding = "embedding",
+    AIModelUsageRerank = "rerank",
 };
 
 /**
@@ -224,9 +254,10 @@ export interface AIProviderList {
 }
 
 /**
- * AIProviderModel 定义模型服务供应商的模型目录项。
+ * AIProviderModel 定义模型服务供应商的模型目录项，保存时编号为空表示新增模型。
  */
 export interface AIProviderModel {
+    "id": string;
     "identifier": string;
     "name": string;
     "type": AIModelType;
@@ -246,6 +277,7 @@ export interface AIProviderModelList {
  * AIProviderModelSummary 定义供应商列表中的模型目录摘要。
  */
 export interface AIProviderModelSummary {
+    "id": string;
     "identifier": string;
     "name": string;
     "type": AIModelType;
@@ -703,10 +735,7 @@ export interface AgentMCPServerOptionList {
  * AgentManagedExecution 定义平台托管执行配置。
  */
 export interface AgentManagedExecution {
-    "providerId": string;
-    "providerName": string;
-    "modelIdentifier": string;
-    "modelName": string;
+    "model": AIModelOption;
     "systemInstruction": string;
     "knowledgeBaseIds": string[] | null;
 }
@@ -715,8 +744,7 @@ export interface AgentManagedExecution {
  * AgentManagedExecutionInput 定义平台托管执行配置输入。
  */
 export interface AgentManagedExecutionInput {
-    "providerId": string;
-    "modelIdentifier": string;
+    "modelId": string;
     "systemInstruction": string;
     "knowledgeBaseIds": string[] | null;
 }
@@ -725,10 +753,7 @@ export interface AgentManagedExecutionInput {
  * AgentManagedExecutionSummary 定义平台托管执行配置摘要。
  */
 export interface AgentManagedExecutionSummary {
-    "providerId": string;
-    "providerName": string;
-    "modelIdentifier": string;
-    "modelName": string;
+    "model": AIModelOption;
 }
 
 /**
@@ -756,23 +781,6 @@ export interface AgentMemoryInput {
  */
 export interface AgentMemoryList {
     "memories": AgentMemory[] | null;
-}
-
-/**
- * AgentModelOption 定义 AI 员工可使用的对话模型选项。
- */
-export interface AgentModelOption {
-    "providerId": string;
-    "providerName": string;
-    "modelIdentifier": string;
-    "modelName": string;
-}
-
-/**
- * AgentModelOptionList 定义 AI 员工对话模型选项列表。
- */
-export interface AgentModelOptionList {
-    "models": AgentModelOption[] | null;
 }
 
 /**
@@ -3081,15 +3089,13 @@ export interface InvitationTokenInput {
  * KnowledgeBase 定义知识库详情。
  */
 export interface KnowledgeBase {
-    "embeddingProviderId": string;
-    "embeddingModelIdentifier": string;
+    "embeddingModelId": string;
     "embeddingDimension": number;
     "chunkLength": number | null;
     "chunkOverlap": number | null;
     "retrievalCount": number;
     "retrievalScoreThreshold": number;
-    "rerankProviderId": string;
-    "rerankModelIdentifier": string;
+    "rerankModelId": string;
     "id": string;
     "name": string;
     "category": KnowledgeBaseCategory;
@@ -3131,15 +3137,13 @@ export enum KnowledgeBaseCategory {
  * KnowledgeBaseInput 定义知识库可编辑字段。
  */
 export interface KnowledgeBaseInput {
-    "embeddingProviderId": string;
-    "embeddingModelIdentifier": string;
+    "embeddingModelId": string;
     "embeddingDimension": number;
     "chunkLength": number | null;
     "chunkOverlap": number | null;
     "retrievalCount": number;
     "retrievalScoreThreshold": number;
-    "rerankProviderId": string;
-    "rerankModelIdentifier": string;
+    "rerankModelId": string;
     "name": string;
     "category": KnowledgeBaseCategory;
     "description": string;
@@ -4915,11 +4919,11 @@ export interface ServiceSummaries {
 }
 
 /**
- * ServiceSummarySettings 定义周期小结使用的判断模型、小结模型与小结语言；模型为空表示不使用。
+ * ServiceSummarySettings 定义周期小结使用的判断模型编号、小结模型编号与小结语言；模型为空表示不使用。
  */
 export interface ServiceSummarySettings {
-    "decision": AIModelReference | null;
-    "summary": AIModelReference | null;
+    "decisionModelId": string | null;
+    "summaryModelId": string | null;
     "locale": Locale;
 }
 
@@ -5348,10 +5352,10 @@ export interface TranslateConversationMessagesInput {
 }
 
 /**
- * TranslationSettings 定义企业翻译客户会话消息使用的模型，为空时不提供翻译。
+ * TranslationSettings 定义企业翻译客户会话消息使用的模型编号，为空时不提供翻译。
  */
 export interface TranslationSettings {
-    "model": AIModelReference | null;
+    "modelId": string | null;
 }
 
 /**

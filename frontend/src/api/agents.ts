@@ -3,7 +3,6 @@ import {
   CreateAgent,
   DeactivateAgent,
   GetAgent,
-  ListAgentModelOptions,
   ListAgentMCPServerOptions,
   ListAgents,
   ReactivateAgent,
@@ -66,7 +65,6 @@ type AgentListData = Omit<NonNullArrays<AgentList>, "agents"> & {
 
 const listAgentMCPServerOptionsBound = bind(ListAgentMCPServerOptions)
 const listAgentsBound = bind(ListAgents)
-const listAgentModelOptionsBound = bind(ListAgentModelOptions)
 const getAgentBound = bind(GetAgent)
 const createAgentBound = bind(CreateAgent)
 const updateAgentBound = bind(UpdateAgent)
@@ -77,11 +75,6 @@ const reactivateAgentBound = bind(ReactivateAgent)
 /** 创建企业 AI 员工。 */
 export function createAgent(input: CreateAgentInput) {
   return createAgentBound(input).then(asManagedAgent)
-}
-
-/** 读取企业 AI 员工可使用的对话模型。 */
-export function listAgentModelOptions() {
-  return listAgentModelOptionsBound().then((output) => output.models)
 }
 
 /** 读取企业 MCP 服务的配置选项。 */

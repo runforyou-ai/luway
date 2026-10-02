@@ -12,9 +12,8 @@ import (
 
 // queryEmbeddingKey 标识一组可以共用查询向量的向量模型配置。
 type queryEmbeddingKey struct {
-	providerID string
-	model      string
-	dimension  int
+	modelID   string
+	dimension int
 }
 
 // queryEmbedding 保存一条查询的向量化结果，done 关闭后 vector 与 err 可读。
@@ -28,15 +27,16 @@ type queryEmbedding struct {
 type queryEmbeddings struct {
 	embedder   queryEmbedder
 	credential embedding.Credential
+	model      string
 	key        queryEmbeddingKey
 
 	mu      sync.Mutex
 	results map[string]*queryEmbedding
 }
 
-// newQueryEmbeddings 创建一组向量模型配置的查询向量缓存。
-func newQueryEmbeddings(embedder queryEmbedder, credential embedding.Credential, key queryEmbeddingKey) *queryEmbeddings {
-	return &queryEmbeddings{embedder: embedder, credential: credential, key: key, results: map[string]*queryEmbedding{}}
+// newQueryEmbeddings 创建一组向量模型配置的查询向量缓存，model 是上游模型标识。
+func newQueryEmbeddings(embedder queryEmbedder, credential embedding.Credential, model string, key queryEmbeddingKey) *queryEmbeddings {
+	return &queryEmbeddings{embedder: embedder, credential: credential, model: model, key: key, results: map[string]*queryEmbedding{}}
 }
 
 // submit 按输入顺序返回各查询的向量化结果；尚未提交的查询以一次模型调用在后台向量化，已提交的查询复用原结果，失败结果同样复用。
@@ -59,7 +59,7 @@ func (q *queryEmbeddings) submit(ctx context.Context, queries []string) []*query
 		return results
 	}
 	go func() {
-		vectors, err := q.embedder.Embed(ctx, q.credential, q.key.model, q.key.dimension, batch)
+		vectors, err := q.embedder.Embed(ctx, q.credential, q.model, q.key.dimension, batch)
 		if err == nil && len(vectors) != len(batch) {
 			err = fmt.Errorf("embedding returned %d vectors for %d queries", len(vectors), len(batch))
 		}

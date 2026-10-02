@@ -157,7 +157,7 @@ const integrations = {
       maxOutputTokensSummary: "{{value}} max output",
       removeTitle: "Remove model “{{name}}”?",
       removeDescription:
-        "Models used by AI employees or knowledge bases can't be removed.",
+        "Models used by AI employees, knowledge bases, or customer service settings can't be removed.",
       types: {
         chat: "Chat",
         embedding: "Embedding",

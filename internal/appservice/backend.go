@@ -324,9 +324,6 @@ type Backend interface {
 	// ListAgentMCPServerOptions 返回当前企业可配置的 MCP 服务。
 	//appservice:route GET /agents/mcp-server-options
 	ListAgentMCPServerOptions(context.Context, RequestMeta) (AgentMCPServerOptionList, error)
-	// ListAgentModelOptions 返回 AI 员工可使用的对话模型。
-	//appservice:route GET /agents/model-options
-	ListAgentModelOptions(context.Context, RequestMeta) (AgentModelOptionList, error)
 	// CreateAgent 创建企业 AI 员工。
 	//appservice:route POST /agents status=201
 	CreateAgent(context.Context, RequestMeta, CreateAgentInput) (Agent, error)
@@ -619,6 +616,9 @@ type Backend interface {
 	// DeleteRole 删除自定义角色。
 	//appservice:route DELETE /settings/roles/:roleID
 	DeleteRole(context.Context, RequestMeta, string) error
+	// ListAIModelOptions 返回当前工作区满足指定用途的模型。
+	//appservice:route GET /ai-models query=usage
+	ListAIModelOptions(context.Context, RequestMeta, AIModelUsage) (AIModelOptionList, error)
 	// ListAIProviders 返回当前企业的模型服务供应商列表。
 	//appservice:route GET /settings/model-services
 	ListAIProviders(context.Context, RequestMeta) (AIProviderList, error)

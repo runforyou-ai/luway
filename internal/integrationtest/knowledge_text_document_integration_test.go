@@ -26,14 +26,18 @@ func loadKnowledgeDocument(t *testing.T, db *bun.DB, documentID string) *serverm
 	return document
 }
 
-// runDocumentProcessing 按文档当前的任务快照执行一次处理，fetchPage 表示本次是否重新抓取网页。
+// runDocumentProcessing 按文档当前的处理编号、分段参数和知识库向量配置执行一次处理，fetchPage 表示本次是否重新抓取网页。
 func runDocumentProcessing(t *testing.T, db *bun.DB, probe *retrievalProbe, organizationID, baseID, documentID string, fetchPage bool) {
 	t.Helper()
 	document := loadKnowledgeDocument(t, db, documentID)
+	base := &servermodels.KnowledgeBase{ID: baseID}
+	if err := db.NewSelect().Model(base).WherePK().Scan(context.Background()); err != nil {
+		t.Fatal(err)
+	}
 	err := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe).Execute(context.Background(), knowledgeaction.ProcessInput{
 		OrganizationID: organizationID, KnowledgeBaseID: baseID, DocumentID: documentID, SourceKind: document.SourceKind, FetchPage: fetchPage, ProcessingID: document.ProcessingID,
 		ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap,
-		EmbeddingProviderID: document.EmbeddingProviderID, EmbeddingModelIdentifier: document.EmbeddingModelIdentifier, EmbeddingDimension: document.EmbeddingDimension,
+		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
 	})
 	if err != nil {
 		t.Fatal(err)

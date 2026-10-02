@@ -8,9 +8,11 @@ function formatTokenCount(value: number) {
   return String(value)
 }
 
-/** 把模型契约转换为表单值。 */
+/** 把模型契约转换为表单值，已保存模型以编号作为表单内标识。 */
 export function modelFormValue(model: AIProviderModelData) {
   return {
+    key: model.id || crypto.randomUUID(),
+    id: model.id,
     identifier: model.identifier,
     name: model.name,
     type: model.type,
@@ -22,26 +24,26 @@ export function modelFormValue(model: AIProviderModelData) {
   }
 }
 
-/** 撤销一次被拒绝的目录改动：把 requested 相对 saved 的增删改从 current 中撤回，请求发出后的编辑保留当前值。 */
-export function rollbackModels<T extends { identifier: string }>(
+/** 撤销一次被拒绝的目录改动：按表单内标识把 requested 相对 saved 的增删改从 current 中撤回，请求发出后的编辑保留当前值。 */
+export function rollbackModels<T extends { key: string; identifier: string }>(
   saved: T[],
   requested: T[],
   current: T[],
 ) {
   const same = (left: T, right: T) => JSON.stringify(left) === JSON.stringify(right)
-  const savedByID = new Map(saved.map((model) => [model.identifier, model]))
-  const requestedByID = new Map(requested.map((model) => [model.identifier, model]))
+  const savedByKey = new Map(saved.map((model) => [model.key, model]))
+  const requestedByKey = new Map(requested.map((model) => [model.key, model]))
   const result = current.flatMap((model) => {
-    const request = requestedByID.get(model.identifier)
+    const request = requestedByKey.get(model.key)
     if (!request || !same(model, request)) return [model]
-    const original = savedByID.get(model.identifier)
+    const original = savedByKey.get(model.key)
     return original ? [original] : []
   })
-  // 补回请求中移除且之后未重新添加的模型，尽量放回原位置。
+  // 补回请求中移除且之后未重新添加同一模型或同名标识的模型，尽量放回原位置。
   saved.forEach((model, index) => {
     if (
-      requestedByID.has(model.identifier) ||
-      result.some((item) => item.identifier === model.identifier)
+      requestedByKey.has(model.key) ||
+      result.some((item) => item.key === model.key || item.identifier === model.identifier)
     ) {
       return
     }

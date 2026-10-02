@@ -24,8 +24,8 @@ func TestReconcileKnowledgeVectorIndexes(t *testing.T) {
 		id       string
 		segments int
 	}{{knowledgeBaseID, 10000}, {small, 9999}} {
-		if _, err := f.db.NewRaw(`INSERT INTO knowledge_bases (id, organization_id, created_by_user_id, name, category, retrieval_score_threshold, rerank_provider_id, rerank_model_identifier, embedding_dimension)
-			VALUES (?, ?, ?, ?, 'standard', 0.5, ?, 'rerank', 1024)`, item.id, f.owner.Organization.ID, f.owner.User.ID, "索引对账"+item.id, uuid.NewV7().String()).Exec(ctx); err != nil {
+		if _, err := f.db.NewRaw(`INSERT INTO knowledge_bases (id, organization_id, created_by_user_id, name, category, retrieval_score_threshold, rerank_model_id, embedding_model_id, embedding_dimension)
+			VALUES (?, ?, ?, ?, 'standard', 0.5, ?, ?, 1024)`, item.id, f.owner.Organization.ID, f.owner.User.ID, "索引对账"+item.id, uuid.NewV7().String(), uuid.NewV7().String()).Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := f.db.NewRaw(`INSERT INTO knowledge_documents (knowledge_base_id, created_by_user_id, segment_count) VALUES (?, ?, ?)`,

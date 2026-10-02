@@ -5,13 +5,13 @@ import { Link } from "react-router"
 import { z } from "zod"
 
 import {
-  AIModelType,
+  AIModelUsage,
   getServiceSummarySettings,
-  listAgentModelOptions,
-  listAIProviders,
   Locale,
   updateServiceSummarySettings,
+  type AIModelOptionData,
 } from "@/api"
+import { AIModelOptionGroups, useAIModelOptions } from "@/components/ai-model-options"
 import { ResourceContent } from "@/components/resource-content"
 import {
   Field,
@@ -24,11 +24,10 @@ import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 import { zodResolver } from "@/lib/zod-resolver"
-import { ModelGroupOptions, groupChatModels, modelReference, modelValue, type ModelGroup } from "./model-options"
 
 const serviceSummarySchema = z.object({
-  decision: z.string(),
-  summary: z.string(),
+  decisionModelId: z.string(),
+  summaryModelId: z.string(),
   locale: z.enum([Locale.LocaleChineseSimplified, Locale.LocaleEnglishUnitedStates]),
 })
 
@@ -38,25 +37,16 @@ type ServiceSummaryFormValues = z.infer<typeof serviceSummarySchema>
 export function ServiceSummarySettings() {
   const { t } = useTranslation("settings")
   const settings = useResource(resourceKeys.serviceSummarySettings(), () => getServiceSummarySettings())
-  const providers = useResource(resourceKeys.aiProviders(), () => listAIProviders(), { staleTime: 0 })
-  const chatModels = useResource(resourceKeys.agentModelOptions(), () => listAgentModelOptions(), { staleTime: 0 })
-  // 判断模型取判断用途的模型，小结模型取支持文本输入的对话模型。
-  const decisionGroups: ModelGroup[] = (providers.data?.providers ?? [])
-    .map((provider) => ({
-      id: provider.id,
-      name: provider.name,
-      models: provider.models.filter((model) => model.type === AIModelType.AIModelTypeDecision),
-    }))
-    .filter((provider) => provider.models.length > 0)
-  const summaryGroups = groupChatModels(chatModels.data ?? [])
+  const decisionModels = useAIModelOptions(AIModelUsage.AIModelUsageDecision)
+  const summaryModels = useAIModelOptions(AIModelUsage.AIModelUsageSummary)
   return (
-    <ResourceContent resources={[settings, providers, chatModels]} errorMessage={t("customerService.summary.loadError")}>
-      {settings.data && providers.data && chatModels.data ? (
+    <ResourceContent resources={[settings, decisionModels, summaryModels]} errorMessage={t("customerService.summary.loadError")}>
+      {settings.data && decisionModels.data && summaryModels.data ? (
         <ServiceSummaryForm
-          groups={{ decision: decisionGroups, summary: summaryGroups }}
+          models={{ decisionModelId: decisionModels.data, summaryModelId: summaryModels.data }}
           values={{
-            decision: modelValue(settings.data.decision),
-            summary: modelValue(settings.data.summary),
+            decisionModelId: settings.data.decisionModelId ?? "",
+            summaryModelId: settings.data.summaryModelId ?? "",
             locale: settings.data.locale as ServiceSummaryFormValues["locale"],
           }}
         />
@@ -67,10 +57,10 @@ export function ServiceSummarySettings() {
 
 /** 维护判断模型、小结模型与小结语言，修改后自动保存。 */
 function ServiceSummaryForm({
-  groups,
+  models,
   values,
 }: {
-  groups: Record<"decision" | "summary", ModelGroup[]>
+  models: Record<"decisionModelId" | "summaryModelId", AIModelOptionData[]>
   values: ServiceSummaryFormValues
 }) {
   const { t } = useTranslation(["settings", "common"])
@@ -87,14 +77,14 @@ function ServiceSummaryForm({
     autoSave: true,
     save: async (values) => {
       await updateServiceSummarySettings({
-        decision: modelReference(values.decision),
-        summary: modelReference(values.summary),
+        decisionModelId: values.decisionModelId || null,
+        summaryModelId: values.summaryModelId || null,
         locale: values.locale,
       })
       void invalidate(resourceKeys.serviceSummarySettings())
     },
     errorMessage: t("customerService.summary.saveError"),
-    errorFields: ["decision", "summary", "locale"],
+    errorFields: ["decisionModelId", "summaryModelId", "locale"],
     logLabel: "保存会话小结设置",
   })
 
@@ -106,22 +96,26 @@ function ServiceSummaryForm({
       noValidate
     >
       <FieldGroup>
-        {(["decision", "summary"] as const).map((name) => (
+        {([
+          ["decisionModelId", "decision"],
+          ["summaryModelId", "summary"],
+        ] as const).map(([name, label]) => (
             <Controller
               key={name}
               name={name}
               control={form.control}
               render={({ field }) => (
                 <Field>
-                  <FieldLabel htmlFor={`summary-${name}`}>
-                    {t(`customerService.summary.${name}`)}
+                  <FieldLabel htmlFor={`summary-${label}`}>
+                    {t(`customerService.summary.${label}`)}
                   </FieldLabel>
-                  <NativeSelect {...field} id={`summary-${name}`}>
-                    <ModelGroupOptions groups={groups[name]} />
+                  <NativeSelect {...field} id={`summary-${label}`}>
+                    <option value="">{t("customerService.models.notUsed")}</option>
+                    <AIModelOptionGroups models={models[name]} />
                   </NativeSelect>
                   <FieldDescription>
-                    {t(`customerService.summary.${name}Description`)}
-                    {groups[name].length === 0 ? (
+                    {t(`customerService.summary.${label}Description`)}
+                    {models[name].length === 0 ? (
                       <>
                         {" "}
                         <Link to="/settings/model-services">

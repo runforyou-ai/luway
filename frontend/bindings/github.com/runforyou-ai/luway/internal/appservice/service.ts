@@ -822,6 +822,13 @@ export function LeaveGroupConversation(meta: $models.RequestMeta, conversationID
 }
 
 /**
+ * ListAIModelOptions 返回当前工作区满足指定用途的模型。
+ */
+export function ListAIModelOptions(meta: $models.RequestMeta, usage: $models.AIModelUsage): $CancellablePromise<$models.AIModelOptionList> {
+    return $Call.ByID(288282402, meta, usage);
+}
+
+/**
  * ListAIPerformanceBreakdowns 返回按渠道或咨询分类拆分的一页 AI 客服表现。
  */
 export function ListAIPerformanceBreakdowns(meta: $models.RequestMeta, input: $models.AIPerformanceBreakdownInput): $CancellablePromise<$models.AIPerformanceBreakdownList> {
@@ -854,13 +861,6 @@ export function ListAgentMCPServerOptions(meta: $models.RequestMeta): $Cancellab
  */
 export function ListAgentMemories(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.AgentMemoryList> {
     return $Call.ByID(500979133, meta, agentID);
-}
-
-/**
- * ListAgentModelOptions 返回 AI 员工可使用的对话模型。
- */
-export function ListAgentModelOptions(meta: $models.RequestMeta): $CancellablePromise<$models.AgentModelOptionList> {
-    return $Call.ByID(1461747335, meta);
 }
 
 /**

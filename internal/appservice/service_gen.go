@@ -494,11 +494,6 @@ func (s *Service) ListAgentMCPServerOptions(ctx context.Context, meta RequestMet
 	return WithNormalizedSlices(s.backend.ListAgentMCPServerOptions(ctx, meta))
 }
 
-// ListAgentModelOptions 返回 AI 员工可使用的对话模型。
-func (s *Service) ListAgentModelOptions(ctx context.Context, meta RequestMeta) (AgentModelOptionList, error) {
-	return WithNormalizedSlices(s.backend.ListAgentModelOptions(ctx, meta))
-}
-
 // CreateAgent 创建企业 AI 员工。
 func (s *Service) CreateAgent(ctx context.Context, meta RequestMeta, input CreateAgentInput) (Agent, error) {
 	return WithNormalizedSlices(s.backend.CreateAgent(ctx, meta, input))
@@ -982,6 +977,11 @@ func (s *Service) UpdateRole(ctx context.Context, meta RequestMeta, roleID strin
 // DeleteRole 删除自定义角色。
 func (s *Service) DeleteRole(ctx context.Context, meta RequestMeta, roleID string) error {
 	return s.backend.DeleteRole(ctx, meta, roleID)
+}
+
+// ListAIModelOptions 返回当前工作区满足指定用途的模型。
+func (s *Service) ListAIModelOptions(ctx context.Context, meta RequestMeta, usage AIModelUsage) (AIModelOptionList, error) {
+	return WithNormalizedSlices(s.backend.ListAIModelOptions(ctx, meta, usage))
 }
 
 // ListAIProviders 返回当前企业的模型服务供应商列表。

@@ -101,7 +101,7 @@ func TestKnowledgeWebDocumentLifecycle(t *testing.T) {
 	runErr := knowledgeaction.NewProcessDocumentAction(db, failing, failing, failing, failing).Execute(ctx, knowledgeaction.ProcessInput{
 		OrganizationID: identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: created.ID, SourceKind: stale.SourceKind, FetchPage: true, ProcessingID: stale.ProcessingID,
 		ChunkLength: stale.ChunkLength, ChunkOverlap: stale.ChunkOverlap,
-		EmbeddingProviderID: stale.EmbeddingProviderID, EmbeddingModelIdentifier: stale.EmbeddingModelIdentifier, EmbeddingDimension: stale.EmbeddingDimension,
+		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
 	})
 	if err := knowledgeaction.NewProcessDocumentAction(db, failing, failing, failing, failing).FinalizeFailure(ctx, knowledgeaction.ProcessInput{DocumentID: created.ID, ProcessingID: stale.ProcessingID}, runErr); err != nil {
 		t.Fatal(err)

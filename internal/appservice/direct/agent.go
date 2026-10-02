@@ -26,7 +26,6 @@ type agentOps struct {
 	serviceReplySuggestions   *agentrunaction.GenerateServiceReplySuggestionsAction
 	listServiceReplyAgents    *agentrunaction.ListServiceReplyAgentsQuery
 	listAgentMCPServerOptions *agentaction.ListMCPServerOptionsQuery
-	listAgentModelOptions     *agentaction.ListModelOptionsQuery
 	createAgent               *agentaction.CreateAgentAction
 	listAgents                *agentaction.ListAgentsQuery
 	getAgent                  *agentaction.GetAgentQuery
@@ -42,7 +41,6 @@ func newAgentOps(db *bun.DB, agentCoordinator *agentrunaction.ExecuteAction, ser
 		serviceReplySuggestions:   serviceReplySuggestions,
 		listServiceReplyAgents:    agentrunaction.NewListServiceReplyAgentsQuery(db),
 		listAgentMCPServerOptions: agentaction.NewListMCPServerOptionsQuery(db),
-		listAgentModelOptions:     agentaction.NewListModelOptionsQuery(db),
 		createAgent:               agentaction.NewCreateAgentAction(db),
 		listAgents:                agentaction.NewListAgentsQuery(db),
 		getAgent:                  agentaction.NewGetAgentQuery(db),
@@ -77,8 +75,7 @@ func (o *directOperations) CreateAgent(ctx context.Context, meta appservice.Requ
 		"agent_id", created.ID,
 		"revision_id", created.Execution.RevisionID,
 		"execution_mode", created.Execution.Mode,
-		"provider_id", created.Execution.Managed.ProviderID,
-		"model_identifier", created.Execution.Managed.ModelIdentifier,
+		"model_id", created.Execution.Managed.Model.ID,
 		"knowledge_base_count", len(created.Execution.Managed.KnowledgeBaseIDs),
 	)
 	return o.agentWithAvatar(ctx, meta, identity, *created, i18n.ErrorAgentCreateFailed)
@@ -95,22 +92,6 @@ func (o *directOperations) ListAgentMCPServerOptions(ctx context.Context, meta a
 		output = append(output, appservice.AgentMCPServerOption{ID: option.ID, Name: option.Name, ToolCount: option.ToolCount, CustomerScoped: option.CustomerScoped})
 	}
 	return appservice.AgentMCPServerOptionList{MCPServers: output}, nil
-}
-
-// ListAgentModelOptions 返回企业 AI 员工可使用的对话模型。
-func (o *directOperations) ListAgentModelOptions(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.AgentModelOptionList, error) {
-	models, err := o.listAgentModelOptions.Execute(ctx, identity)
-	if err != nil {
-		return appservice.AgentModelOptionList{}, o.agentError(ctx, meta, err, i18n.ErrorAgentModelListFailed, identity.Organization.ID, "", nil)
-	}
-	output := make([]appservice.AgentModelOption, 0, len(models))
-	for _, model := range models {
-		output = append(output, appservice.AgentModelOption{
-			ProviderID: model.ProviderID, ProviderName: model.ProviderName,
-			ModelIdentifier: model.ModelIdentifier, ModelName: model.ModelName,
-		})
-	}
-	return appservice.AgentModelOptionList{Models: output}, nil
 }
 
 // ListAgents 返回企业 AI 员工目录。
@@ -143,10 +124,7 @@ func (o *directOperations) ListAgents(ctx context.Context, meta appservice.Reque
 		// 转换 AI 员工执行配置摘要契约。
 		var managed *appservice.AgentManagedExecutionSummary
 		if agent.Execution.Managed != nil {
-			managed = &appservice.AgentManagedExecutionSummary{
-				ProviderID: agent.Execution.Managed.ProviderID, ProviderName: agent.Execution.Managed.ProviderName,
-				ModelIdentifier: agent.Execution.Managed.ModelIdentifier, ModelName: agent.Execution.Managed.ModelName,
-			}
+			managed = &appservice.AgentManagedExecutionSummary{Model: aiModelOptionFromAction(agent.Execution.Managed.Model)}
 		}
 		execution := appservice.AgentExecutionSummary{RevisionID: agent.Execution.RevisionID, Mode: appservice.AgentExecutionMode(agent.Execution.Mode), Managed: managed}
 		if agent.Execution.LocalAgent != nil {
@@ -219,8 +197,7 @@ func (o *directOperations) UpdateAgentExecution(ctx context.Context, meta appser
 		"agent_id", agentID,
 		"revision_id", agent.Execution.RevisionID,
 		"execution_mode", agent.Execution.Mode,
-		"provider_id", agent.Execution.Managed.ProviderID,
-		"model_identifier", agent.Execution.Managed.ModelIdentifier,
+		"model_id", agent.Execution.Managed.Model.ID,
 		"knowledge_base_count", len(agent.Execution.Managed.KnowledgeBaseIDs),
 		"mcp_server_count", len(agent.Execution.MCPServerIDs),
 	)
@@ -270,8 +247,7 @@ func agentFromAction(agent agentaction.Agent, organizationName string) appservic
 	var managed *appservice.AgentManagedExecution
 	if agent.Execution.Managed != nil {
 		managed = &appservice.AgentManagedExecution{
-			ProviderID: agent.Execution.Managed.ProviderID, ProviderName: agent.Execution.Managed.ProviderName,
-			ModelIdentifier: agent.Execution.Managed.ModelIdentifier, ModelName: agent.Execution.Managed.ModelName,
+			Model:             aiModelOptionFromAction(agent.Execution.Managed.Model),
 			SystemInstruction: agent.Execution.Managed.SystemInstruction,
 			KnowledgeBaseIDs:  agent.Execution.Managed.KnowledgeBaseIDs,
 		}
@@ -307,7 +283,7 @@ func agentExecutionInput(input appservice.AgentExecutionInput) agentaction.Execu
 	var managed *agentaction.ManagedExecutionInput
 	if input.Managed != nil {
 		managed = &agentaction.ManagedExecutionInput{
-			ProviderID: input.Managed.ProviderID, ModelIdentifier: input.Managed.ModelIdentifier,
+			ModelID:           input.Managed.ModelID,
 			SystemInstruction: input.Managed.SystemInstruction,
 			KnowledgeBaseIDs:  input.Managed.KnowledgeBaseIDs,
 		}

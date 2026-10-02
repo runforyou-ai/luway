@@ -39,10 +39,9 @@ const (
 func normalizeInput(input Input) (Input, map[string]common.FieldCode) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Description = strings.TrimSpace(input.Description)
-	input.EmbeddingProviderID = strings.TrimSpace(input.EmbeddingProviderID)
-	input.EmbeddingModelIdentifier = strings.TrimSpace(input.EmbeddingModelIdentifier)
-	input.RerankProviderID = strings.TrimSpace(input.RerankProviderID)
-	input.RerankModelIdentifier = strings.TrimSpace(input.RerankModelIdentifier)
+	var embeddingValid, rerankValid bool
+	input.EmbeddingModelID, embeddingValid = common.NormalizeUUID(input.EmbeddingModelID)
+	input.RerankModelID, rerankValid = common.NormalizeUUID(input.RerankModelID)
 	fields := make(map[string]common.FieldCode)
 	if input.Name == "" {
 		fields["name"] = ValidationNameRequired
@@ -55,8 +54,8 @@ func normalizeInput(input Input) (Input, map[string]common.FieldCode) {
 	if utf8.RuneCountInString(input.Description) > domain.KnowledgeBaseDescriptionMaxLength {
 		fields["description"] = ValidationDescriptionTooLong
 	}
-	if !common.ValidUUID(input.EmbeddingProviderID) || input.EmbeddingModelIdentifier == "" {
-		fields["embeddingModelIdentifier"] = ValidationEmbeddingModelInvalid
+	if !embeddingValid {
+		fields["embeddingModelId"] = ValidationEmbeddingModelInvalid
 	}
 	if !slices.Contains(domain.KnowledgeEmbeddingDimensions, input.EmbeddingDimension) {
 		fields["embeddingDimension"] = ValidationEmbeddingDimensionInvalid
@@ -77,8 +76,8 @@ func normalizeInput(input Input) (Input, map[string]common.FieldCode) {
 	if input.RetrievalScoreThreshold < 0 || input.RetrievalScoreThreshold > 1 {
 		fields["retrievalScoreThreshold"] = ValidationRetrievalScoreThresholdInvalid
 	}
-	if !common.ValidUUID(input.RerankProviderID) || input.RerankModelIdentifier == "" {
-		fields["rerankModelIdentifier"] = ValidationRerankModelInvalid
+	if !rerankValid {
+		fields["rerankModelId"] = ValidationRerankModelInvalid
 	}
 	return input, fields
 }

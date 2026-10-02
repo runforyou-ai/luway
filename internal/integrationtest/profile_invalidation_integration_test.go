@@ -221,13 +221,11 @@ func TestAgentProfileConversationInvalidation(t *testing.T) {
 	if _, err := f.db.NewInsert().Model(provider).Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	model := &servermodels.AIProviderModel{
-		ProviderID: provider.ID, OrganizationID: f.owner.Organization.ID, Identifier: "chat-model", Name: "测试对话模型", Type: string(domain.AIModelTypeChat),
+	model := &servermodels.AIModel{
+		ProviderID: provider.ID, Identifier: "chat-model", Name: "测试对话模型", Type: string(domain.AIModelTypeChat),
 		InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096,
 	}
-	if _, err := f.db.NewInsert().Model(model).Column("provider_id", "organization_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").Exec(ctx); err != nil {
-		t.Fatal(err)
-	}
+	insertAIModels(t, f.db, model)
 	// uploadAvatar 上传一张待关联的 AI 员工头像。
 	uploadAvatar := func() string {
 		file, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.owner, domain.FileStorageBackendLocal, fileaction.UploadInput{
@@ -244,7 +242,7 @@ func TestAgentProfileConversationInvalidation(t *testing.T) {
 	createdAvatarID := uploadAvatar()
 	created, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{
 		ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "资料助手", AvatarFileID: createdAvatarID,
-		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: provider.ID, ModelIdentifier: model.Identifier, SystemInstruction: "回答问题"}},
+		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: model.ID, SystemInstruction: "回答问题"}},
 	})
 	if err != nil || created.AvatarFileID == nil || *created.AvatarFileID != createdAvatarID {
 		t.Fatalf("created=%+v err=%v", created, err)

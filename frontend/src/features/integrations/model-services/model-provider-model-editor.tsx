@@ -55,6 +55,8 @@ export function ModelProviderModelEditor({ form, modelFields, mode }: {
     setEditingModel({
       index: null,
       model: {
+        key: crypto.randomUUID(),
+        id: "",
         identifier: "",
         name: "",
         type: AIModelType.AIModelTypeChat,

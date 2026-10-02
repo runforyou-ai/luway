@@ -38,13 +38,13 @@ func TestKnowledgeBaseReindex(t *testing.T) {
 		}
 		return count
 	}
-	// 按文档当前任务快照构造处理载荷。
+	// 按文档当前处理编号、分段参数和知识库向量配置构造处理载荷。
 	documentInput := func(documentID string) (knowledgeaction.ProcessInput, servermodels.KnowledgeDocument) {
 		var document servermodels.KnowledgeDocument
 		if err := db.NewSelect().Model(&document).Where("kd.id = ?", documentID).Scan(ctx); err != nil {
 			t.Fatal(err)
 		}
-		return knowledgeaction.ProcessInput{OrganizationID: identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: documentID, ProcessingID: document.ProcessingID, ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap, EmbeddingProviderID: document.EmbeddingProviderID, EmbeddingModelIdentifier: document.EmbeddingModelIdentifier, EmbeddingDimension: document.EmbeddingDimension}, document
+		return knowledgeaction.ProcessInput{OrganizationID: identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: documentID, ProcessingID: document.ProcessingID, ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap, EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension}, document
 	}
 
 	file := uploadedDocumentFile(t, db, identity, "资料.txt")
@@ -75,7 +75,7 @@ func TestKnowledgeBaseReindex(t *testing.T) {
 	}
 
 	// 召回数量和相关性阈值变更保留已发布批次。
-	input := knowledgeaction.Input{Name: base.Name, Category: base.Category, EmbeddingProviderID: base.EmbeddingProviderID, EmbeddingModelIdentifier: base.EmbeddingModelIdentifier, EmbeddingDimension: base.EmbeddingDimension, ChunkLength: base.ChunkLength, ChunkOverlap: base.ChunkOverlap, RetrievalCount: 5, RetrievalScoreThreshold: 0.5, RerankProviderID: base.RerankProviderID, RerankModelIdentifier: base.RerankModelIdentifier}
+	input := knowledgeaction.Input{Name: base.Name, Category: base.Category, EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension, ChunkLength: base.ChunkLength, ChunkOverlap: base.ChunkOverlap, RetrievalCount: 5, RetrievalScoreThreshold: 0.5, RerankModelID: base.RerankModelID}
 	if _, err := update.Execute(ctx, identity, base.ID, input); err != nil {
 		t.Fatal(err)
 	}
@@ -114,13 +114,18 @@ func TestKnowledgeBaseReindex(t *testing.T) {
 		t.Fatalf("document=%+v", document)
 	}
 
-	// 问答库更换向量模型和维度后按新快照重新索引。
-	qaUpdate := knowledgeaction.Input{Name: qaBase.Name, Category: qaBase.Category, EmbeddingProviderID: qaBase.EmbeddingProviderID, EmbeddingModelIdentifier: "embedding-b", EmbeddingDimension: 768, RetrievalCount: qaBase.RetrievalCount, RetrievalScoreThreshold: qaBase.RetrievalScoreThreshold, RerankProviderID: qaBase.RerankProviderID, RerankModelIdentifier: qaBase.RerankModelIdentifier}
+	// 问答库更换为同供应商的另一个向量模型和维度后按新配置重新索引。
+	qaEmbedding := &servermodels.AIModel{ID: qaBase.EmbeddingModelID}
+	if err := db.NewSelect().Model(qaEmbedding).WherePK().Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	embeddingB := aiModelID(t, db, qaEmbedding.ProviderID, "embedding-b")
+	qaUpdate := knowledgeaction.Input{Name: qaBase.Name, Category: qaBase.Category, EmbeddingModelID: embeddingB, EmbeddingDimension: 768, RetrievalCount: qaBase.RetrievalCount, RetrievalScoreThreshold: qaBase.RetrievalScoreThreshold, RerankModelID: qaBase.RerankModelID}
 	if _, err := update.Execute(ctx, identity, qaBase.ID, qaUpdate); err != nil {
 		t.Fatal(err)
 	}
 	qaReindexed, stored := qaProcessInput(t, db, identity.Organization.ID, qaBase.ID, entry.ID)
-	if stored.Status != domain.KnowledgeIndexQueued || stored.SegmentBatchID != "" || stored.EmbeddingModelIdentifier != "embedding-b" || stored.EmbeddingDimension != 768 || segmentCount(qaBase.ID) != 0 {
+	if stored.Status != domain.KnowledgeIndexQueued || stored.SegmentBatchID != "" || qaReindexed.EmbeddingModelID != embeddingB || qaReindexed.EmbeddingDimension != 768 || segmentCount(qaBase.ID) != 0 {
 		t.Fatalf("entry=%+v segments=%d", stored, segmentCount(qaBase.ID))
 	}
 	if err := qaWorker.Execute(ctx, qaReindexed); err != nil {

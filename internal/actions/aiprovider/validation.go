@@ -61,10 +61,21 @@ func normalizeInput(input Input) (Input, map[string]ValidationCode) {
 	}
 
 	seen := make(map[string]struct{}, len(input.Models))
+	seenIDs := make(map[string]struct{}, len(input.Models))
 	models := make([]Model, 0, len(input.Models))
 	for _, model := range input.Models {
 		model.Identifier = strings.TrimSpace(model.Identifier)
 		model.Name = strings.TrimSpace(model.Name)
+		// 已有模型的编号须为不重复的 UUID。
+		if model.ID != "" {
+			id, valid := common.NormalizeUUID(model.ID)
+			if _, duplicated := seenIDs[id]; !valid || duplicated {
+				fields["models"] = ValidationModelsInvalid
+				continue
+			}
+			model.ID = id
+			seenIDs[id] = struct{}{}
+		}
 		if model.Identifier == "" || utf8.RuneCountInString(model.Identifier) > maxModelFieldLength ||
 			model.Name == "" || utf8.RuneCountInString(model.Name) > maxModelFieldLength ||
 			model.ContextWindow <= 0 || !normalizeModel(&model) {

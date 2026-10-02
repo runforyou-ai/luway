@@ -7,7 +7,9 @@ import (
 	"errors"
 	"log/slog"
 
+	aimodelaction "github.com/runforyou-ai/luway/internal/actions/aimodel"
 	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
+	knowledgebaseaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
 	mcpserveraction "github.com/runforyou-ai/luway/internal/actions/mcpserver"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -15,12 +17,14 @@ import (
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/luway/pkg/connectiontest"
 	"github.com/uptrace/bun"
 )
 
 // integrationOps 持有模型服务与 MCP 的 Action 和 Query。
 type integrationOps struct {
+	listAIModelOptions       *aimodelaction.ListOptionsQuery
 	listAIProviders          *aiprovideraction.ListAIProvidersQuery
 	getAIProvider            *aiprovideraction.GetAIProviderQuery
 	testAIProviderConnection *aiprovideraction.TestConnectionAction
@@ -39,14 +43,15 @@ type integrationOps struct {
 }
 
 // newIntegrationOps 创建模型服务与 MCP 的业务实现依赖。
-func newIntegrationOps(db *bun.DB, connectionRunner *connectiontest.Runner, modelProviderRegistry *modelprovider.Registry, mcpTest *mcpserveraction.TestConnectionAction, mcpScheduler *mcpserveraction.ToolsScheduler) integrationOps {
+func newIntegrationOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, connectionRunner *connectiontest.Runner, modelProviderRegistry *modelprovider.Registry, mcpTest *mcpserveraction.TestConnectionAction, mcpScheduler *mcpserveraction.ToolsScheduler) integrationOps {
 	return integrationOps{
+		listAIModelOptions:       aimodelaction.NewListOptionsQuery(db),
 		listAIProviders:          aiprovideraction.NewListAIProvidersQuery(db),
 		getAIProvider:            aiprovideraction.NewGetAIProviderQuery(db),
 		testAIProviderConnection: aiprovideraction.NewTestConnectionAction(connectionRunner, modelProviderRegistry),
 		discoverAIProviderModels: aiprovideraction.NewDiscoverModelsAction(modelProviderRegistry),
 		createAIProvider:         aiprovideraction.NewCreateAIProviderAction(db),
-		updateAIProvider:         aiprovideraction.NewUpdateAIProviderAction(db),
+		updateAIProvider:         aiprovideraction.NewUpdateAIProviderAction(db, knowledgebaseaction.NewEmbeddingReindexer(db, taskEnqueuer)),
 		deleteAIProvider:         aiprovideraction.NewDeleteAIProviderAction(db),
 		listMCPServers:           mcpserveraction.NewListMCPServersQuery(db),
 		getMCPServer:             mcpserveraction.NewGetMCPServerQuery(db),

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"uuid"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
@@ -45,14 +46,17 @@ func (a *CreatePersonalAgentAction) Execute(ctx context.Context, identity *serve
 		if err != nil {
 			return err
 		}
+		model, err := lockPersonalAgentModel(ctx, tx, identity.Organization.ID, execution)
+		if err != nil {
+			return err
+		}
 		if err := lockExecutionKnowledgeBases(ctx, tx, identity.Organization.ID, execution); err != nil {
 			return err
 		}
 		if err := lockOwnActiveDevice(ctx, tx, identity, deviceID); err != nil {
 			return err
 		}
-		model, err := preparePersonalAgentExecution(ctx, tx, identity.Organization.ID, deviceID, execution)
-		if err != nil {
+		if err := checkPersonalAgentLocalAgent(ctx, tx, identity.Organization.ID, deviceID, execution); err != nil {
 			return err
 		}
 		organizationIdentity := &servermodels.OrganizationIdentity{
@@ -109,8 +113,12 @@ func (a *UpdatePersonalAgentAction) Execute(ctx context.Context, identity *serve
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
 		}
-		// 个人 AI 员工不接待客户，只能使用不按客户查询的企业服务；按服务、知识库、个人 AI 员工的顺序取锁。
+		// 个人 AI 员工不接待客户，只能使用不按客户查询的企业服务；按服务、模型、知识库、个人 AI 员工的顺序取锁。
 		mcpServerIDs, err := validateAndLockMCPServers(ctx, tx, identity.Organization.ID, input.MCPServerIDs, false)
+		if err != nil {
+			return err
+		}
+		model, err := lockPersonalAgentModel(ctx, tx, identity.Organization.ID, execution)
 		if err != nil {
 			return err
 		}
@@ -121,8 +129,7 @@ func (a *UpdatePersonalAgentAction) Execute(ctx context.Context, identity *serve
 		if err != nil {
 			return err
 		}
-		model, err := preparePersonalAgentExecution(ctx, tx, identity.Organization.ID, *stored.DeviceID, execution)
-		if err != nil {
+		if err := checkPersonalAgentLocalAgent(ctx, tx, identity.Organization.ID, *stored.DeviceID, execution); err != nil {
 			return err
 		}
 		var currentAvatarFileID *string
@@ -382,20 +389,28 @@ func normalizePersonalAgentInput(input PersonalAgentInput) (PersonalAgentInput, 
 	return input, execution, nil
 }
 
-// preparePersonalAgentExecution 校验个人 AI 员工执行配置依赖的资源：平台托管执行返回所用模型，本机 Agent 执行要求绑定电脑已上报该本机 Agent 可用。
-func preparePersonalAgentExecution(ctx context.Context, tx bun.Tx, organizationID, deviceID string, execution ExecutionInput) (ModelOption, error) {
-	if execution.Mode == domain.AgentExecutionModeManaged {
-		return loadManagedExecutionModel(ctx, tx, organizationID, *execution.Managed)
+// lockPersonalAgentModel 平台托管执行时校验并锁定所用模型，本机 Agent 执行返回空模型。
+func lockPersonalAgentModel(ctx context.Context, tx bun.Tx, organizationID string, execution ExecutionInput) (aimodel.Option, error) {
+	if execution.Mode != domain.AgentExecutionModeManaged {
+		return aimodel.Option{}, nil
+	}
+	return lockManagedExecutionModel(ctx, tx, organizationID, *execution.Managed)
+}
+
+// checkPersonalAgentLocalAgent 本机 Agent 执行时要求绑定电脑已上报该本机 Agent 可用。
+func checkPersonalAgentLocalAgent(ctx context.Context, tx bun.Tx, organizationID, deviceID string, execution ExecutionInput) error {
+	if execution.Mode != domain.AgentExecutionModeLocalAgent {
+		return nil
 	}
 	available, err := tx.NewSelect().Model((*servermodels.Device)(nil)).
 		Where("d.organization_id = ? AND d.id = ?", organizationID, deviceID).
 		Where("d.local_agents @> ?::jsonb", fmt.Sprintf(`[%q]`, execution.LocalAgent.Kind)).
 		Exists(ctx)
 	if err != nil {
-		return ModelOption{}, fmt.Errorf("check personal agent local agent: %w", err)
+		return fmt.Errorf("check personal agent local agent: %w", err)
 	}
 	if !available {
-		return ModelOption{}, &common.FieldError{Fields: map[string]common.FieldCode{"localAgent": ValidationLocalAgentUnavailable}}
+		return &common.FieldError{Fields: map[string]common.FieldCode{"localAgent": ValidationLocalAgentUnavailable}}
 	}
-	return ModelOption{}, nil
+	return nil
 }

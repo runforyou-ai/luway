@@ -15,6 +15,7 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
@@ -66,7 +67,7 @@ type executionContext struct {
 	InputModalities  []domain.AIModelInputModality `bun:"input_modalities,type:jsonb"`
 	Instruction      string                        `bun:"instruction"`
 	KnowledgeBaseIDs []string                      `bun:"knowledge_base_ids,type:jsonb"`
-	ProviderID       string                        `bun:"provider_id"`
+	ModelID          string                        `bun:"model_id"`
 	HandlesCustomers bool                          `bun:"handles_customers"`
 	OrganizationName string                        `bun:"organization_name"`
 	ExecutionMode    domain.AgentExecutionMode     `bun:"execution_mode"`
@@ -344,9 +345,9 @@ func (a *ExecuteAction) loadExecution(ctx context.Context, runID string) (execut
 		TableExpr("agent_runs AS agr").
 		ColumnExpr("agr.*").
 		ColumnExpr("oi.display_name AS agent_name").
-		ColumnExpr("aipm.input_modalities").
+		ColumnExpr("aim.input_modalities").
 		ColumnExpr("ar.configuration->'knowledgeBaseIds' AS knowledge_base_ids").
-		ColumnExpr("aip.id::text AS provider_id, ? = ANY(a.service_audiences) AS handles_customers, o.name AS organization_name", domain.ServiceAudienceCustomer).
+		ColumnExpr("aim.id::text AS model_id, ? = ANY(a.service_audiences) AS handles_customers, o.name AS organization_name", domain.ServiceAudienceCustomer).
 		Join("JOIN agents AS a ON a.identity_id = agr.agent_identity_id AND a.organization_id = agr.organization_id").
 		Join("JOIN organizations AS o ON o.id = agr.organization_id").
 		Apply(func(query *bun.SelectQuery) *bun.SelectQuery {
@@ -383,12 +384,12 @@ func withRunAgentConfiguration(query *bun.SelectQuery, revisionIDColumn string) 
 		ColumnExpr("ar.execution_mode, ar.configuration->>'kind' AS local_agent_kind")
 }
 
-// agentConfigurationColumns 为已关联配置版本与模型目录的查询补充模型和系统指令列。
+// agentConfigurationColumns 为已关联配置版本与模型的查询补充模型和系统指令列。
 func agentConfigurationColumns(query *bun.SelectQuery) *bun.SelectQuery {
 	return query.
 		ColumnExpr("aip.brand AS brand, aip.api_key AS api_key, aip.api_url AS api_url").
-		ColumnExpr("ar.configuration->'model'->>'identifier' AS model_identifier").
-		ColumnExpr("aipm.max_output_tokens AS max_output_tokens, aipm.context_window AS context_window").
+		ColumnExpr("aim.identifier AS model_identifier").
+		ColumnExpr("aim.max_output_tokens AS max_output_tokens, aim.context_window AS context_window").
 		ColumnExpr("ar.configuration->>'systemInstruction' AS instruction")
 }
 
@@ -415,14 +416,13 @@ func (m managedAgentModel) modelConfig() agentruntime.ModelConfig {
 func joinAgentConfiguration(query *bun.SelectQuery, revisionIDColumn string, includeLocalAgent bool) *bun.SelectQuery {
 	query = query.
 		Join("JOIN organization_identities AS oi ON oi.id = a.identity_id AND oi.organization_id = a.organization_id").
-		Join("JOIN agent_revisions AS ar ON ar.id = "+revisionIDColumn+" AND ar.agent_id = a.id AND ar.organization_id = a.organization_id").
-		Join("LEFT JOIN ai_providers AS aip ON ar.execution_mode = ? AND aip.id = (ar.configuration->'model'->>'providerId')::uuid AND aip.organization_id = a.organization_id", domain.AgentExecutionModeManaged).
-		Join("LEFT JOIN ai_provider_models AS aipm ON aipm.provider_id = aip.id AND aipm.organization_id = aip.organization_id AND aipm.identifier = ar.configuration->'model'->>'identifier' AND aipm.model_type = ?", domain.AIModelTypeChat).
+		Join("JOIN agent_revisions AS ar ON ar.id = " + revisionIDColumn + " AND ar.agent_id = a.id AND ar.organization_id = a.organization_id").
 		Where("ar.schema_version = 1")
+	query = aimodel.Join(query, "ar.model_id", "a.organization_id", domain.AIModelUsageAgent)
 	if includeLocalAgent {
-		return query.Where("(ar.execution_mode = ? AND aipm.identifier IS NOT NULL) OR ar.execution_mode = ?", domain.AgentExecutionModeManaged, domain.AgentExecutionModeLocalAgent)
+		return query.Where("(ar.execution_mode = ? AND aip.id IS NOT NULL) OR ar.execution_mode = ?", domain.AgentExecutionModeManaged, domain.AgentExecutionModeLocalAgent)
 	}
-	return query.Where("ar.execution_mode = ? AND aipm.identifier IS NOT NULL", domain.AgentExecutionModeManaged)
+	return query.Where("ar.execution_mode = ? AND aip.id IS NOT NULL", domain.AgentExecutionModeManaged)
 }
 
 // agentRunStatusTerminal 判断 Agent Run 是否已经进入不可覆盖的终态。

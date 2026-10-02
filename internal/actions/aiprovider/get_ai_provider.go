@@ -26,7 +26,7 @@ func (q *GetAIProviderQuery) Execute(ctx context.Context, identity *servermodels
 	if err != nil {
 		return nil, fmt.Errorf("get AI provider: %w", err)
 	}
-	models, err := loadModels(ctx, q.db, identity.Organization.ID, provider.ID)
+	models, err := loadModels(ctx, q.db, provider.ID)
 	if err != nil {
 		return nil, fmt.Errorf("get AI provider models: %w", err)
 	}

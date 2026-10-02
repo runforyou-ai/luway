@@ -94,7 +94,7 @@ func conversationState(ctx context.Context, db bun.IDB, identity *servermodels.I
 	if err != nil {
 		return ConversationState{}, err
 	}
-	model, err := customerserviceaction.LoadTranslationModel(ctx, db, identity.Organization.ID)
+	model, err := customerserviceaction.LoadTranslationModelID(ctx, db, identity.Organization.ID)
 	if err != nil {
 		return ConversationState{}, err
 	}

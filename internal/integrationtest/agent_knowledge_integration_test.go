@@ -22,7 +22,7 @@ import (
 // TestAgentKnowledgeScopes 验证本地知识库绑定的保存、企业隔离、版本快照和失效解绑。
 func TestAgentKnowledgeScopes(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	t.Helper()
 	ctx := context.Background()
 	bases := make([]string, 0, 2)
@@ -35,7 +35,7 @@ func TestAgentKnowledgeScopes(t *testing.T) {
 	}
 	_, foreign := newQAFixture(t, db)
 	input := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-		ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "回答产品问题", KnowledgeBaseIDs: []string{bases[0], bases[0]},
+		ModelID: modelID, SystemInstruction: "回答产品问题", KnowledgeBaseIDs: []string{bases[0], bases[0]},
 	}}
 	create := agentaction.NewCreateAgentAction(db)
 	created, err := create.Execute(ctx, identity, agentaction.CreateInput{DisplayName: "本地知识助手", Execution: input})
@@ -129,14 +129,14 @@ func TestAgentKnowledgeScopes(t *testing.T) {
 // TestAgentExecutionLocksKnowledgeBasesBeforeAgent 验证保存配置先锁知识库再锁员工，与删除知识库的取锁顺序一致。
 func TestAgentExecutionLocksKnowledgeBasesBeforeAgent(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
 	base, err := knowledgeaction.NewCreateKnowledgeBaseAction(db).Execute(ctx, identity, newKnowledgeBaseInput(t, db, identity, uuid.NewV7().String(), domain.KnowledgeBaseCategoryStandard))
 	if err != nil {
 		t.Fatal(err)
 	}
 	input := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{
-		ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "回答产品问题", KnowledgeBaseIDs: []string{base.ID},
+		ModelID: modelID, SystemInstruction: "回答产品问题", KnowledgeBaseIDs: []string{base.ID},
 	}}
 	created, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{DisplayName: "锁顺序助手", Execution: input})
 	if err != nil {

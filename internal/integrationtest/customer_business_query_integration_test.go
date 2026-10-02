@@ -48,7 +48,7 @@ func newBusinessMCPService(t *testing.T, db *bun.DB, identity *servermodels.Iden
 // TestServiceBusinessQueries 验证工具用途标记、各场景的业务工具挂载与客户请求头、未登录提示，以及侧栏业务查询记录。
 func TestServiceBusinessQueries(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
 	t.Run("工具用途标记", func(t *testing.T) {
 		id := newBusinessMCPService(t, db, identity, false, nil, "get_order", "cancel_order").ID
@@ -84,7 +84,7 @@ func TestServiceBusinessQueries(t *testing.T) {
 		map[string]domain.MCPToolPurpose{"get_order": domain.MCPToolPurposeQuery, "cancel_order": domain.MCPToolPurposeAction}, "get_order", "cancel_order")
 	actionService := newBusinessMCPService(t, db, identity, false,
 		map[string]domain.MCPToolPurpose{"refund": domain.MCPToolPurposeAction}, "refund")
-	execution := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "查询订单并答复"}}
+	execution := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID, SystemInstruction: "查询订单并答复"}}
 	created, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "订单客服", Execution: execution})
 	if err != nil {
 		t.Fatal(err)

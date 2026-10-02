@@ -88,12 +88,12 @@ func (s *failingMessageScheduler) failAfterSchedule(ctx context.Context, db bun.
 // TestAgentConversations 验证独立 AI 会话的创建幂等、上下文及访问边界。
 func TestAgentConversations(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	t.Helper()
 	ctx := context.Background()
 	agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		DisplayName: "独立会话助手",
-		Execution:   agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: providerID, ModelIdentifier: modelID, SystemInstruction: "按当前会话回答"}},
+		Execution:   agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID, SystemInstruction: "按当前会话回答"}},
 	})
 	if err != nil {
 		t.Fatal(err)

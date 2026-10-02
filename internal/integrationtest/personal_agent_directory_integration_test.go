@@ -22,10 +22,10 @@ import (
 // TestPersonalAgentDirectory 验证 AI 员工目录只列出服务型 AI 员工与本人负责的个人 AI 员工，个人 AI 员工不进入成员候选、写回复候选和服务型 AI 员工的管理操作，服务型 AI 员工的负责人不作为个人 AI 员工负责人展示。
 func TestPersonalAgentDirectory(t *testing.T) {
 	t.Parallel()
-	db, identity, providerID, modelID := newAIWorkspace(t)
+	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
 	member := newChatLockUser(t, db, identity)
-	execution := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ProviderID: providerID, ModelIdentifier: modelID}}
+	execution := agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID}}
 	service, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{
 		DisplayName: "目录服务员工", ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceEmployee}, Execution: execution,
 	})

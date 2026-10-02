@@ -115,7 +115,6 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/members/options", s.listMemberOptions)
 	router.GET("/colleagues", s.listColleagues)
 	router.GET("/agents/mcp-server-options", s.listAgentMCPServerOptions)
-	router.GET("/agents/model-options", s.listAgentModelOptions)
 	router.POST("/agents", s.createAgent)
 	router.GET("/agents", s.listAgents)
 	router.GET("/agents/:agentID", s.getAgent)
@@ -213,6 +212,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.POST("/settings/roles", s.createRole)
 	router.PUT("/settings/roles/:roleID", s.updateRole)
 	router.DELETE("/settings/roles/:roleID", s.deleteRole)
+	router.GET("/ai-models", s.listAIModelOptions)
 	router.GET("/settings/model-services", s.listAIProviders)
 	router.GET("/settings/model-services/:providerID", s.getAIProvider)
 	router.GET("/settings/model-services/models", s.listAvailableAIModels)
@@ -1113,12 +1113,6 @@ func (s *Service) listAgentMCPServerOptions(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listAgentModelOptions 返回 AI 员工可使用的对话模型。
-func (s *Service) listAgentModelOptions(c *gin.Context) {
-	output, err := s.application.ListAgentModelOptions(c.Request.Context(), requestMeta(c))
-	writeResult(c, http.StatusOK, output, err)
-}
-
 // createAgent 创建企业 AI 员工。
 func (s *Service) createAgent(c *gin.Context) {
 	var input appservice.CreateAgentInput
@@ -1865,6 +1859,12 @@ func (s *Service) updateRole(c *gin.Context) {
 // deleteRole 删除自定义角色。
 func (s *Service) deleteRole(c *gin.Context) {
 	writeEmpty(c, s.application.DeleteRole(c.Request.Context(), requestMeta(c), c.Param("roleID")))
+}
+
+// listAIModelOptions 返回当前工作区满足指定用途的模型。
+func (s *Service) listAIModelOptions(c *gin.Context) {
+	output, err := s.application.ListAIModelOptions(c.Request.Context(), requestMeta(c), appservice.AIModelUsage(c.Query("usage")))
+	writeResult(c, http.StatusOK, output, err)
 }
 
 // listAIProviders 返回当前企业的模型服务供应商列表。

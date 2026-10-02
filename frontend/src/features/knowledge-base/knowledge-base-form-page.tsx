@@ -11,15 +11,16 @@ import {
 import { toast } from "sonner"
 
 import {
+  AIModelUsage,
   KnowledgeBaseCategory,
   type KnowledgeBaseCategoryId,
   createKnowledgeBase,
   getKnowledgeBase,
-  listAIProviders,
   listKnowledgeBaseAgents,
   updateKnowledgeBase,
   UserStatus,
 } from "@/api"
+import { useAIModelOptions } from "@/components/ai-model-options"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { FormActions } from "@/components/form/form-actions"
 import { FormInputField } from "@/components/form/form-input-field"
@@ -87,13 +88,13 @@ export function KnowledgeBaseFormPage({
     defaultValues: {
       name: "",
       description: "",
-      embeddingModel: "",
+      embeddingModelId: "",
       embeddingDimension: "",
       chunkLength: "512",
       chunkOverlap: "50",
       retrievalCount: "3",
       retrievalScoreThreshold: "0.5",
-      rerankModel: "",
+      rerankModelId: "",
     },
   })
   useEffect(() => {
@@ -102,13 +103,13 @@ export function KnowledgeBaseFormPage({
     form.reset({
       name: "",
       description: "",
-      embeddingModel: "",
+      embeddingModelId: "",
       embeddingDimension: "",
       chunkLength: "512",
       chunkOverlap: "50",
       retrievalCount: "3",
       retrievalScoreThreshold: "0.5",
-      rerankModel: "",
+      rerankModelId: "",
     })
   }, [form, mode, requestedCategory])
 
@@ -123,7 +124,8 @@ export function KnowledgeBaseFormPage({
     () => listKnowledgeBaseAgents(knowledgeBaseId),
     { enabled: mode === "edit", staleTime: 0 },
   )
-  const providers = useResource(resourceKeys.aiProviders(), () => listAIProviders(), { staleTime: 0 })
+  const embeddingModels = useAIModelOptions(AIModelUsage.AIModelUsageEmbedding)
+  const rerankModels = useAIModelOptions(AIModelUsage.AIModelUsageRerank)
   const initializedDetail = useRef<string | null>(null)
   /** 详情就绪后回填知识库表单和派生状态。 */
   useEffect(() => {
@@ -133,13 +135,13 @@ export function KnowledgeBaseFormPage({
     const values = {
       name: loadedKnowledgeBase.name,
       description: loadedKnowledgeBase.description,
-      embeddingModel: loadedKnowledgeBase.embeddingProviderId ? JSON.stringify([loadedKnowledgeBase.embeddingProviderId, loadedKnowledgeBase.embeddingModelIdentifier]) : "",
+      embeddingModelId: loadedKnowledgeBase.embeddingModelId,
       embeddingDimension: String(loadedKnowledgeBase.embeddingDimension),
       chunkLength: loadedKnowledgeBase.chunkLength === null ? "" : String(loadedKnowledgeBase.chunkLength),
       chunkOverlap: loadedKnowledgeBase.chunkOverlap === null ? "" : String(loadedKnowledgeBase.chunkOverlap),
       retrievalCount: String(loadedKnowledgeBase.retrievalCount),
       retrievalScoreThreshold: String(loadedKnowledgeBase.retrievalScoreThreshold),
-      rerankModel: loadedKnowledgeBase.rerankProviderId ? JSON.stringify([loadedKnowledgeBase.rerankProviderId, loadedKnowledgeBase.rerankModelIdentifier]) : "",
+      rerankModelId: loadedKnowledgeBase.rerankModelId,
     }
     form.reset(values)
     markSaved(values)
@@ -165,22 +167,18 @@ export function KnowledgeBaseFormPage({
       return true
     },
     save: async (values) => {
-      // 保存供应商与模型标识，并按知识库类型提交分段配置。
-      const [embeddingProviderId, embeddingModelIdentifier] = JSON.parse(values.embeddingModel) as [string, string]
-      const [rerankProviderId, rerankModelIdentifier] = values.rerankModel ? JSON.parse(values.rerankModel) as [string, string] : ["", ""]
+      // 按知识库类型提交分段配置。
       const input = {
         name: values.name,
         description: values.description,
         category,
-        embeddingProviderId,
-        embeddingModelIdentifier,
+        embeddingModelId: values.embeddingModelId,
         embeddingDimension: Number(values.embeddingDimension),
         chunkLength: isQA ? null : Number(values.chunkLength),
         chunkOverlap: isQA ? null : Number(values.chunkOverlap),
         retrievalCount: Number(values.retrievalCount),
         retrievalScoreThreshold: Number(values.retrievalScoreThreshold),
-        rerankProviderId,
-        rerankModelIdentifier,
+        rerankModelId: values.rerankModelId,
       }
       if (mode === "create") return createKnowledgeBase(input)
       const knowledgeBase = await updateKnowledgeBase(knowledgeBaseId, input)
@@ -200,13 +198,13 @@ export function KnowledgeBaseFormPage({
       "name",
       "category",
       "description",
-      "embeddingModelIdentifier",
+      "embeddingModelId",
       "embeddingDimension",
       "chunkLength",
       "chunkOverlap",
       "retrievalCount",
       "retrievalScoreThreshold",
-      "rerankModelIdentifier",
+      "rerankModelId",
     ],
     logLabel: "知识库保存",
   })
@@ -216,7 +214,7 @@ export function KnowledgeBaseFormPage({
     return Boolean(
       mode === "edit" &&
         loadedKnowledgeBase &&
-        (values.embeddingModel !== JSON.stringify([loadedKnowledgeBase.embeddingProviderId, loadedKnowledgeBase.embeddingModelIdentifier]) ||
+        (values.embeddingModelId !== loadedKnowledgeBase.embeddingModelId ||
           Number(values.embeddingDimension) !== loadedKnowledgeBase.embeddingDimension ||
           (!isQA && (Number(values.chunkLength) !== loadedKnowledgeBase.chunkLength || Number(values.chunkOverlap) !== loadedKnowledgeBase.chunkOverlap))),
     )
@@ -238,7 +236,7 @@ export function KnowledgeBaseFormPage({
       />
       <PageContent variant="form">
         <ResourceContent
-          resources={mode === "edit" ? [providers, detail] : [providers]}
+          resources={mode === "edit" ? [embeddingModels, rerankModels, detail] : [embeddingModels, rerankModels]}
           errorMessage={t("form.loadError")}
         >
           <form
@@ -320,7 +318,7 @@ export function KnowledgeBaseFormPage({
                   </Field>
                 )}
               />
-              <KnowledgeBaseSettingsFields control={form.control} isQA={isQA} providers={providers.data?.providers ?? []} />
+              <KnowledgeBaseSettingsFields control={form.control} isQA={isQA} embeddingModels={embeddingModels.data ?? []} rerankModels={rerankModels.data ?? []} />
             </FieldGroup>
             {mode === "create" ? (
               <FormActions
