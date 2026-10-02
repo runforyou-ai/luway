@@ -375,7 +375,7 @@ body,
   --app-workspace-chrome-bottom: color-mix(in oklab, var(--sidebar), black 3.5%);
   --app-workspace-rail-width: 220px;
   --app-workspace-content-inset: 6px;
-  --app-workspace-content-gutter: 10px;
+  --app-workspace-content-gutter: 6px;
   --app-workspace-content-top: var(--app-workspace-content-gutter);
   --app-workspace-rail-collapsed-width: 44px;
   --app-workspace-rail-top-expanded: var(--app-workspace-content-gutter);

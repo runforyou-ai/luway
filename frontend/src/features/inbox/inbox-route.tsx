@@ -16,11 +16,15 @@ import {
   type InboxTab,
   type NormalizedInboxQuery,
 } from "./inbox-query"
+import type { InboxListBookmark } from "./inbox-list-controller"
 import { useInboxList, usePartitionedInboxList } from "./use-inbox-list"
 import { useInboxListViewport } from "./use-inbox-list-viewport"
 
 /** 各用户各页签上次使用的地址参数，切换页签时恢复，在本次页面会话内保留。 */
 const tabSearches = new Map<string, string>()
+
+/** 各列表查询离开时的浏览窗口与滚动锚点，重新进入时在缓存仍有效的情况下直接恢复，在本次页面会话内保留。 */
+const inboxWindows = new Map<string, InboxListBookmark>()
 
 type InboxTabProps = {
   query: NormalizedInboxQuery
@@ -39,6 +43,7 @@ function useInboxListOptions(selectedConversationId: string) {
   const active = useMemberChatPollingActive()
   return {
     identity, active, selectedConversationId,
+    history: inboxWindows,
     unavailable: (id: string) => {
       queue?.forgetConversation(id)
       outgoingStore.forgetConversation(id)
