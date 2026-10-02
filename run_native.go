@@ -86,8 +86,11 @@ func run(_ []string) error {
 		},
 	})
 
+	// 主窗口隐藏创建，前端按入口页或工作台调整尺寸后显示。
 	mainWindow = app.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:             "main",
 		Title:            nativesystemtray.ProductName(systemLocale),
+		Hidden:           true,
 		Width:            1440,
 		Height:           900,
 		MinWidth:         1440,

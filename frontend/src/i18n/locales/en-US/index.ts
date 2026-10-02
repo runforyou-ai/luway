@@ -13,6 +13,7 @@ import integrations from "./integrations"
 import channels from "./channels"
 import settings from "./settings"
 import inbox from "./inbox"
+import entry from "./entry"
 
 const enUS = {
   common,
@@ -29,6 +30,7 @@ const enUS = {
   channels,
   settings,
   inbox,
+  entry,
 }
 
 export default enUS

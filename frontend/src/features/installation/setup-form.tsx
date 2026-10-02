@@ -10,13 +10,6 @@ import { isApiError, install, SessionState } from "@/api"
 import { recoverSession } from "@/lib/session-navigation"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { FieldGroup } from "@/components/ui/field"
 import { randomWorkspaceSlug, suggestWorkspaceSlug } from "@/lib/workspace-schema"
 import {
@@ -87,58 +80,50 @@ export function SetupForm() {
   const { isSubmitting } = form.formState
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-9" onSubmit={form.handleSubmit(submitSetup)} noValidate>
-          <FieldGroup>
-            <FormInputField
-              name="workspaceName"
-              control={form.control}
-              label={t("workspaceNameLabel")}
-              autoFocus
-            />
-            <FormInputField
-              name="workspaceSlug"
-              control={form.control}
-              label={t("workspaceSlugLabel")}
-              autoCapitalize="none"
-              autoCorrect="off"
-            />
-            <FormInputField
-              name="displayName"
-              control={form.control}
-              label={t("displayNameLabel")}
-              autoComplete="name"
-            />
-            <FormInputField
-              name="email"
-              control={form.control}
-              label={t("emailLabel")}
-              type="email"
-              autoComplete="email"
-            />
-            <FormInputField
-              name="password"
-              control={form.control}
-              label={t("passwordLabel")}
-              type="password"
-              autoComplete="new-password"
-              passwordVisibilityLabels={{
-                show: t("showPassword"),
-                hide: t("hidePassword"),
-              }}
-            />
-          </FieldGroup>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? <LoaderCircleIcon className="animate-spin" /> : null}
-            {isSubmitting ? t("submitting") : t("submit")}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <form className="space-y-9" onSubmit={form.handleSubmit(submitSetup)} noValidate>
+      <FieldGroup>
+        <FormInputField
+          name="workspaceName"
+          control={form.control}
+          label={t("workspaceNameLabel")}
+          autoFocus
+        />
+        <FormInputField
+          name="workspaceSlug"
+          control={form.control}
+          label={t("workspaceSlugLabel")}
+          autoCapitalize="none"
+          autoCorrect="off"
+        />
+        <FormInputField
+          name="displayName"
+          control={form.control}
+          label={t("displayNameLabel")}
+          autoComplete="name"
+        />
+        <FormInputField
+          name="email"
+          control={form.control}
+          label={t("emailLabel")}
+          type="email"
+          autoComplete="email"
+        />
+        <FormInputField
+          name="password"
+          control={form.control}
+          label={t("passwordLabel")}
+          type="password"
+          autoComplete="new-password"
+          passwordVisibilityLabels={{
+            show: t("showPassword"),
+            hide: t("hidePassword"),
+          }}
+        />
+      </FieldGroup>
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? <LoaderCircleIcon className="animate-spin" /> : null}
+        {isSubmitting ? t("submitting") : t("submit")}
+      </Button>
+    </form>
   )
 }

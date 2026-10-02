@@ -7,10 +7,10 @@ import { useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { createWorkspace, isApiError } from "@/api"
+import { EntryLayout } from "@/components/entry-layout"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Button } from "@/components/ui/button"
 import { FieldGroup } from "@/components/ui/field"
-import { AccountShell } from "@/features/account/account-shell"
 import {
   createWorkspaceSchema,
   randomWorkspaceSlug,
@@ -76,7 +76,7 @@ export function WorkspaceCreatePage() {
   const { isSubmitting } = form.formState
 
   return (
-    <AccountShell
+    <EntryLayout
       title={t("createTitle")}
       description={t("createDescription")}
       leading={
@@ -114,6 +114,6 @@ export function WorkspaceCreatePage() {
           {isSubmitting ? t("creating") : t("create")}
         </Button>
       </form>
-    </AccountShell>
+    </EntryLayout>
   )
 }
