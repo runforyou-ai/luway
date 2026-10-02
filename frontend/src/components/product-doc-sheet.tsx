@@ -1,5 +1,5 @@
 /** 应用内帮助侧栏：在当前页面旁显示产品文档正文，站内链接在侧栏内切换。 */
-import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react"
+import { useEffect, useRef, useState, type MouseEvent } from "react"
 import { ExternalLinkIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -21,12 +21,14 @@ import { openExternalURL } from "@/platform/external-navigation"
 import { openProductDocsPath } from "@/platform/product-docs"
 import "@/product-docs/content.css"
 
-/** 打开登记的文档页面，page 为空时关闭；关闭后回到触发入口所在的页面状态。 */
+/** 打开登记的文档页面，page 为空时关闭；trigger 为打开侧栏的入口，关闭后焦点回到该入口。 */
 export function ProductDocSheet({
   page,
+  trigger,
   onClose,
 }: {
   page: ProductDocsPage | null
+  trigger: HTMLElement | null
   onClose: () => void
 }) {
   const { t, i18n } = useTranslation("common")
@@ -36,11 +38,11 @@ export function ProductDocSheet({
   const slug = target?.slug ?? (page ? productDocsPages[page] : "")
   const hash = target?.hash ?? ""
   const body = useRef<HTMLDivElement>(null)
-  // 打开时记录触发入口，关闭后把焦点还给它。
-  const trigger = useRef<HTMLElement | null>(null)
-  useLayoutEffect(() => {
-    if (page !== null) trigger.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
-  }, [page])
+  // 保留最近一次打开侧栏的入口，关闭动画结束时父组件可能已清空 trigger。
+  const returnFocus = useRef<HTMLElement | null>(null)
+  useEffect(() => {
+    if (trigger) returnFocus.current = trigger
+  }, [trigger])
   const resource = useResource(
     resourceKeys.productDocPage(locale, slug),
     (signal) => getProductDocPage({ locale, path: slug }, signal),
@@ -87,7 +89,7 @@ export function ProductDocSheet({
         className="w-full gap-0 p-0 sm:max-w-2xl"
         onCloseAutoFocus={(event) => {
           event.preventDefault()
-          trigger.current?.focus()
+          returnFocus.current?.focus()
         }}
       >
         <SheetHeader className="border-b px-6 py-4 pr-12">

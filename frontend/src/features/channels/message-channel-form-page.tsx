@@ -448,7 +448,8 @@ export function MessageChannelFormPage({
     ? t(`types.${typeDefinition.translationKey}`)
     : ""
   const docsPage = typeDefinition?.docsPage
-  const [docsOpen, setDocsOpen] = useState(false)
+  // 打开帮助侧栏的按钮，非空时侧栏打开。
+  const [docsTrigger, setDocsTrigger] = useState<HTMLElement | null>(null)
   const editTitle = typeLabel
     ? t("edit.title", { type: typeLabel })
     : t("edit.fallbackTitle")
@@ -473,7 +474,7 @@ export function MessageChannelFormPage({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setDocsOpen(true)}
+            onClick={(event) => setDocsTrigger(event.currentTarget)}
           >
             <CircleHelpIcon />
             {t("common:productDocs")}
@@ -499,7 +500,7 @@ export function MessageChannelFormPage({
           <MessageChannelForm type={channelType} />
         ) : null}
       </PageContent>
-      <ProductDocSheet page={docsOpen && docsPage ? docsPage : null} onClose={() => setDocsOpen(false)} />
+      <ProductDocSheet page={docsTrigger && docsPage ? docsPage : null} trigger={docsTrigger} onClose={() => setDocsTrigger(null)} />
     </div>
   )
 }
