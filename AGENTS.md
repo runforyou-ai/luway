@@ -53,7 +53,8 @@ Luway 是开源、以自托管为主的 AI 原生企业协作产品，使用 Go�
 ## 产品文档
 
 - `docs/` 只放面向使用者、部署者与开发者的产品文档，使用 Astro Starlight 构建，中文在 `zh-cn/`、英文在 `en/`。`wails3 task docs:dev` 预览，`wails3 task docs:build` 构建并校验站内链接；产物内置到服务端，在 `/docs/` 下提供与服务端同版本的文档。
-- 功能变更与对应文档在同一改动中更新。正文中的产品名称写 `{{product}}`，构建时按页面语言替换为构建品牌名称；frontmatter 不写产品名称。
+- 功能变更与对应文档在同一改动中更新。正文中的产品名称写 `{{product}}`，构建时按页面语言替换为构建品牌名称；frontmatter 不写产品名称。部署配置 `branding.names` 不改变文档中的产品名称，部署配置 `branding.iconPath` 同时替换文档站点图标。
+- 文档站点的字体与配色在 `docs/src/styles/theme.css` 中对应 Web 端主题；调整 `frontend/src/index.css` 的品牌色或中性灰阶时同步更新。
 - 应用内帮助入口只引用 `frontend/src/lib/product-docs.ts` 中登记的页面，经 `@/platform/product-docs` 打开；调整文档页面路径时同步更新登记表。
 
 ## 前端开发约定

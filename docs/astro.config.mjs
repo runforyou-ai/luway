@@ -32,6 +32,12 @@ export default defineConfig({
       title: { "zh-CN": `${zhName}文档`, en: `${enName} Docs` },
       // 部署配置了品牌图标时由服务端替换。
       favicon: "/favicon.png",
+      // 字体与配色同 Web 端。
+      customCss: [
+        "@fontsource-variable/inter",
+        "@fontsource-variable/jetbrains-mono",
+        "./src/styles/theme.css",
+      ],
       defaultLocale: "zh-cn",
       locales: {
         "zh-cn": { label: "简体中文", lang: "zh-CN" },
