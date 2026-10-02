@@ -4115,6 +4115,23 @@ export enum PermissionResource {
 };
 
 /**
+ * ProductDocPage 定义文档页面的标题、渲染后的正文 HTML 与完整文档中的访问路径。
+ */
+export interface ProductDocPage {
+    "title": string;
+    "html": string;
+    "path": string;
+}
+
+/**
+ * ProductDocPageInput 定义要读取的文档语言目录（zh-cn 或 en）与页面路径，首页路径为空字符串。
+ */
+export interface ProductDocPageInput {
+    "locale": string;
+    "path": string;
+}
+
+/**
  * ProfileInput 定义当前用户可编辑的个人资料字段。
  */
 export interface ProfileInput {

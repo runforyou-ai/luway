@@ -4,6 +4,8 @@ const common = {
   closeNotification: "Close notification",
   notSet: "Not set",
   productDocs: "Documentation",
+  productDocsLoadError: "Could not load the documentation.",
+  openFullDocs: "Open in full documentation",
   errors: {
     network: "Could not connect to the server. Please try again.",
   },

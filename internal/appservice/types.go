@@ -110,6 +110,19 @@ type InstallationStatus struct {
 	Brand            Brand  `json:"brand"`
 }
 
+// ProductDocPageInput 定义要读取的文档语言目录（zh-cn 或 en）与页面路径，首页路径为空字符串。
+type ProductDocPageInput struct {
+	Locale string `json:"locale" query:"locale"`
+	Path   string `json:"path" query:"path"`
+}
+
+// ProductDocPage 定义文档页面的标题、渲染后的正文 HTML 与完整文档中的访问路径。
+type ProductDocPage struct {
+	Title string `json:"title"`
+	HTML  string `json:"html"`
+	Path  string `json:"path"`
+}
+
 // InstallWorkspaceInput 定义首次安装输入：部署管理员账号和第一个工作区。
 type InstallWorkspaceInput struct {
 	WorkspaceName string `json:"workspaceName"`

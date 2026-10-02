@@ -371,6 +371,8 @@ export type {
     PageInfo,
     PendingConversationMentions,
     PermissionDefinition,
+    ProductDocPage,
+    ProductDocPageInput,
     ProfileInput,
     ReadInboxConversationsInput,
     RealtimeConnection,

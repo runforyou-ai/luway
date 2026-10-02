@@ -24,6 +24,7 @@ import {
 } from "@/api"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
+import { ProductDocSheet } from "@/components/product-doc-sheet"
 import { ResourceContent } from "@/components/resource-content"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -51,7 +52,6 @@ import {
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 import { useReturnTo } from "@/hooks/use-return-to"
-import { openProductDocs } from "@/platform/product-docs"
 
 type EditTab =
   | "basic"
@@ -383,7 +383,7 @@ export function MessageChannelFormPage({
 }: {
   mode: "create" | "edit"
 }) {
-  const { t, i18n } = useTranslation(["channels", "common"])
+  const { t } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
   const location = useLocation()
   const { channelId = "", channelType = "" } = useParams()
@@ -448,6 +448,7 @@ export function MessageChannelFormPage({
     ? t(`types.${typeDefinition.translationKey}`)
     : ""
   const docsPage = typeDefinition?.docsPage
+  const [docsOpen, setDocsOpen] = useState(false)
   const editTitle = typeLabel
     ? t("edit.title", { type: typeLabel })
     : t("edit.fallbackTitle")
@@ -472,7 +473,7 @@ export function MessageChannelFormPage({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => void openProductDocs(docsPage, i18n.language)}
+            onClick={() => setDocsOpen(true)}
           >
             <CircleHelpIcon />
             {t("common:productDocs")}
@@ -498,6 +499,7 @@ export function MessageChannelFormPage({
           <MessageChannelForm type={channelType} />
         ) : null}
       </PageContent>
+      <ProductDocSheet page={docsOpen && docsPage ? docsPage : null} onClose={() => setDocsOpen(false)} />
     </div>
   )
 }

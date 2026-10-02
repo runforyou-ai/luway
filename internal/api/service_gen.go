@@ -14,6 +14,7 @@ import (
 // registerGeneratedRoutes 注册由 appservicegen 生成的业务路由。
 func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/installation/status", s.installationStatus)
+	router.GET("/product-docs/page", s.getProductDocPage)
 	router.POST("/auth/login", s.login)
 	router.POST("/auth/register", s.register)
 	router.POST("/auth/logout", s.logout)
@@ -268,6 +269,16 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 // installationStatus 返回部署名称、首次安装状态、注册开关和产品品牌。
 func (s *Service) installationStatus(c *gin.Context) {
 	output, err := s.application.InstallationStatus(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+func (s *Service) getProductDocPage(c *gin.Context) {
+	input, ok := bindProductDocPageInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.GetProductDocPage(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -2572,6 +2583,14 @@ func bindMemberOptionListInputQuery(c *gin.Context) (appservice.MemberOptionList
 		Query:    c.Query("query"),
 		Page:     page,
 		PageSize: pageSize,
+	}, true
+}
+
+// bindProductDocPageInputQuery 从查询参数解析 appservice.ProductDocPageInput。
+func bindProductDocPageInputQuery(c *gin.Context) (appservice.ProductDocPageInput, bool) {
+	return appservice.ProductDocPageInput{
+		Locale: c.Query("locale"),
+		Path:   c.Query("path"),
 	}, true
 }
 
