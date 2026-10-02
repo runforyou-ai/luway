@@ -6,11 +6,11 @@ import { useNavigate, useSearchParams } from "react-router"
 
 import { listWorkspaces, loadAccount, logout } from "@/api"
 import { CountBadge } from "@/components/count-badge"
+import { EntryLayout } from "@/components/entry-layout"
 import { PageLoading } from "@/components/page-loading"
 import { PageLoadError } from "@/components/page-load-error"
 import { resourceStatus } from "@/components/resource-content"
 import { Button } from "@/components/ui/button"
-import { AccountShell } from "@/features/account/account-shell"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { updateNotificationUnreadIndicator } from "@/platform/notifications"
 import { useWorkspaceActivityConnection, useWorkspaceAttention } from "@/hooks/use-workspace-attention"
@@ -101,7 +101,7 @@ export function WorkspaceListPage() {
 
   if (workspaces.data.items.length === 0) {
     return (
-      <AccountShell title={t("emptyTitle")} description={unavailable ? t("workspaceUnavailable") : t("emptyDescription")} footer={footer}>
+      <EntryLayout title={t("emptyTitle")} description={unavailable ? t("workspaceUnavailable") : t("emptyDescription")} footer={footer}>
         <div className="flex flex-col items-center rounded-xl border bg-card px-6 py-10 text-center">
           <span className="mb-4 flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <LayoutGridIcon className="size-5" />
@@ -111,12 +111,12 @@ export function WorkspaceListPage() {
             {t("create")}
           </Button>
         </div>
-      </AccountShell>
+      </EntryLayout>
     )
   }
 
   return (
-    <AccountShell
+    <EntryLayout
       title={t("title")}
       description={unavailable ? t("workspaceUnavailable") : t("description")}
       footer={footer}
@@ -176,6 +176,6 @@ export function WorkspaceListPage() {
           </button>
         </li>
       </ul>
-    </AccountShell>
+    </EntryLayout>
   )
 }

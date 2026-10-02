@@ -12,10 +12,10 @@ import {
   logout,
   previewInvitation,
 } from "@/api"
+import { EntryLayout } from "@/components/entry-layout"
 import { PageLoading } from "@/components/page-loading"
 import { PageLoadError } from "@/components/page-load-error"
 import { Button } from "@/components/ui/button"
-import { AccountShell } from "@/features/account/account-shell"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useAccountSession } from "@/hooks/use-account-session"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
@@ -82,13 +82,13 @@ export function InvitationPage() {
 
   if (invalid) {
     return (
-      <AccountShell title={t("invitation.invalidTitle")} description={t("invitation.invalidDescription")}>
+      <EntryLayout title={t("invitation.invalidTitle")} description={t("invitation.invalidDescription")}>
         <Button variant="outline" className="w-full" asChild>
           <Link to="/" replace>
             {t("invitation.goHome")}
           </Link>
         </Button>
-      </AccountShell>
+      </EntryLayout>
     )
   }
   if (preview.error && !preview.data && !preview.retrying) {
@@ -103,15 +103,15 @@ export function InvitationPage() {
   const { workspaceName, workspaceSlug, inviterName, maskedEmail } = preview.data
   if (alreadyMember) {
     return (
-      <AccountShell title={t("invitation.memberTitle", { workspace: workspaceName })} description={t("invitation.memberDescription")}>
+      <EntryLayout title={t("invitation.memberTitle", { workspace: workspaceName })} description={t("invitation.memberDescription")}>
         <Button className="w-full" onClick={() => enterWorkspace(workspaceSlug)}>
           {t("invitation.enter")}
         </Button>
-      </AccountShell>
+      </EntryLayout>
     )
   }
   return (
-    <AccountShell
+    <EntryLayout
       title={t("invitation.title", { workspace: workspaceName })}
       description={t("invitation.description", { inviter: inviterName, email: maskedEmail })}
     >
@@ -145,6 +145,6 @@ export function InvitationPage() {
           </Button>
         </div>
       )}
-    </AccountShell>
+    </EntryLayout>
   )
 }

@@ -8,6 +8,7 @@ const common = {
   },
   actions: {
     close: "Close",
+    minimize: "Minimize",
     back: "Back",
     edit: "Edit",
     editField: "Edit {{field}}",

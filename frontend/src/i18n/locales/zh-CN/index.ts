@@ -13,6 +13,7 @@ import integrations from "./integrations"
 import channels from "./channels"
 import settings from "./settings"
 import inbox from "./inbox"
+import entry from "./entry"
 
 const zhCN = {
   common,
@@ -29,6 +30,7 @@ const zhCN = {
   channels,
   settings,
   inbox,
+  entry,
 }
 
 export default zhCN

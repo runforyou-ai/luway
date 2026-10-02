@@ -10,13 +10,6 @@ import { login } from "@/api"
 import { recoverSession } from "@/lib/session-navigation"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { FieldGroup } from "@/components/ui/field"
 import {
   createLoginSchema,
@@ -55,40 +48,32 @@ export function LoginForm() {
   const { isSubmitting } = form.formState
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form className="space-y-9" onSubmit={form.handleSubmit(submitLogin)} noValidate>
-          <FieldGroup>
-            <FormInputField
-              name="email"
-              control={form.control}
-              label={t("emailLabel")}
-              type="email"
-              autoComplete="email"
-              autoFocus
-            />
-            <FormInputField
-              name="password"
-              control={form.control}
-              label={t("passwordLabel")}
-              type="password"
-              autoComplete="current-password"
-              passwordVisibilityLabels={{
-                show: t("showPassword"),
-                hide: t("hidePassword"),
-              }}
-            />
-          </FieldGroup>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? <LoaderCircleIcon className="animate-spin" /> : null}
-            {isSubmitting ? t("submitting") : t("submit")}
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+    <form className="space-y-9" onSubmit={form.handleSubmit(submitLogin)} noValidate>
+      <FieldGroup>
+        <FormInputField
+          name="email"
+          control={form.control}
+          label={t("emailLabel")}
+          type="email"
+          autoComplete="email"
+          autoFocus
+        />
+        <FormInputField
+          name="password"
+          control={form.control}
+          label={t("passwordLabel")}
+          type="password"
+          autoComplete="current-password"
+          passwordVisibilityLabels={{
+            show: t("showPassword"),
+            hide: t("hidePassword"),
+          }}
+        />
+      </FieldGroup>
+      <Button type="submit" className="w-full" disabled={isSubmitting}>
+        {isSubmitting ? <LoaderCircleIcon className="animate-spin" /> : null}
+        {isSubmitting ? t("submitting") : t("submit")}
+      </Button>
+    </form>
   )
 }

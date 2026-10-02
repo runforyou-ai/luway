@@ -4,12 +4,12 @@ import { useTranslation } from "react-i18next"
 import { Link, Navigate, useNavigate } from "react-router"
 
 import { loadInstallationStatus } from "@/api"
+import { EntryLayout } from "@/components/entry-layout"
 import { PageLoading } from "@/components/page-loading"
 import { LoginForm } from "@/features/auth/login-form"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useAccountSession } from "@/hooks/use-account-session"
 import { useResource } from "@/hooks/use-resource"
-import { useBrandName } from "@/lib/brand"
 import { clearSessionExpiredNotice, sessionExpiredNoticePending } from "@/lib/login-return"
 import { resolveServerURL } from "@/lib/server-url"
 
@@ -21,7 +21,6 @@ export function LoginPage({
 }) {
   const { t } = useTranslation("auth")
   const navigate = useNavigate()
-  const productName = useBrandName()
   const installation = useResource(resourceKeys.installationStatus(), (signal) => loadInstallationStatus(signal), {
     staleTime: 0,
   })
@@ -44,40 +43,42 @@ export function LoginPage({
     )
   }
   return (
-    <main className="flex min-h-dvh w-full items-center justify-center px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 w-full">
-          <p className="text-center text-xl font-medium tracking-tight">
-            {productName}
-            {allowServerChange ? (
-              <button
-                type="button"
-                className="ml-2.5 inline-block whitespace-nowrap align-bottom text-xs font-medium tracking-[0.16em] text-muted-foreground transition-colors hover:text-foreground"
-                onClick={() => navigate("/connect")}
-              >
-                {t("changeServer")}
-              </button>
-            ) : null}
-          </p>
-          {allowServerChange && deploymentLabel ? (
-            <p className="mt-1.5 truncate text-center text-sm text-muted-foreground">{deploymentLabel}</p>
-          ) : null}
-        </div>
-        {sessionExpired ? (
-          <p role="status" className="mb-4 text-center text-sm text-warning">
-            {t("sessionExpired")}
-          </p>
-        ) : null}
-        <LoginForm />
-        {registrationOpen ? (
-          <p className="mt-6 text-center text-sm text-muted-foreground">
+    <EntryLayout
+      title={t("title")}
+      description={
+        allowServerChange ? (
+          <span className="flex min-w-0 items-center gap-1.5">
+            {deploymentLabel ? <span className="min-w-0 truncate">{deploymentLabel}</span> : null}
+            {deploymentLabel ? <span aria-hidden="true">·</span> : null}
+            <button
+              type="button"
+              className="shrink-0 font-medium text-foreground/80 underline-offset-4 hover:text-foreground hover:underline"
+              onClick={() => navigate("/connect")}
+            >
+              {t("changeServer")}
+            </button>
+          </span>
+        ) : (
+          t("description")
+        )
+      }
+      footer={
+        registrationOpen ? (
+          <>
             {t("registerPrompt")}{" "}
             <Link to="/register" className="font-medium text-foreground underline-offset-4 hover:underline">
               {t("registerLink")}
             </Link>
-          </p>
-        ) : null}
-      </div>
-    </main>
+          </>
+        ) : null
+      }
+    >
+      {sessionExpired ? (
+        <p role="status" className="mb-4 text-sm text-warning">
+          {t("sessionExpired")}
+        </p>
+      ) : null}
+      <LoginForm />
+    </EntryLayout>
   )
 }

@@ -9,13 +9,6 @@ import { toast } from "sonner"
 import { type Brand, ConnectReason, connectServer, isApiError, probeServer } from "@/api"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { FieldGroup } from "@/components/ui/field"
 import {
   createServerConnectionSchema,
@@ -149,105 +142,99 @@ export function ServerConnectionForm() {
   const busy = detecting || connecting
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {/* 已保存的服务器暂时连不上或尚未完成首次安装时说明原因，连不上时提供重试。 */}
-        {savedUrl && connectReason ? (
-          <div role="status" className="mb-4 flex items-start gap-3 text-sm text-warning">
-            <p className="min-w-0 flex-1">
-              {connectReason === ConnectReason.ConnectReasonUnreachable
-                ? t("savedServerUnreachable", { host: new URL(savedUrl).host })
-                : t("serverNotInstalled", { host: new URL(savedUrl).host })}
-            </p>
-            {connectReason === ConnectReason.ConnectReasonUnreachable ? (
-              <Button type="button" size="sm" variant="outline" className="shrink-0" disabled={busy} onClick={() => void retrySavedServer()}>
-                {detecting || connecting ? <LoaderCircleIcon className="animate-spin" /> : null}
-                {t("common:actions.retry")}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
-        <form
-          onSubmit={form.handleSubmit((values) => {
-            if (detected) {
-              void connectDetectedServer()
-              return
-            }
-            void detectServer(values)
-          })}
-          noValidate
-        >
-          <FieldGroup>
-            <div>
-              <FormInputField
-                name="serverUrl"
-                control={form.control}
-                label={t("serverUrlLabel")}
-                type="url"
-                autoCapitalize="none"
-                autoCorrect="off"
-                autoFocus
-                endAction={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground"
-                    disabled={busy}
-                    aria-label={detecting ? t("detecting") : t("detect")}
-                    onClick={() => void form.handleSubmit(detectServer)()}
+    <>
+      {/* 已保存的服务器暂时连不上或尚未完成首次安装时说明原因，连不上时提供重试。 */}
+      {savedUrl && connectReason ? (
+        <div role="status" className="mb-4 flex items-start gap-3 text-sm text-warning">
+          <p className="min-w-0 flex-1">
+            {connectReason === ConnectReason.ConnectReasonUnreachable
+              ? t("savedServerUnreachable", { host: new URL(savedUrl).host })
+              : t("serverNotInstalled", { host: new URL(savedUrl).host })}
+          </p>
+          {connectReason === ConnectReason.ConnectReasonUnreachable ? (
+            <Button type="button" size="sm" variant="outline" className="shrink-0" disabled={busy} onClick={() => void retrySavedServer()}>
+              {detecting || connecting ? <LoaderCircleIcon className="animate-spin" /> : null}
+              {t("common:actions.retry")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+      <form
+        onSubmit={form.handleSubmit((values) => {
+          if (detected) {
+            void connectDetectedServer()
+            return
+          }
+          void detectServer(values)
+        })}
+        noValidate
+      >
+        <FieldGroup>
+          <div>
+            <FormInputField
+              name="serverUrl"
+              control={form.control}
+              label={t("serverUrlLabel")}
+              type="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoFocus
+              endAction={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="absolute top-1/2 right-1 -translate-y-1/2 text-muted-foreground"
+                  disabled={busy}
+                  aria-label={detecting ? t("detecting") : t("detect")}
+                  onClick={() => void form.handleSubmit(detectServer)()}
+                >
+                  {detecting ? (
+                    <LoaderCircleIcon className="animate-spin" />
+                  ) : (
+                    <SearchIcon />
+                  )}
+                </Button>
+              }
+            />
+            <div
+              className={
+                detected
+                  ? "grid grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-out"
+                  : "grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-out"
+              }
+            >
+              <div className="min-h-0 overflow-hidden">
+                {detected ? (
+                  <div
+                    className="mt-3 flex items-center justify-between gap-4 rounded-lg bg-muted/50 px-3.5 py-3 animate-in fade-in-0 slide-in-from-top-1 duration-300"
+                    aria-live="polite"
                   >
-                    {detecting ? (
-                      <LoaderCircleIcon className="animate-spin" />
-                    ) : (
-                      <SearchIcon />
-                    )}
-                  </Button>
-                }
-              />
-              <div
-                className={
-                  detected
-                    ? "grid grid-rows-[1fr] transition-[grid-template-rows] duration-300 ease-out"
-                    : "grid grid-rows-[0fr] transition-[grid-template-rows] duration-200 ease-out"
-                }
-              >
-                <div className="min-h-0 overflow-hidden">
-                  {detected ? (
-                    <div
-                      className="mt-3 flex items-center justify-between gap-4 rounded-lg bg-muted/50 px-3.5 py-3 animate-in fade-in-0 slide-in-from-top-1 duration-300"
-                      aria-live="polite"
+                    <p
+                      className="min-w-0 truncate text-[15px] leading-none font-medium tracking-[-0.02em]"
+                      title={detected.host}
                     >
-                      <p
-                        className="min-w-0 truncate text-[15px] leading-none font-medium tracking-[-0.02em]"
-                        title={detected.host}
-                      >
-                        {detected.host}
-                      </p>
-                      <Button
-                        type="button"
-                        size="sm"
-                        className="h-7 shrink-0 px-3"
-                        disabled={busy}
-                        onClick={() => void connectDetectedServer()}
-                      >
-                        {connecting ? (
-                          <LoaderCircleIcon className="animate-spin" />
-                        ) : null}
-                        {connecting ? t("connecting") : t("connect")}
-                      </Button>
-                    </div>
-                  ) : null}
-                </div>
+                      {detected.host}
+                    </p>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-7 shrink-0 px-3"
+                      disabled={busy}
+                      onClick={() => void connectDetectedServer()}
+                    >
+                      {connecting ? (
+                        <LoaderCircleIcon className="animate-spin" />
+                      ) : null}
+                      {connecting ? t("connecting") : t("connect")}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             </div>
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
+          </div>
+        </FieldGroup>
+      </form>
+    </>
   )
 }

@@ -41,6 +41,7 @@ import {
   WorkspaceRailToggle,
 } from "@/features/workspace/workspace-rail"
 import { isDesktopMacOS, resolveAppPlatform } from "@/platform/app-platform"
+import { useDesktopWindowMode } from "@/platform/desktop-window"
 import { updateNotificationUnreadIndicator } from "@/platform/notifications"
 
 /** 页面导航后清除非编辑区域的文字选区。 */
@@ -72,6 +73,7 @@ export function WorkspaceLayout() {
 /** 按登录身份渲染工作台导航、子页面和桌面端提醒状态。 */
 function WorkspaceShell({ identity }: { identity: Identity }) {
   useClearSelectionOnNavigation()
+  useDesktopWindowMode("workspace")
   const location = useLocation()
   const { t } = useTranslation("workspace")
   const navigate = useNavigate()

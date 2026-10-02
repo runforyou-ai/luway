@@ -336,6 +336,14 @@ body,
   height: var(--app-macos-titlebar-height);
 }
 
+/* 桌面端入口小窗口的品牌栏和顶部留白用于拖动窗口。 */
+.app-desktop-app .app-entry-drag {
+  --wails-draggable: drag;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 [data-native-os="darwin"]:has(.app-workspace-shell, .app-conversation-window) > .app-window-drag-region {
   display: none;
 }

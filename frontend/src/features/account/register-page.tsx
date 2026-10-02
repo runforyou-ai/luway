@@ -7,9 +7,9 @@ import { Link, Navigate, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { loadInstallationStatus, register } from "@/api"
+import { EntryLayout } from "@/components/entry-layout"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { FieldGroup } from "@/components/ui/field"
 import { createRegisterSchema, type RegisterFormValues } from "@/features/account/register-schema"
 import { resourceKeys } from "@/hooks/resource-keys"
@@ -52,41 +52,36 @@ export function RegisterPage() {
   const { isSubmitting } = form.formState
 
   return (
-    <main className="flex min-h-dvh w-full items-center justify-center px-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] md:p-10">
-      <div className="w-full max-w-sm space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("registerTitle")}</CardTitle>
-            <CardDescription>{invitation ? t("registerInvitationDescription") : t("registerDescription")}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-9" onSubmit={form.handleSubmit(submitRegister)} noValidate>
-              <FieldGroup>
-                <FormInputField name="displayName" control={form.control} label={t("displayNameLabel")} autoComplete="name" autoFocus />
-                <FormInputField name="email" control={form.control} label={t("emailLabel")} type="email" autoComplete="email" />
-                <FormInputField
-                  name="password"
-                  control={form.control}
-                  label={t("newPasswordLabel")}
-                  type="password"
-                  autoComplete="new-password"
-                  passwordVisibilityLabels={{ show: t("showPassword"), hide: t("hidePassword") }}
-                />
-              </FieldGroup>
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting ? <LoaderCircleIcon className="animate-spin" /> : null}
-                {isSubmitting ? t("registerSubmitting") : t("registerSubmit")}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-        <p className="text-center text-sm text-muted-foreground">
+    <EntryLayout
+      title={t("registerTitle")}
+      description={invitation ? t("registerInvitationDescription") : t("registerDescription")}
+      footer={
+        <>
           {t("loginPrompt")}{" "}
           <Link to="/login" replace className="font-medium text-foreground underline-offset-4 hover:underline">
             {t("loginLink")}
           </Link>
-        </p>
-      </div>
-    </main>
+        </>
+      }
+    >
+      <form className="space-y-9" onSubmit={form.handleSubmit(submitRegister)} noValidate>
+        <FieldGroup>
+          <FormInputField name="displayName" control={form.control} label={t("displayNameLabel")} autoComplete="name" autoFocus />
+          <FormInputField name="email" control={form.control} label={t("emailLabel")} type="email" autoComplete="email" />
+          <FormInputField
+            name="password"
+            control={form.control}
+            label={t("newPasswordLabel")}
+            type="password"
+            autoComplete="new-password"
+            passwordVisibilityLabels={{ show: t("showPassword"), hide: t("hidePassword") }}
+          />
+        </FieldGroup>
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? <LoaderCircleIcon className="animate-spin" /> : null}
+          {isSubmitting ? t("registerSubmitting") : t("registerSubmit")}
+        </Button>
+      </form>
+    </EntryLayout>
   )
 }

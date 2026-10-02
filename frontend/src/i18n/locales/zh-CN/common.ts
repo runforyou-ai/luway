@@ -8,6 +8,7 @@ const common = {
   },
   actions: {
     close: "关闭",
+    minimize: "最小化",
     back: "返回",
     edit: "编辑",
     editField: "修改{{field}}",
