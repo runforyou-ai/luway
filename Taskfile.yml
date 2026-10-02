@@ -11,6 +11,7 @@ vars:
   CGO_ENABLED: "1"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  DOCS_PORT: '{{.DOCS_PORT | default 4321}}'
   GOOS: '{{.GOOS | default OS}}'
 
 includes:

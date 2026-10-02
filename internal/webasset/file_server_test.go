@@ -22,6 +22,8 @@ func TestFileServerCachePolicy(t *testing.T) {
 		"assets/font-abc.woff2": {Data: []byte("wOF2")},
 		"pdfjs/LICENSE":         {Data: []byte("license text")},
 		"guide/index.html":      {Data: []byte("<!doctype html><title>Guide</title>")},
+		"assets/index.html":     {Data: []byte("<!doctype html><title>Assets</title>")},
+		"404.html":              {Data: []byte("<!doctype html><title>Missing</title>")},
 	}, "assets")
 	if err != nil {
 		t.Fatal(err)
@@ -79,6 +81,21 @@ func TestFileServerCachePolicy(t *testing.T) {
 		if directory := serve(http.MethodGet, target, nil); directory.Code != http.StatusOK || directory.Body.String() != "<!doctype html><title>Guide</title>" {
 			t.Fatalf("%s: status=%d body=%q", target, directory.Code, directory.Body.String())
 		}
+	}
+	// 目录索引按实际命中的文件选择缓存策略。
+	if directory := serve(http.MethodGet, "/assets", nil); directory.Code != http.StatusOK || directory.Header().Get("Cache-Control") != ImmutableCache {
+		t.Fatalf("/assets: status=%d headers=%v", directory.Code, directory.Header())
+	}
+
+	// 设置 404 内容后，未命中路径返回该内容与 404 状态。
+	if err := server.SetNotFound("404.html"); err != nil {
+		t.Fatal(err)
+	}
+	if missing := serve(http.MethodGet, "/missing", nil); missing.Code != http.StatusNotFound || missing.Body.String() != "<!doctype html><title>Missing</title>" || missing.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("not found page: status=%d headers=%v body=%q", missing.Code, missing.Header(), missing.Body.String())
+	}
+	if err := server.SetNotFound("absent.html"); err == nil {
+		t.Fatal("setting an absent not found page must fail")
 	}
 	if cleaned := serve(http.MethodGet, "//assets/./x/../index-abc.js", nil); cleaned.Code != http.StatusOK {
 		t.Fatalf("uncleaned path status = %d", cleaned.Code)

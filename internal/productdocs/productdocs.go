@@ -23,7 +23,7 @@ const Prefix = "/docs/"
 //go:embed all:dist
 var files embed.FS
 
-// Middleware 返回在 Prefix 下提供内置文档的中间件，icon 非空时替换站点图标；未内置文档时请求交给下一个处理器。
+// Middleware 返回在 Prefix 下提供内置文档的中间件，icon 为部署配置的品牌图标，非空时替换站点图标；未内置文档时请求交给下一个处理器。
 func Middleware(icon []byte) (func(http.Handler) http.Handler, error) {
 	site, err := fs.Sub(files, "dist/site")
 	if err != nil {
@@ -32,7 +32,7 @@ func Middleware(icon []byte) (func(http.Handler) http.Handler, error) {
 	return siteMiddleware(site, icon)
 }
 
-// siteMiddleware 返回在 Prefix 下提供指定文档站点的中间件，站点缺少 index.html 时请求交给下一个处理器。
+// siteMiddleware 返回在 Prefix 下提供指定文档站点的中间件，未命中的文档路径返回站点的 404.html；站点缺少 index.html 时请求交给下一个处理器。
 func siteMiddleware(site fs.FS, icon []byte) (func(http.Handler) http.Handler, error) {
 	if _, err := fs.Stat(site, "index.html"); errors.Is(err, fs.ErrNotExist) {
 		slog.Warn("服务端未内置产品文档")
@@ -40,6 +40,9 @@ func siteMiddleware(site fs.FS, icon []byte) (func(http.Handler) http.Handler, e
 	}
 	server, err := webasset.NewFileServer(site, "_astro")
 	if err != nil {
+		return nil, fmt.Errorf("load product docs: %w", err)
+	}
+	if err := server.SetNotFound("404.html"); err != nil {
 		return nil, fmt.Errorf("load product docs: %w", err)
 	}
 	if len(icon) > 0 {

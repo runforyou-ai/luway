@@ -189,8 +189,10 @@ tasks:
       - task: install:docs:deps
     sources:
       - astro.config.mjs
+      - package.json
       - package-lock.json
       - src/**/*
+      - ../frontend/public/**/*
       - ../internal/common/brand/brand.json
     generates:
       - ../internal/productdocs/dist/site/**/*
@@ -205,7 +207,7 @@ tasks:
     deps:
       - task: install:docs:deps
     cmds:
-      - npm run dev
+      - npm run dev -- --port {{.DOCS_PORT}}
     env:
       ASTRO_TELEMETRY_DISABLED: "1"
 

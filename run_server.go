@@ -77,10 +77,7 @@ func run(arguments []string) error {
 	if err != nil {
 		return err
 	}
-	icon, err := fs.ReadFile(dist, "favicon.png")
-	if err != nil {
-		return fmt.Errorf("read frontend icon: %w", err)
-	}
+	var icon []byte
 	if config.Branding.IconPath != "" {
 		icon, err = os.ReadFile(config.Branding.IconPath)
 		if err != nil {

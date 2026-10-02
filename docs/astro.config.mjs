@@ -18,6 +18,10 @@ export default defineConfig({
   base: "/docs",
   trailingSlash: "always",
   outDir: "../internal/productdocs/dist/site",
+  // 开发预览端口被占用时直接失败。
+  vite: { server: { strictPort: true } },
+  // 与 Web 端共用构建品牌的站点图标。
+  publicDir: "../frontend/public",
   markdown: {
     processor: unified({
       remarkPlugins: [[remarkBrand, { names: { "zh-cn": zhName, en: enName } }]],
@@ -26,7 +30,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: { "zh-CN": `${zhName}文档`, en: `${enName} Docs` },
-      // 服务端以运行时品牌图标提供该地址。
+      // 部署配置了品牌图标时由服务端替换。
       favicon: "/favicon.png",
       defaultLocale: "zh-cn",
       locales: {
