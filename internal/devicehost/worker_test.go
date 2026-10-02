@@ -123,7 +123,7 @@ func (c *stubRunClient) SearchDeviceRunKnowledge(_ context.Context, _ appservice
 	return appservice.DeviceRunKnowledgeSearchResult{Result: json.RawMessage(`{"records":[{"content":"退款三天到账"}]}`)}, nil
 }
 
-// GetDeviceRunMemory 返回空的助理记忆。
+// GetDeviceRunMemory 返回空的个人 AI 员工记忆。
 func (c *stubRunClient) GetDeviceRunMemory(context.Context, appservice.RequestMeta, string) (appservice.DeviceRunMemory, error) {
 	return appservice.DeviceRunMemory{Entries: json.RawMessage(`[]`)}, nil
 }

@@ -1,12 +1,12 @@
 package domain
 
-// AgentExecutionMode 表示 AI 员工与助理的执行方式。
+// AgentExecutionMode 表示 AI 员工的执行方式。
 type AgentExecutionMode string
 
 const (
 	// AgentExecutionModeManaged 表示由应用内置的运行时使用企业模型服务执行。
 	AgentExecutionModeManaged AgentExecutionMode = "managed"
-	// AgentExecutionModeLocalAgent 表示由助理绑定电脑上的本机 Agent 执行，只用于助理。
+	// AgentExecutionModeLocalAgent 表示由个人 AI 员工绑定电脑上的本机 Agent 执行，只用于个人 AI 员工。
 	AgentExecutionModeLocalAgent AgentExecutionMode = "local_agent"
 )
 

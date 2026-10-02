@@ -1,4 +1,4 @@
-// Package localmcp 保存这台电脑上由主人的助理共用的本地 MCP 服务配置。
+// Package localmcp 保存这台电脑上由负责人的个人 AI 员工共用的本地 MCP 服务配置。
 //
 // 配置文件使用通用的 mcpServers 格式：服务名称映射到启动命令、参数与环境变量（经标准输入输出通信），
 // 或映射到 type 为 sse、http 的服务地址与请求头（http 表示 Streamable HTTP）。

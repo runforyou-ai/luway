@@ -104,6 +104,12 @@ export function MobileMePage() {
           </div>
         ) : null}
         <div className="mb-6 border-y">
+          <Link to="/me/personal-agents" state={{ mobileBack: true }} className={rowClassName}>
+            <span className="flex-1">{t("agents:personal.sectionTitle")}</span>
+            <ChevronRightIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="mb-6 border-y">
           {/* 切换工作区经账号级的工作区列表，返回时回到这里。 */}
           <Link to={withReturnTo("/workspaces")} className={rowClassName}>
             <span className="grid flex-1 gap-0.5">

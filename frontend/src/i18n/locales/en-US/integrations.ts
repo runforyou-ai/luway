@@ -216,7 +216,7 @@ const integrations = {
     loadError: "Could not load web search settings.",
     saveError: "Could not save web search settings. Try again.",
     provider: "Search service",
-    providerDescription: "Used by AI employees and assistants in internal conversations, not when serving customers",
+    providerDescription: "Used by AI employees in internal conversations, not when serving customers",
     notUsed: "Not used",
     baseUrl: "Service URL",
     baseUrlDescription: "The SearXNG instance URL. The instance must enable JSON output",

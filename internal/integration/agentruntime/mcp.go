@@ -39,9 +39,9 @@ var mcpPinyinArgs = pinyin.NewArgs()
 type MCPSource string
 
 const (
-	// MCPSourceOrganization 是管理员为企业添加、按 AI 员工或助理绑定的服务。
+	// MCPSourceOrganization 是管理员为企业添加、按 AI 员工绑定的服务。
 	MCPSourceOrganization MCPSource = "organization"
-	// MCPSourceLocal 是助理为执行电脑添加的本地服务。
+	// MCPSourceLocal 是个人 AI 员工为执行电脑添加的本地服务。
 	MCPSourceLocal MCPSource = "local"
 )
 

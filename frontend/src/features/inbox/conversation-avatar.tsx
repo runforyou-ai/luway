@@ -1,4 +1,4 @@
-/** 会话列表和会话头共用的头像、渠道角标、助理在线状态标记与负责人小头像。 */
+/** 会话列表和会话头共用的头像、渠道角标、个人 AI 员工在线状态标记与负责人小头像。 */
 import { useTranslation } from "react-i18next"
 
 import {
@@ -9,12 +9,12 @@ import {
   isGroupInboxConversation,
   type InboxConversationData,
 } from "@/api"
-import { AssistantPresenceMark } from "@/components/assistant-presence-mark"
+import { PersonalAgentPresenceMark } from "@/components/personal-agent-presence-mark"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { messageChannelTypeDefinition } from "@/lib/message-channel-types"
 import { cn } from "@/lib/utils"
 
-/** 展示会话对象头像，客户会话带来源渠道角标，助理单聊带在线状态标记；标记描边色随所在表面传入。 */
+/** 展示会话对象头像，客户会话带来源渠道角标，个人 AI 员工单聊带在线状态标记；标记描边色随所在表面传入。 */
 export function ConversationAvatar({
   conversation,
   className,
@@ -71,8 +71,8 @@ export function ConversationAvatar({
           <badge.icon className="size-2" />
         </span>
       ) : (
-        <AssistantPresenceMark
-          presence={agent?.assistantPresence}
+        <PersonalAgentPresenceMark
+          presence={agent?.personalPresence}
           compact={compactMark}
           className={cn("absolute -right-0.5 -bottom-0.5", compactMark ? "ring-[1.5px]" : "ring-2", markRingClassName)}
         />

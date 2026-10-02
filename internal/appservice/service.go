@@ -74,7 +74,7 @@ func WithLocalDevice(reporter LocalDeviceReporter) Option {
 	}
 }
 
-// WithLocalEnvironment 注入原生端为助理提供的本机运行环境与本地 MCP 服务管理。
+// WithLocalEnvironment 注入原生端为个人 AI 员工提供的本机运行环境与本地 MCP 服务管理。
 func WithLocalEnvironment(manager LocalEnvironmentManager) Option {
 	return func(service *Service) {
 		service.localEnvironment = manager
@@ -223,7 +223,7 @@ func (s *Service) CurrentDevice(ctx context.Context, meta RequestMeta) (LocalDev
 	return WithNormalizedSlices(s.localDevice.CurrentDevice(ctx, meta))
 }
 
-// GetLocalEnvironment 返回本机为助理提供的运行环境、本地 MCP 服务与技能。
+// GetLocalEnvironment 返回本机为个人 AI 员工提供的运行环境、本地 MCP 服务与技能。
 func (s *Service) GetLocalEnvironment(ctx context.Context, meta RequestMeta) (LocalEnvironment, error) {
 	if s.localEnvironment == nil {
 		return LocalEnvironment{}, methodNotAllowedError(meta, "GetLocalEnvironment")
@@ -271,7 +271,7 @@ func (s *Service) RemoveLocalMCPServer(ctx context.Context, meta RequestMeta, na
 	return s.localEnvironment.RemoveLocalMCPServer(ctx, meta, name)
 }
 
-// RemoveLocalSkill 删除助理安装在这台电脑上的技能。
+// RemoveLocalSkill 删除个人 AI 员工安装在这台电脑上的技能。
 func (s *Service) RemoveLocalSkill(ctx context.Context, meta RequestMeta, name string) error {
 	if s.localEnvironment == nil {
 		return methodNotAllowedError(meta, "RemoveLocalSkill")

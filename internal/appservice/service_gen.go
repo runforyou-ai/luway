@@ -564,69 +564,69 @@ func (s *Service) RerunAgentEvaluationCase(ctx context.Context, meta RequestMeta
 	return s.backend.RerunAgentEvaluationCase(ctx, meta, agentID, caseID)
 }
 
-// ListAssistants 返回当前成员名下的助理。
-func (s *Service) ListAssistants(ctx context.Context, meta RequestMeta) (AssistantList, error) {
-	return WithNormalizedSlices(s.backend.ListAssistants(ctx, meta))
+// ListPersonalAgents 返回当前成员负责的个人 AI 员工。
+func (s *Service) ListPersonalAgents(ctx context.Context, meta RequestMeta) (PersonalAgentList, error) {
+	return WithNormalizedSlices(s.backend.ListPersonalAgents(ctx, meta))
 }
 
-// ListMemberAssistants 返回指定成员名下的助理。
-func (s *Service) ListMemberAssistants(ctx context.Context, meta RequestMeta, userID string) (AssistantList, error) {
-	return WithNormalizedSlices(s.backend.ListMemberAssistants(ctx, meta, userID))
+// ListMemberPersonalAgents 返回指定成员负责的个人 AI 员工。
+func (s *Service) ListMemberPersonalAgents(ctx context.Context, meta RequestMeta, userID string) (PersonalAgentList, error) {
+	return WithNormalizedSlices(s.backend.ListMemberPersonalAgents(ctx, meta, userID))
 }
 
-// GetAssistant 返回当前成员名下的助理详情。
-func (s *Service) GetAssistant(ctx context.Context, meta RequestMeta, assistantID string) (AssistantDetail, error) {
-	return WithNormalizedSlices(s.backend.GetAssistant(ctx, meta, assistantID))
+// GetPersonalAgent 返回当前成员负责的个人 AI 员工详情。
+func (s *Service) GetPersonalAgent(ctx context.Context, meta RequestMeta, agentID string) (PersonalAgentDetail, error) {
+	return WithNormalizedSlices(s.backend.GetPersonalAgent(ctx, meta, agentID))
 }
 
-// CreateAssistant 在当前成员的电脑上创建助理。
-func (s *Service) CreateAssistant(ctx context.Context, meta RequestMeta, input CreateAssistantInput) (Assistant, error) {
-	return WithNormalizedSlices(s.backend.CreateAssistant(ctx, meta, input))
+// CreatePersonalAgent 在当前成员的电脑上创建个人 AI 员工。
+func (s *Service) CreatePersonalAgent(ctx context.Context, meta RequestMeta, input CreatePersonalAgentInput) (PersonalAgent, error) {
+	return WithNormalizedSlices(s.backend.CreatePersonalAgent(ctx, meta, input))
 }
 
-// UpdateAssistant 修改当前成员名下的助理。
-func (s *Service) UpdateAssistant(ctx context.Context, meta RequestMeta, assistantID string, input AssistantInput) (Assistant, error) {
-	return WithNormalizedSlices(s.backend.UpdateAssistant(ctx, meta, assistantID, input))
+// UpdatePersonalAgent 修改当前成员负责的个人 AI 员工。
+func (s *Service) UpdatePersonalAgent(ctx context.Context, meta RequestMeta, agentID string, input PersonalAgentInput) (PersonalAgent, error) {
+	return WithNormalizedSlices(s.backend.UpdatePersonalAgent(ctx, meta, agentID, input))
 }
 
-// PauseAssistant 暂停当前成员名下的助理。
-func (s *Service) PauseAssistant(ctx context.Context, meta RequestMeta, assistantID string) (Assistant, error) {
-	return WithNormalizedSlices(s.backend.PauseAssistant(ctx, meta, assistantID))
+// PausePersonalAgent 暂停当前成员负责的个人 AI 员工。
+func (s *Service) PausePersonalAgent(ctx context.Context, meta RequestMeta, agentID string) (PersonalAgent, error) {
+	return WithNormalizedSlices(s.backend.PausePersonalAgent(ctx, meta, agentID))
 }
 
-// ResumeAssistant 恢复当前成员名下已暂停的助理。
-func (s *Service) ResumeAssistant(ctx context.Context, meta RequestMeta, assistantID string) (Assistant, error) {
-	return WithNormalizedSlices(s.backend.ResumeAssistant(ctx, meta, assistantID))
+// ResumePersonalAgent 恢复当前成员负责的已暂停个人 AI 员工。
+func (s *Service) ResumePersonalAgent(ctx context.Context, meta RequestMeta, agentID string) (PersonalAgent, error) {
+	return WithNormalizedSlices(s.backend.ResumePersonalAgent(ctx, meta, agentID))
 }
 
-// MoveAssistant 把当前成员名下的助理换到指定电脑。
-func (s *Service) MoveAssistant(ctx context.Context, meta RequestMeta, assistantID string, input AssistantDeviceInput) (Assistant, error) {
-	return WithNormalizedSlices(s.backend.MoveAssistant(ctx, meta, assistantID, input))
+// MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
+func (s *Service) MovePersonalAgent(ctx context.Context, meta RequestMeta, agentID string, input PersonalAgentDeviceInput) (PersonalAgent, error) {
+	return WithNormalizedSlices(s.backend.MovePersonalAgent(ctx, meta, agentID, input))
 }
 
-// DeactivateAssistant 停用助理。
-func (s *Service) DeactivateAssistant(ctx context.Context, meta RequestMeta, assistantID string) (Assistant, error) {
-	return WithNormalizedSlices(s.backend.DeactivateAssistant(ctx, meta, assistantID))
+// DeactivatePersonalAgent 停用个人 AI 员工。
+func (s *Service) DeactivatePersonalAgent(ctx context.Context, meta RequestMeta, agentID string) (PersonalAgent, error) {
+	return WithNormalizedSlices(s.backend.DeactivatePersonalAgent(ctx, meta, agentID))
 }
 
-// ReactivateAssistant 启用已停用的助理。
-func (s *Service) ReactivateAssistant(ctx context.Context, meta RequestMeta, assistantID string) (Assistant, error) {
-	return WithNormalizedSlices(s.backend.ReactivateAssistant(ctx, meta, assistantID))
+// ReactivatePersonalAgent 启用已停用的个人 AI 员工。
+func (s *Service) ReactivatePersonalAgent(ctx context.Context, meta RequestMeta, agentID string) (PersonalAgent, error) {
+	return WithNormalizedSlices(s.backend.ReactivatePersonalAgent(ctx, meta, agentID))
 }
 
-// ListAssistantMemories 返回当前成员名下助理的记忆，按最近更新排列。
-func (s *Service) ListAssistantMemories(ctx context.Context, meta RequestMeta, assistantID string) (AssistantMemoryList, error) {
-	return WithNormalizedSlices(s.backend.ListAssistantMemories(ctx, meta, assistantID))
+// ListAgentMemories 返回当前成员负责的个人 AI 员工的记忆，按最近更新排列。
+func (s *Service) ListAgentMemories(ctx context.Context, meta RequestMeta, agentID string) (AgentMemoryList, error) {
+	return WithNormalizedSlices(s.backend.ListAgentMemories(ctx, meta, agentID))
 }
 
-// UpdateAssistantMemory 修改当前成员名下助理的一条记忆。
-func (s *Service) UpdateAssistantMemory(ctx context.Context, meta RequestMeta, assistantID string, memoryID string, input AssistantMemoryInput) (AssistantMemory, error) {
-	return WithNormalizedSlices(s.backend.UpdateAssistantMemory(ctx, meta, assistantID, memoryID, input))
+// UpdateAgentMemory 修改当前成员负责的个人 AI 员工的一条记忆。
+func (s *Service) UpdateAgentMemory(ctx context.Context, meta RequestMeta, agentID string, memoryID string, input AgentMemoryInput) (AgentMemory, error) {
+	return WithNormalizedSlices(s.backend.UpdateAgentMemory(ctx, meta, agentID, memoryID, input))
 }
 
-// DeleteAssistantMemory 删除当前成员名下助理的一条记忆。
-func (s *Service) DeleteAssistantMemory(ctx context.Context, meta RequestMeta, assistantID string, memoryID string) error {
-	return s.backend.DeleteAssistantMemory(ctx, meta, assistantID, memoryID)
+// DeleteAgentMemory 删除当前成员负责的个人 AI 员工的一条记忆。
+func (s *Service) DeleteAgentMemory(ctx context.Context, meta RequestMeta, agentID string, memoryID string) error {
+	return s.backend.DeleteAgentMemory(ctx, meta, agentID, memoryID)
 }
 
 // ListUsers 返回企业成员列表。

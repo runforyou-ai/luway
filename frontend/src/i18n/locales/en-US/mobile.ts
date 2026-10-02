@@ -41,9 +41,9 @@ const mobile = {
     notFound: "This contact does not exist or is unavailable.",
     channelsLoadError: "Couldn't load channels. Please try again.",
   },
-  assistants: {
-    loadError: "Could not load assistants. Please try again.",
-    notFound: "This assistant does not exist or is unavailable.",
+  personalAgents: {
+    loadError: "Could not load AI employees. Please try again.",
+    notFound: "This AI employee does not exist or is unavailable.",
   },
   agents: {
     chatError: "Could not open the AI conversation. Please try again.",

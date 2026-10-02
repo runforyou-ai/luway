@@ -43,7 +43,7 @@ type AssignmentFacts struct {
 	AgentName        string
 	Instruction      string // 配置版本中的企业指令。
 	Model            AssignmentModel
-	// LocalAgent 是配置版本指定的本机 Agent，非空表示由助理绑定电脑上的本机 Agent 执行。
+	// LocalAgent 是配置版本指定的本机 Agent，非空表示由个人 AI 员工绑定电脑上的本机 Agent 执行。
 	LocalAgent domain.LocalAgentKind
 	Scene      SceneContext
 }
@@ -59,7 +59,7 @@ type Capabilities struct {
 	CustomerHistory bool
 	// CustomerLoginRequired 表示客服场景中有按客户查询的服务因客户未验证身份而未挂载。
 	CustomerLoginRequired bool
-	// Memory 表示执行侧可以读取助理记忆。
+	// Memory 表示执行侧可以读取个人 AI 员工记忆。
 	Memory bool
 }
 
@@ -78,7 +78,7 @@ type Assignment struct {
 	MCPServers          []string          `json:"mcpServers"`
 	Grounding           GroundingPolicy   `json:"grounding,omitempty"`         // 对客正文的依据检查策略，客服场景为严格策略。
 	HandoffCategories   []HandoffCategory `json:"handoffCategories,omitempty"` // 转人工时可选的咨询分类，只在客服场景取值。
-	Memory              bool              `json:"memory,omitempty"`            // 本次运行注入助理记忆，只在助理与主人的单聊中取值。
+	Memory              bool              `json:"memory,omitempty"`            // 本次运行注入个人 AI 员工记忆，只在个人 AI 员工与负责人的单聊中取值。
 	// LocalAgent 是执行本次运行的本机 Agent，非空时模型与工具由本机 Agent 自身提供，Model 与 Tools 为空。
 	LocalAgent domain.LocalAgentKind `json:"localAgent,omitempty"`
 }

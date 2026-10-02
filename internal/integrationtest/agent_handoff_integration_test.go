@@ -46,7 +46,7 @@ func testServiceSessionReturner(db *bun.DB) *agentrunaction.ExecuteAction {
 // testUserStatusAction 创建测试用的成员账号状态修改操作。
 func testUserStatusAction(db *bun.DB) *useraction.UpdateStatusAction {
 	coordinator := testServiceSessionReturner(db)
-	return useraction.NewUpdateStatusAction(db, coordinator, groupchataction.NewOwnedAssistantRetirer(coordinator))
+	return useraction.NewUpdateStatusAction(db, coordinator, groupchataction.NewPersonalAgentRetirer(coordinator))
 }
 
 // handoffFixture 保存转人工集成测试共用的企业身份、任务运行时与客服角色。

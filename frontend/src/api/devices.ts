@@ -65,7 +65,7 @@ export type LocalMCPServerData = LocalEnvironmentData["mcpServers"][number]
 
 const getLocalEnvironmentBound = bind(GetLocalEnvironment)
 
-/** 读取本机为助理提供的运行环境、本地 MCP 服务与技能。 */
+/** 读取本机为 AI 员工提供的运行环境、本地 MCP 服务与技能。 */
 export function getLocalEnvironment() {
   return getLocalEnvironmentBound() as Promise<LocalEnvironmentData>
 }
@@ -85,7 +85,7 @@ export const openLocalToolchainFolder = bind(OpenLocalToolchainFolder)
 /** 删除这台电脑上的本地 MCP 服务。 */
 export const removeLocalMCPServer = bind(RemoveLocalMCPServer)
 
-/** 删除助理安装在这台电脑上的技能。 */
+/** 删除 AI 员工安装在这台电脑上的技能。 */
 export const removeLocalSkill = bind(RemoveLocalSkill)
 
 /** 订阅原生端本机设备状态变化，返回取消订阅函数。 */

@@ -202,7 +202,7 @@ func managedExecutionModelQuery(db bun.IDB, organizationID, providerID, modelIde
 		Where("aipm.input_modalities @> ?::jsonb", `["text"]`)
 }
 
-// lockExecutionKnowledgeBases 校验并锁定托管执行绑定的同企业知识库直至事务结束，须在锁定员工或助理之前调用。
+// lockExecutionKnowledgeBases 校验并锁定托管执行绑定的同企业知识库直至事务结束，须在锁定 AI 员工之前调用。
 func lockExecutionKnowledgeBases(ctx context.Context, db bun.IDB, organizationID string, input ExecutionInput) error {
 	if input.Managed == nil || len(input.Managed.KnowledgeBaseIDs) == 0 {
 		return nil

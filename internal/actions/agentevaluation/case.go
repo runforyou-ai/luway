@@ -225,7 +225,7 @@ func normalizeCaseInput(agent *servermodels.Agent, input CaseInput) (CaseInput, 
 	return input, nil
 }
 
-// lockEvaluatedAgent 锁定当前企业中有服务对象的 AI 员工，助理与没有服务对象的 AI 员工视为不存在。
+// lockEvaluatedAgent 锁定当前企业中有服务对象的 AI 员工，个人 AI 员工与没有服务对象的 AI 员工视为不存在。
 func lockEvaluatedAgent(ctx context.Context, tx bun.Tx, organizationID, agentID string) (*servermodels.Agent, error) {
 	return scanEvaluatedAgent(ctx, tx, organizationID, agentID, true)
 }

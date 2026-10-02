@@ -6,7 +6,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
-// AgentExecutionMode 表示 AI 员工与助理的执行方式。
+// AgentExecutionMode 表示 AI 员工的执行方式。
 type AgentExecutionMode string
 
 const (
@@ -41,7 +41,7 @@ type UpdateAgentInput struct {
 	AvatarFileID      string            `json:"avatarFileId"`
 }
 
-// AgentExecutionInput 定义执行配置输入，按执行方式填写 managed 或 localAgent；localAgent 只用于助理。
+// AgentExecutionInput 定义执行配置输入，按执行方式填写 managed 或 localAgent；localAgent 只用于个人 AI 员工。
 type AgentExecutionInput struct {
 	Mode       AgentExecutionMode             `json:"mode"`
 	Managed    *AgentManagedExecutionInput    `json:"managed,omitempty"`
@@ -121,17 +121,26 @@ type Agent struct {
 	CreatedAt        time.Time            `json:"createdAt"`
 }
 
-// AgentListItem 定义 AI 员工目录项。
+// AgentListItem 定义 AI 员工目录项，Personal 只在个人 AI 员工上有值。
 type AgentListItem struct {
-	ID          string                `json:"id"`
-	IdentityID  string                `json:"identityId"`
-	DisplayName string                `json:"displayName"`
-	AvatarURL   string                `json:"avatarUrl"`
-	Status      UserStatus            `json:"status"`
-	WorkStatus  WorkStatus            `json:"workStatus"`
-	Teams       []TeamSummary         `json:"teams"`
-	Execution   AgentExecutionSummary `json:"execution"`
-	CreatedAt   time.Time             `json:"createdAt"`
+	ID               string                 `json:"id"`
+	IdentityID       string                 `json:"identityId"`
+	DisplayName      string                 `json:"displayName"`
+	AvatarURL        string                 `json:"avatarUrl"`
+	ServiceAudiences []ServiceAudience      `json:"serviceAudiences"`
+	Status           UserStatus             `json:"status"`
+	WorkStatus       WorkStatus             `json:"workStatus"`
+	Teams            []TeamSummary          `json:"teams"`
+	Execution        AgentExecutionSummary  `json:"execution"`
+	Personal         *AgentListPersonalItem `json:"personal,omitempty"`
+	CreatedAt        time.Time              `json:"createdAt"`
+}
+
+// AgentListPersonalItem 定义个人 AI 员工目录项的绑定电脑与在线状态。
+type AgentListPersonalItem struct {
+	DeviceID   string                `json:"deviceId"`
+	DeviceName string                `json:"deviceName"`
+	Presence   PersonalAgentPresence `json:"presence"`
 }
 
 // AgentExecution 定义当前生效的执行配置。

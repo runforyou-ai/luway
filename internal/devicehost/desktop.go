@@ -149,7 +149,7 @@ func (d *Desktop) RemoveLocalMCPServer(_ context.Context, meta appservice.Reques
 	return nil
 }
 
-// RemoveLocalSkill 删除助理安装的技能。
+// RemoveLocalSkill 删除个人 AI 员工安装的技能。
 func (d *Desktop) RemoveLocalSkill(ctx context.Context, meta appservice.RequestMeta, name string) error {
 	removed, err := d.skills.Remove(ctx, name)
 	if err != nil {
@@ -195,7 +195,7 @@ func NewDesktop(store Store, client DesktopClient, sessions *clientsession.Manag
 		slog.Error("创建本机 Agent 运行时失败，本机设备不注册", "error", err)
 		return nil
 	}
-	// 无法确定文档目录时默认文件夹放在系统临时目录下，助理照常运行。
+	// 无法确定文档目录时默认文件夹放在系统临时目录下，个人 AI 员工照常运行。
 	documents, err := DocumentsDir()
 	if err != nil {
 		slog.Warn("无法确定用户文档目录，会话默认文件夹改放在临时目录", "error", err)

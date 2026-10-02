@@ -16,23 +16,23 @@ const (
 	revisionKnowledgeBaseIDs = "knowledgeBaseIds"
 )
 
-// RemoveMCPServerFromRevisions 在已锁定服务的事务内为引用该服务的 AI 员工与助理创建移除该服务的新版本，保留历史配置。
+// RemoveMCPServerFromRevisions 在已锁定服务的事务内为引用该服务的 AI 员工创建移除该服务的新版本，保留历史配置。
 func RemoveMCPServerFromRevisions(ctx context.Context, tx bun.Tx, identity *servermodels.Identity, mcpServerID string) (int, error) {
 	return removeRevisionReference(ctx, tx, identity, revisionMCPServerIDs, mcpServerID, false)
 }
 
-// RemoveMCPServerFromAssistants 在已锁定服务的事务内为引用该服务的助理创建移除该服务的新版本，用于服务改为按客户查询时。
-func RemoveMCPServerFromAssistants(ctx context.Context, tx bun.Tx, identity *servermodels.Identity, mcpServerID string) (int, error) {
+// RemoveMCPServerFromPersonalAgents 在已锁定服务的事务内为引用该服务的个人 AI 员工创建移除该服务的新版本，用于服务改为按客户查询时。
+func RemoveMCPServerFromPersonalAgents(ctx context.Context, tx bun.Tx, identity *servermodels.Identity, mcpServerID string) (int, error) {
 	return removeRevisionReference(ctx, tx, identity, revisionMCPServerIDs, mcpServerID, true)
 }
 
-// RemoveKnowledgeBaseFromRevisions 在已锁定知识库的事务内为引用该知识库的 AI 员工与助理创建移除该知识库的新版本，保留历史配置。
+// RemoveKnowledgeBaseFromRevisions 在已锁定知识库的事务内为引用该知识库的 AI 员工创建移除该知识库的新版本，保留历史配置。
 func RemoveKnowledgeBaseFromRevisions(ctx context.Context, tx bun.Tx, identity *servermodels.Identity, knowledgeBaseID string) (int, error) {
 	return removeRevisionReference(ctx, tx, identity, revisionKnowledgeBaseIDs, knowledgeBaseID, false)
 }
 
-// removeRevisionReference 为当前版本的 key 数组引用 referenceID 的 AI 员工或助理创建移除该引用的新版本，assistantsOnly 为 true 时只处理助理。
-func removeRevisionReference(ctx context.Context, tx bun.Tx, identity *servermodels.Identity, key, referenceID string, assistantsOnly bool) (int, error) {
+// removeRevisionReference 为当前版本的 key 数组引用 referenceID 的 AI 员工创建移除该引用的新版本，personalOnly 为 true 时只处理个人 AI 员工。
+func removeRevisionReference(ctx context.Context, tx bun.Tx, identity *servermodels.Identity, key, referenceID string, personalOnly bool) (int, error) {
 	// 被引用记录的锁阻止新增引用，先确定候选员工，再按固定顺序锁定。
 	revisions := tx.NewSelect().Model((*servermodels.AgentRevision)(nil)).Column("id").
 		Where("organization_id = ?", identity.Organization.ID).
@@ -40,8 +40,8 @@ func removeRevisionReference(ctx context.Context, tx bun.Tx, identity *servermod
 	candidates := tx.NewSelect().Model((*servermodels.Agent)(nil)).Column("id").
 		Where("a.organization_id = ?", identity.Organization.ID).
 		Where("a.active_revision_id IN (?)", revisions)
-	if assistantsOnly {
-		candidates = candidates.Where("a.owner_user_id IS NOT NULL")
+	if personalOnly {
+		candidates = candidates.Where(personalAgentCondition)
 	}
 	var agentIDs []string
 	if err := candidates.Scan(ctx, &agentIDs); err != nil {

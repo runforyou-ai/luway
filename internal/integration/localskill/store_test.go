@@ -54,7 +54,7 @@ func TestParseLenient(t *testing.T) {
 // TestListPrecedenceAndSkips 验证重名时取优先级高的目录，缺少简介或无法解析的技能被跳过，名称缺失时使用文件夹名。
 func TestListPrecedenceAndSkips(t *testing.T) {
 	store, dirs := testStore(t)
-	writeSkill(t, dirs[0].Path, "xlsx", "---\nname: xlsx\ndescription: 助理安装的表格技能\n---\n正文")
+	writeSkill(t, dirs[0].Path, "xlsx", "---\nname: xlsx\ndescription: 个人 AI 员工安装的表格技能\n---\n正文")
 	writeSkill(t, dirs[1].Path, "xlsx", "---\nname: xlsx\ndescription: 被覆盖的表格技能\n---\n")
 	writeSkill(t, dirs[1].Path, "broken", "---\nname: [broken\n---\n")
 	writeSkill(t, dirs[1].Path, "empty", "---\nname: empty\n---\n")
@@ -67,7 +67,7 @@ func TestListPrecedenceAndSkips(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(skills) != 2 || skills[0].Name != "docx" || skills[0].Source != SourceClaude ||
-		skills[1].Name != "xlsx" || skills[1].Description != "助理安装的表格技能" || skills[1].Source != SourceManaged {
+		skills[1].Name != "xlsx" || skills[1].Description != "个人 AI 员工安装的表格技能" || skills[1].Source != SourceManaged {
 		t.Fatalf("技能列表不符: %+v", skills)
 	}
 	skill, body, err := store.Load(context.Background(), "xlsx")
@@ -76,7 +76,7 @@ func TestListPrecedenceAndSkips(t *testing.T) {
 	}
 }
 
-// TestInstallFromLocalFolderAndRemove 验证从本机文件夹安装、同名替换，以及只删除助理安装目录中的技能。
+// TestInstallFromLocalFolderAndRemove 验证从本机文件夹安装、同名替换，以及只删除个人 AI 员工安装目录中的技能。
 func TestInstallFromLocalFolderAndRemove(t *testing.T) {
 	store, dirs := testStore(t)
 	source := t.TempDir()

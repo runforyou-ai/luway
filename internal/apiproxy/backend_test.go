@@ -460,7 +460,7 @@ func TestConversationAvatarURLs(t *testing.T) {
 	}
 }
 
-// TestDirectoryAvatarURLs 验证成员、AI 员工、AI 员工服务记录、同事目录、团队成员、联系人、助理和客服负责人响应按连接地址补全本地头像地址并保留对象存储地址。
+// TestDirectoryAvatarURLs 验证成员、AI 员工、AI 员工服务记录、同事目录、团队成员、联系人、个人 AI 员工和客服负责人响应按连接地址补全本地头像地址并保留对象存储地址。
 func TestDirectoryAvatarURLs(t *testing.T) {
 	const serverURL = "https://company.example.com/app"
 	const avatarPath = "/storage/avatar.png"
@@ -484,9 +484,9 @@ func TestDirectoryAvatarURLs(t *testing.T) {
 			members := appservice.TeamMemberList{Members: []appservice.TeamMember{{AvatarURL: sourceURL}}}
 			contact := appservice.Contact{AvatarURL: sourceURL}
 			contacts := appservice.ContactList{Contacts: []appservice.ContactSummary{{AvatarURL: sourceURL}}}
-			assistants := appservice.AssistantList{Assistants: []appservice.Assistant{{AvatarURL: sourceURL}}}
+			personalAgents := appservice.PersonalAgentList{PersonalAgents: []appservice.PersonalAgent{{AvatarURL: sourceURL}}}
 			assignees := appservice.ServiceAssigneeList{Assignees: []appservice.InboxAssignee{{AvatarURL: sourceURL}}}
-			for _, output := range []any{&user, &users, &agent, &agents, &records, &colleagues, &members, &contact, &contacts, &assistants, &assignees} {
+			for _, output := range []any{&user, &users, &agent, &agents, &records, &colleagues, &members, &contact, &contacts, &personalAgents, &assignees} {
 				resolveFileURLs(output, base)
 			}
 			for name, got := range map[string]string{
@@ -494,7 +494,7 @@ func TestDirectoryAvatarURLs(t *testing.T) {
 				"records":    records.Sessions[0].RequesterAvatarURL,
 				"colleagues": colleagues.Colleagues[0].AvatarURL,
 				"members":    members.Members[0].AvatarURL, "contact": contact.AvatarURL, "contacts": contacts.Contacts[0].AvatarURL,
-				"assistants": assistants.Assistants[0].AvatarURL, "assignees": assignees.Assignees[0].AvatarURL,
+				"personalAgents": personalAgents.PersonalAgents[0].AvatarURL, "assignees": assignees.Assignees[0].AvatarURL,
 			} {
 				if got != want {
 					t.Fatalf("%s avatar=%q, want=%q", name, got, want)

@@ -184,7 +184,7 @@ for (const attachment of [false, true]) test(`移动端首发后线程与输入�
     "@/components/ui/button": { Button: Box },
     "@/components/loading-indicator": { LoadingIndicator: Box },
     "@/components/ui/dropdown-menu": { DropdownMenu: Box, DropdownMenuContent: Box, DropdownMenuItem: Box, DropdownMenuTrigger: Box },
-    "@/features/inbox/agent-run-status": { assistantUnavailableLabel: () => "" },
+    "@/features/inbox/agent-run-status": { personalAgentUnavailableLabel: () => "" },
     "@/features/inbox/use-conversation-summary": { useConversationSummary: () => ({ data: undefined, loading: true }) },
     "@/features/inbox/use-account-disabled-reason": { useAccountDisabledReason: () => "" },
     "@/features/inbox/use-conversation-typing": { useConversationTypingLabel: () => "" },

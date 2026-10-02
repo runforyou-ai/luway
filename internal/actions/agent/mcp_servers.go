@@ -11,7 +11,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// MCPServerOption 定义 AI 员工与助理配置使用的 MCP 服务选项。
+// MCPServerOption 定义 AI 员工配置使用的 MCP 服务选项。
 type MCPServerOption struct {
 	ID             string
 	Name           string

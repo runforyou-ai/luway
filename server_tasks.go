@@ -86,14 +86,14 @@ func registerServerTasks(deps serverTaskDeps) error {
 		deps.tasks.RegisterSchedule(maintenanceSchedule(customernotify.ScheduleKey, customernotify.ScanActionName, "@every 30s"))
 	}
 
-	// Agent 运行执行、会话标题、助理记忆、退回转人工与评测回放；设备运行收敛扫描每 15 秒把租约过期或失去执行条件的设备运行标记失败。
+	// Agent 运行执行、会话标题、AI 员工记忆、退回转人工与评测回放；设备运行收敛扫描每 15 秒把租约过期或失去执行条件的设备运行标记失败。
 	agentEvaluation := agentevaluationaction.NewWorker(db, deps.agentRun, decider)
 	agentChatTitle := agentrunaction.NewGenerateAgentChatTitleAction(db, deps.agentRuntime)
-	assistantMemory := agentrunaction.NewExtractAssistantMemoryAction(db, deps.tasks, deps.agentRuntime)
+	agentMemory := agentrunaction.NewExtractAgentMemoryAction(db, deps.tasks, deps.agentRuntime)
 	if err := errors.Join(
 		registry.RegisterJSONWithTerminalFailure(agentrunaction.RunActionName, deps.agentRun.Execute, deps.agentRun.FinalizeFailure),
 		registry.RegisterJSON(agentrunaction.AgentChatTitleActionName, agentChatTitle.Execute),
-		registry.RegisterJSON(agentrunaction.AssistantMemoryActionName, assistantMemory.Execute),
+		registry.RegisterJSON(agentrunaction.AgentMemoryActionName, agentMemory.Execute),
 		registry.RegisterJSONWithTerminalFailure(agentrunaction.ReturnedHandoffActionName, deps.agentRun.HandOffReturnedSession, deps.agentRun.FinalizeReturnedHandoffFailure),
 		registry.RegisterJSON(agentrunaction.DeviceRunSweepActionName, deps.agentRun.SweepDeviceRuns),
 		registry.RegisterJSONWithTerminalFailure(agentevaluationaction.EvaluateActionName, agentEvaluation.Evaluate, agentEvaluation.FinalizeFailure),

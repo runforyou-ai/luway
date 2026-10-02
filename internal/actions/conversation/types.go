@@ -45,10 +45,10 @@ const (
 	ConflictReasonReplyTargetInvalid = "reply_target_invalid"
 	// ConflictReasonAttachmentTooLarge 表示附件超过来源渠道的字节上限。
 	ConflictReasonAttachmentTooLarge = "attachment_too_large"
-	// ConflictReasonAssistantPaused 表示助理已被主人暂停，不接收新请求。
-	ConflictReasonAssistantPaused = "assistant_paused"
-	// ConflictReasonAssistantUnbound 表示助理绑定的电脑已撤销，主人换到新电脑前不接收新请求。
-	ConflictReasonAssistantUnbound = "assistant_unbound"
+	// ConflictReasonPersonalAgentPaused 表示个人 AI 员工已被负责人暂停，不接收新请求。
+	ConflictReasonPersonalAgentPaused = "personal_agent_paused"
+	// ConflictReasonPersonalAgentUnbound 表示个人 AI 员工绑定的电脑已撤销，负责人换到新电脑前不接收新请求。
+	ConflictReasonPersonalAgentUnbound = "personal_agent_unbound"
 	// ConflictReasonPinOrderVersionStale 表示提交的置顶顺序版本不是当前版本。
 	ConflictReasonPinOrderVersionStale = "pin_order_version_stale"
 	// ConflictReasonPinNeighborNotPinned 表示置顶顺序的邻居会话当前不在置顶区。
@@ -70,8 +70,8 @@ type ConversationMessageSender struct {
 	ContactNumber *int64
 	AvatarFileID  *string
 	IdentityType  *domain.OrganizationIdentityType
-	// AssistantOwnerName 是发送者为助理时其主人的名称，其他发送者为空。
-	AssistantOwnerName *string
+	// PersonalResponsibleName 是发送者为个人 AI 员工时其负责人的名称，其他发送者为空。
+	PersonalResponsibleName *string
 }
 
 // ConversationMessageReference 定义引用消息的一层摘要。
@@ -105,8 +105,8 @@ type ConversationMessageSessionStart struct {
 type ConversationSystemEventParticipant struct {
 	IdentityID  string `json:"identityId"`
 	DisplayName string `json:"displayName"`
-	// AssistantOwnerName 是成员为助理时事件写入时其主人的名称，其他成员为空。
-	AssistantOwnerName *string `json:"assistantOwnerName,omitempty"`
+	// PersonalResponsibleName 是成员为个人 AI 员工时事件写入时其负责人的名称，其他成员为空。
+	PersonalResponsibleName *string `json:"personalResponsibleName,omitempty"`
 }
 
 // ConversationSystemEvent 定义会话系统事件及其审计载荷。
@@ -205,8 +205,8 @@ type ConversationPendingAgent struct {
 	IdentityID   string
 	DisplayName  string
 	AvatarFileID *string
-	// AssistantOwnerName 是等待者为助理时其主人的名称，AI 员工为空。
-	AssistantOwnerName *string
+	// PersonalResponsibleName 是等待者为个人 AI 员工时其负责人的名称，其他 AI 员工为空。
+	PersonalResponsibleName *string
 }
 
 // ConversationAgentProcess 定义已完成运行的过程引用和模型用量。
@@ -233,14 +233,14 @@ type AgentRunProcess struct {
 type ConversationAgentRun struct {
 	AgentAvatarFileID *string
 	AgentName         string
-	// AgentAssistantOwnerName 是执行者为助理时其主人的名称，AI 员工为空。
-	AgentAssistantOwnerName *string
-	ID                      string
-	AgentIdentityID         string
-	Status                  domain.AgentRunStatus
-	ErrorCode               *string
-	LastError               *string
-	Process                 *ConversationAgentProcess
+	// AgentPersonalResponsibleName 是执行者为个人 AI 员工时其负责人的名称，其他 AI 员工为空。
+	AgentPersonalResponsibleName *string
+	ID                           string
+	AgentIdentityID              string
+	Status                       domain.AgentRunStatus
+	ErrorCode                    *string
+	LastError                    *string
+	Process                      *ConversationAgentProcess
 	// ExecutionDeviceID 是执行该运行的设备编号，服务端执行时为空。
 	ExecutionDeviceID *string
 	// ExecutionDeviceName 是执行该运行的设备名称，服务端执行时为空。

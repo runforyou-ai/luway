@@ -79,9 +79,9 @@ var expectedFrames = map[string]Frame{
 			{Kind: RunStreamSetPlan, Plan: []RunStreamPlanTask{{ID: "1", Subject: "核对退款政策", Status: domain.AgentPlanTaskCompleted}}},
 		},
 	},
-	"run_stream_ended":         RunStreamEnded{RunID: runStreamRunID},
-	"device_work_advanced":     DeviceWorkAdvanced{DeviceID: "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a90", WorkSeq: 9223372036854775807},
-	"assistant_memory_changed": AssistantMemoryChanged{AssistantID: "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a91"},
+	"run_stream_ended":     RunStreamEnded{RunID: runStreamRunID},
+	"device_work_advanced": DeviceWorkAdvanced{DeviceID: "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a90", WorkSeq: 9223372036854775807},
+	"agent_memory_changed": AgentMemoryChanged{AgentID: "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a91"},
 	"workspace_activity": WorkspaceActivity{
 		WorkspaceID: "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a92", Kind: TypeConversationChanged,
 		ConversationID: "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a8b", Changes: domain.ConversationChangeTimeline,

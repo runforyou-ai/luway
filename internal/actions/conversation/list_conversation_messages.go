@@ -29,48 +29,48 @@ type ListConversationMessagesQuery struct {
 }
 
 type conversationMessageRow struct {
-	ReplyUnavailable                bool                             `bun:"reply_unavailable"`
-	ExternalReplyID                 *string                          `bun:"external_reply_id"`
-	ExternalReplyBody               string                           `bun:"external_reply_body"`
-	ExternalReplySenderName         string                           `bun:"external_reply_sender_name"`
-	ClientMessageID                 *string                          `bun:"client_message_id"`
-	ReplyToType                     domain.MessageType               `bun:"reply_to_type"`
-	ID                              string                           `bun:"id"`
-	Type                            string                           `bun:"type"`
-	Visibility                      domain.MessageVisibility         `bun:"visibility"`
-	ReplyToVisibility               domain.MessageVisibility         `bun:"reply_to_visibility"`
-	Body                            string                           `bun:"body"`
-	Language                        *string                          `bun:"language"`
-	SystemEventType                 *string                          `bun:"system_event_type"`
-	SystemEventPayload              json.RawMessage                  `bun:"system_event_payload"`
-	OriginatedAt                    time.Time                        `bun:"originated_at"`
-	MessageSeq                      int64                            `bun:"message_seq"`
-	SourceOrder                     int64                            `bun:"source_order"`
-	CreatedAt                       time.Time                        `bun:"created_at"`
-	SenderSubjectID                 *string                          `bun:"sender_subject_id"`
-	SenderKind                      *string                          `bun:"sender_kind"`
-	SenderSourceID                  *string                          `bun:"sender_source_id"`
-	SenderDisplayName               *string                          `bun:"sender_display_name"`
-	SenderContactNumber             *int64                           `bun:"sender_contact_number"`
-	SenderAvatarFileID              *string                          `bun:"sender_avatar_file_id"`
-	SenderIdentityType              *domain.OrganizationIdentityType `bun:"sender_identity_type"`
-	SenderAssistantOwnerName        *string                          `bun:"sender_assistant_owner_name"`
-	ReplyToMessageID                *string                          `bun:"reply_to_message_id"`
-	MentionAll                      bool                             `bun:"mention_all"`
-	ReplyToDeleted                  bool                             `bun:"reply_to_deleted"`
-	ReplyToBody                     *string                          `bun:"reply_to_body"`
-	ReplyToSenderSubjectID          *string                          `bun:"reply_to_sender_subject_id"`
-	ReplyToSenderKind               *string                          `bun:"reply_to_sender_kind"`
-	ReplyToSenderSourceID           *string                          `bun:"reply_to_sender_source_id"`
-	ReplyToSenderDisplayName        *string                          `bun:"reply_to_sender_display_name"`
-	ReplyToSenderContactNumber      *int64                           `bun:"reply_to_sender_contact_number"`
-	ReplyToSenderAvatarFileID       *string                          `bun:"reply_to_sender_avatar_file_id"`
-	ReplyToSenderIdentityType       *domain.OrganizationIdentityType `bun:"reply_to_sender_identity_type"`
-	ReplyToSenderAssistantOwnerName *string                          `bun:"reply_to_sender_assistant_owner_name"`
-	ServiceSessionOpeningMessageID  *string                          `bun:"service_session_opening_message_id"`
-	ServiceSessionSequence          *int64                           `bun:"service_session_sequence"`
-	ServiceSessionStartedAt         *time.Time                       `bun:"service_session_started_at"`
-	ServiceSessionStatus            *string                          `bun:"service_session_status"`
+	ReplyUnavailable                     bool                             `bun:"reply_unavailable"`
+	ExternalReplyID                      *string                          `bun:"external_reply_id"`
+	ExternalReplyBody                    string                           `bun:"external_reply_body"`
+	ExternalReplySenderName              string                           `bun:"external_reply_sender_name"`
+	ClientMessageID                      *string                          `bun:"client_message_id"`
+	ReplyToType                          domain.MessageType               `bun:"reply_to_type"`
+	ID                                   string                           `bun:"id"`
+	Type                                 string                           `bun:"type"`
+	Visibility                           domain.MessageVisibility         `bun:"visibility"`
+	ReplyToVisibility                    domain.MessageVisibility         `bun:"reply_to_visibility"`
+	Body                                 string                           `bun:"body"`
+	Language                             *string                          `bun:"language"`
+	SystemEventType                      *string                          `bun:"system_event_type"`
+	SystemEventPayload                   json.RawMessage                  `bun:"system_event_payload"`
+	OriginatedAt                         time.Time                        `bun:"originated_at"`
+	MessageSeq                           int64                            `bun:"message_seq"`
+	SourceOrder                          int64                            `bun:"source_order"`
+	CreatedAt                            time.Time                        `bun:"created_at"`
+	SenderSubjectID                      *string                          `bun:"sender_subject_id"`
+	SenderKind                           *string                          `bun:"sender_kind"`
+	SenderSourceID                       *string                          `bun:"sender_source_id"`
+	SenderDisplayName                    *string                          `bun:"sender_display_name"`
+	SenderContactNumber                  *int64                           `bun:"sender_contact_number"`
+	SenderAvatarFileID                   *string                          `bun:"sender_avatar_file_id"`
+	SenderIdentityType                   *domain.OrganizationIdentityType `bun:"sender_identity_type"`
+	SenderPersonalResponsibleName        *string                          `bun:"sender_personal_responsible_name"`
+	ReplyToMessageID                     *string                          `bun:"reply_to_message_id"`
+	MentionAll                           bool                             `bun:"mention_all"`
+	ReplyToDeleted                       bool                             `bun:"reply_to_deleted"`
+	ReplyToBody                          *string                          `bun:"reply_to_body"`
+	ReplyToSenderSubjectID               *string                          `bun:"reply_to_sender_subject_id"`
+	ReplyToSenderKind                    *string                          `bun:"reply_to_sender_kind"`
+	ReplyToSenderSourceID                *string                          `bun:"reply_to_sender_source_id"`
+	ReplyToSenderDisplayName             *string                          `bun:"reply_to_sender_display_name"`
+	ReplyToSenderContactNumber           *int64                           `bun:"reply_to_sender_contact_number"`
+	ReplyToSenderAvatarFileID            *string                          `bun:"reply_to_sender_avatar_file_id"`
+	ReplyToSenderIdentityType            *domain.OrganizationIdentityType `bun:"reply_to_sender_identity_type"`
+	ReplyToSenderPersonalResponsibleName *string                          `bun:"reply_to_sender_personal_responsible_name"`
+	ServiceSessionOpeningMessageID       *string                          `bun:"service_session_opening_message_id"`
+	ServiceSessionSequence               *int64                           `bun:"service_session_sequence"`
+	ServiceSessionStartedAt              *time.Time                       `bun:"service_session_started_at"`
+	ServiceSessionStatus                 *string                          `bun:"service_session_status"`
 }
 
 // NewListConversationMessagesQuery 创建成员消息历史查询。
@@ -165,7 +165,7 @@ func conversationMessagesQuery(db bun.IDB, identity *servermodels.Identity, conv
 		ColumnExpr("c.number AS sender_contact_number").
 		ColumnExpr("CASE WHEN cs.kind = ? THEN cci.avatar_file_id ELSE oi.avatar_file_id END::text AS sender_avatar_file_id", domain.ChatSubjectKindContact).
 		ColumnExpr("oi.type AS sender_identity_type").
-		ColumnExpr("? AS sender_assistant_owner_name", AssistantOwnerName("oi")).
+		ColumnExpr("? AS sender_personal_responsible_name", PersonalResponsibleName("oi")).
 		ColumnExpr("msg.reply_to_message_id AS reply_to_message_id").
 		ColumnExpr("msg.mention_all AS mention_all").
 		ColumnExpr("? AS reply_to_body", messagequery.Summary("reply_msg")).
@@ -177,7 +177,7 @@ func conversationMessagesQuery(db bun.IDB, identity *servermodels.Identity, conv
 		ColumnExpr("reply_c.number AS reply_to_sender_contact_number").
 		ColumnExpr("CASE WHEN reply_cs.kind = ? THEN reply_cci.avatar_file_id ELSE reply_oi.avatar_file_id END::text AS reply_to_sender_avatar_file_id", domain.ChatSubjectKindContact).
 		ColumnExpr("reply_oi.type AS reply_to_sender_identity_type").
-		ColumnExpr("? AS reply_to_sender_assistant_owner_name", AssistantOwnerName("reply_oi")).
+		ColumnExpr("? AS reply_to_sender_personal_responsible_name", PersonalResponsibleName("reply_oi")).
 		ColumnExpr("ss.opening_message_id AS service_session_opening_message_id").
 		ColumnExpr("ss.sequence AS service_session_sequence").
 		ColumnExpr("ss.created_at AS service_session_started_at").
@@ -383,7 +383,7 @@ func buildConversationMessageHistory(rows []conversationMessageRow) (Conversatio
 				Kind:          domain.ChatSubjectKind(*row.SenderKind),
 				SourceID:      *row.SenderSourceID,
 				DisplayName:   row.SenderDisplayName, ContactNumber: row.SenderContactNumber, AvatarFileID: row.SenderAvatarFileID, IdentityType: row.SenderIdentityType,
-				AssistantOwnerName: row.SenderAssistantOwnerName,
+				PersonalResponsibleName: row.SenderPersonalResponsibleName,
 			}
 		}
 		if row.ReplyToMessageID == nil && row.ExternalReplyID != nil {
@@ -402,7 +402,7 @@ func buildConversationMessageHistory(rows []conversationMessageRow) (Conversatio
 					Kind:          domain.ChatSubjectKind(*row.ReplyToSenderKind),
 					SourceID:      *row.ReplyToSenderSourceID,
 					DisplayName:   row.ReplyToSenderDisplayName, ContactNumber: row.ReplyToSenderContactNumber, AvatarFileID: row.ReplyToSenderAvatarFileID, IdentityType: row.ReplyToSenderIdentityType,
-					AssistantOwnerName: row.ReplyToSenderAssistantOwnerName,
+					PersonalResponsibleName: row.ReplyToSenderPersonalResponsibleName,
 				},
 			}
 		}

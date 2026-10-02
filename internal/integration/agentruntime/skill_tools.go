@@ -43,11 +43,11 @@ const skillToolDesc = `加载一个技能的完整说明，按说明完成任务
 // forkSkillNote 标在交给子 Agent 执行的技能简介之后。
 const forkSkillNote = "（独立执行：由子 Agent 完成，它看不到本次对话，调用时在 args 写清用户的目标、已知信息和相关文件路径）"
 
-const installSkillToolDesc = `把技能安装到这台电脑，这台电脑上主人的所有助理共用；安装后当前运行即可用 skill 加载。
+const installSkillToolDesc = `把技能安装到这台电脑，这台电脑上负责人的所有个人 AI 员工共用；安装后当前运行即可用 skill 加载。
 - source 可以是 GitHub 简写 owner/repo，可跟仓库内路径（如 anthropics/skills/skills/xlsx）；GitHub 仓库或目录地址；zip、tar.gz 压缩包或 SKILL.md 的地址；本机的绝对路径。
 - 来源包含多个技能时用 skill 指定要安装的技能名称；同名技能会被替换。`
 
-const removeSkillToolDesc = `删除助理安装在这台电脑上的技能。当前可删除：%s。其他 AI 工具安装的技能不能删除。`
+const removeSkillToolDesc = `删除个人 AI 员工安装在这台电脑上的技能。当前可删除：%s。其他 AI 工具安装的技能不能删除。`
 
 // installSkillArgs 是安装技能的参数。
 type installSkillArgs struct {
@@ -239,7 +239,7 @@ func newSkillTools(ctx context.Context, request RunRequest, hub skill.TypedAgent
 	if err != nil {
 		return nil, nil, fmt.Errorf("list local skills: %w", err)
 	}
-	// 删除工具的说明列出助理安装的技能。
+	// 删除工具的说明列出个人 AI 员工安装的技能。
 	var removable []string
 	for _, item := range skills {
 		if item.Source == localskill.SourceManaged {

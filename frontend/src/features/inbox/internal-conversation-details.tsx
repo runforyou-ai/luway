@@ -2,13 +2,12 @@
 import { useTranslation } from "react-i18next"
 
 import {
-  OrganizationIdentityType,
   isAgentInboxConversation,
   isDirectInboxConversation,
   type InboxConversationData,
-  type MemberOption,
 } from "@/api"
 import { agentRunStatusLabel } from "@/features/inbox/agent-run-status"
+import type { ChatTarget } from "@/features/inbox/list-all-member-options"
 import {
   SidePanelField,
   type ProfileField,
@@ -22,7 +21,7 @@ export function InternalConversationDetails({
   field: Field = SidePanelField,
 }: {
   conversation: InboxConversationData | null
-  directTarget?: MemberOption | null
+  directTarget?: ChatTarget | null
   field?: ProfileField
 }) {
   const { t } = useTranslation("inbox")
@@ -34,11 +33,11 @@ export function InternalConversationDetails({
     conversation && isAgentInboxConversation(conversation)
       ? conversation.agent
       : null
-  const peerType = agent?.agentType ?? direct?.peerType ?? directTarget?.type
+  const personal = agent ? agent.personalPresence !== null : Boolean(directTarget?.personal)
   const identityType =
-    peerType === OrganizationIdentityType.OrganizationIdentityTypeAssistant
-      ? t("contextIdentityAssistant")
-      : isAIIdentityType(peerType)
+    personal
+      ? t("contextIdentityPersonalAgent")
+      : agent || isAIIdentityType(direct?.peerType ?? directTarget?.type)
         ? t("contextIdentityAgent")
         : t("contextIdentityMember")
   const agentStatus = agentRunStatusLabel(agent?.agentRunStatus ?? null, t)

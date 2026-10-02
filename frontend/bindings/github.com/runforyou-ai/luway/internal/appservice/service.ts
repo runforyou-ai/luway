@@ -164,13 +164,6 @@ export function CreateAgentEvaluationCase(meta: $models.RequestMeta, agentID: st
 }
 
 /**
- * CreateAssistant 在当前成员的电脑上创建助理。
- */
-export function CreateAssistant(meta: $models.RequestMeta, input: $models.CreateAssistantInput): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(3636175659, meta, input);
-}
-
-/**
  * CreateContact 创建联系人。
  */
 export function CreateContact(meta: $models.RequestMeta, input: $models.ContactInput): $CancellablePromise<$models.Contact> {
@@ -269,6 +262,13 @@ export function CreateMessageChannel(meta: $models.RequestMeta, input: $models.C
 }
 
 /**
+ * CreatePersonalAgent 在当前成员的电脑上创建个人 AI 员工。
+ */
+export function CreatePersonalAgent(meta: $models.RequestMeta, input: $models.CreatePersonalAgentInput): $CancellablePromise<$models.PersonalAgent> {
+    return $Call.ByID(2731714282, meta, input);
+}
+
+/**
  * CreateRole 创建自定义角色。
  */
 export function CreateRole(meta: $models.RequestMeta, input: $models.RoleInput): $CancellablePromise<$models.Role> {
@@ -311,17 +311,17 @@ export function DeactivateAgent(meta: $models.RequestMeta, agentID: string): $Ca
 }
 
 /**
- * DeactivateAssistant 停用助理。
- */
-export function DeactivateAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(1383227397, meta, assistantID);
-}
-
-/**
  * DeactivateMessageChannel 停用消息渠道。
  */
 export function DeactivateMessageChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.MessageChannelSummary> {
     return $Call.ByID(3066563105, meta, channelID);
+}
+
+/**
+ * DeactivatePersonalAgent 停用个人 AI 员工。
+ */
+export function DeactivatePersonalAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.PersonalAgent> {
+    return $Call.ByID(3161127500, meta, agentID);
 }
 
 /**
@@ -346,10 +346,10 @@ export function DeleteAgentEvaluationCase(meta: $models.RequestMeta, agentID: st
 }
 
 /**
- * DeleteAssistantMemory 删除当前成员名下助理的一条记忆。
+ * DeleteAgentMemory 删除当前成员负责的个人 AI 员工的一条记忆。
  */
-export function DeleteAssistantMemory(meta: $models.RequestMeta, assistantID: string, memoryID: string): $CancellablePromise<void> {
-    return $Call.ByID(1854219973, meta, assistantID, memoryID);
+export function DeleteAgentMemory(meta: $models.RequestMeta, agentID: string, memoryID: string): $CancellablePromise<void> {
+    return $Call.ByID(611603524, meta, agentID, memoryID);
 }
 
 /**
@@ -521,13 +521,6 @@ export function GetAgentRunProcess(meta: $models.RequestMeta, runID: string): $C
 }
 
 /**
- * GetAssistant 返回当前成员名下的助理详情。
- */
-export function GetAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.AssistantDetail> {
-    return $Call.ByID(2051304201, meta, assistantID);
-}
-
-/**
  * GetAttachmentDownload 签发当前成员可见消息附件的下载地址。
  */
 export function GetAttachmentDownload(meta: $models.RequestMeta, conversationID: string, messageID: string): $CancellablePromise<$models.FileDownload> {
@@ -640,7 +633,7 @@ export function GetKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseID: 
 }
 
 /**
- * GetLocalEnvironment 返回本机为助理提供的运行环境、本地 MCP 服务与技能。
+ * GetLocalEnvironment 返回本机为个人 AI 员工提供的运行环境、本地 MCP 服务与技能。
  */
 export function GetLocalEnvironment(meta: $models.RequestMeta): $CancellablePromise<$models.LocalEnvironment> {
     return $Call.ByID(4163066327, meta);
@@ -658,6 +651,13 @@ export function GetMCPServer(meta: $models.RequestMeta, mcpServerID: string): $C
  */
 export function GetMessageChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.MessageChannelSummary> {
     return $Call.ByID(965519045, meta, channelID);
+}
+
+/**
+ * GetPersonalAgent 返回当前成员负责的个人 AI 员工详情。
+ */
+export function GetPersonalAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.PersonalAgentDetail> {
+    return $Call.ByID(2947776232, meta, agentID);
 }
 
 /**
@@ -815,6 +815,13 @@ export function ListAgentMCPServerOptions(meta: $models.RequestMeta): $Cancellab
 }
 
 /**
+ * ListAgentMemories 返回当前成员负责的个人 AI 员工的记忆，按最近更新排列。
+ */
+export function ListAgentMemories(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.AgentMemoryList> {
+    return $Call.ByID(500979133, meta, agentID);
+}
+
+/**
  * ListAgentModelOptions 返回 AI 员工可使用的对话模型。
  */
 export function ListAgentModelOptions(meta: $models.RequestMeta): $CancellablePromise<$models.AgentModelOptionList> {
@@ -840,20 +847,6 @@ export function ListAgents(meta: $models.RequestMeta, input: $models.AgentListIn
  */
 export function ListArchivedConversations(meta: $models.RequestMeta, input: $models.ArchivedConversationListInput): $CancellablePromise<$models.ArchivedConversationList> {
     return $Call.ByID(1028818061, meta, input);
-}
-
-/**
- * ListAssistantMemories 返回当前成员名下助理的记忆，按最近更新排列。
- */
-export function ListAssistantMemories(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.AssistantMemoryList> {
-    return $Call.ByID(3503531700, meta, assistantID);
-}
-
-/**
- * ListAssistants 返回当前成员名下的助理。
- */
-export function ListAssistants(meta: $models.RequestMeta): $CancellablePromise<$models.AssistantList> {
-    return $Call.ByID(3267784092, meta);
 }
 
 /**
@@ -976,17 +969,17 @@ export function ListMCPServers(meta: $models.RequestMeta): $CancellablePromise<$
 }
 
 /**
- * ListMemberAssistants 返回指定成员名下的助理。
- */
-export function ListMemberAssistants(meta: $models.RequestMeta, userID: string): $CancellablePromise<$models.AssistantList> {
-    return $Call.ByID(4195768694, meta, userID);
-}
-
-/**
  * ListMemberOptions 返回可分配的企业成员和 AI 员工。
  */
 export function ListMemberOptions(meta: $models.RequestMeta, input: $models.MemberOptionListInput): $CancellablePromise<$models.MemberOptionList> {
     return $Call.ByID(1847239127, meta, input);
+}
+
+/**
+ * ListMemberPersonalAgents 返回指定成员负责的个人 AI 员工。
+ */
+export function ListMemberPersonalAgents(meta: $models.RequestMeta, userID: string): $CancellablePromise<$models.PersonalAgentList> {
+    return $Call.ByID(2329640265, meta, userID);
 }
 
 /**
@@ -1001,6 +994,13 @@ export function ListMessageChannels(meta: $models.RequestMeta): $CancellableProm
  */
 export function ListPendingConversationMentions(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.PendingConversationMentions> {
     return $Call.ByID(683676760, meta, conversationID);
+}
+
+/**
+ * ListPersonalAgents 返回当前成员负责的个人 AI 员工。
+ */
+export function ListPersonalAgents(meta: $models.RequestMeta): $CancellablePromise<$models.PersonalAgentList> {
+    return $Call.ByID(2069829351, meta);
 }
 
 /**
@@ -1172,10 +1172,10 @@ export function MarkConversationRead(meta: $models.RequestMeta, conversationID: 
 }
 
 /**
- * MoveAssistant 把当前成员名下的助理换到指定电脑。
+ * MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
  */
-export function MoveAssistant(meta: $models.RequestMeta, assistantID: string, input: $models.AssistantDeviceInput): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(1093256296, meta, assistantID, input);
+export function MovePersonalAgent(meta: $models.RequestMeta, agentID: string, input: $models.PersonalAgentDeviceInput): $CancellablePromise<$models.PersonalAgent> {
+    return $Call.ByID(635028841, meta, agentID, input);
 }
 
 /**
@@ -1193,10 +1193,10 @@ export function OpenLocalToolchainFolder(meta: $models.RequestMeta): $Cancellabl
 }
 
 /**
- * PauseAssistant 暂停当前成员名下的助理。
+ * PausePersonalAgent 暂停当前成员负责的个人 AI 员工。
  */
-export function PauseAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(2687952635, meta, assistantID);
+export function PausePersonalAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.PersonalAgent> {
+    return $Call.ByID(917712346, meta, agentID);
 }
 
 /**
@@ -1228,10 +1228,10 @@ export function ReactivateAgent(meta: $models.RequestMeta, agentID: string): $Ca
 }
 
 /**
- * ReactivateAssistant 启用已停用的助理。
+ * ReactivatePersonalAgent 启用已停用的个人 AI 员工。
  */
-export function ReactivateAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(86884527, meta, assistantID);
+export function ReactivatePersonalAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.PersonalAgent> {
+    return $Call.ByID(397381654, meta, agentID);
 }
 
 /**
@@ -1333,7 +1333,7 @@ export function RemoveLocalMCPServer(meta: $models.RequestMeta, name: string): $
 }
 
 /**
- * RemoveLocalSkill 删除助理安装在这台电脑上的技能。
+ * RemoveLocalSkill 删除个人 AI 员工安装在这台电脑上的技能。
  */
 export function RemoveLocalSkill(meta: $models.RequestMeta, name: string): $CancellablePromise<void> {
     return $Call.ByID(1310496881, meta, name);
@@ -1396,10 +1396,10 @@ export function RestoreContact(meta: $models.RequestMeta, contactID: string): $C
 }
 
 /**
- * ResumeAssistant 恢复当前成员名下已暂停的助理。
+ * ResumePersonalAgent 恢复当前成员负责的已暂停个人 AI 员工。
  */
-export function ResumeAssistant(meta: $models.RequestMeta, assistantID: string): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(575761658, meta, assistantID);
+export function ResumePersonalAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.PersonalAgent> {
+    return $Call.ByID(963532555, meta, agentID);
 }
 
 /**
@@ -1683,17 +1683,10 @@ export function UpdateAgentExecution(meta: $models.RequestMeta, agentID: string,
 }
 
 /**
- * UpdateAssistant 修改当前成员名下的助理。
+ * UpdateAgentMemory 修改当前成员负责的个人 AI 员工的一条记忆。
  */
-export function UpdateAssistant(meta: $models.RequestMeta, assistantID: string, input: $models.AssistantInput): $CancellablePromise<$models.Assistant> {
-    return $Call.ByID(1125043144, meta, assistantID, input);
-}
-
-/**
- * UpdateAssistantMemory 修改当前成员名下助理的一条记忆。
- */
-export function UpdateAssistantMemory(meta: $models.RequestMeta, assistantID: string, memoryID: string, input: $models.AssistantMemoryInput): $CancellablePromise<$models.AssistantMemory> {
-    return $Call.ByID(3622921035, meta, assistantID, memoryID, input);
+export function UpdateAgentMemory(meta: $models.RequestMeta, agentID: string, memoryID: string, input: $models.AgentMemoryInput): $CancellablePromise<$models.AgentMemory> {
+    return $Call.ByID(1050713778, meta, agentID, memoryID, input);
 }
 
 /**
@@ -1827,6 +1820,13 @@ export function UpdateMessageChannelReception(meta: $models.RequestMeta, channel
  */
 export function UpdateOrganization(meta: $models.RequestMeta, input: $models.OrganizationInput): $CancellablePromise<$models.Organization> {
     return $Call.ByID(570896519, meta, input);
+}
+
+/**
+ * UpdatePersonalAgent 修改当前成员负责的个人 AI 员工。
+ */
+export function UpdatePersonalAgent(meta: $models.RequestMeta, agentID: string, input: $models.PersonalAgentInput): $CancellablePromise<$models.PersonalAgent> {
+    return $Call.ByID(2283001353, meta, agentID, input);
 }
 
 /**

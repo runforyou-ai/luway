@@ -31,10 +31,10 @@ func (e *scriptedMemoryExtractor) ExtractMemory(_ context.Context, request agent
 	return e.result, nil
 }
 
-// testAssistantMemory 验证助理单聊的运行下发记忆、回复后投递提取任务、提取只分析新消息并推进进度，以及主人查看、编辑、删除记忆；提取期间记忆被主人修改或进度被其他任务推进时本次结果作废，重试时基于最新状态提取。
-func testAssistantMemory(t *testing.T, f *deviceRunFixture) {
+// testAgentMemory 验证个人 AI 员工单聊的运行下发记忆、回复后投递提取任务、提取只分析新消息并推进进度，以及负责人查看、编辑、删除记忆；提取期间记忆被负责人修改或进度被其他任务推进时本次结果作废，重试时基于最新状态提取。
+func testAgentMemory(t *testing.T, f *deviceRunFixture) {
 	ctx, db, identity := f.ctx, f.db, f.identity
-	conversationID := f.assistantChat()
+	conversationID := f.personalAgentChat()
 	run := f.sendAndLoadRun(conversationID, "以后周报按客户分组")
 	claim, err := f.executor.ClaimDeviceRun(ctx, f.device, run.ID)
 	if err != nil {
@@ -42,7 +42,7 @@ func testAssistantMemory(t *testing.T, f *deviceRunFixture) {
 	}
 	var assignment agentruntime.Assignment
 	if err := json.Unmarshal(claim.Assignment, &assignment); err != nil || !assignment.Memory {
-		t.Fatalf("assistant chat assignment memory=%v err=%v", assignment.Memory, err)
+		t.Fatalf("personalAgent chat assignment memory=%v err=%v", assignment.Memory, err)
 	}
 	if entries, err := f.executor.LoadDeviceRunMemory(ctx, f.device, run.ID); err != nil || len(entries) != 0 {
 		t.Fatalf("initial memory=%+v err=%v", entries, err)
@@ -51,18 +51,18 @@ func testAssistantMemory(t *testing.T, f *deviceRunFixture) {
 
 	var tasks []servermodels.TaskRun
 	if err := db.NewSelect().Model(&tasks).
-		Where("tr.action_name = ? AND tr.payload->>'conversationId' = ?", agentrunaction.AssistantMemoryActionName, conversationID).
+		Where("tr.action_name = ? AND tr.payload->>'conversationId' = ?", agentrunaction.AgentMemoryActionName, conversationID).
 		Scan(ctx); err != nil || len(tasks) != 1 {
 		t.Fatalf("memory tasks=%d err=%v", len(tasks), err)
 	}
-	var input agentrunaction.AssistantMemoryInput
+	var input agentrunaction.AgentMemoryInput
 	if err := json.Unmarshal(tasks[0].Payload, &input); err != nil {
 		t.Fatal(err)
 	}
 	extractor := &scriptedMemoryExtractor{result: agentruntime.MemoryExtractionResult{Saved: []agentruntime.MemoryEntry{
 		{Path: "report.md", Name: "周报格式", Description: "周报按客户分组", Body: "周报按客户分组整理。"},
 	}}}
-	extract := agentrunaction.NewExtractAssistantMemoryAction(db, f.tasks, extractor)
+	extract := agentrunaction.NewExtractAgentMemoryAction(db, f.tasks, extractor)
 	if err := extract.Execute(ctx, input); err != nil {
 		t.Fatal(err)
 	}
@@ -79,23 +79,23 @@ func testAssistantMemory(t *testing.T, f *deviceRunFixture) {
 		t.Fatalf("repeat extraction calls=%d err=%v", len(extractor.requests), err)
 	}
 
-	memories, err := agentaction.NewListAssistantMemoriesQuery(db).Execute(ctx, identity, f.assistant.ID)
+	memories, err := agentaction.NewListAgentMemoriesQuery(db).Execute(ctx, identity, f.personalAgent.ID)
 	if err != nil || len(memories) != 1 || memories[0].Name != "周报格式" {
 		t.Fatalf("memories=%+v err=%v", memories, err)
 	}
 	other := newChatLockUser(t, db, identity)
-	if _, err := agentaction.NewListAssistantMemoriesQuery(db).Execute(ctx, other, f.assistant.ID); !errors.Is(err, agentaction.ErrAssistantNotFound) {
+	if _, err := agentaction.NewListAgentMemoriesQuery(db).Execute(ctx, other, f.personalAgent.ID); !errors.Is(err, agentaction.ErrPersonalAgentNotFound) {
 		t.Fatalf("other member memories=%v", err)
 	}
-	if _, err := agentaction.NewUpdateAssistantMemoryAction(db).Execute(ctx, identity, f.assistant.ID, memories[0].ID, agentaction.AssistantMemoryInput{Name: "", Description: "x", Body: "x"}); err == nil {
+	if _, err := agentaction.NewUpdateAgentMemoryAction(db).Execute(ctx, identity, f.personalAgent.ID, memories[0].ID, agentaction.AgentMemoryInput{Name: "", Description: "x", Body: "x"}); err == nil {
 		t.Fatal("empty memory name accepted")
 	}
 
-	// 第二轮只分析新消息；提取期间主人修改了记忆，本次结果作废，重试时基于主人的版本提取，主人的修改保留。
+	// 第二轮只分析新消息；提取期间负责人修改了记忆，本次结果作废，重试时基于负责人的版本提取，负责人的修改保留。
 	second := f.sendAndLoadRun(conversationID, "我下周去上海出差")
 	f.claimAndComplete(second.ID, "记下了")
 	extractor.during = func() {
-		if _, err := agentaction.NewUpdateAssistantMemoryAction(db).Execute(ctx, identity, f.assistant.ID, memories[0].ID, agentaction.AssistantMemoryInput{
+		if _, err := agentaction.NewUpdateAgentMemoryAction(db).Execute(ctx, identity, f.personalAgent.ID, memories[0].ID, agentaction.AgentMemoryInput{
 			Name: "周报要求", Description: "周报按客户分组并附风险", Body: "周报按客户分组，每组附风险。",
 		}); err != nil {
 			t.Error(err)
@@ -109,7 +109,7 @@ func testAssistantMemory(t *testing.T, f *deviceRunFixture) {
 	}
 	extractor.during = nil
 	extractor.result = agentruntime.MemoryExtractionResult{Saved: []agentruntime.MemoryEntry{
-		{Path: "travel.md", Name: "出差安排", Description: "主人下周去上海", Body: "主人下周去上海出差。"},
+		{Path: "travel.md", Name: "出差安排", Description: "负责人下周去上海", Body: "负责人下周去上海出差。"},
 	}}
 	if err := extract.Execute(ctx, input); err != nil {
 		t.Fatal(err)
@@ -119,7 +119,7 @@ func testAssistantMemory(t *testing.T, f *deviceRunFixture) {
 		len(request.Entries) != 1 || request.Entries[0].Name != "周报要求" {
 		t.Fatalf("retried second extraction=%+v", request)
 	}
-	memories, err = agentaction.NewListAssistantMemoriesQuery(db).Execute(ctx, identity, f.assistant.ID)
+	memories, err = agentaction.NewListAgentMemoriesQuery(db).Execute(ctx, identity, f.personalAgent.ID)
 	if err != nil || len(memories) != 2 {
 		t.Fatalf("memories after second extraction=%+v err=%v", memories, err)
 	}
@@ -150,7 +150,7 @@ func testAssistantMemory(t *testing.T, f *deviceRunFixture) {
 	if err := extract.Execute(ctx, input); err == nil {
 		t.Fatal("overlapping extraction committed")
 	}
-	if listed, err := agentaction.NewListAssistantMemoriesQuery(db).Execute(ctx, identity, f.assistant.ID); err != nil || len(listed) != 2 {
+	if listed, err := agentaction.NewListAgentMemoriesQuery(db).Execute(ctx, identity, f.personalAgent.ID); err != nil || len(listed) != 2 {
 		t.Fatalf("memories after overlapping extraction=%+v err=%v", listed, err)
 	}
 	extractor.during = nil
@@ -163,7 +163,7 @@ func testAssistantMemory(t *testing.T, f *deviceRunFixture) {
 		t.Fatalf("retried extraction=%+v", last)
 	}
 
-	// 新运行读到当前记忆；主人删除后不再出现。
+	// 新运行读到当前记忆；负责人删除后不再出现。
 	third := f.sendAndLoadRun(conversationID, "安排行程")
 	if _, err := f.executor.ClaimDeviceRun(ctx, f.device, third.ID); err != nil {
 		t.Fatal(err)
@@ -173,7 +173,7 @@ func testAssistantMemory(t *testing.T, f *deviceRunFixture) {
 		t.Fatalf("run memory=%+v err=%v", entries, err)
 	}
 	for _, memory := range memories {
-		if err := agentaction.NewDeleteAssistantMemoryAction(db).Execute(ctx, identity, f.assistant.ID, memory.ID); err != nil {
+		if err := agentaction.NewDeleteAgentMemoryAction(db).Execute(ctx, identity, f.personalAgent.ID, memory.ID); err != nil {
 			t.Fatal(err)
 		}
 	}

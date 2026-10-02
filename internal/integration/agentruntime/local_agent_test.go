@@ -157,7 +157,7 @@ func TestRunLocalAgentRecordsProcessAndReply(t *testing.T) {
 	}}
 	var deltas []runstream.Delta
 	result, err := RunLocalAgent(context.Background(), LocalAgentRequest{
-		RunID: "run-1", StreamID: "stream-1", Attempt: 1, Assignment: Assignment{Instruction: "你是助理。", LocalAgent: domain.LocalAgentKindCodex},
+		RunID: "run-1", StreamID: "stream-1", Attempt: 1, Assignment: Assignment{Instruction: "你是个人 AI 员工。", LocalAgent: domain.LocalAgentKindCodex},
 		Dir: t.TempDir(), Start: agent.start(), OnStream: func(delta runstream.Delta) { deltas = append(deltas, delta) },
 	}, &scriptedFeed{batches: [][]Message{{{ID: "m1", Role: MessageRoleUser, Content: "看看文件夹"}}}})
 	if err != nil {
@@ -176,7 +176,7 @@ func TestRunLocalAgentRecordsProcessAndReply(t *testing.T) {
 	if len(result.Plan) != 1 || result.Plan[0].Status != domain.AgentPlanTaskCompleted {
 		t.Fatalf("plan = %+v", result.Plan)
 	}
-	if len(agent.prompts) != 1 || !strings.HasPrefix(agent.prompts[0], "你是助理。") || !strings.Contains(agent.prompts[0], "看看文件夹") {
+	if len(agent.prompts) != 1 || !strings.HasPrefix(agent.prompts[0], "你是个人 AI 员工。") || !strings.Contains(agent.prompts[0], "看看文件夹") {
 		t.Fatalf("prompts = %q", agent.prompts)
 	}
 	if len(deltas) == 0 || deltas[0].BaseSequence != 0 || deltas[len(deltas)-1].Sequence != int64(len(deltas)) {
@@ -200,7 +200,7 @@ func TestRunLocalAgentContinuesWithNewInputs(t *testing.T) {
 		{{ID: "m2", Role: MessageRoleUser, Content: "补充一句"}},
 	}}
 	result, err := RunLocalAgent(context.Background(), LocalAgentRequest{
-		RunID: "run-1", Assignment: Assignment{Instruction: "你是助理。"}, Dir: t.TempDir(), Start: agent.start(),
+		RunID: "run-1", Assignment: Assignment{Instruction: "你是个人 AI 员工。"}, Dir: t.TempDir(), Start: agent.start(),
 	}, feed)
 	if err != nil {
 		t.Fatalf("RunLocalAgent() error = %v", err)
@@ -208,7 +208,7 @@ func TestRunLocalAgentContinuesWithNewInputs(t *testing.T) {
 	if result.Content != "第二轮" || result.EndSeq != 2 || len(result.Blocks) != 1 || result.Blocks[0].Payload.Text != "第一轮" {
 		t.Fatalf("RunLocalAgent() = %+v", result)
 	}
-	if len(agent.prompts) != 2 || strings.Contains(agent.prompts[1], "第一个问题") || !strings.Contains(agent.prompts[1], "补充一句") || strings.Contains(agent.prompts[1], "你是助理。") {
+	if len(agent.prompts) != 2 || strings.Contains(agent.prompts[1], "第一个问题") || !strings.Contains(agent.prompts[1], "补充一句") || strings.Contains(agent.prompts[1], "你是个人 AI 员工。") {
 		t.Fatalf("prompts = %q", agent.prompts)
 	}
 }

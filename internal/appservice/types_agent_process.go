@@ -106,15 +106,15 @@ type AgentToolCall struct {
 // ConversationAgentRun 定义消息窗口中尚未由结果消息表达的运行状态，取消运行携带自身过程引用。
 type ConversationAgentRun struct {
 	AgentName string `json:"agentName"`
-	// AgentAssistantOwnerName 是执行者为助理时其主人的名称，AI 员工为空。
-	AgentAssistantOwnerName *string                   `json:"agentAssistantOwnerName"`
-	AgentAvatarURL          string                    `json:"agentAvatarUrl"`
-	ID                      string                    `json:"id"`
-	AgentIdentityID         string                    `json:"agentIdentityId"`
-	Status                  AgentRunStatus            `json:"status"`
-	ErrorCode               *string                   `json:"errorCode"`
-	LastError               *string                   `json:"lastError"`
-	Process                 *ConversationAgentProcess `json:"process"`
+	// AgentPersonalResponsibleName 是执行者为个人 AI 员工时其负责人的名称，其他 AI 员工为空。
+	AgentPersonalResponsibleName *string                   `json:"agentPersonalResponsibleName"`
+	AgentAvatarURL               string                    `json:"agentAvatarUrl"`
+	ID                           string                    `json:"id"`
+	AgentIdentityID              string                    `json:"agentIdentityId"`
+	Status                       AgentRunStatus            `json:"status"`
+	ErrorCode                    *string                   `json:"errorCode"`
+	LastError                    *string                   `json:"lastError"`
+	Process                      *ConversationAgentProcess `json:"process"`
 	// ExecutionDeviceID 是执行该运行的设备编号，服务端执行时为空。
 	ExecutionDeviceID *string `json:"executionDeviceId"`
 	// ExecutionDeviceName 是执行该运行的设备名称，服务端执行时为空。

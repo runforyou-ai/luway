@@ -13,7 +13,7 @@ import { listChatTargets } from "@/features/inbox/list-all-member-options"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource } from "@/hooks/use-resource"
 
-/** 保留跨搜索的列表勾选，建群时展示已选成员摘要；ownAssistantsOnly 时只列出本人名下的助理。 */
+/** 保留跨搜索的列表勾选，建群时展示已选成员摘要；ownPersonalAgentsOnly 时只列出本人负责的个人 AI 员工。 */
 export function MobileGroupMemberPicker({
   currentIdentityID,
   selected,
@@ -22,7 +22,7 @@ export function MobileGroupMemberPicker({
   inputRef,
   disabled,
   excludedIdentityIDs = [],
-  ownAssistantsOnly = false,
+  ownPersonalAgentsOnly = false,
   selectionLimit = groupAdditionalMemberMaxCount,
   showSelectionSummary = true,
   label,
@@ -34,7 +34,7 @@ export function MobileGroupMemberPicker({
   inputRef: Ref<HTMLInputElement>
   disabled: boolean
   excludedIdentityIDs?: string[]
-  ownAssistantsOnly?: boolean
+  ownPersonalAgentsOnly?: boolean
   selectionLimit?: number
   showSelectionSummary?: boolean
   label?: string
@@ -53,7 +53,7 @@ export function MobileGroupMemberPicker({
     (member) =>
       member.id !== currentIdentityID &&
       !excludedIdentityIDs.includes(member.id) &&
-      (!ownAssistantsOnly || member.type === OrganizationIdentityType.OrganizationIdentityTypeAssistant),
+      (!ownPersonalAgentsOnly || member.personal),
   )
   const query = search.trim().toLocaleLowerCase()
   const candidates = members.filter((member) =>
@@ -147,8 +147,6 @@ export function MobileGroupMemberPicker({
             const checked = selected.some((item) => item.id === member.id)
             const agent =
               member.type === OrganizationIdentityType.OrganizationIdentityTypeAgent
-            const assistant =
-              member.type === OrganizationIdentityType.OrganizationIdentityTypeAssistant
             return (
               <li key={member.id}>
                 <label className="flex min-h-16 items-center gap-3 px-3 py-2 active:bg-muted">
@@ -170,13 +168,13 @@ export function MobileGroupMemberPicker({
                   <ProfileAvatar
                     name={member.displayName}
                     imageURL={member.avatarUrl}
-                    fallback={agent || assistant ? "agent" : "person"}
+                    fallback={agent ? "agent" : "person"}
                     className="size-9"
                   />
                   <span className="min-w-0 flex-1 truncate text-sm">{member.displayName}</span>
-                  {agent || assistant ? (
+                  {agent ? (
                     <span className="shrink-0 text-xs text-muted-foreground">
-                      {tInbox(agent ? "groupAgent" : "chatPickerAssistant")}
+                      {tInbox(member.personal ? "chatPickerPersonalAgent" : "groupAgent")}
                     </span>
                   ) : null}
                 </label>

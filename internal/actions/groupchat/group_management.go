@@ -59,12 +59,12 @@ type GroupAgentRunCoordinator interface {
 }
 
 type activeGroupParticipantRow struct {
-	ParticipantID        string  `bun:"participant_id"`
-	IdentityID           string  `bun:"identity_id"`
-	DisplayName          string  `bun:"display_name"`
-	Role                 string  `bun:"role"`
-	AssistantOwnerUserID string  `bun:"assistant_owner_user_id"`
-	AssistantOwnerName   *string `bun:"assistant_owner_name"`
+	ParticipantID             string  `bun:"participant_id"`
+	IdentityID                string  `bun:"identity_id"`
+	DisplayName               string  `bun:"display_name"`
+	Role                      string  `bun:"role"`
+	PersonalResponsibleUserID string  `bun:"personal_responsible_user_id"`
+	PersonalResponsibleName   *string `bun:"personal_responsible_name"`
 }
 
 // NewUpdateGroupConversationAction 创建群聊资料修改操作。
@@ -164,7 +164,7 @@ func (a *UpdateGroupConversationAction) Execute(ctx context.Context, identity *s
 	return result, nil
 }
 
-// Execute 增加有效企业成员，重新加入时复用原参与者行；群主可以加入任何有效成员，其他成员只能加入本人名下的助理。
+// Execute 增加有效企业成员，重新加入时复用原参与者行；群主可以加入任何有效成员，其他成员只能加入本人负责的个人 AI 员工。
 func (a *AddGroupConversationMembersAction) Execute(ctx context.Context, identity *servermodels.Identity, input GroupConversationMembersInput) (GroupConversation, error) {
 	conversationID, memberIDs, fields := normalizeGroupMembersInput(identity.OrganizationIdentity.ID, input.ConversationID, input.MemberIdentityIDs)
 	if len(fields) > 0 {
@@ -185,7 +185,7 @@ func (a *AddGroupConversationMembersAction) Execute(ctx context.Context, identit
 		}
 		if group.Role != string(domain.ConversationParticipantRoleOwner) {
 			for _, member := range members {
-				if member.IdentityType != domain.OrganizationIdentityTypeAssistant {
+				if !member.Personal {
 					return chatstate.ErrGroupOwnerRequired
 				}
 			}
@@ -218,7 +218,7 @@ func (a *AddGroupConversationMembersAction) Execute(ctx context.Context, identit
 				ID: uuid.NewV7().String(), OrganizationID: identity.Organization.ID, ConversationID: conversationID,
 				SubjectID: subjects[member.IdentityID].ID, Role: string(domain.ConversationParticipantRoleMember),
 			})
-			targets = append(targets, conversationaction.ConversationSystemEventParticipant{IdentityID: member.IdentityID, DisplayName: member.DisplayName, AssistantOwnerName: member.AssistantOwnerName})
+			targets = append(targets, conversationaction.ConversationSystemEventParticipant{IdentityID: member.IdentityID, DisplayName: member.DisplayName, PersonalResponsibleName: member.PersonalResponsibleName})
 		}
 		// 新成员创建参与者行，曾退出的成员复用原参与者行重新加入。
 		if _, err := tx.NewInsert().Model(&participants).
@@ -263,7 +263,7 @@ func (a *AddGroupConversationMembersAction) Execute(ctx context.Context, identit
 	return result, nil
 }
 
-// Execute 将当前有效的普通成员移出群聊，群主可以移出任何成员，助理主人可以移出本人名下的助理；被移出的真人名下的助理随之移出。
+// Execute 将当前有效的普通成员移出群聊，群主可以移出任何成员，个人 AI 员工的负责人可以移出本人负责的个人 AI 员工；被移出的真人负责的个人 AI 员工随之移出。
 func (a *RemoveGroupConversationMemberAction) Execute(ctx context.Context, identity *servermodels.Identity, input GroupConversationMemberInput) (GroupConversation, error) {
 	conversationID, memberID, fields := normalizeGroupMemberInput(input.ConversationID, input.MemberIdentityID, "memberIdentityId", ValidationGroupMemberIDInvalid)
 	if len(fields) > 0 {
@@ -283,7 +283,7 @@ func (a *RemoveGroupConversationMemberAction) Execute(ctx context.Context, ident
 		if err != nil {
 			return err
 		}
-		if group.Role != string(domain.ConversationParticipantRoleOwner) && target.AssistantOwnerUserID != identity.User.ID {
+		if group.Role != string(domain.ConversationParticipantRoleOwner) && target.PersonalResponsibleUserID != identity.User.ID {
 			return chatstate.ErrGroupOwnerRequired
 		}
 		if target.Role == string(domain.ConversationParticipantRoleOwner) {
@@ -311,7 +311,7 @@ func (a *RemoveGroupConversationMemberAction) Execute(ctx context.Context, ident
 		}
 		targets := []conversationaction.ConversationSystemEventParticipant{groupParticipantSnapshot(target)}
 		for _, userID := range removedUserIDs {
-			removed, runIDs, err := removeOwnedGroupAssistants(ctx, tx, a.coordinator, identity.Organization.ID, conversationID, userID)
+			removed, runIDs, err := removeGroupPersonalAgents(ctx, tx, a.coordinator, identity.Organization.ID, conversationID, userID)
 			if err != nil {
 				return err
 			}
@@ -375,7 +375,7 @@ func (a *TransferGroupConversationOwnerAction) Execute(ctx context.Context, iden
 	return result, nil
 }
 
-// Execute 退出群聊并带走本人名下的助理，群主必须先通过转让操作成为普通成员。
+// Execute 退出群聊并带走本人负责的个人 AI 员工，群主必须先通过转让操作成为普通成员。
 func (a *LeaveGroupConversationAction) Execute(ctx context.Context, identity *servermodels.Identity, conversationID string) error {
 	conversationID, valid := common.NormalizeUUID(conversationID)
 	if !valid {
@@ -405,7 +405,7 @@ func (a *LeaveGroupConversationAction) Execute(ctx context.Context, identity *se
 		}); err != nil {
 			return err
 		}
-		removed, runIDs, err := removeOwnedGroupAssistants(ctx, tx, a.coordinator, identity.Organization.ID, conversationID, identity.User.ID)
+		removed, runIDs, err := removeGroupPersonalAgents(ctx, tx, a.coordinator, identity.Organization.ID, conversationID, identity.User.ID)
 		if err != nil || len(removed) == 0 {
 			return err
 		}
@@ -568,8 +568,8 @@ func loadActiveGroupParticipant(ctx context.Context, db bun.IDB, organizationID,
 		ColumnExpr("cs.source_id AS identity_id").
 		ColumnExpr("oi.display_name AS display_name").
 		ColumnExpr("cp.role AS role").
-		ColumnExpr("CASE WHEN oi.type = ? THEN COALESCE(a.owner_user_id::text, '') ELSE '' END AS assistant_owner_user_id", domain.OrganizationIdentityTypeAssistant).
-		ColumnExpr("? AS assistant_owner_name", conversationaction.AssistantOwnerName("oi")).
+		ColumnExpr("CASE WHEN ? = ANY(a.service_audiences) THEN a.responsible_user_id::text ELSE '' END AS personal_responsible_user_id", domain.ServiceAudiencePersonal).
+		ColumnExpr("? AS personal_responsible_name", conversationaction.PersonalResponsibleName("oi")).
 		Join("JOIN chat_subjects AS cs ON cs.organization_id = cp.organization_id AND cs.id = cp.subject_id AND cs.kind = ? AND cs.source_id = ?", domain.ChatSubjectKindOrganizationIdentity, identityID).
 		Join("JOIN organization_identities AS oi ON oi.organization_id = cs.organization_id AND oi.id = cs.source_id").
 		Join("LEFT JOIN agents AS a ON a.organization_id = oi.organization_id AND a.identity_id = oi.id")
@@ -661,5 +661,5 @@ func groupActorSnapshot(identity *servermodels.Identity) conversationaction.Conv
 
 // groupParticipantSnapshot 记录目标成员的审计快照。
 func groupParticipantSnapshot(participant activeGroupParticipantRow) conversationaction.ConversationSystemEventParticipant {
-	return conversationaction.ConversationSystemEventParticipant{IdentityID: participant.IdentityID, DisplayName: participant.DisplayName, AssistantOwnerName: participant.AssistantOwnerName}
+	return conversationaction.ConversationSystemEventParticipant{IdentityID: participant.IdentityID, DisplayName: participant.DisplayName, PersonalResponsibleName: participant.PersonalResponsibleName}
 }

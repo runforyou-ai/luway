@@ -21,6 +21,7 @@ import (
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/schema"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/text"
@@ -171,6 +172,17 @@ type groupMessageRow struct {
 	contextAttachmentRow
 }
 
+// groupPersonalAgentKind 是群聊上下文中个人 AI 员工的成员种类。
+const groupPersonalAgentKind = "personal_agent"
+
+// groupMemberKind 返回别名企业身份在群聊上下文中的成员种类：个人 AI 员工为 personal_agent，其他身份为企业身份类型。
+func groupMemberKind(alias string) schema.QueryWithArgs {
+	name := bun.Ident(alias)
+	return bun.SafeQuery(`CASE WHEN EXISTS (
+		SELECT 1 FROM agents AS kind_a WHERE kind_a.organization_id = ?.organization_id AND kind_a.identity_id = ?.id AND ? = ANY(kind_a.service_audiences)
+	) THEN ? ELSE ?.type END`, name, name, domain.ServiceAudiencePersonal, groupPersonalAgentKind, name)
+}
+
 type groupMessageSender struct {
 	Name string `json:"name"`
 	Kind string `json:"kind"`
@@ -197,7 +209,7 @@ func loadClaimedGroupMessages(ctx context.Context, db bun.IDB, run *servermodels
 		ColumnExpr("msg.id, msg.body").
 		ColumnExpr("cs.source_id AS sender_source_id").
 		ColumnExpr("oi.display_name AS sender_name").
-		ColumnExpr("oi.type AS sender_type").
+		ColumnExpr("? AS sender_type", groupMemberKind("oi")).
 		ColumnExpr("msg.mention_all").
 		Join("JOIN conversation_participants AS cp ON cp.id = msg.sender_participant_id AND cp.organization_id = msg.organization_id AND cp.conversation_id = msg.conversation_id").
 		Join("JOIN chat_subjects AS cs ON cs.id = cp.subject_id AND cs.organization_id = cp.organization_id AND cs.kind = ?", domain.ChatSubjectKindOrganizationIdentity).
@@ -272,7 +284,7 @@ func loadGroupMessageMentions(ctx context.Context, db bun.IDB, organizationID st
 	if err := db.NewSelect().TableExpr("message_mentions AS mm").
 		ColumnExpr("mm.message_id").
 		ColumnExpr("oi.display_name").
-		ColumnExpr("oi.type AS identity_type").
+		ColumnExpr("? AS identity_type", groupMemberKind("oi")).
 		Join("JOIN chat_subjects AS cs ON cs.id = mm.subject_id AND cs.organization_id = mm.organization_id AND cs.kind = ?", domain.ChatSubjectKindOrganizationIdentity).
 		Join("JOIN organization_identities AS oi ON oi.id = cs.source_id AND oi.organization_id = cs.organization_id").
 		Where("mm.organization_id = ?", organizationID).
@@ -336,7 +348,7 @@ func (p groupMentionRunPolicy) applyMentions(ctx context.Context, db bun.IDB, po
 	}
 	ordinal := 0
 	for _, target := range targets {
-		if !domain.OrganizationIdentityTypeIsAI(domain.OrganizationIdentityType(target.IdentityType)) {
+		if domain.OrganizationIdentityType(target.IdentityType) != domain.OrganizationIdentityTypeAgent {
 			continue
 		}
 		revisionID, eligible, err := loadGroupAgentRevision(ctx, db, run.OrganizationID, run.ConversationID, target.IdentityID, true)

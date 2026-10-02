@@ -73,9 +73,9 @@ type Worker struct {
 	client    RunClient
 	runtime   agentruntime.Runtime
 	toolchain Toolchain
-	// localMCP 是这台电脑上主人的助理共用的本地 MCP 服务配置。
+	// localMCP 是这台电脑上负责人的个人 AI 员工共用的本地 MCP 服务配置。
 	localMCP *localmcp.Store
-	// skills 是这台电脑上主人的助理共用的技能目录。
+	// skills 是这台电脑上负责人的个人 AI 员工共用的技能目录。
 	skills *localskill.Store
 	// folders 是各会话默认文件夹的上级目录。
 	folders string

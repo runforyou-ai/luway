@@ -1142,133 +1142,133 @@ func (b *Backend) RerunAgentEvaluationCase(ctx context.Context, meta appservice.
 	return b.ops.RerunAgentEvaluationCase(ctx, meta, identity, agentID, caseID)
 }
 
-// ListAssistants 返回当前成员名下的助理。
-func (b *Backend) ListAssistants(ctx context.Context, meta appservice.RequestMeta) (appservice.AssistantList, error) {
+// ListPersonalAgents 返回当前成员负责的个人 AI 员工。
+func (b *Backend) ListPersonalAgents(ctx context.Context, meta appservice.RequestMeta) (appservice.PersonalAgentList, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.AssistantList
+		var zero appservice.PersonalAgentList
 		return zero, err
 	}
-	return b.ops.ListAssistants(ctx, meta, identity)
+	return b.ops.ListPersonalAgents(ctx, meta, identity)
 }
 
-// ListMemberAssistants 返回指定成员名下的助理。
-func (b *Backend) ListMemberAssistants(ctx context.Context, meta appservice.RequestMeta, userID string) (appservice.AssistantList, error) {
+// ListMemberPersonalAgents 返回指定成员负责的个人 AI 员工。
+func (b *Backend) ListMemberPersonalAgents(ctx context.Context, meta appservice.RequestMeta, userID string) (appservice.PersonalAgentList, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.AssistantList
+		var zero appservice.PersonalAgentList
 		return zero, err
 	}
-	return b.ops.ListMemberAssistants(ctx, meta, identity, userID)
+	return b.ops.ListMemberPersonalAgents(ctx, meta, identity, userID)
 }
 
-// GetAssistant 返回当前成员名下的助理详情。
-func (b *Backend) GetAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.AssistantDetail, error) {
+// GetPersonalAgent 返回当前成员负责的个人 AI 员工详情。
+func (b *Backend) GetPersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgentDetail, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.AssistantDetail
+		var zero appservice.PersonalAgentDetail
 		return zero, err
 	}
-	return b.ops.GetAssistant(ctx, meta, identity, assistantID)
+	return b.ops.GetPersonalAgent(ctx, meta, identity, agentID)
 }
 
-// CreateAssistant 在当前成员的电脑上创建助理。
-func (b *Backend) CreateAssistant(ctx context.Context, meta appservice.RequestMeta, input appservice.CreateAssistantInput) (appservice.Assistant, error) {
+// CreatePersonalAgent 在当前成员的电脑上创建个人 AI 员工。
+func (b *Backend) CreatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, input appservice.CreatePersonalAgentInput) (appservice.PersonalAgent, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.Assistant
+		var zero appservice.PersonalAgent
 		return zero, err
 	}
-	return b.ops.CreateAssistant(ctx, meta, identity, input)
+	return b.ops.CreatePersonalAgent(ctx, meta, identity, input)
 }
 
-// UpdateAssistant 修改当前成员名下的助理。
-func (b *Backend) UpdateAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string, input appservice.AssistantInput) (appservice.Assistant, error) {
+// UpdatePersonalAgent 修改当前成员负责的个人 AI 员工。
+func (b *Backend) UpdatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentInput) (appservice.PersonalAgent, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.Assistant
+		var zero appservice.PersonalAgent
 		return zero, err
 	}
-	return b.ops.UpdateAssistant(ctx, meta, identity, assistantID, input)
+	return b.ops.UpdatePersonalAgent(ctx, meta, identity, agentID, input)
 }
 
-// PauseAssistant 暂停当前成员名下的助理。
-func (b *Backend) PauseAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.Assistant, error) {
+// PausePersonalAgent 暂停当前成员负责的个人 AI 员工。
+func (b *Backend) PausePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.Assistant
+		var zero appservice.PersonalAgent
 		return zero, err
 	}
-	return b.ops.PauseAssistant(ctx, meta, identity, assistantID)
+	return b.ops.PausePersonalAgent(ctx, meta, identity, agentID)
 }
 
-// ResumeAssistant 恢复当前成员名下已暂停的助理。
-func (b *Backend) ResumeAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.Assistant, error) {
+// ResumePersonalAgent 恢复当前成员负责的已暂停个人 AI 员工。
+func (b *Backend) ResumePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.Assistant
+		var zero appservice.PersonalAgent
 		return zero, err
 	}
-	return b.ops.ResumeAssistant(ctx, meta, identity, assistantID)
+	return b.ops.ResumePersonalAgent(ctx, meta, identity, agentID)
 }
 
-// MoveAssistant 把当前成员名下的助理换到指定电脑。
-func (b *Backend) MoveAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string, input appservice.AssistantDeviceInput) (appservice.Assistant, error) {
+// MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
+func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentDeviceInput) (appservice.PersonalAgent, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.Assistant
+		var zero appservice.PersonalAgent
 		return zero, err
 	}
-	return b.ops.MoveAssistant(ctx, meta, identity, assistantID, input)
+	return b.ops.MovePersonalAgent(ctx, meta, identity, agentID, input)
 }
 
-// DeactivateAssistant 停用助理。
-func (b *Backend) DeactivateAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.Assistant, error) {
+// DeactivatePersonalAgent 停用个人 AI 员工。
+func (b *Backend) DeactivatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.Assistant
+		var zero appservice.PersonalAgent
 		return zero, err
 	}
-	return b.ops.DeactivateAssistant(ctx, meta, identity, assistantID)
+	return b.ops.DeactivatePersonalAgent(ctx, meta, identity, agentID)
 }
 
-// ReactivateAssistant 启用已停用的助理。
-func (b *Backend) ReactivateAssistant(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.Assistant, error) {
+// ReactivatePersonalAgent 启用已停用的个人 AI 员工。
+func (b *Backend) ReactivatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.Assistant
+		var zero appservice.PersonalAgent
 		return zero, err
 	}
-	return b.ops.ReactivateAssistant(ctx, meta, identity, assistantID)
+	return b.ops.ReactivatePersonalAgent(ctx, meta, identity, agentID)
 }
 
-// ListAssistantMemories 返回当前成员名下助理的记忆，按最近更新排列。
-func (b *Backend) ListAssistantMemories(ctx context.Context, meta appservice.RequestMeta, assistantID string) (appservice.AssistantMemoryList, error) {
+// ListAgentMemories 返回当前成员负责的个人 AI 员工的记忆，按最近更新排列。
+func (b *Backend) ListAgentMemories(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.AgentMemoryList, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.AssistantMemoryList
+		var zero appservice.AgentMemoryList
 		return zero, err
 	}
-	return b.ops.ListAssistantMemories(ctx, meta, identity, assistantID)
+	return b.ops.ListAgentMemories(ctx, meta, identity, agentID)
 }
 
-// UpdateAssistantMemory 修改当前成员名下助理的一条记忆。
-func (b *Backend) UpdateAssistantMemory(ctx context.Context, meta appservice.RequestMeta, assistantID string, memoryID string, input appservice.AssistantMemoryInput) (appservice.AssistantMemory, error) {
+// UpdateAgentMemory 修改当前成员负责的个人 AI 员工的一条记忆。
+func (b *Backend) UpdateAgentMemory(ctx context.Context, meta appservice.RequestMeta, agentID string, memoryID string, input appservice.AgentMemoryInput) (appservice.AgentMemory, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.AssistantMemory
+		var zero appservice.AgentMemory
 		return zero, err
 	}
-	return b.ops.UpdateAssistantMemory(ctx, meta, identity, assistantID, memoryID, input)
+	return b.ops.UpdateAgentMemory(ctx, meta, identity, agentID, memoryID, input)
 }
 
-// DeleteAssistantMemory 删除当前成员名下助理的一条记忆。
-func (b *Backend) DeleteAssistantMemory(ctx context.Context, meta appservice.RequestMeta, assistantID string, memoryID string) error {
+// DeleteAgentMemory 删除当前成员负责的个人 AI 员工的一条记忆。
+func (b *Backend) DeleteAgentMemory(ctx context.Context, meta appservice.RequestMeta, agentID string, memoryID string) error {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
 	}
-	return b.ops.DeleteAssistantMemory(ctx, meta, identity, assistantID, memoryID)
+	return b.ops.DeleteAgentMemory(ctx, meta, identity, agentID, memoryID)
 }
 
 // ListUsers 返回企业成员列表。

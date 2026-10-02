@@ -57,9 +57,9 @@ func (a *UpdateMCPServerAction) Execute(ctx context.Context, identity *servermod
 		} else {
 			current.ToolPurposes = retainToolPurposes(current.ToolPurposes, tools)
 		}
-		// 助理不接待客户，服务改为按客户查询时从助理的配置中移除。
+		// 个人 AI 员工不接待客户，服务改为按客户查询时从个人 AI 员工的配置中移除。
 		if input.CustomerScoped && !current.CustomerScoped {
-			if _, err := agentaction.RemoveMCPServerFromAssistants(ctx, tx, identity, current.ID); err != nil {
+			if _, err := agentaction.RemoveMCPServerFromPersonalAgents(ctx, tx, identity, current.ID); err != nil {
 				return err
 			}
 		}

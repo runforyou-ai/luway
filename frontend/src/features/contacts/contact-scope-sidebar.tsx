@@ -1,6 +1,5 @@
-/** 通讯录二级导航：同事、团队、外部联系人、我的助理四个入口。 */
+/** 通讯录二级导航：同事、团队、外部联系人三个入口。 */
 import {
-  BotIcon,
   ContactRoundIcon,
   UserRoundIcon,
   UsersIcon,
@@ -23,9 +22,6 @@ export function ContactScopeSidebar() {
       </PagePaneLink>
       <PagePaneLink to="/contacts/external" icon={ContactRoundIcon}>
         {t("scopes.external")}
-      </PagePaneLink>
-      <PagePaneLink to="/contacts/assistants" icon={BotIcon}>
-        {t("scopes.assistants")}
       </PagePaneLink>
     </PagePaneNav>
   )

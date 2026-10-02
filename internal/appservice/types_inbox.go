@@ -52,13 +52,14 @@ const (
 	InboxAssigneeFilterIdentity   InboxAssigneeFilter = InboxAssigneeFilter(domain.InboxAssigneeFilterIdentity)
 )
 
-// ServiceAudience 表示服务对象：customer 为外部客户，employee 为本企业员工，partner 为伙伴。
+// ServiceAudience 表示服务对象：customer 为外部客户，employee 为本企业员工，partner 为伙伴，personal 为仅负责人本人。
 type ServiceAudience string
 
 const (
 	ServiceAudienceCustomer ServiceAudience = ServiceAudience(domain.ServiceAudienceCustomer)
 	ServiceAudienceEmployee ServiceAudience = ServiceAudience(domain.ServiceAudienceEmployee)
 	ServiceAudiencePartner  ServiceAudience = ServiceAudience(domain.ServiceAudiencePartner)
+	ServiceAudiencePersonal ServiceAudience = ServiceAudience(domain.ServiceAudiencePersonal)
 )
 
 // ServiceSource 表示服务会话来源：channel 为渠道，direct 为单聊。
@@ -274,13 +275,13 @@ type DirectInboxConversation struct {
 
 // AgentInboxConversation 定义 AI 聊天摘要。
 type AgentInboxConversation struct {
-	Title             string                   `json:"title"`
-	AgentIdentityID   string                   `json:"agentIdentityId"`
-	AgentName         string                   `json:"agentName"`
-	AgentAvatarURL    string                   `json:"agentAvatarUrl"`
-	AgentStatus       UserStatus               `json:"agentStatus"`
-	AgentType         OrganizationIdentityType `json:"agentType"`
-	AssistantPresence *AssistantPresence       `json:"assistantPresence"`
+	Title           string     `json:"title"`
+	AgentIdentityID string     `json:"agentIdentityId"`
+	AgentName       string     `json:"agentName"`
+	AgentAvatarURL  string     `json:"agentAvatarUrl"`
+	AgentStatus     UserStatus `json:"agentStatus"`
+	// PersonalPresence 是个人 AI 员工的在线状态，其他 AI 员工为空。
+	PersonalPresence *PersonalAgentPresence `json:"personalPresence"`
 	// Preview 是末条消息的单行纯文本摘要。
 	Preview        *string         `json:"preview"`
 	LastMessageAt  *time.Time      `json:"lastMessageAt"`
@@ -496,15 +497,17 @@ const (
 
 // InboxSearchPerson 表示命中的企业成员或外部联系人；真人成员携带 userId，AI 员工携带 agentId，外部联系人没有客户会话时 conversationId 为空。
 type InboxSearchPerson struct {
-	Kind           InboxSearchPersonKind     `json:"kind"`
-	ID             string                    `json:"id"`
-	UserID         *string                   `json:"userId"`
-	AgentID        *string                   `json:"agentId"`
-	IdentityType   *OrganizationIdentityType `json:"identityType"`
-	DisplayName    string                    `json:"displayName"`
-	ContactNumber  *int64                    `json:"contactNumber"`
-	AvatarURL      string                    `json:"avatarUrl"`
-	ConversationID *string                   `json:"conversationId"`
+	Kind         InboxSearchPersonKind     `json:"kind"`
+	ID           string                    `json:"id"`
+	UserID       *string                   `json:"userId"`
+	AgentID      *string                   `json:"agentId"`
+	IdentityType *OrganizationIdentityType `json:"identityType"`
+	// Personal 表示人员是当前成员负责的个人 AI 员工。
+	Personal       bool    `json:"personal"`
+	DisplayName    string  `json:"displayName"`
+	ContactNumber  *int64  `json:"contactNumber"`
+	AvatarURL      string  `json:"avatarUrl"`
+	ConversationID *string `json:"conversationId"`
 }
 
 // InboxSearchResult 返回会话、消息和人员三组检索结果，每组最多六条。

@@ -1,6 +1,6 @@
 //go:build server
 
-// Package groupchat 处理群聊的创建、资料与成员管理、群内助理和群消息发送。
+// Package groupchat 处理群聊的创建、资料与成员管理、群内个人 AI 员工和群消息发送。
 package groupchat
 
 import (
@@ -33,8 +33,8 @@ const (
 	ConflictReasonGroupOwnerCannotLeave = "group_owner_cannot_leave"
 	// ConflictReasonGroupMentionTargetInvalid 表示当前群聊的提醒目标校验失败。
 	ConflictReasonGroupMentionTargetInvalid = "group_mention_target_invalid"
-	// ConflictReasonAssistantInactive 表示被点名的助理已禁用。
-	ConflictReasonAssistantInactive = "assistant_inactive"
+	// ConflictReasonPersonalAgentInactive 表示被点名的个人 AI 员工已禁用。
+	ConflictReasonPersonalAgentInactive = "personal_agent_inactive"
 )
 
 // GroupConversationInput 定义企业成员创建群聊的资料和初始成员。
@@ -90,10 +90,10 @@ type GroupParticipant struct {
 	DisplayName   string
 	AvatarFileID  *string
 	Role          domain.ConversationParticipantRole
-	// AssistantOwnerName 是成员为助理时其主人的名称，其他成员为空。
-	AssistantOwnerName *string
-	// AssistantOwnerIdentityID 是成员为助理时其主人的企业身份编号，其他成员为空。
-	AssistantOwnerIdentityID *string
+	// PersonalResponsibleName 是成员为个人 AI 员工时其负责人的名称，其他成员为空。
+	PersonalResponsibleName *string
+	// PersonalResponsibleIdentityID 是成员为个人 AI 员工时其负责人的企业身份编号，其他成员为空。
+	PersonalResponsibleIdentityID *string
 }
 
 // GroupConversation 定义群聊资料和当前有效成员。

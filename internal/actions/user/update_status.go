@@ -19,9 +19,9 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// AssistantRetirer 在停用成员的事务中停用其名下助理并移出所有群聊。
-type AssistantRetirer interface {
-	RetireOwnedAssistants(ctx context.Context, tx bun.Tx, actor *servermodels.Identity, ownerUserID string) ([]string, error)
+// PersonalAgentRetirer 在停用成员的事务中停用其负责的个人 AI 员工并移出所有群聊。
+type PersonalAgentRetirer interface {
+	RetirePersonalAgents(ctx context.Context, tx bun.Tx, actor *servermodels.Identity, responsibleUserID string) ([]string, error)
 	CancelRunContexts([]string)
 }
 
@@ -29,15 +29,15 @@ type AssistantRetirer interface {
 type UpdateStatusAction struct {
 	db       *bun.DB
 	returner ServiceSessionReturner
-	retirer  AssistantRetirer
+	retirer  PersonalAgentRetirer
 }
 
 // NewUpdateStatusAction 创建用户账号状态修改操作。
-func NewUpdateStatusAction(db *bun.DB, returner ServiceSessionReturner, retirer AssistantRetirer) *UpdateStatusAction {
+func NewUpdateStatusAction(db *bun.DB, returner ServiceSessionReturner, retirer PersonalAgentRetirer) *UpdateStatusAction {
 	return &UpdateStatusAction{db: db, returner: returner, retirer: retirer}
 }
 
-// Execute 禁用或恢复用户账号，并在禁用时清理渠道分配、把其负责的开放客服周期退回原队列、停用其名下助理；恢复时助理保持停用。
+// Execute 禁用或恢复用户账号，并在禁用时清理渠道分配、把其负责的开放客服周期退回原队列、停用其负责的个人 AI 员工；恢复时个人 AI 员工保持停用。
 func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels.Identity, userID string, status domain.IdentityStatus) (*User, error) {
 	if !common.ValidUUID(userID) {
 		return nil, ErrNotFound
@@ -90,7 +90,7 @@ func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels
 			if err != nil {
 				return err
 			}
-			if retiredRunIDs, err = a.retirer.RetireOwnedAssistants(ctx, tx, identity, userID); err != nil {
+			if retiredRunIDs, err = a.retirer.RetirePersonalAgents(ctx, tx, identity, userID); err != nil {
 				return err
 			}
 			// 提交后通知 Gateway 关闭该用户的全部实时连接。

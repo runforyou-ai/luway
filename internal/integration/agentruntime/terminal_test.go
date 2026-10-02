@@ -208,7 +208,7 @@ func TestInternalSceneHasNoTerminalTools(t *testing.T) {
 		func() *schema.AgenticMessage { return assistantReply("你好，有什么需要") },
 	}}
 	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
-	result, err := runtime.Run(ctx, RunRequest{RunID: "internal-run", Assignment: Assignment{AgentName: "助理", Scene: SceneAgentChat}}, feed)
+	result, err := runtime.Run(ctx, RunRequest{RunID: "internal-run", Assignment: Assignment{AgentName: "个人 AI 员工", Scene: SceneAgentChat}}, feed)
 	if err != nil {
 		t.Fatal(err)
 	}

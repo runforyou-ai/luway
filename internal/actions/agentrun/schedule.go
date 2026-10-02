@@ -106,7 +106,7 @@ func advanceLaneSequence(ctx context.Context, db bun.IDB, spec agentRunSpec) (la
 	return sequence, nil
 }
 
-// insertAndDispatchRun 创建 Agent 业务运行并派发执行：助理的运行交给其绑定电脑，AI 员工的运行投递隔离 Worker。
+// insertAndDispatchRun 创建 Agent 业务运行并派发执行：个人 AI 员工的运行交给其绑定电脑，其他 AI 员工的运行投递隔离 Worker。
 func insertAndDispatchRun(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, spec agentRunSpec, laneID string, startSeq int64) (string, error) {
 	run := &servermodels.AgentRun{
 		ID: uuid.NewV7().String(), OrganizationID: spec.OrganizationID, ConversationID: spec.ConversationID,
@@ -140,7 +140,7 @@ func insertAndDispatchRun(ctx context.Context, db bun.IDB, enqueuer servertask.T
 	return run.ID, nil
 }
 
-// advanceDeviceWork 推进设备工作水位，并在事务提交后通知设备主人的该设备事件流；调用方必须处于 realtime.RunInTx 内。
+// advanceDeviceWork 推进设备工作水位，并在事务提交后通知设备所属成员的该设备事件流；调用方必须处于 realtime.RunInTx 内。
 func advanceDeviceWork(ctx context.Context, db bun.IDB, organizationID, deviceID string) error {
 	var advanced struct {
 		UserID  string `bun:"user_id"`
