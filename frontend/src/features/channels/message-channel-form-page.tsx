@@ -1,5 +1,6 @@
 /** 消息渠道创建页和按类型扩展的编辑页。 */
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { CircleHelpIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import {
   useNavigate,
@@ -23,6 +24,7 @@ import {
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { ResourceContent } from "@/components/resource-content"
+import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ChannelReceptionSettingsForm } from "@/features/channels/channel-reception-settings-form"
 import { MessageChannelForm } from "@/features/channels/message-channel-form"
@@ -47,6 +49,7 @@ import {
 } from "@/features/channels/website/website-chat-preview"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { openProductDocs } from "@/platform/product-docs"
 
 type EditTab =
   | "basic"
@@ -378,7 +381,7 @@ export function MessageChannelFormPage({
 }: {
   mode: "create" | "edit"
 }) {
-  const { t } = useTranslation(["channels", "common"])
+  const { t, i18n } = useTranslation(["channels", "common"])
   const navigate = useNavigate()
   const { channelId = "", channelType = "" } = useParams()
   const [pageSearchParams] = useSearchParams()
@@ -449,6 +452,7 @@ export function MessageChannelFormPage({
   const typeLabel = typeDefinition
     ? t(`types.${typeDefinition.translationKey}`)
     : ""
+  const docsPage = typeDefinition?.docsPage
   const editTitle = typeLabel
     ? t("edit.title", { type: typeLabel })
     : t("edit.fallbackTitle")
@@ -467,7 +471,19 @@ export function MessageChannelFormPage({
           mode === "create" ? "create.description" : "edit.description",
         )}
         backTo={mode === "edit" ? `/channels${listStatus === "disabled" ? "?status=disabled" : ""}` : undefined}
-      />
+      >
+        {docsPage ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void openProductDocs(docsPage, i18n.language)}
+          >
+            <CircleHelpIcon />
+            {t("common:productDocs")}
+          </Button>
+        ) : null}
+      </PageHeader>
       <PageContent variant="form">
         {mode === "edit" ? (
           <ResourceContent

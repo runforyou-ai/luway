@@ -3,6 +3,7 @@ const common = {
   notifications: "Notifications",
   closeNotification: "Close notification",
   notSet: "Not set",
+  productDocs: "Documentation",
   errors: {
     network: "Could not connect to the server. Please try again.",
   },

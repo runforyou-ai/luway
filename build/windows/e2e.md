@@ -1,6 +1,6 @@
 # Windows 端到端验证
 
-本文描述从源码准备到 Windows 实机验收、证据归档和环境恢复的流程。通用约定见 [AGENTS.md](../AGENTS.md)，构建入口见 [Windows Taskfile](../build/windows/Taskfile.yml)。每轮按改动范围选择业务场景，并记录实际执行结果。
+本文描述从源码准备到 Windows 实机验收、证据归档和环境恢复的流程。通用约定见 [AGENTS.md](../../AGENTS.md)，构建入口见 [Windows Taskfile](Taskfile.yml)。每轮按改动范围选择业务场景，并记录实际执行结果。
 
 ## 1. 确定源码和执行环境
 

@@ -67,7 +67,7 @@ func (s *FileServer) Replace(name string, raw []byte) {
 	s.assets[name] = New(contentType, raw)
 }
 
-// ServeHTTP 按规范化后的请求路径返回文件，根路径返回 index.html；错误响应不缓存。
+// ServeHTTP 按规范化后的请求路径返回文件，根路径与目录路径返回其 index.html；错误响应不缓存。
 func (s *FileServer) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet && request.Method != http.MethodHead {
 		writer.Header().Set("Allow", "GET, HEAD")
@@ -80,6 +80,10 @@ func (s *FileServer) ServeHTTP(writer http.ResponseWriter, request *http.Request
 		name = "index.html"
 	}
 	asset, ok := s.assets[name]
+	if !ok {
+		// 目录路径返回该目录下的 index.html。
+		asset, ok = s.assets[path.Join(name, "index.html")]
+	}
 	if !ok {
 		writer.Header().Set("Cache-Control", "no-store")
 		http.NotFound(writer, request)

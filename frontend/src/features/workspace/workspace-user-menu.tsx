@@ -1,7 +1,8 @@
-/** 工作台左下角的用户菜单：工作状态、设置入口、在客户端中使用、切换或创建工作区与退出登录。 */
+/** 工作台左下角的用户菜单：工作状态、设置入口、在客户端中使用、帮助文档、切换或创建工作区与退出登录。 */
 import { useRef, useState } from "react"
 import {
   CheckIcon,
+  CircleHelpIcon,
   LayoutGridIcon,
   LoaderCircleIcon,
   LogOutIcon,
@@ -19,6 +20,7 @@ import { useWorkStatusChange } from "@/hooks/use-work-status-change"
 import { useWorkspaceAttention } from "@/hooks/use-workspace-attention"
 import { ClientLinkDialog } from "@/features/server-connection/client-link-dialog"
 import { resolveAppPlatform } from "@/platform/app-platform"
+import { openProductDocs } from "@/platform/product-docs"
 import { enterWorkspace, navigateToHashPath, withReturnTo } from "@/lib/workspace-route"
 import {
   DropdownMenu,
@@ -38,7 +40,7 @@ import { UserAvatar } from "@/components/user-avatar"
 import { cn } from "@/lib/utils"
 import { useStartup } from "@/contexts/startup-context"
 
-/** 展示当前成员头像与工作区，展开后切换工作状态、进入设置、切换工作区或确认后退出登录。 */
+/** 展示当前成员头像与工作区，展开后切换工作状态、进入设置、打开帮助文档、切换工作区或确认后退出登录。 */
 export function WorkspaceUserMenu({
   identity,
   collapsed,
@@ -50,7 +52,7 @@ export function WorkspaceUserMenu({
   loggingOut: boolean
   onLogout: () => void
 }) {
-  const { t } = useTranslation(["workspace", "account", "connection"])
+  const { t, i18n } = useTranslation(["workspace", "account", "connection", "common"])
   const { usesOfficialLogin } = useStartup()
   const workspaceScope = useWorkspaceScope()
   const workspaceAttention = useWorkspaceAttention(workspaceScope.current.id)
@@ -172,6 +174,10 @@ export function WorkspaceUserMenu({
               {t("connection:clientLink.title")}
             </DropdownMenuItem>
           ) : null}
+          <DropdownMenuItem onSelect={() => void openProductDocs("home", i18n.language)}>
+            <CircleHelpIcon />
+            {t("common:productDocs")}
+          </DropdownMenuItem>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <LayoutGridIcon />

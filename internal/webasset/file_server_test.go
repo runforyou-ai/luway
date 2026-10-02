@@ -11,7 +11,7 @@ import (
 	"testing/fstest"
 )
 
-// TestFileServerCachePolicy 验证缓存策略、gzip 协商、固定响应类型、路径规范化和错误响应。
+// TestFileServerCachePolicy 验证缓存策略、gzip 协商、固定响应类型、目录索引、路径规范化和错误响应。
 func TestFileServerCachePolicy(t *testing.T) {
 	script := []byte(strings.Repeat("console.log('app');\n", 200))
 	server, err := NewFileServer(fstest.MapFS{
@@ -21,6 +21,7 @@ func TestFileServerCachePolicy(t *testing.T) {
 		"assets/worker-abc.mjs": {Data: []byte("export {}")},
 		"assets/font-abc.woff2": {Data: []byte("wOF2")},
 		"pdfjs/LICENSE":         {Data: []byte("license text")},
+		"guide/index.html":      {Data: []byte("<!doctype html><title>Guide</title>")},
 	}, "assets")
 	if err != nil {
 		t.Fatal(err)
@@ -71,6 +72,12 @@ func TestFileServerCachePolicy(t *testing.T) {
 	} {
 		if got := serve(http.MethodGet, target, nil).Header().Get("Content-Type"); got != want {
 			t.Fatalf("%s content type = %q, want %q", target, got, want)
+		}
+	}
+	// 目录路径返回该目录下的 index.html。
+	for _, target := range []string{"/guide/", "/guide"} {
+		if directory := serve(http.MethodGet, target, nil); directory.Code != http.StatusOK || directory.Body.String() != "<!doctype html><title>Guide</title>" {
+			t.Fatalf("%s: status=%d body=%q", target, directory.Code, directory.Body.String())
 		}
 	}
 	if cleaned := serve(http.MethodGet, "//assets/./x/../index-abc.js", nil); cleaned.Code != http.StatusOK {

@@ -3,6 +3,7 @@ const common = {
   notifications: "通知",
   closeNotification: "关闭通知",
   notSet: "未设置",
+  productDocs: "帮助文档",
   errors: {
     network: "无法连接服务器，请稍后重试。",
   },

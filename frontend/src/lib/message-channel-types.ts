@@ -24,8 +24,9 @@ import {
 } from "lucide-react"
 
 import { ChannelType } from "@/api"
+import type { ProductDocsPage } from "@/lib/product-docs"
 
-/** 当前支持展示的消息渠道类型；badgeClassName 用于实色角标，softClassName 用于浅底图标。 */
+/** 当前支持展示的消息渠道类型；badgeClassName 用于实色角标，softClassName 用于浅底图标，docsPage 为接入说明的文档页面。 */
 export const messageChannelTypeDefinitions = [
   {
     type: ChannelType.ChannelTypeWebsite,
@@ -33,6 +34,7 @@ export const messageChannelTypeDefinitions = [
     icon: GlobeIcon,
     badgeClassName: "bg-badge-website",
     softClassName: "bg-badge-website/10 text-badge-website",
+    docsPage: "websiteChannel",
   },
   {
     type: ChannelType.ChannelTypeTelegram,
@@ -40,6 +42,7 @@ export const messageChannelTypeDefinitions = [
     icon: SendIcon,
     badgeClassName: "bg-badge-telegram",
     softClassName: "bg-badge-telegram/10 text-badge-telegram",
+    docsPage: "telegramChannel",
   },
   {
     type: ChannelType.ChannelTypeWeChatOfficialAccount,
@@ -47,6 +50,7 @@ export const messageChannelTypeDefinitions = [
     icon: MessageCircleIcon,
     badgeClassName: "bg-badge-wechat",
     softClassName: "bg-badge-wechat/10 text-badge-wechat",
+    docsPage: undefined,
   },
 ] as const satisfies readonly {
   type: ChannelType
@@ -54,6 +58,7 @@ export const messageChannelTypeDefinitions = [
   icon: LucideIcon
   badgeClassName: string
   softClassName: string
+  docsPage: ProductDocsPage | undefined
 }[]
 
 type MessageChannelType =

@@ -163,6 +163,16 @@ tasks:
     cmds:
       - task: common:run:server
 
+  docs:dev:
+    summary: 以开发模式预览产品文档站点
+    cmds:
+      - task: common:dev:docs
+
+  docs:build:
+    summary: 构建内置到服务端的产品文档站点，并校验站内链接
+    cmds:
+      - task: common:build:docs
+
   brand:apply:
     summary: 把构建品牌同步到各平台打包元数据；PROFILE 指向品牌目录时先替换品牌文件和图标
     cmds:
