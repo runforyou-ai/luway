@@ -73,12 +73,14 @@ const (
 	ClientUpdateStateCurrent ClientUpdateState = "current"
 	// ClientUpdateStateReady 表示新版本已下载并通过签名校验，重启后生效。
 	ClientUpdateStateReady ClientUpdateState = "ready"
+	// ClientUpdateStateAvailable 表示服务器提供更新的版本，但当前端不能替换自身，需从服务器下载页安装。
+	ClientUpdateStateAvailable ClientUpdateState = "available"
 )
 
 // ClientUpdate 是原生端从当前服务器更新客户端的结果。
 type ClientUpdate struct {
 	State ClientUpdateState `json:"state"`
-	// Version 是已准备好的新版本，只在 State 为 ready 时有值。
+	// Version 是服务器提供的新版本，只在 State 为 ready 或 available 时有值。
 	Version string `json:"version"`
 }
 

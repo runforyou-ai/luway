@@ -23,9 +23,9 @@ The server reads installers and desktop update packages from the client director
 The Windows and macOS desktop apps update from the server they connect to, so the app version always follows the server version. After you update the server and its client directory, there's nothing else to publish.
 
 - Each time the desktop app connects, it reads the update manifest at `/clients/update`. When the server is newer than the app, the app downloads the update package for its platform in the background, checks its signature, and prompts the member to restart.
-- When the server no longer supports the app, the **Update required** page downloads the new version, and the app restarts once the member confirms.
+- When the server no longer supports the app, the **Update required** page downloads the new version, and the app restarts once the member confirms. If the app can't replace itself (see the Linux and folder permission note below), the page opens the download page instead.
 - The release process signs each update package, and the signature covers both the version number and the package contents. The app checks it with its built-in public key and never installs a package whose signature is invalid or whose contents don't match it, so a server can't present an old package as a new version. The app never updates to an older version.
-- The Linux desktop app doesn't update automatically. Members install new versions from the download page.
+- The Linux desktop app, and Windows or macOS desktop apps whose folder the current user can't write to (for example a system-wide install without administrator rights), don't replace themselves. When a new version is available, they prompt the member with **Go to downloads** to install it from the download page.
 
 ## Mobile apps
 
