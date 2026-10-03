@@ -1,7 +1,7 @@
 /** 简体中文·初始化文案。 */
 const setup = {
-  title: "初始化",
-  description: "创建第一个工作区和平台管理员账号。",
+  title: "开启协作",
+  description: "创建首个工作区和管理员账号，开始使用。",
   workspaceNameLabel: "工作区名称",
   workspaceSlugLabel: "工作区标识",
   displayNameLabel: "你的姓名",

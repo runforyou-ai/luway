@@ -130,7 +130,7 @@ export function MobileGroupDetailsPage() {
             error ? (
               <Button
                 variant="ghost"
-                className="min-h-11 text-warning"
+                className="min-h-11 text-destructive hover:text-destructive"
                 disabled={refreshing}
                 onClick={() => void refresh()}
               >

@@ -1,9 +1,9 @@
 /** 简体中文·账号与工作区文案。 */
 const account = {
-  title: "选择工作区",
-  description: "选择要进入的工作区。",
+  title: "进入工作区",
+  description: "选择工作区，继续今天的工作。",
   emptyTitle: "还没有工作区",
-  emptyDescription: "创建一个工作区，开始与团队协作。",
+  emptyDescription: "创建一个工作区，开始与同事和 AI 员工协作。",
   emptyDescriptionJoin: "请联系工作区管理员邀请你加入。",
   signedInAs: "当前账号 {{email}}",
   logout: "退出登录",
@@ -11,7 +11,7 @@ const account = {
   workspaceUnavailable: "你不在该工作区中，或工作区已暂停、已不存在。请选择要进入的工作区。",
   workspaceSuspended: "已暂停",
   createTitle: "创建工作区",
-  createDescription: "你将成为新工作区的管理员。",
+  createDescription: "建立共同的协作空间，连接同事与 AI 员工。",
   nameLabel: "工作区名称",
   slugLabel: "工作区标识",
   addressPreview: "访问地址：{{address}}",

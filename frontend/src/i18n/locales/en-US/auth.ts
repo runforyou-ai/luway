@@ -1,7 +1,7 @@
 /** 美式英语·认证文案。 */
 const auth = {
-  title: "Log in",
-  description: "Use your email and password to log in.",
+  title: "Welcome back",
+  description: "Log in to continue working with colleagues and AI employees.",
   emailLabel: "Email",
   passwordLabel: "Password",
   emailRequired: "Enter your email.",
@@ -16,7 +16,7 @@ const auth = {
   registerPrompt: "Don't have an account?",
   registerLink: "Sign up",
   registerTitle: "Create an account",
-  registerDescription: "After signing up, you can create your own workspace.",
+  registerDescription: "Start working with colleagues and AI employees.",
   registerInvitationDescription: "Use the invited email. After signing up, you can accept the invitation.",
   displayNameLabel: "Name",
   displayNameRequired: "Enter your name.",

@@ -1,7 +1,7 @@
 /** 美式英语·连接文案。 */
 const connection = {
   title: "Connect to a server",
-  description: "Enter the server address.",
+  description: "Enter the server address, then connect and log in.",
   serverUrlLabel: "Server address",
   serverUrlRequired: "Enter the server address.",
   serverUrlInvalid: "Enter a complete and valid server address.",

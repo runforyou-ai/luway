@@ -74,7 +74,7 @@ export function LoginPage({
       }
     >
       {sessionExpired ? (
-        <p role="status" className="mb-4 text-sm text-warning">
+        <p role="status" className="mb-4 text-sm/6 text-muted-foreground">
           {t("sessionExpired")}
         </p>
       ) : null}
