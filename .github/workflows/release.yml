@@ -34,6 +34,10 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      UPDATE_SIGNING_KEY:
+        description: PEM-encoded Ed25519 private key that signs desktop update packages for the brand profile
+        required: true
 
 permissions:
   contents: read
@@ -281,7 +285,7 @@ jobs:
         run: |
           set -euo pipefail
           slug="$(jq -r .slug internal/common/brand/brand.json)"
-          wails3 task linux:package ARCH=amd64
+          wails3 task linux:package ARCH=amd64 APP_VERSION="$VERSION"
 
           mkdir -p release-assets release-stage
           cp "bin/${slug}" "release-stage/${slug}"
@@ -380,10 +384,12 @@ jobs:
             export CC=clang
             export CXX=clang++
           fi
-          wails3 task windows:package ARCH="$arch" INSTALL_SCOPE=user
+          wails3 task windows:package ARCH="$arch" INSTALL_SCOPE=user APP_VERSION="$VERSION"
 
           mkdir -p release-assets
           cp "bin/${slug}-${arch}-installer.exe" "release-assets/${slug}_${VERSION}_windows_${arch}-installer.exe"
+          # 更新包只含可执行文件，桌面端更新时替换已安装的程序。
+          pwsh -NoProfile -Command "Compress-Archive -Path 'bin/${slug}.exe' -DestinationPath 'release-assets/${slug}_${VERSION}_windows_${arch}.zip'"
 
       - name: Upload Windows desktop assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -447,13 +453,13 @@ jobs:
         run: |
           set -euo pipefail
           slug="$(jq -r .slug internal/common/brand/brand.json)"
-          wails3 task darwin:package:universal
+          wails3 task darwin:package:universal APP_VERSION="$VERSION"
           wails3 task darwin:create:dmg
 
-          mkdir -p release-assets "${slug}_${VERSION}_darwin_universal"
-          cp -R "bin/${slug}.app" "${slug}_${VERSION}_darwin_universal/"
-          ditto -c -k --sequesterRsrc --keepParent \
-            "${slug}_${VERSION}_darwin_universal" \
+          # 更新包顶层只含应用包且不带资源分支目录，桌面端更新时整体替换已安装的应用包。
+          mkdir -p release-assets
+          ditto -c -k --norsrc --noextattr --keepParent \
+            "bin/${slug}.app" \
             "release-assets/${slug}_${VERSION}_darwin_universal.zip"
 
           dmg="$(find bin -maxdepth 1 -type f -name '*.dmg' -print -quit)"
@@ -541,8 +547,8 @@ jobs:
         run: |
           set -euo pipefail
           slug="$(jq -r .slug internal/common/brand/brand.json)"
-          wails3 task android:package:fat
-          wails3 task android:assemble:aab:release
+          wails3 task android:package:fat APP_VERSION="$VERSION"
+          wails3 task android:assemble:aab:release APP_VERSION="$VERSION"
 
           mkdir -p release-assets
           cp "bin/${slug}.apk" "release-assets/${slug}_${VERSION}_android.apk"
@@ -610,7 +616,7 @@ jobs:
         run: |
           set -euo pipefail
           slug="$(jq -r .slug internal/common/brand/brand.json)"
-          wails3 task ios:package IOS_PLATFORM=simulator ARCH=arm64
+          wails3 task ios:package IOS_PLATFORM=simulator ARCH=arm64 APP_VERSION="$VERSION"
 
           mkdir -p release-assets "${slug}_${VERSION}_ios_simulator_arm64"
           cp -R "bin/${slug}.app" "${slug}_${VERSION}_ios_simulator_arm64/"
@@ -687,8 +693,15 @@ jobs:
         env:
           CLIENTS: ${{ runner.temp }}/clients
           DESKTOP_ASSETS: ${{ runner.temp }}/desktop-assets
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: go run ./build/scripts/clientindex -version "$VERSION" -source "$DESKTOP_ASSETS" -output "$CLIENTS"
+        shell: bash
+        run: |
+          set -euo pipefail
+          key="$RUNNER_TEMP/update-signing.key"
+          printf '%s\n' "$UPDATE_SIGNING_KEY" > "$key"
+          trap 'rm -f "$key"' EXIT
+          go run ./build/scripts/clientindex -version "$VERSION" -source "$DESKTOP_ASSETS" -output "$CLIENTS" -key "$key"
 
       # 客户端索引随 Release 发布，供服务端更新时下载同版本客户端。
       - name: Upload client index

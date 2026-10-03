@@ -365,6 +365,7 @@ const (
 	ErrorServerInitializationRequired            Key = "error.server_initialization_required"
 	ErrorServerOutdated                          Key = "error.server_outdated"
 	ErrorClientUpgradeRequired                   Key = "error.client_upgrade_required"
+	ErrorClientUpdateFailed                      Key = "error.client_update_failed"
 	ErrorRemoteRequestCreateFailed               Key = "error.remote_request_create_failed"
 	ErrorServerConnectionFailed                  Key = "error.server_connection_failed"
 	ErrorInboxCursorInvalid                      Key = "error.inbox_cursor_invalid"

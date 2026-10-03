@@ -72,3 +72,23 @@ func TestValidateServerURL(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateUpdatePublicKey 验证更新签名公钥必须是 32 字节 Ed25519 公钥的标准 Base64 编码。
+func TestValidateUpdatePublicKey(t *testing.T) {
+	cases := map[string]bool{
+		Build().UpdatePublicKey: true,
+		"":                      false,
+		"not-base64":            false,
+		"AAAA":                  false,
+	}
+	for key, valid := range cases {
+		value := Build()
+		value.UpdatePublicKey = key
+		if err := value.Validate(); (err == nil) != valid {
+			t.Errorf("updatePublicKey %q 校验结果 = %v，期望有效 = %v", key, err, valid)
+		}
+	}
+	if len(Build().UpdateKey()) != 32 {
+		t.Fatal("构建品牌的更新签名公钥应为 32 字节")
+	}
+}

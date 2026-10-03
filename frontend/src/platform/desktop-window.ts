@@ -21,9 +21,14 @@ let currentMode: DesktopWindowMode = "workspace"
 let revealed = false
 let queue: Promise<void> = Promise.resolve()
 
+/** 判断当前窗口是否为桌面端主窗口。 */
+export async function isDesktopMainWindow() {
+  return (await Window.Name()) === mainWindowName
+}
+
 /** 把主窗口切到指定模式；macOS 保留系统窗口按钮，其他系统的入口小窗口去掉边框。 */
 async function applyMode(mode: DesktopWindowMode) {
-  if ((await Window.Name()) !== mainWindowName) return
+  if (!(await isDesktopMainWindow())) return
   const os = resolveDesktopOS()
   if (mode !== currentMode) {
     if (mode === "entry") {

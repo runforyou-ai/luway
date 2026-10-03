@@ -958,6 +958,14 @@ type NativeServerLink interface {
 	TakeOpenedServerLink(context.Context, RequestMeta) (string, error)
 }
 
+// ClientUpdater 由能从所连接服务器更新自身的原生端实现。
+type ClientUpdater interface {
+	// PrepareClientUpdate 检查当前服务器提供的客户端版本，较新时下载更新包并校验签名。
+	PrepareClientUpdate(context.Context, RequestMeta) (ClientUpdate, error)
+	// RestartClientUpdate 退出应用并以已准备好的新版本重新启动。
+	RestartClientUpdate(context.Context, RequestMeta) error
+}
+
 // NativeNotification 由原生端实现系统通知权限和消息投递。
 type NativeNotification interface {
 	CheckNotificationPermission(context.Context, RequestMeta) (NotificationPermissionStatus, error)

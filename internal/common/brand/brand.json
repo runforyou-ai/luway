@@ -9,5 +9,6 @@
   "copyright": "© 2026 武汉润予科技有限公司",
   "description": "Luway is an open-source AI customer support teammate platform.",
   "website": "https://luway.net",
-  "sdkName": "Luway"
+  "sdkName": "Luway",
+  "updatePublicKey": "Ts52zooSz+FyBGNIpMu2Cw0Jf7HtoCL8CQUkT8lgjiM="
 }

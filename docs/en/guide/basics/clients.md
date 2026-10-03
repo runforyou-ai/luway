@@ -17,5 +17,6 @@ This page is being written.
 
 The web app updates together with the server and never needs a separate update. The desktop and mobile apps must match the server version:
 
-- If the server no longer supports your app version after an update, the app shows an **Update required** page. Click **Download new version** to open the server's download page, install the new version, and open the app again. You can also click **Change server** to connect to a different server.
+- Each time the Windows or macOS desktop app connects to the server, it downloads the app version that matches the server. When the download finishes, it shows **Restart to update**, and the app restarts on the new version.
+- If the server no longer supports your app version after an update, the app shows an **Update required** page. The Windows and macOS desktop apps download the new version automatically; click **Restart to update** when it's ready. On the Linux desktop app and mobile apps, click **Download new version** to open the server's download page, install the new version, and open the app again. You can also click **Change server** to connect to a different server.
 - If the server is older than your app requires, the connection page says the server is out of date. Ask your administrator to update the server.
