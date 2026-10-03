@@ -10,7 +10,7 @@ import (
 	"time"
 	"uuid"
 
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	useraction "github.com/runforyou-ai/luway/internal/actions/user"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
@@ -23,7 +23,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// openEmptyDatabase 在测试库所在实例上新建并迁移一个空数据库，测试结束后删除；用于依赖部署尚无账号的首次安装场景。
+// openEmptyDatabase 在测试库所在实例上新建并迁移一个空数据库，测试结束后删除；用于依赖平台尚无账号的首次安装场景。
 func openEmptyDatabase(t *testing.T) *bun.DB {
 	t.Helper()
 	ctx := context.Background()
@@ -80,7 +80,7 @@ func requireFieldError(t *testing.T, err error, field string, key i18n.Key) {
 	}
 }
 
-// TestFirstInstallationAndRegistration 验证空部署进入初始化、首次安装只执行一次，以及注册与工作区创建按部署策略开放。
+// TestFirstInstallationAndRegistration 验证空平台进入初始化、首次安装只执行一次，以及注册与工作区创建按平台策略开放。
 func TestFirstInstallationAndRegistration(t *testing.T) {
 	t.Parallel()
 	db := openEmptyDatabase(t)
@@ -95,7 +95,7 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	}
 	_, err = backend.LoadIdentity(ctx, meta)
 	requireSessionState(t, err, appservice.SessionStateSetup)
-	// 首次安装之前不能注册，第一个账号只能是部署管理员。
+	// 首次安装之前不能注册，第一个账号只能是平台管理员。
 	early := appservice.RegisterInput{DisplayName: "抢先注册", Email: "early@example.test", Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai"}
 	_, err = backend.Register(ctx, meta, early)
 	requireSessionState(t, err, appservice.SessionStateSetup)
@@ -105,7 +105,7 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	}
 	admin, err := service.InstallWorkspace(ctx, meta, install)
-	if err != nil || admin.Token == "" || !admin.Account.IsDeploymentAdmin || admin.Account.Email != "admin@example.test" {
+	if err != nil || admin.Token == "" || !admin.Account.IsPlatformAdmin || admin.Account.Email != "admin@example.test" {
 		t.Fatalf("install auth = %#v, err = %v", admin, err)
 	}
 	install.Email, install.WorkspaceSlug = "second@example.test", "second"
@@ -113,7 +113,7 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	requireSessionState(t, err, appservice.SessionStateLogin)
 
 	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: appservice.LocaleChineseSimplified}
-	// 免费实例只有首个工作区，部署管理员也不能再创建。
+	// 免费版本只有首个工作区，平台管理员也不能再创建。
 	workspaces, err := backend.ListWorkspaces(ctx, adminMeta)
 	if err != nil || len(workspaces.Items) != 1 || workspaces.Items[0].Slug != "demo-team" || workspaces.CanCreate {
 		t.Fatalf("workspaces = %#v, err = %v", workspaces, err)
@@ -126,15 +126,15 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 		t.Fatalf("identity = %#v, err = %v", identity, err)
 	}
 
-	// 首次安装后默认仅限受邀注册，部署管理员开放注册后可以注册。
+	// 首次安装后默认仅限受邀注册，平台管理员开放注册后可以注册。
 	register := appservice.RegisterInput{DisplayName: "成员", Email: "member@example.test", Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai"}
 	_, err = backend.Register(ctx, meta, register)
 	appErr, ok := errors.AsType[*appservice.Error](err)
 	if closed, _ := i18n.Localize("zh-CN", i18n.ErrorRegistrationClosed); !ok || appErr.Message != closed {
 		t.Fatalf("closed registration error = %#v", err)
 	}
-	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
-		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
+	if _, err := backend.UpdatePlatformSettings(ctx, adminMeta, appservice.PlatformPoliciesInput{
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyPlatformAdmin,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -143,21 +143,21 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 		t.Fatalf("installed status = %#v, err = %v", status, err)
 	}
 	member, err := service.Register(ctx, meta, register)
-	if err != nil || member.Account.IsDeploymentAdmin {
+	if err != nil || member.Account.IsPlatformAdmin {
 		t.Fatalf("register auth = %#v, err = %v", member, err)
 	}
 	_, err = backend.Register(ctx, meta, register)
 	requireFieldError(t, err, "email", i18n.FieldEmailDuplicate)
 	memberMeta := appservice.RequestMeta{Token: member.Token, Locale: appservice.LocaleChineseSimplified}
-	// 新注册账号没有任何工作区；创建策略仅限部署管理员时不能创建工作区。
+	// 新注册账号没有任何工作区；创建策略仅限平台管理员时不能创建工作区。
 	workspaces, err = backend.ListWorkspaces(ctx, memberMeta)
 	if err != nil || len(workspaces.Items) != 0 || workspaces.CanCreate {
 		t.Fatalf("member workspaces = %#v, err = %v", workspaces, err)
 	}
 	_, err = backend.CreateWorkspace(ctx, memberMeta, appservice.WorkspaceInput{Name: "成员工作区", Slug: "member-team"})
 	requireErrorKind(t, err, appservice.ErrorKindForbidden)
-	// 所有账号可创建时，普通账号同样受实例工作区上限约束。
-	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
+	// 所有账号可创建时，普通账号同样受平台工作区上限约束。
+	if _, err := backend.UpdatePlatformSettings(ctx, adminMeta, appservice.PlatformPoliciesInput{
 		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyAnyAccount,
 	}); err != nil {
 		t.Fatal(err)
@@ -169,8 +169,8 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	requireSessionState(t, err, appservice.SessionStateWorkspace)
 }
 
-// TestDeploymentAdministration 验证部署管理接口只对部署管理员开放，并保持部署至少有一名有效部署管理员。
-func TestDeploymentAdministration(t *testing.T) {
+// TestPlatformAdministration 验证平台管理接口只对平台管理员开放，并保持平台至少有一名有效平台管理员。
+func TestPlatformAdministration(t *testing.T) {
 	t.Parallel()
 	db := openEmptyDatabase(t)
 	backend := newAccountTestBackend(db)
@@ -179,18 +179,18 @@ func TestDeploymentAdministration(t *testing.T) {
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
 
 	admin, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
-		WorkspaceName: "部署管理", WorkspaceSlug: "deployment-admin", DisplayName: "管理员", Email: "admin@example.test",
+		WorkspaceName: "平台管理", WorkspaceSlug: "platform-admin", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: appservice.LocaleChineseSimplified}
-	_, err = backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{RegistrationPolicy: "closed", WorkspaceCreationPolicy: "everyone"})
+	_, err = backend.UpdatePlatformSettings(ctx, adminMeta, appservice.PlatformPoliciesInput{RegistrationPolicy: "closed", WorkspaceCreationPolicy: "everyone"})
 	requireFieldError(t, err, "registrationPolicy", i18n.FieldRegistrationPolicyInvalid)
 	requireFieldError(t, err, "workspaceCreationPolicy", i18n.FieldWorkspaceCreationPolicyInvalid)
-	settings, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
-		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
+	settings, err := backend.UpdatePlatformSettings(ctx, adminMeta, appservice.PlatformPoliciesInput{
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyPlatformAdmin,
 	})
 	if err != nil || settings.RegistrationPolicy != appservice.RegistrationPolicyOpen {
 		t.Fatalf("settings = %#v, err = %v", settings, err)
@@ -203,61 +203,61 @@ func TestDeploymentAdministration(t *testing.T) {
 	}
 	memberMeta := appservice.RequestMeta{Token: member.Token, Locale: appservice.LocaleChineseSimplified}
 
-	// 普通账号调用部署管理接口被拒绝。
-	_, err = backend.GetDeploymentOverview(ctx, memberMeta)
+	// 普通账号调用平台管理接口被拒绝。
+	_, err = backend.GetPlatformOverview(ctx, memberMeta)
 	requireErrorKind(t, err, appservice.ErrorKindForbidden)
-	_, err = backend.ListDeploymentAccounts(ctx, memberMeta, appservice.DeploymentAccountListInput{Status: appservice.AccountStatusActive})
+	_, err = backend.ListPlatformAccounts(ctx, memberMeta, appservice.PlatformAccountListInput{Status: appservice.AccountStatusActive})
 	requireErrorKind(t, err, appservice.ErrorKindForbidden)
 
-	overview, err := backend.GetDeploymentOverview(ctx, adminMeta)
-	if err != nil || len(overview.InstanceID) != 36 || overview.AccountCount != 2 || overview.WorkspaceCount != 1 || overview.Capabilities.WorkspaceLimit != 1 {
+	overview, err := backend.GetPlatformOverview(ctx, adminMeta)
+	if err != nil || len(overview.ServerID) != 36 || overview.AccountCount != 2 || overview.WorkspaceCount != 1 || overview.Capabilities.WorkspaceLimit != 1 {
 		t.Fatalf("overview = %#v, err = %v", overview, err)
 	}
-	accounts, err := service.ListDeploymentAccounts(ctx, adminMeta, appservice.DeploymentAccountListInput{Status: appservice.AccountStatusActive})
+	accounts, err := service.ListPlatformAccounts(ctx, adminMeta, appservice.PlatformAccountListInput{Status: appservice.AccountStatusActive})
 	if err != nil || accounts.Page.Total != 2 || accounts.Accounts[0].ID != member.Account.ID || accounts.Accounts[0].WorkspaceCount != 0 ||
-		!accounts.Accounts[1].IsDeploymentAdmin || accounts.Accounts[1].WorkspaceCount != 1 {
+		!accounts.Accounts[1].IsPlatformAdmin || accounts.Accounts[1].WorkspaceCount != 1 {
 		t.Fatalf("accounts = %#v, err = %v", accounts, err)
 	}
-	accounts, err = backend.ListDeploymentAccounts(ctx, adminMeta, appservice.DeploymentAccountListInput{Query: "MEMBER@", Status: appservice.AccountStatusActive})
+	accounts, err = backend.ListPlatformAccounts(ctx, adminMeta, appservice.PlatformAccountListInput{Query: "MEMBER@", Status: appservice.AccountStatusActive})
 	if err != nil || len(accounts.Accounts) != 1 || accounts.Accounts[0].ID != member.Account.ID {
 		t.Fatalf("searched accounts = %#v, err = %v", accounts, err)
 	}
-	workspaces, err := backend.ListDeploymentWorkspaces(ctx, adminMeta, appservice.DeploymentWorkspaceListInput{})
-	if err != nil || len(workspaces.Workspaces) != 1 || workspaces.Workspaces[0].Slug != "deployment-admin" || workspaces.Workspaces[0].MemberCount != 1 {
+	workspaces, err := backend.ListPlatformWorkspaces(ctx, adminMeta, appservice.PlatformWorkspaceListInput{})
+	if err != nil || len(workspaces.Workspaces) != 1 || workspaces.Workspaces[0].Slug != "platform-admin" || workspaces.Workspaces[0].MemberCount != 1 {
 		t.Fatalf("workspaces = %#v, err = %v", workspaces, err)
 	}
 
-	// 部署管理员不能修改自己的账号，部署因此始终保留操作者自己。
-	_, err = backend.DeactivateDeploymentAccount(ctx, adminMeta, admin.Account.ID)
+	// 平台管理员不能修改自己的账号，平台因此始终保留操作者自己。
+	_, err = backend.DeactivatePlatformAccount(ctx, adminMeta, admin.Account.ID)
 	requireErrorKind(t, err, appservice.ErrorKindInvalid)
-	_, err = backend.RevokeDeploymentAdmin(ctx, adminMeta, admin.Account.ID)
+	_, err = backend.RevokePlatformAdmin(ctx, adminMeta, admin.Account.ID)
 	requireErrorKind(t, err, appservice.ErrorKindInvalid)
-	_, err = backend.GrantDeploymentAdmin(ctx, adminMeta, "00000000-0000-0000-0000-000000000000")
+	_, err = backend.GrantPlatformAdmin(ctx, adminMeta, "00000000-0000-0000-0000-000000000000")
 	requireErrorKind(t, err, appservice.ErrorKindNotFound)
 
-	// 未加入工作区的账号不能设为部署管理员。
-	_, err = backend.GrantDeploymentAdmin(ctx, adminMeta, member.Account.ID)
+	// 未加入工作区的账号不能设为平台管理员。
+	_, err = backend.GrantPlatformAdmin(ctx, adminMeta, member.Account.ID)
 	requireErrorKind(t, err, appservice.ErrorKindInvalid)
 	addAccountWorkspace(t, db, member.Token, "成员工作区")
 
-	// 授予部署管理员后新管理员可以撤销原管理员，原管理员随即失去部署管理入口。
-	granted, err := backend.GrantDeploymentAdmin(ctx, adminMeta, member.Account.ID)
-	if err != nil || !granted.IsDeploymentAdmin {
+	// 授予平台管理员后新管理员可以撤销原管理员，原管理员随即失去平台管理入口。
+	granted, err := backend.GrantPlatformAdmin(ctx, adminMeta, member.Account.ID)
+	if err != nil || !granted.IsPlatformAdmin {
 		t.Fatalf("granted = %#v, err = %v", granted, err)
 	}
-	if loaded, err := backend.LoadAccount(ctx, memberMeta); err != nil || !loaded.IsDeploymentAdmin {
+	if loaded, err := backend.LoadAccount(ctx, memberMeta); err != nil || !loaded.IsPlatformAdmin {
 		t.Fatalf("member account = %#v, err = %v", loaded, err)
 	}
-	if _, err := backend.RevokeDeploymentAdmin(ctx, memberMeta, admin.Account.ID); err != nil {
+	if _, err := backend.RevokePlatformAdmin(ctx, memberMeta, admin.Account.ID); err != nil {
 		t.Fatal(err)
 	}
-	_, err = backend.GetDeploymentOverview(ctx, adminMeta)
+	_, err = backend.GetPlatformOverview(ctx, adminMeta)
 	requireErrorKind(t, err, appservice.ErrorKindForbidden)
-	_, err = backend.GrantDeploymentAdmin(ctx, adminMeta, admin.Account.ID)
+	_, err = backend.GrantPlatformAdmin(ctx, adminMeta, admin.Account.ID)
 	requireErrorKind(t, err, appservice.ErrorKindForbidden)
 
 	// 停用账号使其登录会话失效，恢复后可以重新登录。
-	deactivated, err := backend.DeactivateDeploymentAccount(ctx, memberMeta, admin.Account.ID)
+	deactivated, err := backend.DeactivatePlatformAccount(ctx, memberMeta, admin.Account.ID)
 	if err != nil || deactivated.Status != appservice.AccountStatusInactive {
 		t.Fatalf("deactivated = %#v, err = %v", deactivated, err)
 	}
@@ -265,22 +265,22 @@ func TestDeploymentAdministration(t *testing.T) {
 	requireSessionState(t, err, appservice.SessionStateLogin)
 	_, err = backend.Login(ctx, meta, appservice.LoginInput{Email: "admin@example.test", Password: "password123"})
 	requireErrorKind(t, err, appservice.ErrorKindInvalid)
-	inactive, err := backend.ListDeploymentAccounts(ctx, memberMeta, appservice.DeploymentAccountListInput{Status: appservice.AccountStatusInactive})
+	inactive, err := backend.ListPlatformAccounts(ctx, memberMeta, appservice.PlatformAccountListInput{Status: appservice.AccountStatusInactive})
 	if err != nil || len(inactive.Accounts) != 1 || inactive.Accounts[0].ID != admin.Account.ID {
 		t.Fatalf("inactive accounts = %#v, err = %v", inactive, err)
 	}
-	if _, err := backend.ReactivateDeploymentAccount(ctx, memberMeta, admin.Account.ID); err != nil {
+	if _, err := backend.ReactivatePlatformAccount(ctx, memberMeta, admin.Account.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := backend.Login(ctx, meta, appservice.LoginInput{Email: "admin@example.test", Password: "password123"}); err != nil {
 		t.Fatalf("login after reactivation: %v", err)
 	}
-	_, err = backend.ListDeploymentAccounts(ctx, memberMeta, appservice.DeploymentAccountListInput{Status: "deleted"})
+	_, err = backend.ListPlatformAccounts(ctx, memberMeta, appservice.PlatformAccountListInput{Status: "deleted"})
 	requireFieldError(t, err, "status", i18n.FieldUserStatusInvalid)
 }
 
-// TestDeploymentAdminMembershipCannotBeDeactivated 验证工作区内不能停用部署管理员的成员身份，并发停用与授予部署管理员时不会留下无成员身份的部署管理员。
-func TestDeploymentAdminMembershipCannotBeDeactivated(t *testing.T) {
+// TestPlatformAdminMembershipCannotBeDeactivated 验证工作区内不能停用平台管理员的成员身份，并发停用与授予平台管理员时不会留下无成员身份的平台管理员。
+func TestPlatformAdminMembershipCannotBeDeactivated(t *testing.T) {
 	t.Parallel()
 	store, err := serverstorage.Open(context.Background(), servertest.DatabaseConfig(t))
 	if err != nil {
@@ -298,25 +298,25 @@ func TestDeploymentAdminMembershipCannotBeDeactivated(t *testing.T) {
 		t.Fatal(err)
 	}
 	member := loginMember(t, db, owner.Organization.ID, memberEmail, "password123").Identity
-	setDeploymentAdmin := func(value bool) {
+	setPlatformAdmin := func(value bool) {
 		t.Helper()
-		if _, err := db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_deployment_admin = ?", value).
+		if _, err := db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_platform_admin = ?", value).
 			Where("id = ?", member.User.AccountID).Exec(ctx); err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	setDeploymentAdmin(true)
-	if _, err := testUserStatusAction(db).Execute(ctx, owner, member.User.ID, domain.IdentityStatusInactive); !errors.Is(err, useraction.ErrDeploymentAdmin) {
-		t.Fatalf("deactivate deployment admin error = %v", err)
+	setPlatformAdmin(true)
+	if _, err := testUserStatusAction(db).Execute(ctx, owner, member.User.ID, domain.IdentityStatusInactive); !errors.Is(err, useraction.ErrPlatformAdmin) {
+		t.Fatalf("deactivate platform admin error = %v", err)
 	}
-	setDeploymentAdmin(false)
-	if _, err := db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_deployment_admin = true").
+	setPlatformAdmin(false)
+	if _, err := db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_platform_admin = true").
 		Where("id = ?", owner.User.AccountID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 
-	// 成员停用读取部署管理员身份后暂停，并发授予等待同一账号行，停用提交后授予因无有效成员身份失败。
+	// 成员停用读取平台管理员身份后暂停，并发授予等待同一账号行，停用提交后授予因无有效成员身份失败。
 	lockCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()
 	blocker, err := db.BeginTx(lockCtx, nil)
@@ -337,7 +337,7 @@ func TestDeploymentAdminMembershipCannotBeDeactivated(t *testing.T) {
 	waitChatDatabaseLock(t, lockCtx, db, `FROM "roles"`, owner.Organization.ID)
 	granted := make(chan error, 1)
 	go func() {
-		_, err := deploymentaction.NewUpdateAccountAction(db).SetDeploymentAdmin(lockCtx, &servermodels.AccountIdentity{Account: owner.Account}, member.User.AccountID, true)
+		_, err := platformaction.NewUpdateAccountAction(db).SetPlatformAdmin(lockCtx, &servermodels.AccountIdentity{Account: owner.Account}, member.User.AccountID, true)
 		granted <- err
 	}()
 	waitChatDatabaseLock(t, lockCtx, db, `FROM "accounts"`, member.User.AccountID)
@@ -347,8 +347,8 @@ func TestDeploymentAdminMembershipCannotBeDeactivated(t *testing.T) {
 	if err := waitChatResult(t, lockCtx, deactivated); err != nil {
 		t.Fatalf("deactivate member: %v", err)
 	}
-	if err := waitChatResult(t, lockCtx, granted); !errors.Is(err, deploymentaction.ErrNoActiveMembership) {
-		t.Fatalf("grant deployment admin error = %v", err)
+	if err := waitChatResult(t, lockCtx, granted); !errors.Is(err, platformaction.ErrNoActiveMembership) {
+		t.Fatalf("grant platform admin error = %v", err)
 	}
 }
 

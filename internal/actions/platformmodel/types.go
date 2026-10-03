@@ -1,6 +1,6 @@
 //go:build server
 
-// Package platformmodel 实现部署管理员维护的平台模型目录、来源路由与平台模型调用记录。
+// Package platformmodel 实现平台管理员维护的平台模型目录、来源路由与平台模型调用记录。
 package platformmodel
 
 import (

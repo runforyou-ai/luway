@@ -107,7 +107,7 @@ type RequestMeta struct {
 	DeviceID    string `json:"-"`
 }
 
-// InstallationStatus 定义部署名称、部署是否已完成首次安装、注册策略是否开放注册、部署使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。
+// InstallationStatus 定义部署名称、平台是否已完成首次安装、注册策略是否开放注册、平台使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。
 type InstallationStatus struct {
 	DeploymentName      string `json:"deploymentName"`
 	Installed           bool   `json:"installed"`
@@ -130,7 +130,7 @@ type ProductDocPage struct {
 	Path  string `json:"path"`
 }
 
-// InstallWorkspaceInput 定义首次安装输入：部署管理员账号和第一个工作区。
+// InstallWorkspaceInput 定义首次安装输入：平台管理员账号和第一个工作区。
 type InstallWorkspaceInput struct {
 	WorkspaceName string `json:"workspaceName"`
 	WorkspaceSlug string `json:"workspaceSlug"`
@@ -141,7 +141,7 @@ type InstallWorkspaceInput struct {
 	TimeZone      string `json:"timeZone"`
 }
 
-// RegisterInput 定义注册本地账号的输入；InvitationToken 非空时按邀请注册，部署未开放注册也可注册受邀邮箱。
+// RegisterInput 定义注册本地账号的输入；InvitationToken 非空时按邀请注册，平台未开放注册也可注册受邀邮箱。
 type RegisterInput struct {
 	DisplayName     string `json:"displayName"`
 	Email           string `json:"email"`
@@ -166,15 +166,15 @@ type Auth struct {
 
 // Account 定义当前登录账号。
 type Account struct {
-	ID                string `json:"id"`
-	Email             string `json:"email"`
-	DisplayName       string `json:"displayName"`
-	Locale            Locale `json:"locale"`
-	TimeZone          string `json:"timeZone"`
-	IsDeploymentAdmin bool   `json:"isDeploymentAdmin"`
+	ID              string `json:"id"`
+	Email           string `json:"email"`
+	DisplayName     string `json:"displayName"`
+	Locale          Locale `json:"locale"`
+	TimeZone        string `json:"timeZone"`
+	IsPlatformAdmin bool   `json:"isPlatformAdmin"`
 }
 
-// WorkspaceStatus 表示工作区状态：active 正常，suspended 已被部署管理员暂停。
+// WorkspaceStatus 表示工作区状态：active 正常，suspended 已被平台管理员暂停。
 type WorkspaceStatus string
 
 const (
@@ -203,7 +203,7 @@ type WorkspaceAttentionList struct {
 	Items []WorkspaceAttention `json:"items"`
 }
 
-// WorkspaceList 定义账号可进入的全部工作区；CanCreate 表示部署创建策略和实例工作区上限是否允许账号再创建工作区。
+// WorkspaceList 定义账号可进入的全部工作区；CanCreate 表示平台创建策略和平台工作区上限是否允许账号再创建工作区。
 type WorkspaceList struct {
 	Items     []Workspace `json:"items"`
 	CanCreate bool        `json:"canCreate"`

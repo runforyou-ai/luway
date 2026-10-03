@@ -85,9 +85,9 @@ const MemberFormPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import("@/features/settings/settings-page").then((module) => ({ default: module.SettingsPage })),
 )
-const DeploymentSettingsPage = lazy(() =>
-  import("@/features/settings/deployment/deployment-settings-page").then((module) => ({
-    default: module.DeploymentSettingsPage,
+const PlatformSettingsPage = lazy(() =>
+  import("@/features/settings/platform/platform-settings-page").then((module) => ({
+    default: module.PlatformSettingsPage,
   })),
 )
 
@@ -311,60 +311,60 @@ const workspaceRouteDefinitions = [
     ),
   },
   {
-    path: "/settings/deployment/overview",
-    element: <DeploymentSettingsPage section="overview" />,
+    path: "/settings/platform/overview",
+    element: <PlatformSettingsPage section="overview" />,
   },
   {
-    path: "/settings/deployment/usage",
-    element: <DeploymentSettingsPage section="usage" />,
+    path: "/settings/platform/usage",
+    element: <PlatformSettingsPage section="usage" />,
   },
   {
-    path: "/settings/deployment/runtime",
-    element: <DeploymentSettingsPage section="runtime" />,
+    path: "/settings/platform/runtime",
+    element: <PlatformSettingsPage section="runtime" />,
   },
   {
-    path: "/settings/deployment/license",
-    element: <DeploymentSettingsPage section="license" />,
+    path: "/settings/platform/license",
+    element: <PlatformSettingsPage section="license" />,
   },
   {
-    path: "/settings/deployment/accounts",
-    element: <DeploymentSettingsPage section="accounts" />,
+    path: "/settings/platform/accounts",
+    element: <PlatformSettingsPage section="accounts" />,
   },
   {
-    path: "/settings/deployment/workspaces",
-    element: <DeploymentSettingsPage section="workspaces" />,
+    path: "/settings/platform/workspaces",
+    element: <PlatformSettingsPage section="workspaces" />,
   },
   {
-    path: "/settings/deployment/registration",
-    element: <DeploymentSettingsPage section="registration" />,
+    path: "/settings/platform/registration",
+    element: <PlatformSettingsPage section="registration" />,
   },
   {
-    path: "/settings/deployment/platform-models",
-    element: <DeploymentSettingsPage section="platformModels" />,
+    path: "/settings/platform/models",
+    element: <PlatformSettingsPage section="platformModels" />,
   },
   {
-    path: "/settings/deployment/platform-models/new",
-    element: <DeploymentSettingsPage section="platformModelCreate" />,
+    path: "/settings/platform/models/new",
+    element: <PlatformSettingsPage section="platformModelCreate" />,
   },
   {
-    path: "/settings/deployment/platform-models/:modelId",
-    element: <DeploymentSettingsPage section="platformModelEdit" />,
+    path: "/settings/platform/models/:modelId",
+    element: <PlatformSettingsPage section="platformModelEdit" />,
   },
   {
-    path: "/settings/deployment/platform-providers",
-    element: <DeploymentSettingsPage section="platformProviders" />,
+    path: "/settings/platform/providers",
+    element: <PlatformSettingsPage section="platformProviders" />,
   },
   {
-    path: "/settings/deployment/platform-providers/new/:brand",
-    element: <DeploymentSettingsPage section="platformProviderCreate" />,
+    path: "/settings/platform/providers/new/:brand",
+    element: <PlatformSettingsPage section="platformProviderCreate" />,
   },
   {
-    path: "/settings/deployment/platform-providers/:providerId",
-    element: <DeploymentSettingsPage section="platformProviderEdit" />,
+    path: "/settings/platform/providers/:providerId",
+    element: <PlatformSettingsPage section="platformProviderEdit" />,
   },
   {
-    path: "/settings/deployment/platform-model-calls",
-    element: <DeploymentSettingsPage section="platformCalls" />,
+    path: "/settings/platform/model-calls",
+    element: <PlatformSettingsPage section="platformCalls" />,
   },
 ] as const satisfies readonly {
   path: string
@@ -406,7 +406,7 @@ const workspaceRouteObjects: RouteObject[] = [
 
 const workspaceRedirects: Readonly<Record<string, string>> = {
   "/settings": "/settings/profile",
-  "/settings/deployment": "/settings/deployment/overview",
+  "/settings/platform": "/settings/platform/overview",
   "/contacts": "/contacts/employees",
 }
 

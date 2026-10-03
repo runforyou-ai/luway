@@ -21,7 +21,7 @@ import { requestErrorMessage } from "@/lib/form-errors"
 import { enterWorkspace } from "@/lib/workspace-route"
 import { zodResolver } from "@/lib/zod-resolver"
 
-/** 创建第一个工作区和部署管理员账号。 */
+/** 创建第一个工作区和平台管理员账号。 */
 export function SetupForm() {
   const { t } = useTranslation("setup")
   const navigate = useNavigate()
@@ -56,7 +56,7 @@ export function SetupForm() {
       completeStartup()
       enterWorkspace(values.workspaceSlug, "/inbox", { replace: true })
     } catch (error) {
-      // 部署已由他人完成安装时回到登录页。
+      // 平台已由他人完成安装时回到登录页。
       if (isApiError(error) && error.state === SessionState.SessionStateLogin) {
         completeStartup()
         navigate("/login", { replace: true })

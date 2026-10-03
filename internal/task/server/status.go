@@ -25,7 +25,7 @@ type QueueStatus struct {
 	Failed             int        `bun:"failed"`
 }
 
-// FailedRun 定义一次失败或等待重试的任务运行；OrganizationID 为所属工作区，部署级任务为空，FailedAt 为最近一次执行失败的时间。
+// FailedRun 定义一次失败或等待重试的任务运行；OrganizationID 为所属工作区，平台级任务为空，FailedAt 为最近一次执行失败的时间。
 type FailedRun struct {
 	ID             string    `bun:"id"`
 	OrganizationID *string   `bun:"organization_id"`

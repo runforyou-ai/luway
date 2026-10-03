@@ -1,6 +1,6 @@
 //go:build server
 
-// Package installation 实现部署首次安装的应用操作。
+// Package installation 实现平台首次安装的应用操作。
 package installation
 
 import (
@@ -11,9 +11,9 @@ import (
 
 	accountaction "github.com/runforyou-ai/luway/internal/actions/account"
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	organizationaction "github.com/runforyou-ai/luway/internal/actions/organization"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -23,13 +23,13 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ErrAlreadyInstalled 表示部署已完成首次安装，首次安装入口关闭。
-var ErrAlreadyInstalled = errors.New("deployment is already installed")
+// ErrAlreadyInstalled 表示平台已完成首次安装，首次安装入口关闭。
+var ErrAlreadyInstalled = errors.New("platform is already installed")
 
 // ValidationError 表示首次安装字段校验失败。
 type ValidationError = common.FieldError
 
-// InstallWorkspaceAction 创建部署管理员账号和第一个工作区。
+// InstallWorkspaceAction 创建平台管理员账号和第一个工作区。
 type InstallWorkspaceAction struct {
 	db       *bun.DB
 	enqueuer servertask.TxEnqueuer
@@ -46,18 +46,18 @@ type InstallWorkspaceInput struct {
 	TimeZone      string
 }
 
-// InstallWorkspaceOutput 返回部署管理员的成员身份和登录会话。
+// InstallWorkspaceOutput 返回平台管理员的成员身份和登录会话。
 type InstallWorkspaceOutput struct {
 	Identity *servermodels.Identity
 	Session  authaction.SessionOutput
 }
 
-// NewInstallWorkspaceAction 创建首次安装操作，enqueuer 投递实例与 control 的首次同步任务。
+// NewInstallWorkspaceAction 创建首次安装操作，enqueuer 投递服务器与 control 的首次同步任务。
 func NewInstallWorkspaceAction(db *bun.DB, enqueuer servertask.TxEnqueuer) *InstallWorkspaceAction {
 	return &InstallWorkspaceAction{db: db, enqueuer: enqueuer}
 }
 
-// Execute 在部署尚未完成首次安装时，于同一事务内生成部署实例并投递与 control 的首次同步，并创建部署管理员账号、第一个工作区和登录会话。
+// Execute 在平台尚未完成首次安装时，于同一事务内写入平台行并投递与 control 的首次同步，并创建平台管理员账号、第一个工作区和登录会话。
 func (a *InstallWorkspaceAction) Execute(ctx context.Context, input InstallWorkspaceInput) (InstallWorkspaceOutput, error) {
 	account := accountaction.NewAccountInput{
 		DisplayName: strings.TrimSpace(input.DisplayName),
@@ -82,23 +82,23 @@ func (a *InstallWorkspaceAction) Execute(ctx context.Context, input InstallWorks
 
 	var output InstallWorkspaceOutput
 	err = a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		// 锁定部署实例表后确认尚未写入部署实例，并发安装只有一个成功。
-		if _, err := tx.ExecContext(ctx, "LOCK TABLE deployments IN SHARE ROW EXCLUSIVE MODE"); err != nil {
+		// 锁定平台表后确认尚未写入平台行，并发安装只有一个成功。
+		if _, err := tx.ExecContext(ctx, "LOCK TABLE platforms IN SHARE ROW EXCLUSIVE MODE"); err != nil {
 			return err
 		}
-		installed, err := tx.NewSelect().Model((*servermodels.Deployment)(nil)).Exists(ctx)
+		installed, err := tx.NewSelect().Model((*servermodels.Platform)(nil)).Exists(ctx)
 		if err != nil {
 			return err
 		}
 		if installed {
 			return ErrAlreadyInstalled
 		}
-		if _, err := deploymentaction.Create(ctx, tx, a.enqueuer, account.TimeZone); err != nil {
+		if _, err := platformaction.Create(ctx, tx, a.enqueuer, account.TimeZone); err != nil {
 			return err
 		}
 		admin, err := identityaction.CreateAccount(ctx, tx, identityaction.NewAccount{
 			Email: account.Email, PasswordHash: passwordHash, DisplayName: account.DisplayName,
-			Locale: account.Locale, TimeZone: account.TimeZone, IsDeploymentAdmin: true,
+			Locale: account.Locale, TimeZone: account.TimeZone, IsPlatformAdmin: true,
 		})
 		if err != nil {
 			return err

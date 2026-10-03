@@ -10,7 +10,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// StatusQuery 查询部署是否已完成首次安装。
+// StatusQuery 查询平台是否已完成首次安装。
 type StatusQuery struct {
 	db *bun.DB
 }
@@ -20,9 +20,9 @@ func NewStatusQuery(db *bun.DB) *StatusQuery {
 	return &StatusQuery{db: db}
 }
 
-// Execute 返回部署是否已写入部署实例。
+// Execute 返回平台是否已写入平台行。
 func (q *StatusQuery) Execute(ctx context.Context) (bool, error) {
-	installed, err := q.db.NewSelect().Model((*servermodels.Deployment)(nil)).Exists(ctx)
+	installed, err := q.db.NewSelect().Model((*servermodels.Platform)(nil)).Exists(ctx)
 	if err != nil {
 		return false, fmt.Errorf("check installation: %w", err)
 	}

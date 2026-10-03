@@ -14,37 +14,37 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ErrAccountEmailTaken 表示邮箱已被部署内其他账号使用。
+// ErrAccountEmailTaken 表示邮箱已被平台内其他账号使用。
 var ErrAccountEmailTaken = errors.New("account email is taken")
 
 // NewAccount 定义创建账号所需的已校验字段；PasswordHash 为空时账号没有本地密码。
 type NewAccount struct {
-	Email             string
-	EmailVerified     bool
-	PasswordHash      string
-	DisplayName       string
-	Locale            domain.Locale
-	TimeZone          string
-	IsDeploymentAdmin bool
+	Email           string
+	EmailVerified   bool
+	PasswordHash    string
+	DisplayName     string
+	Locale          domain.Locale
+	TimeZone        string
+	IsPlatformAdmin bool
 }
 
 // CreateAccount 在调用方事务内创建有效账号。
 func CreateAccount(ctx context.Context, db bun.IDB, input NewAccount) (*servermodels.Account, error) {
 	account := &servermodels.Account{
-		Email:             input.Email,
-		PasswordHash:      input.PasswordHash,
-		DisplayName:       input.DisplayName,
-		Locale:            string(input.Locale),
-		TimeZone:          input.TimeZone,
-		Status:            string(domain.AccountStatusActive),
-		IsDeploymentAdmin: input.IsDeploymentAdmin,
+		Email:           input.Email,
+		PasswordHash:    input.PasswordHash,
+		DisplayName:     input.DisplayName,
+		Locale:          string(input.Locale),
+		TimeZone:        input.TimeZone,
+		Status:          string(domain.AccountStatusActive),
+		IsPlatformAdmin: input.IsPlatformAdmin,
 	}
 	if input.EmailVerified {
 		now := time.Now()
 		account.EmailVerifiedAt = &now
 	}
 	if _, err := db.NewInsert().Model(account).
-		Column("email", "email_verified_at", "password_hash", "display_name", "locale", "time_zone", "status", "is_deployment_admin").
+		Column("email", "email_verified_at", "password_hash", "display_name", "locale", "time_zone", "status", "is_platform_admin").
 		Returning("id, created_at, updated_at").
 		Exec(ctx); err != nil {
 		if pgerr.UniqueViolationOn(err, "accounts_email_unique") {

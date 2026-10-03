@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/ingress"
 	"github.com/runforyou-ai/luway/internal/integration/control"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -83,10 +83,10 @@ type telemetryLifecycle struct {
 	metrics *control.Metrics
 }
 
-// ServiceStartup 开始每分钟采集并上报运行指标，部署关闭上报时不上报。
+// ServiceStartup 开始每分钟采集并上报运行指标，平台关闭上报时不上报。
 func (l *telemetryLifecycle) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
-	metrics, err := l.control.StartMetrics(ctx, deploymentaction.TelemetryGauges, func(ctx context.Context) (map[string]int64, error) {
-		return deploymentaction.TelemetryMetrics(ctx, l.db)
+	metrics, err := l.control.StartMetrics(ctx, platformaction.TelemetryGauges, func(ctx context.Context) (map[string]int64, error) {
+		return platformaction.TelemetryMetrics(ctx, l.db)
 	})
 	if err != nil {
 		return err

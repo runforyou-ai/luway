@@ -17,7 +17,7 @@ Luway 是开源、以自托管为主的 AI 原生企业协作产品，使用 Go�
 ## 命令与工作区
 
 - 所有命令从仓库根目录通过 `wails3 task` 执行，Task 自动加载当前 worktree 的 `.env`。不直接调用底层构建工具。
-- 每个 worktree 使用独立的 Server、Vite 端口、PostgreSQL 数据库和 NATS 命名空间；PostgreSQL 和 NATS 为共享实例。
+- 每个 worktree 使用独立的 Server、Vite 端口、PostgreSQL 数据库和 NATS 命名空间；PostgreSQL 和 NATS 为共享实例，由仓库根目录的 `docker-compose-dev.yml` 定义，`.env` 的 `COMPOSE_FILE` 指向该文件，仅在主工作区启动。
 - 开发、测试和界面验证统一通过当前 worktree 的公网域名 `https://<worktree 目录名>-dev.runforyou.app` 访问服务端，不使用 `127.0.0.1`、局域网 IP 等内网地址，并配置为该 worktree 的 `PUBLIC_URL`。该域名经常驻的 Cloudflare Tunnel 转发到该 worktree 的 `WAILS_SERVER_PORT`，由用户手动启动。
 - 客户端构建使用平台 Task（如 `darwin:build`、`windows:package`），目标架构只传 `ARCH`，不自行设置 `GOOS`、`GOARCH`、`CGO_ENABLED`。客户端固定启用 CGO；纯静态服务端镜像使用 `CGO_ENABLED=0`。
 - 每次测试或界面验证结束后，关闭本次启动的服务端、客户端、Vite、MCP 等进程及其子进程，并确认端口已释放；用户明确要求保留时除外。只清理本次启动的进程，不关闭其他 worktree 的进程或共享的 PostgreSQL、NATS。
@@ -39,9 +39,9 @@ Luway 是开源、以自托管为主的 AI 原生企业协作产品，使用 Go�
 
 - `appservice.Service` 是统一业务入口：服务端 Web 走 `appservice/direct` 的 `Backend`，桌面端和移动端走 API Proxy。Gin 只做对外 HTTP API 适配。
 - 各端统一使用 Bearer Token，不使用 Cookie；登录令牌保存在 `localStorage`，API Proxy 把应用服务调用转成携带 Token 的 HTTP 请求。唯一例外：公开 Messenger 的网站匿名访客使用渠道级长期 Cookie（`visitor_<channel_id>`）恢复匿名身份。
-- 账号属于部署，一个账号可以加入多个工作区；成员身份、角色和业务数据按工作区隔离。登录只建立账号会话，工作区级调用通过 `RequestMeta.WorkspaceID`（HTTP 请求头 `X-Workspace`）指定目标工作区。
+- 账号属于平台，一个账号可以加入多个工作区；成员身份、角色和业务数据按工作区隔离。登录只建立账号会话，工作区级调用通过 `RequestMeta.WorkspaceID`（HTTP 请求头 `X-Workspace`）指定目标工作区。
 - 服务端根路径是产品首页，Web 应用位于部署地址的 `/app/` 下（`domain.WebAppPath`），服务端生成的应用链接与前端展示的工作区地址都以它为前缀。工作区页面位于 `/app/#/w/<工作区标识>/…`，路由器以 `/w/<工作区标识>` 为 basename，切换工作区时重建路由器并进入新的登录会话代次；登录、注册、首次安装、服务器连接和工作区列表位于应用的哈希根路径。
-- 首次安装只在 Web 端完成，部署尚无账号时创建部署管理员和第一个工作区。桌面端和移动端先检测服务器是否可用，再连接并进入登录页；服务器未完成首次安装时回到连接页。
+- 首次安装只在 Web 端完成，平台尚无账号时创建平台管理员和第一个工作区。桌面端和移动端先检测服务器是否可用，再连接并进入登录页；服务器未完成首次安装时回到连接页。
 - Web 与桌面端共享主要业务页面，移动端保持独立入口。
 - 对象存储是部署级配置，整个部署共用一个存储桶，对象键按工作区编号隔离。开启时客户端通过服务端签发的预签名请求直传文件，服务端不转发文件内容，Endpoint 使用客户端可访问的公开地址；关闭时文件写入服务器的本地最终目录。文件选择后立即上传为临时文件，保存业务数据时在事务中激活；未激活文件默认 24 小时过期，由服务端定时清理。读取按记录中的本地或对象存储类型处理，不受当前开关影响。
 
@@ -166,7 +166,7 @@ wails3 task build:server
 ```
 
 - `test:server` 使用 `<POSTGRES_DB>_test` 作为测试数据库并在每次运行前重建；同一 worktree 同一时刻只运行一次。
-- 集成测试共享当前 worktree 的测试数据库。首次安装测试使用本轮新建的空数据库；其他集成测试通过 `installWorkspace` 建立独立工作区，账号邮箱全部署唯一，用 `uniqueEmail` 生成。
+- 集成测试共享当前 worktree 的测试数据库。首次安装测试使用本轮新建的空数据库；其他集成测试通过 `installWorkspace` 建立独立工作区，账号邮箱全平台唯一，用 `uniqueEmail` 生成。
 
 ### 代码组织
 
@@ -186,7 +186,7 @@ wails3 task build:server
 - `Service` 的每个带结果方法都对结果调用 `normalizeSlices`，nil 切片输出为空数组；`manual=service` 的手写方法同样遵守。
 - `appservice/backend.go` 的 `Backend` 接口是业务调用的唯一契约源，每个方法必须带 `appservice:route` 指令。`Service` 委托、服务端认证分发、Gin 路由与 Handler、API Proxy 转发由 `go generate ./internal/appservice` 生成到各包的 `*_gen.go`，禁止手改。
 - 新增业务方法：在 `Backend` 补方法与指令（GET 的查询结构体在 `types.go` 为每个字段显式加 `query` 标签，不传输的字段用 `query:"-"`），运行生成器，然后只手写 `appservice/direct` 中的 `directOperations` 实现和 Action。无法按统一模式生成的层用 `manual=service,api,proxy` 标记并在对应包手写。服务端经 `filecontent.Links` 生成文件地址，本地存储返回服务端相对路径；API Proxy 在统一解码处把字段名以 `URL` 结尾的本地存储相对路径补全为当前连接地址，不重复切片归一化。
-- 认证由 `appservice/direct/backend_gen.go` 生成的分发层统一处理：`auth` 默认 `member`，先解析账号会话在目标工作区中的成员身份再调用业务实现；只需要登录账号的方法（账号资料、工作区列表与创建等）标记 `auth=account`，部署级管理方法（部署概况、部署账号与工作区、注册与创建策略等）标记 `auth=admin` 并要求当前账号是部署管理员，无需登录的方法标记 `auth=public`。
+- 认证由 `appservice/direct/backend_gen.go` 生成的分发层统一处理：`auth` 默认 `member`，先解析账号会话在目标工作区中的成员身份再调用业务实现；只需要登录账号的方法（账号资料、工作区列表与创建等）标记 `auth=account`，平台级管理方法（平台概览、平台账号与工作区、注册与创建策略等）标记 `auth=admin` 并要求当前账号是平台管理员，无需登录的方法标记 `auth=public`。
 - `directOperations` 直接接收已解析的 `identity`，不重复认证，只负责把 Action 返回的语言无关错误码转成结构化、本地化错误并调用 Action。其 Action 与 Query 字段按业务域分组在 `<域>Ops` 结构体中，新增依赖只改对应实现文件。
 - 只读 Query 信任分发层已解析的身份，不重复查询用户状态；写 Action 在事务开始时通过 `actions/identity.LockActiveUser` 校验并锁定活跃用户。
 - Action 直接使用 Bun，按需调用 `common`；记录关联、组织边界和业务规则在事务中显式校验和维护。

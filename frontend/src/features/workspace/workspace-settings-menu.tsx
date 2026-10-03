@@ -1,4 +1,4 @@
-/** 设置页的一级导航，进入设置后替换模块栏内容；部署管理员额外看到部署分组。 */
+/** 设置页的一级导航，进入设置后替换模块栏内容；平台管理员额外看到平台分组。 */
 import type { ReactNode } from "react"
 import {
   ActivityIcon,
@@ -44,7 +44,7 @@ export function WorkspaceSettingsMenu({
   railToggle: ReactNode
 }) {
   const { t } = useTranslation("settings")
-  // 部署分组只对部署管理员显示，进入设置时重新读取账号，读取失败时不显示。
+  // 平台分组只对平台管理员显示，进入设置时重新读取账号，读取失败时不显示。
   const account = useResource(resourceKeys.account(), (signal) => loadAccount(signal), { staleTime: 0 })
 
   const backToApp = (
@@ -177,77 +177,77 @@ export function WorkspaceSettingsMenu({
           {t("navigation.webSearch")}
         </PagePaneLink>
       </PagePaneGroup>
-      {account.data?.isDeploymentAdmin ? (
-        <PagePaneGroup title={t("groups.deployment")} collapsed={collapsed}>
+      {account.data?.isPlatformAdmin ? (
+        <PagePaneGroup title={t("groups.platform")} collapsed={collapsed}>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/overview"
+            to="/settings/platform/overview"
             icon={GaugeIcon}
           >
-            {t("navigation.deploymentOverview")}
+            {t("navigation.platformOverview")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/usage"
+            to="/settings/platform/usage"
             icon={ChartColumnIcon}
           >
-            {t("navigation.deploymentUsage")}
+            {t("navigation.platformUsage")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/runtime"
+            to="/settings/platform/runtime"
             icon={ActivityIcon}
           >
-            {t("navigation.deploymentRuntime")}
+            {t("navigation.platformRuntime")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/license"
+            to="/settings/platform/license"
             icon={KeyRoundIcon}
           >
-            {t("navigation.deploymentLicense")}
+            {t("navigation.platformLicense")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/accounts"
+            to="/settings/platform/accounts"
             icon={CircleUserRoundIcon}
           >
-            {t("navigation.deploymentAccounts")}
+            {t("navigation.platformAccounts")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/workspaces"
+            to="/settings/platform/workspaces"
             icon={LayoutGridIcon}
           >
-            {t("navigation.deploymentWorkspaces")}
+            {t("navigation.platformWorkspaces")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/registration"
+            to="/settings/platform/registration"
             icon={UserPlusIcon}
           >
-            {t("navigation.deploymentRegistration")}
+            {t("navigation.platformRegistration")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/platform-models"
+            to="/settings/platform/models"
             icon={BrainCircuitIcon}
           >
-            {t("navigation.deploymentPlatformModels")}
+            {t("navigation.platformModels")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/platform-providers"
+            to="/settings/platform/providers"
             icon={ServerIcon}
           >
-            {t("navigation.deploymentPlatformProviders")}
+            {t("navigation.platformProviders")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/deployment/platform-model-calls"
+            to="/settings/platform/model-calls"
             icon={ActivityIcon}
           >
-            {t("navigation.deploymentPlatformCalls")}
+            {t("navigation.platformCalls")}
           </PagePaneLink>
         </PagePaneGroup>
       ) : null}

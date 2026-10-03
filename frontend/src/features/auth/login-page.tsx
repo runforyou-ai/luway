@@ -1,4 +1,4 @@
-/** 登录页，部署开放注册时提供注册入口。 */
+/** 登录页，平台开放注册时提供注册入口。 */
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Link, Navigate, useNavigate } from "react-router"
@@ -25,7 +25,7 @@ export function LoginPage({
     staleTime: 0,
   })
   const registrationOpen = Boolean(installation.data?.registrationOpen)
-  // 原生端展示已连接的部署，未配置部署名称时展示服务器地址。
+  // 原生端展示已连接服务器的部署名称，未配置时展示服务器地址。
   const serverURL = useResource(resourceKeys.serverURL(), () => resolveServerURL(), { enabled: allowServerChange })
   const deploymentLabel = installation.data?.deploymentName || (serverURL.data ? new URL(serverURL.data).host : "")
   const { account, error, redirectPath } = useAccountSession()

@@ -20,7 +20,7 @@ var (
 	ErrIdentityNotFound = errors.New("session not found or account inactive")
 	// ErrMembershipNotFound 表示账号在目标工作区没有有效的成员身份。
 	ErrMembershipNotFound = errors.New("account is not an active member of the workspace")
-	// ErrWorkspaceSuspended 表示目标工作区已被部署管理员暂停。
+	// ErrWorkspaceSuspended 表示目标工作区已被平台管理员暂停。
 	ErrWorkspaceSuspended = errors.New("workspace is suspended")
 )
 
@@ -90,7 +90,7 @@ func (q *ResolveIdentityQuery) Execute(ctx context.Context, organizationID strin
 
 // accountSessionColumns 是账号与登录会话的查询列，扫描目标由 accountSessionTargets 给出。
 const accountSessionColumns = `
-	acc.id::text, acc.email, acc.email_verified_at, acc.display_name, acc.locale, acc.time_zone, acc.status, acc.is_deployment_admin,
+	acc.id::text, acc.email, acc.email_verified_at, acc.display_name, acc.locale, acc.time_zone, acc.status, acc.is_platform_admin,
 	acs.id::text, acs.account_id::text, acs.expires_at`
 
 // memberTables 是成员用户、成员身份与工作区的关联，成员身份类型取第一个查询参数。
@@ -110,7 +110,7 @@ const memberColumns = `
 func accountSessionTargets(account *servermodels.Account, session *servermodels.AccountSession) []any {
 	return []any{
 		&account.ID, &account.Email, &account.EmailVerifiedAt, &account.DisplayName,
-		&account.Locale, &account.TimeZone, &account.Status, &account.IsDeploymentAdmin,
+		&account.Locale, &account.TimeZone, &account.Status, &account.IsPlatformAdmin,
 		&session.ID, &session.AccountID, &session.ExpiresAt,
 	}
 }

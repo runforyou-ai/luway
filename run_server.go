@@ -13,7 +13,7 @@ import (
 	"os"
 	"strings"
 
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
@@ -30,7 +30,7 @@ func run(arguments []string) error {
 	configPath := flags.String("config", "", "显式指定 YAML 配置文件")
 	checkConfig := flags.Bool("check-config", false, "校验配置后退出")
 	showVersion := flags.Bool("version", false, "输出版本号后退出")
-	resetInstance := flags.Bool("reset-instance", false, "为部署生成新的实例标识与签名私钥并删除本地授权后退出，用于复制数据库搭建的新部署；执行前先停止服务端")
+	resetServerID := flags.Bool("reset-server-id", false, "为平台生成新的服务器标识与签名私钥并删除本地授权后退出，用于复制数据库搭建的新平台；执行前先停止服务端")
 	if err := flags.Parse(arguments); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
@@ -67,23 +67,23 @@ func run(arguments []string) error {
 		}
 	}()
 
-	if *resetInstance {
-		instanceID, err := deploymentaction.ResetInstance(context.Background(), appStorage.DB())
+	if *resetServerID {
+		serverID, err := platformaction.ResetServerID(context.Background(), appStorage.DB())
 		if err != nil {
-			return fmt.Errorf("reset instance: %w", err)
+			return fmt.Errorf("reset server id: %w", err)
 		}
-		_, err = fmt.Fprintln(os.Stdout, "实例已重置，新实例标识："+instanceID)
+		_, err = fmt.Fprintln(os.Stdout, "服务器标识已重置，新服务器标识："+serverID)
 		return err
 	}
 
-	// 部署品牌配置只在实例授权授予自定义品牌且未到期时生效。
-	brandingUntil, err := deploymentaction.CustomBrandingUntil(context.Background(), appStorage.DB())
+	// 部署品牌配置只在授权授予自定义品牌且未到期时生效。
+	brandingUntil, err := platformaction.CustomBrandingUntil(context.Background(), appStorage.DB())
 	if err != nil {
-		return fmt.Errorf("load instance license: %w", err)
+		return fmt.Errorf("load license: %w", err)
 	}
 	brand.EnableOverrideUntil(brandingUntil)
 	if (len(config.Branding.Names) > 0 || config.Branding.SDKName != "" || config.Branding.IconPath != "") && !brand.OverrideActive() {
-		slog.Warn("实例授权未授予自定义品牌或授权已到期，部署品牌配置暂不生效")
+		slog.Warn("授权未授予自定义品牌或授权已到期，部署品牌配置暂不生效")
 	}
 
 	services, middleware, productSite, err := applicationServices(appStorage, config)

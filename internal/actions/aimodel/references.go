@@ -23,8 +23,8 @@ func References(ctx context.Context, db bun.IDB, organizationID string, modelIDs
 	return references(ctx, db, &organizationID, modelIDs)
 }
 
-// DeploymentReferences 返回部署内全部工作区业务配置对指定模型的引用。
-func DeploymentReferences(ctx context.Context, db bun.IDB, modelIDs []string) ([]Reference, error) {
+// PlatformReferences 返回平台内全部工作区业务配置对指定模型的引用。
+func PlatformReferences(ctx context.Context, db bun.IDB, modelIDs []string) ([]Reference, error) {
 	return references(ctx, db, nil, modelIDs)
 }
 

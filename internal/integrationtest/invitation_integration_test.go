@@ -211,7 +211,7 @@ func TestInvitationManagement(t *testing.T) {
 	}
 }
 
-// TestInvitationRegistration 验证未开放注册的部署只允许用有效邀请注册受邀邮箱。
+// TestInvitationRegistration 验证未开放注册的平台只允许用有效邀请注册受邀邮箱。
 func TestInvitationRegistration(t *testing.T) {
 	t.Parallel()
 	f := newInvitationFixture(t)

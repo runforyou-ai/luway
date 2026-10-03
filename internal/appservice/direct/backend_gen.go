@@ -15,7 +15,7 @@ func (b *Backend) InstallationStatus(ctx context.Context, meta appservice.Reques
 	return b.ops.InstallationStatus(ctx, meta)
 }
 
-// GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+// GetProductDocPage 返回当前平台可见的产品文档页面正文，供应用内帮助显示。
 func (b *Backend) GetProductDocPage(ctx context.Context, meta appservice.RequestMeta, input appservice.ProductDocPageInput) (appservice.ProductDocPage, error) {
 	return b.ops.GetProductDocPage(ctx, meta, input)
 }
@@ -25,7 +25,7 @@ func (b *Backend) Login(ctx context.Context, meta appservice.RequestMeta, input 
 	return b.ops.Login(ctx, meta, input)
 }
 
-// Register 在部署开放注册或持有效邀请时注册本地账号并建立登录会话。
+// Register 在平台开放注册或持有效邀请时注册本地账号并建立登录会话。
 func (b *Backend) Register(ctx context.Context, meta appservice.RequestMeta, input appservice.RegisterInput) (appservice.Auth, error) {
 	return b.ops.Register(ctx, meta, input)
 }
@@ -1350,217 +1350,217 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return b.ops.AcceptInvitation(ctx, meta, account, input)
 }
 
-// GetDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
-func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentOverview, error) {
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformOverview, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentOverview
+		var zero appservice.PlatformOverview
 		return zero, err
 	}
-	return b.ops.GetDeploymentOverview(ctx, meta, account)
+	return b.ops.GetPlatformOverview(ctx, meta, account)
 }
 
-// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
-func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentSettings, error) {
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentSettings
+		var zero appservice.PlatformSettings
 		return zero, err
 	}
-	return b.ops.GetDeploymentSettings(ctx, meta, account)
+	return b.ops.GetPlatformSettings(ctx, meta, account)
 }
 
-// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
-func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentPoliciesInput) (appservice.DeploymentSettings, error) {
+// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
+func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformPoliciesInput) (appservice.PlatformSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentSettings
+		var zero appservice.PlatformSettings
 		return zero, err
 	}
-	return b.ops.UpdateDeploymentSettings(ctx, meta, account, input)
+	return b.ops.UpdatePlatformSettings(ctx, meta, account, input)
 }
 
-// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (b *Backend) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentStatisticsTimeZoneInput) (appservice.DeploymentSettings, error) {
+// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStatisticsTimeZoneInput) (appservice.PlatformSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentSettings
+		var zero appservice.PlatformSettings
 		return zero, err
 	}
-	return b.ops.UpdateDeploymentStatisticsTimeZone(ctx, meta, account, input)
+	return b.ops.UpdatePlatformStatisticsTimeZone(ctx, meta, account, input)
 }
 
-// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
-func (b *Backend) UpdateDeploymentTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentTelemetryInput) (appservice.DeploymentSettings, error) {
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+func (b *Backend) UpdatePlatformTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTelemetryInput) (appservice.PlatformSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentSettings
+		var zero appservice.PlatformSettings
 		return zero, err
 	}
-	return b.ops.UpdateDeploymentTelemetry(ctx, meta, account, input)
+	return b.ops.UpdatePlatformTelemetry(ctx, meta, account, input)
 }
 
-// ListDeploymentAccounts 返回部署内的账号。
-func (b *Backend) ListDeploymentAccounts(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentAccountListInput) (appservice.DeploymentAccountList, error) {
+// ListPlatformAccounts 返回平台内的账号。
+func (b *Backend) ListPlatformAccounts(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAccountListInput) (appservice.PlatformAccountList, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentAccountList
+		var zero appservice.PlatformAccountList
 		return zero, err
 	}
-	return b.ops.ListDeploymentAccounts(ctx, meta, account, input)
+	return b.ops.ListPlatformAccounts(ctx, meta, account, input)
 }
 
-// DeactivateDeploymentAccount 停用其他账号并使其登录会话失效。
-func (b *Backend) DeactivateDeploymentAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+// DeactivatePlatformAccount 停用其他账号并使其登录会话失效。
+func (b *Backend) DeactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentAccount
+		var zero appservice.PlatformAccount
 		return zero, err
 	}
-	return b.ops.DeactivateDeploymentAccount(ctx, meta, account, accountID)
+	return b.ops.DeactivatePlatformAccount(ctx, meta, account, accountID)
 }
 
-// ReactivateDeploymentAccount 恢复已停用的其他账号。
-func (b *Backend) ReactivateDeploymentAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+// ReactivatePlatformAccount 恢复已停用的其他账号。
+func (b *Backend) ReactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentAccount
+		var zero appservice.PlatformAccount
 		return zero, err
 	}
-	return b.ops.ReactivateDeploymentAccount(ctx, meta, account, accountID)
+	return b.ops.ReactivatePlatformAccount(ctx, meta, account, accountID)
 }
 
-// GrantDeploymentAdmin 把其他账号设为部署管理员。
-func (b *Backend) GrantDeploymentAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+// GrantPlatformAdmin 把其他账号设为平台管理员。
+func (b *Backend) GrantPlatformAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentAccount
+		var zero appservice.PlatformAccount
 		return zero, err
 	}
-	return b.ops.GrantDeploymentAdmin(ctx, meta, account, accountID)
+	return b.ops.GrantPlatformAdmin(ctx, meta, account, accountID)
 }
 
-// RevokeDeploymentAdmin 撤销其他账号的部署管理员身份。
-func (b *Backend) RevokeDeploymentAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
+// RevokePlatformAdmin 撤销其他账号的平台管理员身份。
+func (b *Backend) RevokePlatformAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentAccount
+		var zero appservice.PlatformAccount
 		return zero, err
 	}
-	return b.ops.RevokeDeploymentAdmin(ctx, meta, account, accountID)
+	return b.ops.RevokePlatformAdmin(ctx, meta, account, accountID)
 }
 
-// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
-func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentWorkspaceListInput) (appservice.DeploymentWorkspaceList, error) {
+// ListPlatformWorkspaces 返回平台内的全部工作区及其状态和当前规模。
+func (b *Backend) ListPlatformWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceListInput) (appservice.PlatformWorkspaceList, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentWorkspaceList
+		var zero appservice.PlatformWorkspaceList
 		return zero, err
 	}
-	return b.ops.ListDeploymentWorkspaces(ctx, meta, account, input)
+	return b.ops.ListPlatformWorkspaces(ctx, meta, account, input)
 }
 
-// GetInstanceLicense 返回实例标识与实例授权状态。
-func (b *Backend) GetInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
+// GetLicense 返回服务器标识与授权状态。
+func (b *Backend) GetLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.License, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.InstanceLicense
+		var zero appservice.License
 		return zero, err
 	}
-	return b.ops.GetInstanceLicense(ctx, meta, account)
+	return b.ops.GetLicense(ctx, meta, account)
 }
 
-// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
-func (b *Backend) ActivateInstanceLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseInput) (appservice.InstanceLicense, error) {
+// ActivateLicense 用 control 签发的授权码离线激活或替换授权。
+func (b *Backend) ActivateLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateLicenseInput) (appservice.License, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.InstanceLicense
+		var zero appservice.License
 		return zero, err
 	}
-	return b.ops.ActivateInstanceLicense(ctx, meta, account, input)
+	return b.ops.ActivateLicense(ctx, meta, account, input)
 }
 
-// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
-func (b *Backend) ActivateInstanceLicenseOnline(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseOnlineInput) (appservice.InstanceLicense, error) {
+// ActivateLicenseOnline 用激活码经 control 在线激活授权。
+func (b *Backend) ActivateLicenseOnline(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateLicenseOnlineInput) (appservice.License, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.InstanceLicense
+		var zero appservice.License
 		return zero, err
 	}
-	return b.ops.ActivateInstanceLicenseOnline(ctx, meta, account, input)
+	return b.ops.ActivateLicenseOnline(ctx, meta, account, input)
 }
 
-// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
-func (b *Backend) SyncInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
+// SyncLicense 立即向 control 登记服务器并拉取最新授权。
+func (b *Backend) SyncLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.License, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.InstanceLicense
+		var zero appservice.License
 		return zero, err
 	}
-	return b.ops.SyncInstanceLicense(ctx, meta, account)
+	return b.ops.SyncLicense(ctx, meta, account)
 }
 
-// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
-func (b *Backend) SuspendDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
+// SuspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+func (b *Backend) SuspendPlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.PlatformWorkspace, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentWorkspace
+		var zero appservice.PlatformWorkspace
 		return zero, err
 	}
-	return b.ops.SuspendDeploymentWorkspace(ctx, meta, account, workspaceID)
+	return b.ops.SuspendPlatformWorkspace(ctx, meta, account, workspaceID)
 }
 
-// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
-func (b *Backend) ResumeDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
+// ResumePlatformWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.PlatformWorkspace, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentWorkspace
+		var zero appservice.PlatformWorkspace
 		return zero, err
 	}
-	return b.ops.ResumeDeploymentWorkspace(ctx, meta, account, workspaceID)
+	return b.ops.ResumePlatformWorkspace(ctx, meta, account, workspaceID)
 }
 
-// GetDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
-func (b *Backend) GetDeploymentUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentUsageInput) (appservice.DeploymentUsageMetrics, error) {
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentUsageMetrics
+		var zero appservice.PlatformUsageMetrics
 		return zero, err
 	}
-	return b.ops.GetDeploymentUsage(ctx, meta, account, input)
+	return b.ops.GetPlatformUsage(ctx, meta, account, input)
 }
 
-// ListDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
-func (b *Backend) ListDeploymentWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentWorkspaceUsageListInput) (appservice.DeploymentWorkspaceUsageList, error) {
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceUsageListInput) (appservice.PlatformWorkspaceUsageList, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentWorkspaceUsageList
+		var zero appservice.PlatformWorkspaceUsageList
 		return zero, err
 	}
-	return b.ops.ListDeploymentWorkspaceUsage(ctx, meta, account, input)
+	return b.ops.ListPlatformWorkspaceUsage(ctx, meta, account, input)
 }
 
-// GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
-func (b *Backend) GetDeploymentRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentRuntimeStatus, error) {
+// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformRuntimeStatus, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentRuntimeStatus
+		var zero appservice.PlatformRuntimeStatus
 		return zero, err
 	}
-	return b.ops.GetDeploymentRuntimeStatus(ctx, meta, account)
+	return b.ops.GetPlatformRuntimeStatus(ctx, meta, account)
 }
 
-// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
-func (b *Backend) ListDeploymentFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentFailedTaskListInput) (appservice.DeploymentFailedTaskList, error) {
+// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformFailedTaskListInput) (appservice.PlatformFailedTaskList, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.DeploymentFailedTaskList
+		var zero appservice.PlatformFailedTaskList
 		return zero, err
 	}
-	return b.ops.ListDeploymentFailedTasks(ctx, meta, account, input)
+	return b.ops.ListPlatformFailedTasks(ctx, meta, account, input)
 }
 
-// ListPlatformAIProviders 返回部署的平台供应商。
+// ListPlatformAIProviders 返回平台供应商。
 func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIProviderList, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1619,7 +1619,7 @@ func (b *Backend) DeletePlatformAIProvider(ctx context.Context, meta appservice.
 	return b.ops.DeletePlatformAIProvider(ctx, meta, account, providerID)
 }
 
-// ListPlatformAIModels 返回部署的平台模型目录。
+// ListPlatformAIModels 返回平台模型目录。
 func (b *Backend) ListPlatformAIModels(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIModelList, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {

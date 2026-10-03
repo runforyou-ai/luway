@@ -12,7 +12,7 @@ import (
 	"uuid"
 
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -172,8 +172,8 @@ func TestRealtimeWorkspacesStreamRejectsChangedMemberships(t *testing.T) {
 	client.expectQuiet()
 }
 
-// TestDeploymentDeactivationEndsRealtimeStreams 验证部署管理员停用账号后，该账号已建立的工作区动态事件流随即结束。
-func TestDeploymentDeactivationEndsRealtimeStreams(t *testing.T) {
+// TestPlatformDeactivationEndsRealtimeStreams 验证平台管理员停用账号后，该账号已建立的工作区动态事件流随即结束。
+func TestPlatformDeactivationEndsRealtimeStreams(t *testing.T) {
 	t.Parallel()
 	f := newNavigationFixture(t)
 	ctx := context.Background()
@@ -181,12 +181,12 @@ func TestDeploymentDeactivationEndsRealtimeStreams(t *testing.T) {
 	token := loginToken(t, f.db, f.owner.Organization.ID, f.memberEmail)
 	client := h.openWorkspacesStream(t, token)
 
-	// 工作区负责人的账号同时是部署管理员。
-	if _, err := f.db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_deployment_admin = true").Where("id = ?", f.owner.Account.ID).Exec(ctx); err != nil {
+	// 工作区负责人的账号同时是平台管理员。
+	if _, err := f.db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_platform_admin = true").Where("id = ?", f.owner.Account.ID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
 	operator := &servermodels.AccountIdentity{Account: f.owner.Account}
-	if _, err := deploymentaction.NewUpdateAccountAction(f.db).SetStatus(ctx, operator, f.member.Account.ID, domain.AccountStatusInactive); err != nil {
+	if _, err := platformaction.NewUpdateAccountAction(f.db).SetStatus(ctx, operator, f.member.Account.ID, domain.AccountStatusInactive); err != nil {
 		t.Fatal(err)
 	}
 	client.expectEnded()

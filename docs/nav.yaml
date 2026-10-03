@@ -7,7 +7,7 @@ sections:
       - { dir: guide/daily, title: { zh-cn: 日常工作, en: Daily work } }
       - { dir: guide/ai-employees, title: { zh-cn: AI 员工, en: AI employees } }
       - { dir: guide/workspace, title: { zh-cn: 工作区管理, en: Workspace administration } }
-      - { dir: guide/admin, title: { zh-cn: 部署管理, en: Deployment administration } }
+      - { dir: guide/admin, title: { zh-cn: 平台管理, en: Platform administration } }
       - { dir: guide/personal, title: { zh-cn: 个人与客户端, en: Personal and clients } }
   - path: integrations
     title: { zh-cn: 接入指南, en: Integrations }

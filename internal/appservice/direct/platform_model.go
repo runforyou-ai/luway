@@ -10,7 +10,7 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	platformmodelaction "github.com/runforyou-ai/luway/internal/actions/platformmodel"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -57,7 +57,7 @@ func newPlatformModelOps(db *bun.DB, registry *modelprovider.Registry) platformM
 	}
 }
 
-// ListPlatformAIProviders 返回部署的平台供应商。
+// ListPlatformAIProviders 返回平台供应商。
 func (o *directOperations) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformAIProviderList, error) {
 	providers, err := o.listPlatformAIProviders.Execute(ctx)
 	if err != nil {
@@ -128,7 +128,7 @@ func (o *directOperations) DeletePlatformAIProvider(ctx context.Context, meta ap
 	return nil
 }
 
-// ListPlatformAIModels 返回部署的平台模型目录。
+// ListPlatformAIModels 返回平台模型目录。
 func (o *directOperations) ListPlatformAIModels(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformAIModelList, error) {
 	models, err := o.listPlatformAIModels.Execute(ctx)
 	if err != nil {
@@ -242,8 +242,8 @@ func platformModelError(ctx context.Context, meta appservice.RequestMeta, err er
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, platformModelFieldCodes))
 	}
 	switch {
-	case errors.Is(err, deploymentaction.ErrNotDeploymentAdmin):
-		return appservice.ForbiddenError(meta, i18n.ErrorDeploymentAdminRequired)
+	case errors.Is(err, platformaction.ErrNotPlatformAdmin):
+		return appservice.ForbiddenError(meta, i18n.ErrorPlatformAdminRequired)
 	case errors.Is(err, aiprovideraction.ErrNotFound):
 		return appservice.NotFoundError(meta, i18n.ErrorAIProviderNotFound)
 	case errors.Is(err, aiprovideraction.ErrPlatformInUse):

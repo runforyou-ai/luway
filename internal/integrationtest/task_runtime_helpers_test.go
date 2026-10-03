@@ -9,8 +9,8 @@ import (
 
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/actions/servicetimeout"
@@ -20,7 +20,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// newTestTasks 创建不连接 NATS 的任务运行时，并以空处理器注册 AI 聊天标题、个人 AI 员工记忆提取、客服处理周期分配、转人工承接、小结、待补知识起草与实例授权同步任务，供业务事务投递。
+// newTestTasks 创建不连接 NATS 的任务运行时，并以空处理器注册 AI 聊天标题、个人 AI 员工记忆提取、客服处理周期分配、转人工承接、小结、待补知识起草与授权同步任务，供业务事务投递。
 func newTestTasks(db *bun.DB) *servertask.Runtime {
 	tasks := servertask.New(db, serverconfig.NATSConfig{})
 	if err := tasks.Registry().RegisterJSON(serviceassignment.AssignActionName, func(context.Context, serviceassignment.AssignInput) error { return nil }); err != nil {
@@ -59,7 +59,7 @@ func newTestTasks(db *bun.DB) *servertask.Runtime {
 	if err := tasks.Registry().RegisterJSON(knowledgegap.DraftActionName, func(context.Context, knowledgegap.DraftInput) error { return nil }); err != nil {
 		panic(err)
 	}
-	if err := tasks.Registry().RegisterJSON(deploymentaction.SyncLicenseActionName, func(context.Context, deploymentaction.SyncLicenseInput) error { return nil }); err != nil {
+	if err := tasks.Registry().RegisterJSON(platformaction.SyncLicenseActionName, func(context.Context, platformaction.SyncLicenseInput) error { return nil }); err != nil {
 		panic(err)
 	}
 	return tasks

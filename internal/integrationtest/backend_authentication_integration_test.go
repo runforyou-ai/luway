@@ -33,46 +33,46 @@ var accountBackendMethods = map[string]bool{
 	"AcceptInvitation":       true,
 }
 
-// adminBackendMethods 是只允许部署管理员调用的方法，与 backend.go 中标记 auth=admin 的路由一一对应。
+// adminBackendMethods 是只允许平台管理员调用的方法，与 backend.go 中标记 auth=admin 的路由一一对应。
 var adminBackendMethods = map[string]bool{
-	"GetDeploymentOverview":              true,
-	"GetDeploymentSettings":              true,
-	"UpdateDeploymentSettings":           true,
-	"UpdateDeploymentStatisticsTimeZone": true,
-	"ListDeploymentAccounts":             true,
-	"DeactivateDeploymentAccount":        true,
-	"ReactivateDeploymentAccount":        true,
-	"GrantDeploymentAdmin":               true,
-	"RevokeDeploymentAdmin":              true,
-	"ListDeploymentWorkspaces":           true,
-	"SuspendDeploymentWorkspace":         true,
-	"ResumeDeploymentWorkspace":          true,
-	"GetDeploymentUsage":                 true,
-	"ListDeploymentWorkspaceUsage":       true,
-	"GetDeploymentRuntimeStatus":         true,
-	"ListDeploymentFailedTasks":          true,
-	"ListPlatformAIProviders":            true,
-	"GetPlatformAIProvider":              true,
-	"ListPlatformAIProviderModels":       true,
-	"CreatePlatformAIProvider":           true,
-	"UpdatePlatformAIProvider":           true,
-	"DeletePlatformAIProvider":           true,
-	"ListPlatformAIModels":               true,
-	"GetPlatformAIModel":                 true,
-	"CreatePlatformAIModel":              true,
-	"UpdatePlatformAIModel":              true,
-	"DeletePlatformAIModel":              true,
-	"ListPlatformAIModelCalls":           true,
-	"GetPlatformAIModelCall":             true,
-	"GetInstanceLicense":                 true,
-	"ActivateInstanceLicense":            true,
-	"ActivateInstanceLicenseOnline":      true,
-	"SyncInstanceLicense":                true,
-	"UpdateDeploymentTelemetry":          true,
+	"GetPlatformOverview":              true,
+	"GetPlatformSettings":              true,
+	"UpdatePlatformSettings":           true,
+	"UpdatePlatformStatisticsTimeZone": true,
+	"ListPlatformAccounts":             true,
+	"DeactivatePlatformAccount":        true,
+	"ReactivatePlatformAccount":        true,
+	"GrantPlatformAdmin":               true,
+	"RevokePlatformAdmin":              true,
+	"ListPlatformWorkspaces":           true,
+	"SuspendPlatformWorkspace":         true,
+	"ResumePlatformWorkspace":          true,
+	"GetPlatformUsage":                 true,
+	"ListPlatformWorkspaceUsage":       true,
+	"GetPlatformRuntimeStatus":         true,
+	"ListPlatformFailedTasks":          true,
+	"ListPlatformAIProviders":          true,
+	"GetPlatformAIProvider":            true,
+	"ListPlatformAIProviderModels":     true,
+	"CreatePlatformAIProvider":         true,
+	"UpdatePlatformAIProvider":         true,
+	"DeletePlatformAIProvider":         true,
+	"ListPlatformAIModels":             true,
+	"GetPlatformAIModel":               true,
+	"CreatePlatformAIModel":            true,
+	"UpdatePlatformAIModel":            true,
+	"DeletePlatformAIModel":            true,
+	"ListPlatformAIModelCalls":         true,
+	"GetPlatformAIModelCall":           true,
+	"GetLicense":                       true,
+	"ActivateLicense":                  true,
+	"ActivateLicenseOnline":            true,
+	"SyncLicense":                      true,
+	"UpdatePlatformTelemetry":          true,
 }
 
 // TestBackendMethodsRequireAuthentication 验证非公开方法在无会话时都被挡回登录入口，
-// 部署管理方法拒绝非部署管理员，工作区级方法在会话有效但未指定目标工作区时进入工作区选择，且方法名单与接口闭合。
+// 平台管理方法拒绝非平台管理员，工作区级方法在会话有效但未指定目标工作区时进入工作区选择，且方法名单与接口闭合。
 func TestBackendMethodsRequireAuthentication(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -83,7 +83,7 @@ func TestBackendMethodsRequireAuthentication(t *testing.T) {
 	t.Cleanup(func() { _ = store.Close() })
 	db := store.DB()
 
-	// 部署已有账号，未登录请求停在会话校验上。
+	// 平台已有账号，未登录请求停在会话校验上。
 	member := installWorkspace(t, db, workspaceSpec{Name: "认证测试", DisplayName: "管理员", Email: uniqueEmail("admin"), Password: "password123"})
 	backend := newAccountTestBackend(db)
 	backendValue := reflect.ValueOf(backend)
@@ -116,7 +116,7 @@ func TestBackendMethodsRequireAuthentication(t *testing.T) {
 		case adminBackendMethods[name]:
 			err := call(name, appservice.RequestMeta{Token: member.Token})
 			if appErr, ok := errors.AsType[*appservice.Error](err); !ok || appErr.Kind != appservice.ErrorKindForbidden {
-				t.Errorf("%s 非部署管理员调用的错误 = %v, want forbidden", name, err)
+				t.Errorf("%s 非平台管理员调用的错误 = %v, want forbidden", name, err)
 			}
 		case !accountBackendMethods[name]:
 			err := call(name, appservice.RequestMeta{Token: member.Token})

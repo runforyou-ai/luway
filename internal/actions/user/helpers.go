@@ -21,7 +21,7 @@ func loadCurrentIdentity(ctx context.Context, db bun.IDB, current *servermodels.
 	err := db.NewSelect().TableExpr("users AS u").
 		ColumnExpr("u.id::text, u.identity_id::text, u.organization_id::text, u.account_id::text, u.status, u.translation_language, u.message_notifications_enabled, u.role_id::text").
 		ColumnExpr("oi.id::text, oi.organization_id::text, oi.type, oi.display_name, oi.avatar_file_id::text, oi.handles_service_requests, oi.work_status").
-		ColumnExpr("acc.id::text, acc.email, acc.email_verified_at, acc.display_name, acc.locale, acc.time_zone, acc.status, acc.is_deployment_admin").
+		ColumnExpr("acc.id::text, acc.email, acc.email_verified_at, acc.display_name, acc.locale, acc.time_zone, acc.status, acc.is_platform_admin").
 		Join("JOIN organization_identities AS oi ON oi.id = u.identity_id AND oi.organization_id = u.organization_id AND oi.type = ?", domain.OrganizationIdentityTypeUser).
 		Join("JOIN accounts AS acc ON acc.id = u.account_id").
 		Where("u.organization_id = ?", current.Organization.ID).
@@ -33,7 +33,7 @@ func loadCurrentIdentity(ctx context.Context, db bun.IDB, current *servermodels.
 			&identity.OrganizationIdentity.DisplayName, &identity.OrganizationIdentity.AvatarFileID,
 			&identity.OrganizationIdentity.HandlesServiceRequests, &identity.OrganizationIdentity.WorkStatus,
 			&identity.Account.ID, &identity.Account.Email, &identity.Account.EmailVerifiedAt, &identity.Account.DisplayName,
-			&identity.Account.Locale, &identity.Account.TimeZone, &identity.Account.Status, &identity.Account.IsDeploymentAdmin,
+			&identity.Account.Locale, &identity.Account.TimeZone, &identity.Account.Status, &identity.Account.IsPlatformAdmin,
 		)
 	return identity, err
 }

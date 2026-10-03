@@ -1,5 +1,5 @@
 ---
-title: Instance license
+title: License
 order: 3
 ---
 

@@ -28,13 +28,13 @@ func LanguageTag(locale string) string {
 	return brandLocales[locale]
 }
 
-// productPlaceholder 是正文中的产品名称占位符，输出时替换为当前部署的品牌名称。
+// productPlaceholder 是正文中的产品名称占位符，输出时替换为当前平台的品牌名称。
 const productPlaceholder = "{{product}}"
 
-// ConditionCommerce 表示部署已配对商业服务。
+// ConditionCommerce 表示平台已配对商业服务。
 const ConditionCommerce = "commerce"
 
-// Conditions 是当前部署成立的显示条件，页面声明的条件全部成立时才可见。
+// Conditions 是当前平台成立的显示条件，页面声明的条件全部成立时才可见。
 type Conditions map[string]bool
 
 // Page 是一页已渲染的文档；Slug 为语言目录下的路径，首页为空字符串。
@@ -95,7 +95,7 @@ type Site struct {
 	conditions Conditions
 }
 
-// Load 读取并渲染文档源文件；content 根目录包含 nav.yaml 与各语言目录，conditions 为当前部署成立的显示条件。
+// Load 读取并渲染文档源文件；content 根目录包含 nav.yaml 与各语言目录，conditions 为当前平台成立的显示条件。
 func Load(content fs.FS, conditions Conditions) (*Site, error) {
 	site := &Site{pages: map[string]map[string]*Page{}, conditions: conditions}
 	raw, err := fs.ReadFile(content, "nav.yaml")
@@ -141,7 +141,7 @@ func Load(content fs.FS, conditions Conditions) (*Site, error) {
 	return site, nil
 }
 
-// Page 返回当前部署可见的页面。
+// Page 返回当前平台可见的页面。
 func (s *Site) Page(locale, slug string) (*Page, bool) {
 	page, ok := s.pages[locale][slug]
 	if !ok || !s.visible(page) {
@@ -160,7 +160,7 @@ func (s *Site) visible(page *Page) bool {
 	return true
 }
 
-// Navigation 返回指定语言的侧边栏，只包含当前部署可见的页面。
+// Navigation 返回指定语言的侧边栏，只包含当前平台可见的页面。
 func (s *Site) Navigation(locale string) []NavSection {
 	sections := make([]NavSection, 0, len(s.nav.Sections))
 	for _, config := range s.nav.Sections {
@@ -196,7 +196,7 @@ func ProductName(locale string) string {
 	return brand.Current().Name(brandLocales[locale])
 }
 
-// WithProduct 把文本中的产品名称占位符替换为当前部署的品牌名称。
+// WithProduct 把文本中的产品名称占位符替换为当前平台的品牌名称。
 func WithProduct(locale, value string) string {
 	return strings.ReplaceAll(value, productPlaceholder, ProductName(locale))
 }
@@ -213,7 +213,7 @@ type Fragment struct {
 	Path  string
 }
 
-// Fragment 返回当前部署可见页面的标题与正文，产品名称已替换。
+// Fragment 返回当前平台可见页面的标题与正文，产品名称已替换。
 func (s *Site) Fragment(locale, slug string) (Fragment, bool) {
 	page, ok := s.Page(locale, slug)
 	if !ok {

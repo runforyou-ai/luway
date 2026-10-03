@@ -701,7 +701,7 @@ func generateService(methods []method) []byte {
 // generateDirectBackend 生成服务端 Backend 的认证分发层。
 //
 // auth=member 的方法先解析工作区成员身份，auth=account 的方法先解析登录账号，
-// auth=admin 的方法先解析登录账号并校验其为部署管理员，再把身份交给 directOperations
+// auth=admin 的方法先解析登录账号并校验其为平台管理员，再把身份交给 directOperations
 // 中的业务实现；auth=public 的方法不解析身份，业务实现不重复处理认证。
 func generateDirectBackend(methods []method) []byte {
 	builder := &strings.Builder{}

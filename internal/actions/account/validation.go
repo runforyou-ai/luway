@@ -1,6 +1,6 @@
 //go:build server
 
-// Package account 实现部署级账号的注册与凭据维护。
+// Package account 实现平台级账号的注册与凭据维护。
 package account
 
 import (

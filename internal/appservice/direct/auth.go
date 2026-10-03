@@ -10,11 +10,11 @@ import (
 
 	accountaction "github.com/runforyou-ai/luway/internal/actions/account"
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	installationaction "github.com/runforyou-ai/luway/internal/actions/installation"
 	invitationaction "github.com/runforyou-ai/luway/internal/actions/invitation"
 	organizationaction "github.com/runforyou-ai/luway/internal/actions/organization"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/brand"
@@ -28,7 +28,7 @@ import (
 // authOps 持有首次安装、账号会话和工作区列表的 Action 和 Query。
 type authOps struct {
 	deploymentName     string
-	deploymentSettings *deploymentaction.SettingsQuery
+	platformSettings   *platformaction.SettingsQuery
 	installWorkspace   *installationaction.InstallWorkspaceAction
 	login              *authaction.LoginAction
 	register           *accountaction.RegisterAction
@@ -43,7 +43,7 @@ type authOps struct {
 func newAuthOps(db *bun.DB, deployment DeploymentConfig, taskEnqueuer servertask.TxEnqueuer) authOps {
 	return authOps{
 		deploymentName:     deployment.Name,
-		deploymentSettings: deploymentaction.NewSettingsQuery(db),
+		platformSettings:   platformaction.NewSettingsQuery(db),
 		installWorkspace:   installationaction.NewInstallWorkspaceAction(db, taskEnqueuer),
 		login:              authaction.NewLoginAction(db),
 		register:           accountaction.NewRegisterAction(db),
@@ -62,8 +62,8 @@ func authFromSession(output authaction.SessionOutput) appservice.Auth {
 
 // InstallationStatus 返回部署名称、首次安装状态、注册策略是否开放注册、产品品牌和接口版本。
 func (o *directOperations) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
-	settings, err := o.deploymentSettings.Execute(ctx)
-	installed := !errors.Is(err, deploymentaction.ErrNotInstalled)
+	settings, err := o.platformSettings.Execute(ctx)
+	installed := !errors.Is(err, platformaction.ErrNotInstalled)
 	if err != nil && installed {
 		if ctx.Err() != nil {
 			return appservice.InstallationStatus{}, ctx.Err()
@@ -79,7 +79,7 @@ func (o *directOperations) InstallationStatus(ctx context.Context, meta appservi
 	}, nil
 }
 
-// InstallWorkspace 在部署尚无账号时创建部署管理员和第一个工作区，并返回登录会话。
+// InstallWorkspace 在平台尚无账号时创建平台管理员和第一个工作区，并返回登录会话。
 func (o *directOperations) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (appservice.Auth, error) {
 	output, err := o.installWorkspace.Execute(ctx, installationaction.InstallWorkspaceInput{
 		WorkspaceName: input.WorkspaceName,
@@ -94,7 +94,7 @@ func (o *directOperations) InstallWorkspace(ctx context.Context, meta appservice
 		return appservice.Auth{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, accountFieldKeys(validationError.Fields))
 	}
 	if errors.Is(err, installationaction.ErrAlreadyInstalled) {
-		slog.Info("部署已完成首次安装")
+		slog.Info("平台已完成首次安装")
 		return appservice.Auth{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAlreadyInitialized).WithStatus(http.StatusConflict)
 	}
 	if err != nil {
@@ -125,7 +125,7 @@ func (o *directOperations) Login(ctx context.Context, meta appservice.RequestMet
 	return authFromSession(output), nil
 }
 
-// Register 在部署开放注册或持有效邀请时注册本地账号并返回登录会话。
+// Register 在平台开放注册或持有效邀请时注册本地账号并返回登录会话。
 func (o *directOperations) Register(ctx context.Context, meta appservice.RequestMeta, input appservice.RegisterInput) (appservice.Auth, error) {
 	output, err := o.register.Execute(ctx, accountaction.NewAccountInput{
 		DisplayName: input.DisplayName,
@@ -225,7 +225,7 @@ func (o *directOperations) ListWorkspaces(ctx context.Context, meta appservice.R
 	return appservice.WorkspaceList{Items: items, CanCreate: canCreate}, nil
 }
 
-// CreateWorkspace 在部署创建策略和实例工作区上限允许时创建工作区，当前账号成为首位管理员成员。
+// CreateWorkspace 在平台创建策略和平台工作区上限允许时创建工作区，当前账号成为首位管理员成员。
 func (o *directOperations) CreateWorkspace(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.WorkspaceInput) (appservice.Workspace, error) {
 	workspace, err := o.createWorkspace.Execute(ctx, account, organizationaction.WorkspaceInput{Name: input.Name, Slug: input.Slug})
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {

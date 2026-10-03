@@ -3,24 +3,24 @@ title: Accounts and workspaces
 order: 2
 ---
 
-Manage accounts, workspaces, and sign-up and creation policies for the deployment.
+Manage accounts, workspaces, and sign-up and creation policies for the platform.
 
 ## Account management
 
-The **All accounts** page lists the deployment's accounts. Search by email or name, and filter by active or deactivated. Each account shows how many workspaces it has joined and when it signed up.
+The **All accounts** page lists the platform's accounts. Search by email or name, and filter by active or deactivated. Each account shows how many workspaces it has joined and when it signed up.
 
 From an account's menu you can:
 
 - Deactivate the account: it is signed out immediately and can no longer sign in;
 - Reactivate the account: a deactivated account can sign in again;
-- Make it a deployment administrator: the account must be an active member of a workspace that is not suspended;
-- Remove deployment administrator access.
+- Make it a platform administrator: the account must be an active member of a workspace that is not suspended;
+- Remove platform administrator access.
 
-Deployment administrators can't change their own account status or administrator access.
+Platform administrators can't change their own account status or administrator access.
 
 ## Workspace management
 
-The **All workspaces** page lists the deployment's workspaces. Search by name or identifier, filter by status, and sort by newest, recently active, most members, or most storage. Each workspace shows its members, AI employees, channels, computers, storage, and last activity.
+The **All workspaces** page lists the platform's workspaces. Search by name or identifier, filter by status, and sort by newest, recently active, most members, or most storage. Each workspace shows its members, AI employees, channels, computers, storage, and last activity.
 
 ### Suspend a workspace
 
@@ -31,7 +31,7 @@ After suspension:
 - AI employees and background tasks stop running, and queued tasks are paused;
 - All workspace data is kept.
 
-A workspace with a deployment administrator among its members can't be suspended, and the suspend item in its menu is unavailable.
+A workspace with a platform administrator among its members can't be suspended, and the suspend item in its menu is unavailable.
 
 ### Resume a workspace
 
@@ -46,4 +46,4 @@ On the **Sign-up & creation** page, choose how accounts sign up:
 
 ## Workspace creation policy
 
-On the **Sign-up & creation** page, choose who can create workspaces: any account, or deployment administrators only. When the deployment has a workspace limit, the page shows it, and no more workspaces can be created once it is reached.
+On the **Sign-up & creation** page, choose who can create workspaces: any account, or platform administrators only. When the platform has a workspace limit, the page shows it, and no more workspaces can be created once it is reached.

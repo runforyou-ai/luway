@@ -141,7 +141,7 @@ type AIProviderModelList struct {
 	Models []AIProviderModel `json:"models"`
 }
 
-// AIModelScope 表示模型范围：平台模型由部署提供，工作区模型由工作区自行配置。
+// AIModelScope 表示模型范围：平台模型由平台提供，工作区模型由工作区自行配置。
 type AIModelScope string
 
 const (

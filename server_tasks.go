@@ -12,7 +12,6 @@ import (
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/customerdelivery"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	"github.com/runforyou-ai/luway/internal/actions/filemaintenance"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
@@ -20,6 +19,7 @@ import (
 	mcpserveraction "github.com/runforyou-ai/luway/internal/actions/mcpserver"
 	"github.com/runforyou-ai/luway/internal/actions/messagepartition"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/actions/servicetimeout"
@@ -49,7 +49,7 @@ type serverTaskDeps struct {
 	agentSchedule *agentrunaction.Scheduler
 	agentRun      *agentrunaction.ExecuteAction
 	telegramAPI   *telegramintegration.Client
-	onlineLicense *deploymentaction.OnlineLicenseAction
+	onlineLicense *platformaction.OnlineLicenseAction
 }
 
 // registerServerTasks 注册服务端全部后台任务处理器与定时计划。
@@ -122,24 +122,24 @@ func registerServerTasks(deps serverTaskDeps) error {
 	partitions.Payload, partitions.MaxAttempts = messagepartition.EnsureInput{}, 5
 	deps.tasks.RegisterSchedule(partitions)
 
-	// 运营数据每 10 分钟按部署统计时区重算昨天与今天的账号活跃明细和工作区按日指标。
-	aggregateStats := deploymentaction.NewAggregateStatsAction(db)
-	if err := registry.RegisterJSON(deploymentaction.AggregateStatsActionName, aggregateStats.Execute); err != nil {
+	// 运营数据每 10 分钟按平台统计时区重算昨天与今天的账号活跃明细和工作区按日指标。
+	aggregateStats := platformaction.NewAggregateStatsAction(db)
+	if err := registry.RegisterJSON(platformaction.AggregateStatsActionName, aggregateStats.Execute); err != nil {
 		return err
 	}
-	stats := maintenanceSchedule(deploymentaction.StatsScheduleKey, deploymentaction.AggregateStatsActionName, "@every 10m")
-	stats.Payload = deploymentaction.AggregateStatsInput{}
+	stats := maintenanceSchedule(platformaction.StatsScheduleKey, platformaction.AggregateStatsActionName, "@every 10m")
+	stats.Payload = platformaction.AggregateStatsInput{}
 	deps.tasks.RegisterSchedule(stats)
 
-	// 实例每次启动和之后每天向 control 登记并拉取授权，失败时按退避重试。
-	if err := registry.RegisterJSON(deploymentaction.SyncLicenseActionName, deps.onlineLicense.SyncTask); err != nil {
+	// 服务端每次启动和之后每天向 control 登记并拉取授权，失败时按退避重试。
+	if err := registry.RegisterJSON(platformaction.SyncLicenseActionName, deps.onlineLicense.SyncTask); err != nil {
 		return err
 	}
-	licenseSync := maintenanceSchedule(deploymentaction.SyncLicenseScheduleKey, deploymentaction.SyncLicenseActionName, "@every 24h")
-	licenseSync.Payload, licenseSync.MaxAttempts = deploymentaction.SyncLicenseInput{}, deploymentaction.SyncLicenseEnqueueOptions.MaxAttempts
+	licenseSync := maintenanceSchedule(platformaction.SyncLicenseScheduleKey, platformaction.SyncLicenseActionName, "@every 24h")
+	licenseSync.Payload, licenseSync.MaxAttempts = platformaction.SyncLicenseInput{}, platformaction.SyncLicenseEnqueueOptions.MaxAttempts
 	licenseSync.StartImmediately = false
 	deps.tasks.RegisterSchedule(licenseSync)
-	if _, err := deps.tasks.Enqueue(context.Background(), deploymentaction.SyncLicenseActionName, deploymentaction.SyncLicenseInput{}, deploymentaction.SyncLicenseEnqueueOptions); err != nil {
+	if _, err := deps.tasks.Enqueue(context.Background(), platformaction.SyncLicenseActionName, platformaction.SyncLicenseInput{}, platformaction.SyncLicenseEnqueueOptions); err != nil {
 		return err
 	}
 

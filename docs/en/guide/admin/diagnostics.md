@@ -3,11 +3,11 @@ title: Status and diagnostics
 order: 7
 ---
 
-Check the deployment's runtime status, and export or report diagnostics.
+Check the platform's runtime status, and export or report diagnostics.
 
 ## Runtime status
 
-Deployment administrators open **Settings → Deployment → Runtime status** to see:
+Platform administrators open **Settings → Platform → Runtime status** to see:
 
 - The server version currently running;
 - How many background tasks are due and still queued, and how long the oldest one has waited;
@@ -18,7 +18,7 @@ Deployment administrators open **Settings → Deployment → Runtime status** to
 
 ## Recent errors
 
-**Retrying and failed tasks** lists every task waiting to retry and tasks that failed in the last 7 days, most recent failure first. Each entry shows the task name, its workspace (or **Deployment task** for deployment-level tasks), the last error message, the attempt count, and when it failed. Click a task to see the full error message in a side panel.
+**Retrying and failed tasks** lists every task waiting to retry and tasks that failed in the last 7 days, most recent failure first. Each entry shows the task name, its workspace (or **Platform task** for platform-level tasks), the last error message, the attempt count, and when it failed. Click a task to see the full error message in a side panel.
 
 Records of finished tasks are kept for 7 days and then cleaned up automatically.
 
