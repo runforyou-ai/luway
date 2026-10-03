@@ -33,6 +33,7 @@ type Config struct {
 	NATS       NATSConfig       `yaml:"nats"`
 	TLS        TLSConfig        `yaml:"tls"`
 	Storage    StorageConfig    `yaml:"storage"`
+	Clients    ClientsConfig    `yaml:"clients"`
 	Email      EmailConfig      `yaml:"email"`
 }
 
@@ -107,6 +108,12 @@ type S3Config struct {
 	ForcePathStyle  bool   `yaml:"forcePathStyle"`
 }
 
+// ClientsConfig 定义服务器提供下载的客户端安装包。
+type ClientsConfig struct {
+	// Directory 是存放客户端安装包及其索引文件的本地目录。
+	Directory string `yaml:"directory"`
+}
+
 // EmailConfig 定义部署级邮件发送配置。
 type EmailConfig struct {
 	SMTP SMTPConfig `yaml:"smtp"`
@@ -169,6 +176,7 @@ func (config *Config) normalize() {
 	config.TLS.Mode = strings.ToLower(strings.TrimSpace(config.TLS.Mode))
 	config.TLS.ACMEEmail = strings.TrimSpace(config.TLS.ACMEEmail)
 	config.Storage.LocalDirectory = strings.TrimSpace(config.Storage.LocalDirectory)
+	config.Clients.Directory = strings.TrimSpace(config.Clients.Directory)
 	config.Storage.S3.Endpoint = strings.TrimRight(strings.TrimSpace(config.Storage.S3.Endpoint), "/")
 	config.Storage.S3.PublicBaseURL = strings.TrimRight(strings.TrimSpace(config.Storage.S3.PublicBaseURL), "/")
 	config.Storage.S3.Region = strings.TrimSpace(config.Storage.S3.Region)
@@ -192,7 +200,8 @@ func defaultConfig() Config {
 		Storage: StorageConfig{
 			LocalDirectory: "data/files",
 		},
-		Email: EmailConfig{SMTP: SMTPConfig{Port: 587, Security: "starttls"}},
+		Clients: ClientsConfig{Directory: "data/clients"},
+		Email:   EmailConfig{SMTP: SMTPConfig{Port: 587, Security: "starttls"}},
 	}
 }
 
@@ -208,6 +217,7 @@ func applyEnvironment(config *Config) error {
 	applyStringEnvironment("TLS_MODE", &config.TLS.Mode)
 	applyStringEnvironment("TLS_ACME_EMAIL", &config.TLS.ACMEEmail)
 	applyStringEnvironment("FILE_STORAGE_PATH", &config.Storage.LocalDirectory)
+	applyStringEnvironment("CLIENTS_DIRECTORY", &config.Clients.Directory)
 	applyStringEnvironment("S3_ENDPOINT", &config.Storage.S3.Endpoint)
 	applyStringEnvironment("S3_PUBLIC_BASE_URL", &config.Storage.S3.PublicBaseURL)
 	applyStringEnvironment("S3_REGION", &config.Storage.S3.Region)
@@ -312,6 +322,9 @@ func (config Config) validate() error {
 	}
 	if config.Storage.LocalDirectory == "" {
 		return fmt.Errorf("必须配置本地文件存储目录")
+	}
+	if config.Clients.Directory == "" {
+		return fmt.Errorf("必须配置客户端目录")
 	}
 	if config.Storage.S3.Enabled {
 		if !common.ValidHTTPBaseURL(config.Storage.S3.Endpoint) {

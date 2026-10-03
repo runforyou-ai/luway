@@ -18,7 +18,7 @@ type Agent struct {
 	OrganizationID    string                   `bun:"organization_id"`
 	ActiveRevisionID  string                   `bun:"active_revision_id"`
 	Status            string                   `bun:"status"`
-	DeviceID          *string                  `bun:"device_id"`
+	ComputerID        *string                  `bun:"computer_id"`
 	ServiceAudiences  []domain.ServiceAudience `bun:"service_audiences,array"`
 	HandoffTeamID     *string                  `bun:"handoff_team_id"`
 	ResponsibleUserID *string                  `bun:"responsible_user_id"`

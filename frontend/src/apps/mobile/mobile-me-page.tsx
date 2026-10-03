@@ -127,7 +127,7 @@ export function MobileMePage() {
           </Link>
         </div>
         <div className="divide-y border-y">
-          {([["profile", "profile"], ["security", "security"], ["preferences", "preferences"], ["notifications", "notifications"], ["devices", "devices"], ["archivedChats", "archived-chats"]] as const).map(([section, path]) => (
+          {([["profile", "profile"], ["security", "security"], ["preferences", "preferences"], ["notifications", "notifications"], ["computers", "computers"], ["archivedChats", "archived-chats"]] as const).map(([section, path]) => (
             <Link
               key={section}
               to={`/me/${path}`}

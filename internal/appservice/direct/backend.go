@@ -74,13 +74,14 @@ type directOperations struct {
 	personalAgentOps
 	knowledgeOps
 	integrationOps
-	deviceOps
+	computerOps
 	fileOps
 	translationOps
 	webSearchOps
 	invitationOps
 	platformOps
 	platformModelOps
+	creditOps
 	productDocsOps
 }
 
@@ -123,13 +124,14 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		personalAgentOps:   newPersonalAgentOps(db),
 		knowledgeOps:       newKnowledgeOps(db, taskEnqueuer, documentQuery, knowledgeRetrieval),
 		integrationOps:     newIntegrationOps(db, taskEnqueuer, connectionRunner, modelProviderRegistry, mcpTest, mcpScheduler),
-		deviceOps:          newDeviceOps(db),
+		computerOps:        newComputerOps(db, taskEnqueuer),
 		fileOps:            newFileOps(db, localFiles, s3, serverfilecontent.NewLinks("", s3.PublicBaseURL)),
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
-		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control, deployment.Telemetry),
+		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control, s3, deployment.Telemetry),
 		platformModelOps:   newPlatformModelOps(db, modelProviderRegistry),
+		creditOps:          newCreditOps(db),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}
 	return &Backend{ops: ops}

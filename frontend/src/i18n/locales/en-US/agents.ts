@@ -251,13 +251,9 @@ const agents = {
     emptyFiltered: "No personal AI employees match these filters",
     form: {
       instruction: "Instructions",
-      device: "Computer",
-      deviceHelp: "The AI employee works only on the computer shown here.",
-      executor: "Done by",
-      executorSelf: "The AI employee itself",
-      executorLocalAgent: "{{name}} on the computer",
-      executorHelp: "A tool on the computer does the work with its own model, tools, and sign-in.",
-      mcpHelp: "Choose from services your workspace provides. Services added on the AI employee's computer are used automatically.",
+      computer: "Computer",
+      computerHelp: "The AI employee uses this computer to work with files, run commands, and call local MCP servers.",
+      mcpHelp: "Choose from services your workspace provides. Local MCP servers added on the computer are used automatically.",
     },
     validation: {
       instructionTooLong: "Instructions can't exceed 20000 characters.",

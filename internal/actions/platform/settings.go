@@ -13,12 +13,13 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// Settings 定义平台管理员可修改的平台级策略、运营数据统计时区与运行指标、错误上报开关。
+// Settings 定义平台管理员可修改的平台级策略、平台时区、运行指标与错误上报开关，以及每日赠送积分。
 type Settings struct {
 	RegistrationPolicy      domain.RegistrationPolicy
 	WorkspaceCreationPolicy domain.WorkspaceCreationPolicy
-	StatisticsTimeZone      string
+	TimeZone                string
 	TelemetryEnabled        bool
+	DailyCreditGrant        int64
 }
 
 // settingsFromModel 读取平台行中的平台级策略。
@@ -26,8 +27,9 @@ func settingsFromModel(platform *servermodels.Platform) Settings {
 	return Settings{
 		RegistrationPolicy:      domain.RegistrationPolicy(platform.RegistrationPolicy),
 		WorkspaceCreationPolicy: domain.WorkspaceCreationPolicy(platform.WorkspaceCreationPolicy),
-		StatisticsTimeZone:      platform.StatisticsTimeZone,
+		TimeZone:                platform.TimeZone,
 		TelemetryEnabled:        platform.TelemetryEnabled,
+		DailyCreditGrant:        platform.DailyCreditGrant,
 	}
 }
 
@@ -41,7 +43,7 @@ func NewSettingsQuery(db *bun.DB) *SettingsQuery {
 	return &SettingsQuery{db: db}
 }
 
-// Execute 返回当前注册策略、工作区创建策略、统计时区和运行指标与错误上报开关。
+// Execute 返回当前注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (q *SettingsQuery) Execute(ctx context.Context) (Settings, error) {
 	platform, err := Load(ctx, q.db)
 	if err != nil {
@@ -90,30 +92,30 @@ func (a *UpdatePoliciesAction) Execute(ctx context.Context, operator *servermode
 	})
 }
 
-// UpdateStatisticsTimeZoneAction 修改运营数据统计时区。
-type UpdateStatisticsTimeZoneAction struct {
+// UpdateTimeZoneAction 修改平台时区。
+type UpdateTimeZoneAction struct {
 	db       *bun.DB
 	enqueuer servertask.TxEnqueuer
 }
 
-// NewUpdateStatisticsTimeZoneAction 创建统计时区修改操作，enqueuer 投递按新时区重建运营数据的汇总任务。
-func NewUpdateStatisticsTimeZoneAction(db *bun.DB, enqueuer servertask.TxEnqueuer) *UpdateStatisticsTimeZoneAction {
-	return &UpdateStatisticsTimeZoneAction{db: db, enqueuer: enqueuer}
+// NewUpdateTimeZoneAction 创建平台时区修改操作，enqueuer 投递按新时区重建运营数据的汇总任务。
+func NewUpdateTimeZoneAction(db *bun.DB, enqueuer servertask.TxEnqueuer) *UpdateTimeZoneAction {
+	return &UpdateTimeZoneAction{db: db, enqueuer: enqueuer}
 }
 
-// Execute 校验时区后，由仍有效的平台管理员保存统计时区；时区变化时标记重建并在同一事务内投递汇总任务，立即按新时区从安装日起重建运营数据，任务失败时由定时汇总继续重建。
-func (a *UpdateStatisticsTimeZoneAction) Execute(ctx context.Context, operator *servermodels.AccountIdentity, timeZone string) (Settings, error) {
+// Execute 校验时区后，由仍有效的平台管理员保存平台时区；时区变化时标记重建并在同一事务内投递汇总任务，立即按新时区从安装日起重建运营数据，任务失败时由定时汇总继续重建。
+func (a *UpdateTimeZoneAction) Execute(ctx context.Context, operator *servermodels.AccountIdentity, timeZone string) (Settings, error) {
 	if !timezone.Valid(timeZone) {
-		return Settings{}, &common.FieldError{Fields: map[string]common.FieldCode{"statisticsTimeZone": ValidationStatisticsTimeZoneInvalid}}
+		return Settings{}, &common.FieldError{Fields: map[string]common.FieldCode{"timeZone": ValidationTimeZoneInvalid}}
 	}
 	return updatePlatform(ctx, a.db, operator, func(ctx context.Context, tx bun.Tx, platform *servermodels.Platform) error {
-		if platform.StatisticsTimeZone == timeZone {
+		if platform.TimeZone == timeZone {
 			return nil
 		}
-		platform.StatisticsTimeZone = timeZone
+		platform.TimeZone = timeZone
 		platform.StatisticsRebuildPending = true
 		if _, err := tx.NewUpdate().Model(platform).
-			Column("statistics_time_zone", "statistics_rebuild_pending").
+			Column("time_zone", "statistics_rebuild_pending").
 			Set("updated_at = now()").
 			WherePK().
 			Exec(ctx); err != nil {

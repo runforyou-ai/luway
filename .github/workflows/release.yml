@@ -626,11 +626,16 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  # 镜像内置同版本桌面端安装包，客户端目录由各桌面端产物生成。
   container:
     name: Server container
-    needs: prepare
+    needs:
+      - prepare
+      - linux-desktop-assets
+      - windows-desktop-assets
+      - darwin-desktop-assets
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       attestations: write
       contents: read
@@ -653,7 +658,6 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Setup Go
-        if: needs.prepare.outputs.profile != ''
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version-file: go.mod
@@ -671,6 +675,29 @@ jobs:
         run: |
           npm ci
           npm run build
+
+      - name: Download desktop assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          pattern: ${{ needs.prepare.outputs.artifact-prefix }}*-desktop-assets
+          path: ${{ runner.temp }}/desktop-assets
+          merge-multiple: true
+
+      - name: Build client directory
+        env:
+          CLIENTS: ${{ runner.temp }}/clients
+          DESKTOP_ASSETS: ${{ runner.temp }}/desktop-assets
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: go run ./build/scripts/clientindex -version "$VERSION" -source "$DESKTOP_ASSETS" -output "$CLIENTS"
+
+      # 客户端索引随 Release 发布，供服务端更新时下载同版本客户端。
+      - name: Upload client index
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: ${{ needs.prepare.outputs.artifact-prefix }}client-index-assets
+          path: ${{ runner.temp }}/clients/clients.json
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Setup QEMU
         uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
@@ -704,6 +731,8 @@ jobs:
           file: build/docker/Dockerfile.server
           build-args: |
             APP_VERSION=${{ needs.prepare.outputs.version }}
+          build-contexts: |
+            clients=${{ runner.temp }}/clients
           platforms: linux/amd64,linux/arm64
           push: ${{ needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.profile == '' }}
           tags: ${{ steps.metadata.outputs.tags }}

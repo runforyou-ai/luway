@@ -39,7 +39,7 @@ const (
 	TypeRunStreamSnapshot        Type = "run_stream_snapshot"
 	TypeRunStreamDelta           Type = "run_stream_delta"
 	TypeRunStreamEnded           Type = "run_stream_ended"
-	TypeDeviceWorkAdvanced       Type = "device_work_advanced"
+	TypeComputerWork             Type = "computer_work"
 	TypeAgentMemoryChanged       Type = "agent_memory_changed"
 	TypeReceptionChanged         Type = "reception_changed"
 	TypeKnowledgeGapsChanged     Type = "knowledge_gaps_changed"
@@ -153,11 +153,8 @@ type AgentMemoryChanged struct {
 	AgentID string `json:"agentId"`
 }
 
-// DeviceWorkAdvanced 表示本设备的工作水位推进到指定值，只发给携带该设备身份的事件流。
-type DeviceWorkAdvanced struct {
-	DeviceID string `json:"deviceId"`
-	WorkSeq  int64  `json:"workSeq,string"`
-}
+// ComputerWork 表示有派发给本电脑的待执行操作，只发给执行器事件流。
+type ComputerWork struct{}
 
 // RunStreamToolCall 是运行过程流中的工具调用名称、状态和起止时间，完整参数与结果经过程详情查询读取；description 是委派调用的子任务说明，activity 是子 Agent 正在调用的工具名称。
 type RunStreamToolCall struct {
@@ -266,8 +263,8 @@ func (PinOrderChanged) FrameType() Type { return TypePinOrderChanged }
 // FrameType 返回客服处理周期提醒事件种类。
 func (ServiceAttention) FrameType() Type { return TypeServiceAttention }
 
-// FrameType 返回设备工作水位事件种类。
-func (DeviceWorkAdvanced) FrameType() Type { return TypeDeviceWorkAdvanced }
+// FrameType 返回电脑待执行操作事件种类。
+func (ComputerWork) FrameType() Type { return TypeComputerWork }
 
 // FrameType 返回 AI 员工记忆变更事件种类。
 func (AgentMemoryChanged) FrameType() Type { return TypeAgentMemoryChanged }
@@ -313,7 +310,7 @@ var decoders = map[Type]decoder{
 	TypeRunStreamSnapshot:        decodeAs[RunStreamSnapshot],
 	TypeRunStreamDelta:           decodeAs[RunStreamDelta],
 	TypeRunStreamEnded:           decodeAs[RunStreamEnded],
-	TypeDeviceWorkAdvanced:       decodeAs[DeviceWorkAdvanced],
+	TypeComputerWork:             decodeAs[ComputerWork],
 	TypeAgentMemoryChanged:       decodeAs[AgentMemoryChanged],
 	TypeWorkspaceActivity:        decodeAs[WorkspaceActivity],
 }

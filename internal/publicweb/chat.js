@@ -1840,9 +1840,15 @@
         "/messages",
     )
       .then(function (result) {
+        // 快照中的消息不触发补拉，请求期间先到达的消息已标记补拉。
+        conversation.historyLoading = false;
         clearConversationMessages(conversation);
         result.messages.forEach(function (message) {
           appendServerMessage(conversation, message);
+        });
+        // 尚在发送的附件排在历史消息之后。
+        conversation.pendingAttachments.forEach(function (entry) {
+          appendConversationNode(conversation, entry.node);
         });
         syncSessionRatings(conversation, result.sessionRatings);
         conversation.before = result.before || "";
@@ -1882,7 +1888,7 @@
       });
   }
 
-  // 清空指定会话现有的真实消息节点。
+  // 清空指定会话现有的真实消息节点，尚在发送的附件节点保留。
   function clearConversationMessages(conversation) {
     removeConversationTyping(conversation);
     unmountMessageBodies(conversationMessageContainer(conversation));
@@ -1892,7 +1898,7 @@
     conversation.messageIDs = Object.create(null);
     if (conversation === activeConversation) {
       Array.from(messages.children).forEach(function (node) {
-        if (node !== intro) {
+        if (node !== intro && !conversation.pendingAttachments.some(function (entry) { return entry.node === node; })) {
           node.remove();
         }
       });
@@ -1927,6 +1933,10 @@
   function appendServerMessage(conversation, value) {
     if (conversation.messageIDs[value.id]) {
       return;
+    }
+    // 历史加载期间写入的消息可能不在快照中，加载结束后沿游标补拉。
+    if (conversation.historyLoading) {
+      conversation.refreshPending = true;
     }
     if (value.author === "system") {
       appendServerEvent(conversation, value);
@@ -2248,7 +2258,7 @@
       assets.appendChild(pending);
       return assets;
     }
-    if (fileKind(attachment.contentType) === "image") {
+    if (fileKind(attachment.contentType) === "image" && attachment.previewUrl) {
       var imageButton = document.createElement("button");
       imageButton.type = "button";
       imageButton.className = "cv-asset";
@@ -2891,7 +2901,8 @@
           conversation.replyTo = null;
         }
         appendServerMessage(conversation, result.message);
-        if (startsConversation) {
+        // 未开启多会话时消息可能并入已有会话，此时补读历史。
+        if (startsConversation && result.createdConversation) {
           conversation.historyLoaded = true;
         } else if (!conversation.historyLoaded) {
           loadConversationHistory(conversation);
@@ -3242,7 +3253,8 @@
     }
     entry.node.remove();
     appendServerMessage(target, result.message);
-    if (startsConversation) {
+    // 未开启多会话时附件可能并入已有会话，此时补读历史。
+    if (startsConversation && result.createdConversation) {
       target.historyLoaded = true;
     } else if (!target.historyLoaded) {
       loadConversationHistory(target);
@@ -3293,10 +3305,15 @@
     });
   }
 
-  // 读取图片附件的像素尺寸，非图片或无法解码时为 0。
+  // 判断内容类型是否为服务端提供内嵌预览的图片。
+  function inlineImage(contentType) {
+    return ["image/jpeg", "image/png", "image/gif", "image/webp"].indexOf(contentType) !== -1;
+  }
+
+  // 读取可内嵌预览图片的像素尺寸，其他文件或无法解码时为 0。
   function readImageSize(file) {
     return new Promise(function (resolve) {
-      if (fileKind(file.type) !== "image") {
+      if (!inlineImage(file.type)) {
         resolve({ width: 0, height: 0 });
         return;
       }
@@ -3326,7 +3343,7 @@
   function mediaNode(file) {
     var kind = fileKind(file.type);
     var url = URL.createObjectURL(file);
-    if (kind === "image") {
+    if (inlineImage(file.type)) {
       var imageButton = document.createElement("button");
       imageButton.type = "button";
       imageButton.className = "cv-asset";

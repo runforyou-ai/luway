@@ -269,9 +269,6 @@ func (b *Backend) sendVia(ctx context.Context, meta appservice.RequestMeta, cont
 	if meta.WorkspaceID != "" {
 		request.Header.Set(appservice.WorkspaceHeader, meta.WorkspaceID)
 	}
-	if meta.DeviceID != "" {
-		request.Header.Set(appservice.DeviceHeader, meta.DeviceID)
-	}
 	client := state.client
 	if contextDeadline {
 		client = &http.Client{Transport: state.client.Transport}

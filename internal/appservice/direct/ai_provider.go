@@ -46,6 +46,7 @@ func aiModelOptionFromAction(option aimodelaction.Option) appservice.AIModelOpti
 	if option.Scope == domain.AIModelScopeWorkspace {
 		output.Provider = &appservice.AIModelOptionProvider{ID: option.ProviderID, Name: option.ProviderName, Brand: appservice.AIProviderBrand(option.Brand)}
 	}
+	output.Price = creditPriceFromDomain(option.Price())
 	return output
 }
 

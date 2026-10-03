@@ -108,19 +108,16 @@ func (a *ExecuteAction) runTypingPublisher(ctx context.Context, run *servermodel
 	}
 }
 
-// runTyping 在运行期间按间隔发布正在输入，截止时间到达或停止时发布一次停止输入。
+// runTyping 在运行期间按间隔发布正在输入，停止时发布一次停止输入。
 type runTyping struct {
-	mu       sync.Mutex
-	deadline time.Time
-	ended    bool
 	stopOnce sync.Once
 	stop     chan struct{}
 	done     chan struct{}
 }
 
-// startRunTyping 立即开始按间隔发布；deadline 为零值表示持续到停止。
-func startRunTyping(ctx context.Context, publish func(active bool), deadline time.Time, interval time.Duration) *runTyping {
-	typing := &runTyping{deadline: deadline, stop: make(chan struct{}), done: make(chan struct{})}
+// startRunTyping 立即开始按间隔发布，持续到停止或 ctx 结束。
+func startRunTyping(ctx context.Context, publish func(active bool), interval time.Duration) *runTyping {
+	typing := &runTyping{stop: make(chan struct{}), done: make(chan struct{})}
 	go func() {
 		defer close(typing.done)
 		defer publish(false)
@@ -132,19 +129,8 @@ func startRunTyping(ctx context.Context, publish func(active bool), deadline tim
 			case <-typing.stop:
 				return
 			case <-ctx.Done():
-				typing.end()
 				return
-			case now := <-ticker.C:
-				// 截止判断与续期在同一把锁内完成。
-				typing.mu.Lock()
-				if !typing.deadline.IsZero() && !now.Before(typing.deadline) {
-					typing.ended = true
-				}
-				ended := typing.ended
-				typing.mu.Unlock()
-				if ended {
-					return
-				}
+			case <-ticker.C:
 				publish(true)
 			}
 		}
@@ -152,109 +138,13 @@ func startRunTyping(ctx context.Context, publish func(active bool), deadline tim
 	return typing
 }
 
-// extend 把截止时间推迟到指定时刻，发布已结束时返回 false。
-func (t *runTyping) extend(deadline time.Time) bool {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.ended {
-		return false
-	}
-	t.deadline = deadline
-	return true
-}
-
-// end 标记发布结束，此后 extend 返回 false。
-func (t *runTyping) end() {
-	t.mu.Lock()
-	t.ended = true
-	t.mu.Unlock()
-}
-
 // close 停止发布并等待停止输入发出；可并发、重复调用。
 func (t *runTyping) close() {
-	t.end()
 	t.stopOnce.Do(func() { close(t.stop) })
 	<-t.done
 }
 
 // startServerRunTyping 在服务端执行运行期间发布 AI 员工正在输入，返回停止发布的收尾函数。
 func (a *ExecuteAction) startServerRunTyping(ctx context.Context, run *servermodels.AgentRun) func() {
-	return startRunTyping(ctx, a.runTypingPublisher(context.WithoutCancel(ctx), run), time.Time{}, runTypingRefreshInterval).close
-}
-
-// holdDeviceRunTyping 在设备持有租约期间发布 AI 员工正在输入，截止到租约到期；已在发布时只推迟截止时间，运行已不在进行时不发布。
-func (a *ExecuteAction) holdDeviceRunTyping(ctx context.Context, run *servermodels.AgentRun, leaseExpiresAt time.Time) {
-	if a.lockDeviceRunTyping(run.ID, leaseExpiresAt) {
-		return
-	}
-	a.typingMu.Unlock()
-	if !a.deviceRunHoldingLease(ctx, run) {
-		return
-	}
-	// 查询期间并发续租可能已开始发布，此时合并为推迟截止时间。
-	if a.lockDeviceRunTyping(run.ID, leaseExpiresAt) {
-		return
-	}
-	publishCtx := context.WithoutCancel(ctx)
-	typing := startRunTyping(publishCtx, a.runTypingPublisher(publishCtx, run), leaseExpiresAt, runTypingRefreshInterval)
-	a.deviceTyping[run.ID] = typing
-	a.typingMu.Unlock()
-	go func() {
-		<-typing.done
-		a.typingMu.Lock()
-		if a.deviceTyping[run.ID] == typing {
-			delete(a.deviceTyping, run.ID)
-		}
-		a.typingMu.Unlock()
-	}()
-	// 注册后复核运行状态：收尾在注册前提交时由这里结束发布，在注册后提交时由收尾释放。
-	if !a.deviceRunHoldingLease(ctx, run) {
-		a.typingMu.Lock()
-		if a.deviceTyping[run.ID] == typing {
-			delete(a.deviceTyping, run.ID)
-		}
-		a.typingMu.Unlock()
-		typing.close()
-	}
-}
-
-// lockDeviceRunTyping 推迟进行中发布的截止时间并返回 true；没有进行中的发布时持有 typingMu 返回 false，遇到已结束的发布器先在锁外等它发出停止输入。
-func (a *ExecuteAction) lockDeviceRunTyping(runID string, deadline time.Time) bool {
-	for {
-		a.typingMu.Lock()
-		current := a.deviceTyping[runID]
-		if current == nil {
-			return false
-		}
-		if current.extend(deadline) {
-			a.typingMu.Unlock()
-			return true
-		}
-		delete(a.deviceTyping, runID)
-		a.typingMu.Unlock()
-		current.close()
-	}
-}
-
-// deviceRunHoldingLease 返回设备运行是否仍在进行并持有租约，读取失败时记录日志并视为不持有。
-func (a *ExecuteAction) deviceRunHoldingLease(ctx context.Context, run *servermodels.AgentRun) bool {
-	holding, err := a.db.NewSelect().Model((*servermodels.AgentRun)(nil)).
-		Where("agr.id = ? AND agr.status = ? AND agr.lease_expires_at > clock_timestamp()", run.ID, domain.AgentRunStatusRunning).
-		Exists(ctx)
-	if err != nil {
-		slog.Warn("读取设备运行状态失败", "organization_id", run.OrganizationID, "agent_run_id", run.ID, "error", err)
-		return false
-	}
-	return holding
-}
-
-// releaseDeviceRun 结束设备运行的输入状态发布并关闭其企业 MCP 连接。
-func (a *ExecuteAction) releaseDeviceRun(runID string) {
-	a.deviceMCP.release(runID)
-	a.typingMu.Lock()
-	typing := a.deviceTyping[runID]
-	a.typingMu.Unlock()
-	if typing != nil {
-		typing.close()
-	}
+	return startRunTyping(ctx, a.runTypingPublisher(context.WithoutCancel(ctx), run), runTypingRefreshInterval).close
 }

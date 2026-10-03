@@ -1342,7 +1342,7 @@ func (b *Backend) ResumePersonalAgent(ctx context.Context, meta appservice.Reque
 }
 
 // MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentDeviceInput) (_ appservice.PersonalAgent, err error) {
+func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentComputerInput) (_ appservice.PersonalAgent, err error) {
 	defer settle(ctx, "MovePersonalAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
@@ -1488,7 +1488,7 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return b.ops.AcceptInvitation(ctx, meta, account, input)
 }
 
-// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformOverview, err error) {
 	defer settle(ctx, "GetPlatformOverview", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
@@ -1499,7 +1499,7 @@ func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.Reque
 	return b.ops.GetPlatformOverview(ctx, meta, account)
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标与错误上报开关。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformSettings, err error) {
 	defer settle(ctx, "GetPlatformSettings", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
@@ -1521,15 +1521,26 @@ func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.Re
 	return b.ops.UpdatePlatformSettings(ctx, meta, account, input)
 }
 
-// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStatisticsTimeZoneInput) (_ appservice.PlatformSettings, err error) {
-	defer settle(ctx, "UpdatePlatformStatisticsTimeZone", &err, internalError(meta))
+// UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+func (b *Backend) UpdatePlatformTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTimeZoneInput) (_ appservice.PlatformSettings, err error) {
+	defer settle(ctx, "UpdatePlatformTimeZone", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformSettings
 		return zero, err
 	}
-	return b.ops.UpdatePlatformStatisticsTimeZone(ctx, meta, account, input)
+	return b.ops.UpdatePlatformTimeZone(ctx, meta, account, input)
+}
+
+// UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
+func (b *Backend) UpdatePlatformDailyCreditGrant(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformDailyCreditGrantInput) (_ appservice.PlatformSettings, err error) {
+	defer settle(ctx, "UpdatePlatformDailyCreditGrant", &err, internalError(meta))
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformSettings
+		return zero, err
+	}
+	return b.ops.UpdatePlatformDailyCreditGrant(ctx, meta, account, input)
 }
 
 // UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
@@ -1675,7 +1686,7 @@ func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.R
 	return b.ops.ResumePlatformWorkspace(ctx, meta, account, workspaceID)
 }
 
-// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformUsageInput) (_ appservice.PlatformUsageMetrics, err error) {
 	defer settle(ctx, "GetPlatformUsage", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
@@ -1686,7 +1697,7 @@ func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestM
 	return b.ops.GetPlatformUsage(ctx, meta, account, input)
 }
 
-// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceUsageListInput) (_ appservice.PlatformWorkspaceUsageList, err error) {
 	defer settle(ctx, "ListPlatformWorkspaceUsage", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
@@ -1697,7 +1708,7 @@ func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservic
 	return b.ops.ListPlatformWorkspaceUsage(ctx, meta, account, input)
 }
 
-// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+// GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformRuntimeStatus, err error) {
 	defer settle(ctx, "GetPlatformRuntimeStatus", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
@@ -1719,7 +1730,40 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 	return b.ops.ListPlatformFailedTasks(ctx, meta, account, input)
 }
 
-// ListPlatformAIProviders 返回平台供应商。
+// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
+func (b *Backend) GetPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (_ appservice.CreditBalance, err error) {
+	defer settle(ctx, "GetPlatformWorkspaceCredits", &err, internalError(meta))
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.CreditBalance
+		return zero, err
+	}
+	return b.ops.GetPlatformWorkspaceCredits(ctx, meta, account, workspaceID)
+}
+
+// ListPlatformWorkspaceCreditEntries 返回工作区的积分流水。
+func (b *Backend) ListPlatformWorkspaceCreditEntries(ctx context.Context, meta appservice.RequestMeta, workspaceID string, input appservice.CreditEntryListInput) (_ appservice.CreditEntryList, err error) {
+	defer settle(ctx, "ListPlatformWorkspaceCreditEntries", &err, internalError(meta))
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.CreditEntryList
+		return zero, err
+	}
+	return b.ops.ListPlatformWorkspaceCreditEntries(ctx, meta, account, workspaceID, input)
+}
+
+// AdjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
+func (b *Backend) AdjustPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string, input appservice.PlatformCreditAdjustmentInput) (_ appservice.PlatformCreditAdjustment, err error) {
+	defer settle(ctx, "AdjustPlatformWorkspaceCredits", &err, internalError(meta))
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformCreditAdjustment
+		return zero, err
+	}
+	return b.ops.AdjustPlatformWorkspaceCredits(ctx, meta, account, workspaceID, input)
+}
+
+// ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformAIProviderList, err error) {
 	defer settle(ctx, "ListPlatformAIProviders", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
@@ -2441,6 +2485,28 @@ func (b *Backend) ListAIModelOptions(ctx context.Context, meta appservice.Reques
 	return b.ops.ListAIModelOptions(ctx, meta, identity, usage)
 }
 
+// GetCreditBalance 返回当前工作区的可用积分与今天的每日赠送。
+func (b *Backend) GetCreditBalance(ctx context.Context, meta appservice.RequestMeta) (_ appservice.CreditBalance, err error) {
+	defer settle(ctx, "GetCreditBalance", &err, internalError(meta))
+	identity, err := b.ops.authenticate(ctx, meta)
+	if err != nil {
+		var zero appservice.CreditBalance
+		return zero, err
+	}
+	return b.ops.GetCreditBalance(ctx, meta, identity)
+}
+
+// ListCreditEntries 返回当前工作区的积分流水。
+func (b *Backend) ListCreditEntries(ctx context.Context, meta appservice.RequestMeta, input appservice.CreditEntryListInput) (_ appservice.CreditEntryList, err error) {
+	defer settle(ctx, "ListCreditEntries", &err, internalError(meta))
+	identity, err := b.ops.authenticate(ctx, meta)
+	if err != nil {
+		var zero appservice.CreditEntryList
+		return zero, err
+	}
+	return b.ops.ListCreditEntries(ctx, meta, identity, input)
+}
+
 // ListAIProviders 返回当前企业的模型服务供应商列表。
 func (b *Backend) ListAIProviders(ctx context.Context, meta appservice.RequestMeta) (_ appservice.AIProviderList, err error) {
 	defer settle(ctx, "ListAIProviders", &err, internalError(meta))
@@ -3056,34 +3122,34 @@ func (b *Backend) DismissKnowledgeGap(ctx context.Context, meta appservice.Reque
 	return b.ops.DismissKnowledgeGap(ctx, meta, identity, gapID)
 }
 
-// RegisterDevice 注册当前用户的本机设备。
-func (b *Backend) RegisterDevice(ctx context.Context, meta appservice.RequestMeta, input appservice.DeviceRegistrationInput) (_ appservice.Device, err error) {
-	defer settle(ctx, "RegisterDevice", &err, internalError(meta))
+// RegisterComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+func (b *Backend) RegisterComputer(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerRegistrationInput) (_ appservice.ComputerRegistration, err error) {
+	defer settle(ctx, "RegisterComputer", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.Device
+		var zero appservice.ComputerRegistration
 		return zero, err
 	}
-	return b.ops.RegisterDevice(ctx, meta, identity, input)
+	return b.ops.RegisterComputer(ctx, meta, identity, input)
 }
 
-// ListDevices 返回当前用户已注册的设备。
-func (b *Backend) ListDevices(ctx context.Context, meta appservice.RequestMeta) (_ appservice.DeviceList, err error) {
-	defer settle(ctx, "ListDevices", &err, internalError(meta))
+// ListComputers 返回当前成员未撤销的电脑。
+func (b *Backend) ListComputers(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ComputerList, err error) {
+	defer settle(ctx, "ListComputers", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.DeviceList
+		var zero appservice.ComputerList
 		return zero, err
 	}
-	return b.ops.ListDevices(ctx, meta, identity)
+	return b.ops.ListComputers(ctx, meta, identity)
 }
 
-// RevokeDevice 撤销当前用户的设备。
-func (b *Backend) RevokeDevice(ctx context.Context, meta appservice.RequestMeta, deviceID string) (err error) {
-	defer settle(ctx, "RevokeDevice", &err, internalError(meta))
+// RevokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+func (b *Backend) RevokeComputer(ctx context.Context, meta appservice.RequestMeta, computerID string) (err error) {
+	defer settle(ctx, "RevokeComputer", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
 	}
-	return b.ops.RevokeDevice(ctx, meta, identity, deviceID)
+	return b.ops.RevokeComputer(ctx, meta, identity, computerID)
 }

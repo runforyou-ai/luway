@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 
+	creditaction "github.com/runforyou-ai/luway/internal/actions/credit"
 	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
@@ -114,6 +115,8 @@ func translationError(meta appservice.RequestMeta, err error, failureKey i18n.Ke
 	switch {
 	case errors.Is(err, identityaction.ErrInvalid):
 		return appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
+	case errors.Is(err, creditaction.ErrInsufficient):
+		return appservice.ConflictError(meta, i18n.ErrorCreditsInsufficient, "credits_insufficient")
 	case errors.Is(err, translationaction.ErrConversationNotFound):
 		return appservice.NotFoundError(meta, i18n.ErrorConversationNotFound).WithReason("conversation_unavailable")
 	case errors.Is(err, translationaction.ErrDisabled):

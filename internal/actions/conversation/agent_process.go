@@ -96,7 +96,6 @@ func loadConversationAgentRuns(ctx context.Context, db bun.IDB, organizationID, 
 		AgentName                    string  `bun:"agent_name"`
 		AgentPersonalResponsibleName *string `bun:"agent_personal_responsible_name"`
 		AgentAvatarFileID            *string `bun:"agent_avatar_file_id"`
-		ExecutionDeviceName          *string `bun:"execution_device_name"`
 		HasProcess                   bool    `bun:"has_process"`
 	}
 	if err := db.NewSelect().Model((*servermodels.AgentRun)(nil)).
@@ -104,9 +103,7 @@ func loadConversationAgentRuns(ctx context.Context, db bun.IDB, organizationID, 
 		ColumnExpr("? AS agent_personal_responsible_name", PersonalResponsibleName("oi")).
 		ColumnExpr("oi.avatar_file_id AS agent_avatar_file_id").
 		ColumnExpr(agentRunHasProcessCondition+" AS has_process").
-		ColumnExpr("d.name AS execution_device_name").
 		Join("JOIN organization_identities AS oi ON oi.id = agr.agent_identity_id AND oi.organization_id = agr.organization_id").
-		Join("LEFT JOIN devices AS d ON d.id = agr.execution_device_id AND d.organization_id = agr.organization_id").
 		Join("JOIN conversations AS c ON c.id = agr.conversation_id AND c.organization_id = agr.organization_id").
 		Join("LEFT JOIN messages AS lm ON lm.id = c.last_message_id AND lm.organization_id = c.organization_id").
 		Where("agr.organization_id = ? AND agr.conversation_id = ?", organizationID, conversationID).
@@ -121,7 +118,7 @@ func loadConversationAgentRuns(ctx context.Context, db bun.IDB, organizationID, 
 	for _, row := range rows {
 		run := ConversationAgentRun{ID: row.ID, AgentIdentityID: row.AgentIdentityID, AgentName: row.AgentName,
 			AgentPersonalResponsibleName: row.AgentPersonalResponsibleName, AgentAvatarFileID: row.AgentAvatarFileID, Status: domain.AgentRunStatus(row.Status),
-			ErrorCode: row.ErrorCode, LastError: row.LastError, ExecutionDeviceID: row.ExecutionDeviceID, ExecutionDeviceName: row.ExecutionDeviceName}
+			ErrorCode: row.ErrorCode, LastError: row.LastError}
 		// 已结束与挂起等待的运行给出已保存过程的引用。
 		if row.HasProcess && row.StartedAt != nil && (row.CompletedAt != nil || row.Status == string(domain.AgentRunStatusWaiting)) {
 			process, err := conversationAgentProcess(&row.AgentRun)

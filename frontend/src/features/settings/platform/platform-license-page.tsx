@@ -63,18 +63,7 @@ export function PlatformLicensePage() {
     )
   }, [status, expiresAt, customBranding])
 
-  // 有效授权到期后重新读取授权状态。
-  useEffect(() => {
-    if (status !== LicenseStatus.LicenseStatusActive || !expiresAt) return
-    let timer = 0
-    // 到期时间超出单次定时器上限时分段续设。
-    const schedule = () => {
-      const delay = Math.max(new Date(expiresAt).getTime() - Date.now(), 0) + 1000
-      timer = delay > maxTimerDelay ? window.setTimeout(schedule, maxTimerDelay) : window.setTimeout(() => void refreshLicense(), delay)
-    }
-    schedule()
-    return () => window.clearTimeout(timer)
-  }, [status, expiresAt, refreshLicense])
+  useRefreshAtLicenseExpiry(license.data, refreshLicense)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -88,8 +77,25 @@ export function PlatformLicensePage() {
   )
 }
 
+/** 有效授权到期后调用 refresh 重新读取，授权尚未读取或不是有效状态时不计时。 */
+export function useRefreshAtLicenseExpiry(license: License | undefined, refresh: () => unknown) {
+  const status = license?.status
+  const expiresAt = license?.expiresAt
+  useEffect(() => {
+    if (status !== LicenseStatus.LicenseStatusActive || !expiresAt) return
+    let timer = 0
+    // 到期时间超出单次定时器上限时分段续设。
+    const schedule = () => {
+      const delay = Math.max(new Date(expiresAt).getTime() - Date.now(), 0) + 1000
+      timer = delay > maxTimerDelay ? window.setTimeout(schedule, maxTimerDelay) : window.setTimeout(() => void refresh(), delay)
+    }
+    schedule()
+    return () => window.clearTimeout(timer)
+  }, [status, expiresAt, refresh])
+}
+
 /** 返回授权状态下方的说明：未激活时说明免费范围，临近到期或已到期时提醒续期。 */
-function useStatusHelp(license: License) {
+export function useLicenseStatusHelp(license: License) {
   const { t } = useTranslation("platform")
   if (license.status === LicenseStatus.LicenseStatusNone) {
     return t("license.statusHelp.none", { count: license.capabilities.workspaceLimit })
@@ -119,7 +125,7 @@ function LicenseDetails({ license }: { license: License }) {
   const [submitting, setSubmitting] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const replaceButtonRef = useRef<HTMLButtonElement>(null)
-  const statusHelp = useStatusHelp(license)
+  const statusHelp = useLicenseStatusHelp(license)
   const licensed = license.status !== LicenseStatus.LicenseStatusNone
   const active = license.status === LicenseStatus.LicenseStatusActive
   const statusLabels: Record<string, string> = {

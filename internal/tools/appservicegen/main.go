@@ -1,4 +1,4 @@
-// appservicegen 根据 Backend 和 DeviceRunBackend 的路由指令生成应用服务委托、认证分发、Gin 适配和 API Proxy 转发。
+// appservicegen 根据 Backend 和 ComputerBackend 的路由指令生成应用服务委托、认证分发、Gin 适配和 API Proxy 转发。
 package main
 
 import (
@@ -119,16 +119,16 @@ var businessAPITarget = apiTarget{
 	queryInteger: "positiveQueryInteger",
 }
 
-// deviceRunAPITarget 生成设备运行期接口的 Gin 适配代码。
-var deviceRunAPITarget = apiTarget{
-	comment:      "registerGeneratedDeviceRunRoutes 注册由 appservicegen 生成的设备运行期路由。",
+// computerAPITarget 生成执行器接口的 Gin 适配代码。
+var computerAPITarget = apiTarget{
+	comment:      "registerGeneratedComputerRoutes 注册由 appservicegen 生成的执行器路由。",
 	receiver:     "s *Service",
-	application:  "s.deviceRuns",
-	register:     "registerGeneratedDeviceRunRoutes",
+	application:  "s.computers",
+	register:     "registerGeneratedComputerRoutes",
 	requestMeta:  "requestMeta(c)",
 	writeResult:  "writeResult",
 	writeEmpty:   "writeEmpty",
-	bindPrefix:   "bindDeviceRun",
+	bindPrefix:   "bindComputer",
 	bindJSON:     "bindJSON",
 	queryInteger: "positiveQueryInteger",
 }
@@ -151,7 +151,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	deviceRunMethods, err := parseInterface(filepath.Join(root, "internal", "appservice", "device_run_backend.go"), "DeviceRunBackend", "RequestMeta")
+	computerMethods, err := parseInterface(filepath.Join(root, "internal", "appservice", "computer_backend.go"), "ComputerBackend", "RequestMeta")
 	if err != nil {
 		return err
 	}
@@ -162,17 +162,16 @@ func run() error {
 	if err := validate(methods, queryStructs); err != nil {
 		return err
 	}
-	if err := validateDeviceRun(deviceRunMethods, queryStructs); err != nil {
+	if err := validateComputer(computerMethods, queryStructs); err != nil {
 		return err
 	}
 	files := map[string][]byte{
-		filepath.Join(root, "internal", "appservice", "service_gen.go"):                      generateService(methods),
-		filepath.Join(root, "internal", "appservice", "direct", "backend_gen.go"):            generateDirectBackend(methods),
-		filepath.Join(root, "internal", "api", "service_gen.go"):                             generateAPI(methods, queryStructs, businessAPITarget),
-		filepath.Join(root, "internal", "apiproxy", "backend_gen.go"):                        generateProxy(methods, queryStructs),
-		filepath.Join(root, "internal", "appservice", "direct", "device_run_backend_gen.go"): generateDeviceRunDirectBackend(deviceRunMethods),
-		filepath.Join(root, "internal", "api", "device_run_service_gen.go"):                  generateAPI(deviceRunMethods, queryStructs, deviceRunAPITarget),
-		filepath.Join(root, "internal", "apiproxy", "device_run_backend_gen.go"):             generateProxy(deviceRunMethods, queryStructs),
+		filepath.Join(root, "internal", "appservice", "service_gen.go"):                    generateService(methods),
+		filepath.Join(root, "internal", "appservice", "direct", "backend_gen.go"):          generateDirectBackend(methods),
+		filepath.Join(root, "internal", "api", "service_gen.go"):                           generateAPI(methods, queryStructs, businessAPITarget),
+		filepath.Join(root, "internal", "apiproxy", "backend_gen.go"):                      generateProxy(methods, queryStructs),
+		filepath.Join(root, "internal", "appservice", "direct", "computer_backend_gen.go"): generateComputerDirectBackend(computerMethods),
+		filepath.Join(root, "internal", "api", "computer_service_gen.go"):                  generateAPI(computerMethods, queryStructs, computerAPITarget),
 	}
 	for path, source := range files {
 		formatted, err := format.Source(source)
@@ -556,19 +555,16 @@ func validate(methods []method, queryStructs map[string]queryStruct) error {
 	return nil
 }
 
-// validateDeviceRun 校验设备运行期契约的指令选项和查询结构体声明。
+// validateComputer 校验执行器契约的指令选项和查询结构体声明。
 //
-// 设备调用一律先校验登录令牌与本人设备，指令只接受 status、query 与 manual=proxy 选项；
-// manual=proxy 用于传输期限或响应大小不同于普通接口的调用。
-func validateDeviceRun(methods []method, queryStructs map[string]queryStruct) error {
+// 执行器调用一律以电脑凭据认证，指令只接受 status 与 query 选项。
+func validateComputer(methods []method, queryStructs map[string]queryStruct) error {
 	for _, item := range methods {
 		if item.route.authSet {
-			return fmt.Errorf("device run method %s: auth option is not supported", item.name)
+			return fmt.Errorf("computer method %s: auth option is not supported", item.name)
 		}
-		for layer := range item.route.manual {
-			if layer != "proxy" {
-				return fmt.Errorf("device run method %s: manual layer %q is not supported", item.name, layer)
-			}
+		if len(item.route.manual) > 0 {
+			return fmt.Errorf("computer method %s: manual option is not supported", item.name)
 		}
 	}
 	return validate(methods, queryStructs)
@@ -724,11 +720,11 @@ func generateDirectBackend(methods []method) []byte {
 	return []byte(builder.String())
 }
 
-// generateDeviceRunDirectBackend 生成设备运行期调用的认证分发层。
+// generateComputerDirectBackend 生成执行器调用的认证分发层。
 //
-// 每个方法先校验登录令牌与请求携带的设备，再把已认证设备交给 directOperations
+// 每个方法先以电脑凭据认证电脑，再把已认证电脑交给 directOperations
 // 中的业务实现；本契约没有 Service 委托，结果在分发层归一化切片，方法返回时由 settle 统一收尾错误。
-func generateDeviceRunDirectBackend(methods []method) []byte {
+func generateComputerDirectBackend(methods []method) []byte {
 	builder := &strings.Builder{}
 	builder.WriteString("// Code generated by appservicegen. DO NOT EDIT.\n\n")
 	builder.WriteString("//go:build server\n\n")
@@ -736,7 +732,7 @@ func generateDeviceRunDirectBackend(methods []method) []byte {
 	builder.WriteString("import (\n\t\"context\"\n\n\t\"github.com/runforyou-ai/luway/internal/appservice\"\n)\n\n")
 	emitDelegations(builder, methods, delegation{
 		qualifier: "appservice", receiver: "b *Backend", target: "b.ops", metaType: "RequestMeta",
-		injectIdentity: true, authenticator: "authenticateDevice", identityName: "device", normalizeSlices: true, settle: true,
+		injectIdentity: true, authenticator: "authenticateComputer", identityName: "computer", normalizeSlices: true, settle: true,
 	})
 	return []byte(builder.String())
 }

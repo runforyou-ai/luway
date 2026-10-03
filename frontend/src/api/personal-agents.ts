@@ -16,7 +16,6 @@ import {
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   AgentExecutionMode,
-  LocalAgentKind,
   PersonalAgentPresence,
   type PersonalAgent,
   type PersonalAgentDetail,
@@ -27,24 +26,14 @@ import type { NonNullArrays } from "@/api/normalize"
 
 export type PersonalAgentPresenceId = Exclude<PersonalAgentPresence, PersonalAgentPresence.$zero>
 
-export type LocalAgentKindId = Exclude<LocalAgentKind, LocalAgentKind.$zero>
+/** 个人 AI 员工执行配置：平台托管执行带 managed。 */
+type PersonalAgentExecution<T extends { managed?: unknown }> = Omit<T, "mode" | "managed"> & {
+  mode: AgentExecutionMode.AgentExecutionModeManaged
+  managed: NonNullable<T["managed"]>
+}
 
-/** 个人 AI 员工执行配置按执行方式区分：平台托管执行带 managed，本机 Agent 执行带 localAgent。 */
-type PersonalAgentExecution<T extends { managed?: unknown; localAgent?: unknown }> =
-  | (Omit<T, "mode" | "managed" | "localAgent"> & {
-      mode: AgentExecutionMode.AgentExecutionModeManaged
-      managed: NonNullable<T["managed"]>
-      localAgent?: null
-    })
-  | (Omit<T, "mode" | "managed" | "localAgent"> & {
-      mode: AgentExecutionMode.AgentExecutionModeLocalAgent
-      managed?: null
-      localAgent: Omit<NonNullable<T["localAgent"]>, "kind"> & { kind: LocalAgentKindId }
-    })
-
-export type PersonalAgentData = Omit<NonNullArrays<PersonalAgent>, "presence" | "execution" | "device"> & {
+export type PersonalAgentData = Omit<NonNullArrays<PersonalAgent>, "presence" | "execution"> & {
   presence: PersonalAgentPresenceId
-  device: Omit<NonNullArrays<PersonalAgent>["device"], "localAgents"> & { localAgents: LocalAgentKindId[] }
   execution: PersonalAgentExecution<NonNullArrays<PersonalAgent>["execution"]>
 }
 
@@ -110,8 +99,8 @@ export function resumePersonalAgent(agentId: string) {
 }
 
 /** 把个人 AI 员工换到指定电脑。 */
-export function movePersonalAgent(agentId: string, deviceId: string) {
-  return movePersonalAgentBound(agentId, { deviceId }).then(asPersonalAgent)
+export function movePersonalAgent(agentId: string, computerId: string) {
+  return movePersonalAgentBound(agentId, { computerId }).then(asPersonalAgent)
 }
 
 /** 禁用个人 AI 员工。 */
@@ -147,16 +136,9 @@ function asPersonalAgent(agent: NonNullArrays<PersonalAgent>): PersonalAgentData
   return agent as PersonalAgentData
 }
 
-/** 校验个人 AI 员工执行配置：平台托管执行带 managed，本机 Agent 执行带有效的 localAgent。 */
-function asPersonalAgentExecution<
-  T extends { mode: AgentExecutionMode; managed?: unknown; localAgent?: { kind: LocalAgentKind } | null },
->(execution: T) {
-  const managed = execution.mode === AgentExecutionMode.AgentExecutionModeManaged && execution.managed
-  const localAgent =
-    execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent &&
-    execution.localAgent &&
-    execution.localAgent.kind !== LocalAgentKind.$zero
-  if (!managed && !localAgent) {
+/** 校验个人 AI 员工执行配置为带 managed 的平台托管执行。 */
+function asPersonalAgentExecution<T extends { mode: AgentExecutionMode; managed?: unknown }>(execution: T) {
+  if (execution.mode !== AgentExecutionMode.AgentExecutionModeManaged || !execution.managed) {
     throw new Error(`Unsupported personal agent execution mode: ${execution.mode}`)
   }
   return execution

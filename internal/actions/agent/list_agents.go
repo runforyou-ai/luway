@@ -46,7 +46,7 @@ func (q *ListAgentsQuery) Execute(ctx context.Context, identity *servermodels.Id
 	base := func() *bun.SelectQuery {
 		return q.db.NewSelect().TableExpr("agents AS a").
 			Join("JOIN organization_identities AS oi ON oi.id = a.identity_id AND oi.organization_id = a.organization_id").
-			Join("LEFT JOIN devices AS d ON d.id = a.device_id AND d.organization_id = a.organization_id")
+			Join("LEFT JOIN computers AS cmp ON cmp.id = a.computer_id AND cmp.organization_id = a.organization_id")
 	}
 	total, err := applyFilters(base()).Count(ctx)
 	if err != nil {
@@ -55,7 +55,7 @@ func (q *ListAgentsQuery) Execute(ctx context.Context, identity *servermodels.Id
 	agents := make([]ListItem, 0)
 	if err := applyFilters(base()).
 		ColumnExpr("a.id::text AS id, a.identity_id::text AS identity_id, oi.display_name, oi.avatar_file_id::text AS avatar_file_id, a.service_audiences, a.status, oi.work_status, oi.created_at").
-		ColumnExpr("a.paused_at, a.device_id::text AS device_id, d.name AS device_name, d.revoked_at AS device_revoked_at, d.last_seen_at AS device_last_seen_at").
+		ColumnExpr("a.paused_at, a.computer_id::text AS computer_id, cmp.name AS computer_name, cmp.revoked_at AS computer_revoked_at, cmp.last_seen_at AS computer_last_seen_at").
 		OrderExpr("lower(oi.display_name) ASC, a.id ASC").
 		Limit(input.PageSize).
 		Offset((input.Page-1)*input.PageSize).

@@ -19,7 +19,7 @@ import {
   SuspendPlatformWorkspace,
   SyncLicense,
   UpdatePlatformSettings,
-  UpdatePlatformStatisticsTimeZone,
+  UpdatePlatformTimeZone,
   UpdatePlatformTelemetry,
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
@@ -39,7 +39,7 @@ const listPlatformWorkspacesBound = bind(ListPlatformWorkspaces)
 const listPlatformWorkspaceUsageBound = bind(ListPlatformWorkspaceUsage)
 const listPlatformFailedTasksBound = bind(ListPlatformFailedTasks)
 
-/** 读取服务器标识、规模、活跃趋势和平台能力。 */
+/** 读取服务器标识、规模、活跃趋势、授权状态和平台能力。 */
 export const getPlatformOverview = bind(GetPlatformOverview)
 
 /** 读取服务器标识与授权状态。 */
@@ -54,14 +54,14 @@ export const activateLicenseOnline = bind(ActivateLicenseOnline)
 /** 立即向授权服务登记服务器并拉取最新授权。 */
 export const syncLicense = bind(SyncLicense)
 
-/** 读取平台注册策略、工作区创建策略、统计时区和运行指标上报开关。 */
+/** 读取平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。 */
 export const getPlatformSettings = bind(GetPlatformSettings)
 
 /** 修改平台注册策略和工作区创建策略。 */
 export const updatePlatformSettings = bind(UpdatePlatformSettings)
 
-/** 修改运营数据统计时区，服务端按新时区在后台重建运营数据。 */
-export const updatePlatformStatisticsTimeZone = bind(UpdatePlatformStatisticsTimeZone)
+/** 修改平台时区，服务端按新时区在后台重建运营数据。 */
+export const updatePlatformTimeZone = bind(UpdatePlatformTimeZone)
 
 /** 开启或关闭运行指标上报。 */
 export const updatePlatformTelemetry = bind(UpdatePlatformTelemetry)
@@ -111,10 +111,10 @@ export function listPlatformWorkspaces(query: Partial<PlatformWorkspaceListInput
   )
 }
 
-/** 读取平台整体最近若干天的客服业务使用指标。 */
+/** 读取平台整体最近若干天的客服业务使用指标与平台模型用量。 */
 export const getPlatformUsage = bind(GetPlatformUsage)
 
-/** 读取各工作区最近若干天的客服业务使用指标，天数缺省为 30，排序缺省按服务周期数。 */
+/** 读取各工作区最近若干天的客服业务使用指标与平台模型用量，天数缺省为 30，排序缺省按服务周期数。 */
 export function listPlatformWorkspaceUsage(query: Partial<PlatformWorkspaceUsageListInput>, signal?: AbortSignal) {
   return listPlatformWorkspaceUsageBound(
     {
@@ -127,7 +127,7 @@ export function listPlatformWorkspaceUsage(query: Partial<PlatformWorkspaceUsage
   )
 }
 
-/** 读取服务端版本与后台任务各队列的运行概况。 */
+/** 读取服务端进程、外部依赖与后台任务各队列的运行状态。 */
 export const getPlatformRuntimeStatus = bind(GetPlatformRuntimeStatus)
 
 /** 读取近 7 天内失败与等待重试的后台任务。 */

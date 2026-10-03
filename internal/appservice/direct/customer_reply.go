@@ -8,6 +8,7 @@ import (
 
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	creditaction "github.com/runforyou-ai/luway/internal/actions/credit"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -26,6 +27,8 @@ func (o *directOperations) GenerateServiceReplySuggestions(ctx context.Context, 
 		return appservice.ServiceReplySuggestions{Candidates: candidates}, nil
 	}
 	switch {
+	case errors.Is(err, creditaction.ErrInsufficient):
+		return appservice.ServiceReplySuggestions{}, appservice.ConflictError(meta, i18n.ErrorCreditsInsufficient, "credits_insufficient")
 	case errors.Is(err, conversationaction.ErrConversationNotFound):
 		return appservice.ServiceReplySuggestions{}, appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
 	case errors.Is(err, agentrunaction.ErrAgentUnavailable):

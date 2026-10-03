@@ -67,6 +67,10 @@ func ToolCall(row servermodels.AgentToolCall) agentruntime.ToolCall {
 		ID: row.ID, ModelCallID: row.ModelCallID, CallID: row.ProviderCallID, Name: row.Name, Source: domain.AgentToolSource(row.Source),
 		Replayable: row.Replayable, SideEffects: row.SideEffects, Arguments: row.Arguments, Result: row.Result, Error: row.Error,
 		Status: domain.AgentToolCallStatus(row.Status), StartedAt: row.StartedAt, CompletedAt: row.CompletedAt, Evidence: row.Evidence,
+		Computer: row.ComputerID != nil,
+	}
+	if row.Operation != nil {
+		call.ComputerOutcome = row.Operation.Outcome
 	}
 	if row.ParentID != nil {
 		call.ParentID = *row.ParentID
@@ -145,7 +149,7 @@ func Sync(ctx context.Context, db bun.IDB, run *servermodels.AgentRun, blocks []
 	return nil
 }
 
-// SaveToolCall 写入一次工具调用：已有最终结果的调用只补记依据标记，其余字段保持不变。
+// SaveToolCall 写入一次工具调用：已有最终结果的调用只补记依据标记，已派发到电脑的调用不改变状态与结果。
 func SaveToolCall(ctx context.Context, db bun.IDB, run *servermodels.AgentRun, call agentruntime.ToolCall) error {
 	row := &servermodels.AgentToolCall{
 		ID: call.ID, OrganizationID: run.OrganizationID, AgentRunID: run.ID, ModelCallID: call.ModelCallID,
@@ -159,14 +163,15 @@ func SaveToolCall(ctx context.Context, db bun.IDB, run *servermodels.AgentRun, c
 	if call.MCPServer != "" {
 		row.MCPServer = &call.MCPServer
 	}
+	// 已结束的调用保持不变；已派发到电脑的调用由电脑领取与上报推进，Runtime 的写入不改变其状态与结果。
 	settled := bun.In(settledStatuses)
 	if _, err := db.NewInsert().Model(row).
 		On("CONFLICT (id) DO UPDATE").
 		Set("arguments = EXCLUDED.arguments").
-		Set("status = CASE WHEN atc.status IN (?) THEN atc.status ELSE EXCLUDED.status END", settled).
-		Set("result = CASE WHEN atc.status IN (?) THEN atc.result ELSE EXCLUDED.result END", settled).
-		Set("error = CASE WHEN atc.status IN (?) THEN atc.error ELSE EXCLUDED.error END", settled).
-		Set("completed_at = CASE WHEN atc.status IN (?) THEN atc.completed_at ELSE EXCLUDED.completed_at END", settled).
+		Set("status = CASE WHEN atc.status IN (?) OR atc.computer_id IS NOT NULL THEN atc.status ELSE EXCLUDED.status END", settled).
+		Set("result = CASE WHEN atc.status IN (?) OR atc.computer_id IS NOT NULL THEN atc.result ELSE EXCLUDED.result END", settled).
+		Set("error = CASE WHEN atc.status IN (?) OR atc.computer_id IS NOT NULL THEN atc.error ELSE EXCLUDED.error END", settled).
+		Set("completed_at = CASE WHEN atc.status IN (?) OR atc.computer_id IS NOT NULL THEN atc.completed_at ELSE EXCLUDED.completed_at END", settled).
 		Set("started_at = COALESCE(atc.started_at, EXCLUDED.started_at)").
 		Set("evidence = atc.evidence OR EXCLUDED.evidence").
 		Set("updated_at = now()").

@@ -34,7 +34,7 @@ func (a *UpdateExecutionAction) Execute(ctx context.Context, identity *servermod
 	if !common.ValidUUID(agentID) {
 		return nil, ErrNotFound
 	}
-	executionInput, err := normalizeExecutionInput(input.ExecutionInput, false)
+	executionInput, err := normalizeExecutionInput(input.ExecutionInput)
 	if err != nil {
 		return nil, err
 	}

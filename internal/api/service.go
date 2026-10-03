@@ -25,9 +25,7 @@ type WebsiteVisitorRealtime interface {
 // Service 是企业服务端对外提供的 Gin HTTP 适配器。
 type Service struct {
 	application         *appservice.Service
-	deviceRuns          appservice.DeviceRunBackend
-	deviceModels        DeviceModelGateway
-	deviceAttachments   DeviceRunAttachmentReader
+	computers           appservice.ComputerBackend
 	websiteVisitor      *appservice.WebsiteVisitorService
 	visitorRealtime     WebsiteVisitorRealtime
 	telegramWebhook     TelegramWebhookReceiver
@@ -56,10 +54,10 @@ func WithWebsiteVisitorRealtime(realtime WebsiteVisitorRealtime) ServiceOption {
 	}
 }
 
-// WithDeviceRuns 注入本机设备执行 Agent 运行的运行期调用。
-func WithDeviceRuns(backend appservice.DeviceRunBackend) ServiceOption {
+// WithComputers 注入执行器以电脑身份调用的服务端契约。
+func WithComputers(backend appservice.ComputerBackend) ServiceOption {
 	return func(service *Service) {
-		service.deviceRuns = backend
+		service.computers = backend
 	}
 }
 
@@ -85,16 +83,8 @@ func NewService(application *appservice.Service, options ...ServiceOption) *Serv
 	}))
 
 	service.registerGeneratedRoutes(router)
-	if service.deviceRuns != nil {
-		service.registerGeneratedDeviceRunRoutes(router)
-	}
-	// 注册设备运行的模型网关，设备的模型请求经统一调用入口执行。
-	if service.deviceModels != nil {
-		router.POST("/agent-runs/:runID/model", service.serveDeviceModel)
-	}
-	// 注册设备运行读取会话附件的原始内容入口。
-	if service.deviceAttachments != nil {
-		router.GET("/agent-runs/:runID/attachments/:messageID", service.readDeviceRunAttachment)
+	if service.computers != nil {
+		service.registerGeneratedComputerRoutes(router)
 	}
 	// 创建企业管理员并返回登录令牌。
 	router.POST("/install", func(c *gin.Context) {
@@ -141,7 +131,7 @@ func enumList[T ~string](values []string) []T {
 	return list
 }
 
-// requestMeta 从请求头提取令牌、目标工作区、语言和设备编号，构造应用服务请求元数据。
+// requestMeta 从请求头提取令牌、目标工作区和语言，构造应用服务请求元数据。
 func requestMeta(c *gin.Context) appservice.RequestMeta {
 	return appservice.RequestMetaFromHTTP(c.Request.Header)
 }

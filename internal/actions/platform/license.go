@@ -46,10 +46,15 @@ func Capabilities(ctx context.Context, db bun.IDB) (domain.Capabilities, error) 
 	if err != nil {
 		return domain.Capabilities{}, err
 	}
+	return effectiveCapabilities(current), nil
+}
+
+// effectiveCapabilities 返回授权当前生效的能力，未激活或已到期时为免费取值。
+func effectiveCapabilities(current License) domain.Capabilities {
 	if current.Status != domain.LicenseStatusActive {
-		return domain.FreeCapabilities(), nil
+		return domain.FreeCapabilities()
 	}
-	return current.Capabilities, nil
+	return current.Capabilities
 }
 
 // CustomBrandingUntil 返回部署品牌配置可以生效到的时间；授权未授予自定义品牌时返回零值。

@@ -20,6 +20,7 @@ const (
 	AudienceWebsiteChannel   AudienceKind = "website_channel"
 	AudienceCustomerIdentity AudienceKind = "customer_identity"
 	AudienceWebsiteVisitors  AudienceKind = "website_visitors"
+	AudienceComputer         AudienceKind = "computer"
 )
 
 // Kind 定义通知种类。
@@ -39,14 +40,15 @@ const (
 	KindChannelDisabled          Kind = "channel_disabled"
 	KindCustomerIdentityRevoked  Kind = "customer_identity_revoked"
 	KindServiceAttention         Kind = "service_attention"
-	KindDeviceWorkAdvanced       Kind = "device_work_advanced"
+	KindComputerWork             Kind = "computer_work"
+	KindComputerRevoked          Kind = "computer_revoked"
 	KindReceptionChanged         Kind = "reception_changed"
 	KindKnowledgeGapsChanged     Kind = "knowledge_gaps_changed"
 	KindServiceReportsChanged    Kind = "service_reports_changed"
 	KindAgentMemoryChanged       Kind = "agent_memory_changed"
 )
 
-// Notification 表示发往单个受众的变更通知、输入状态、客服提醒或撤销控制，载荷含通知种类、会话 ID、会话类型、版本、会话变化类别、登录会话 ID、输入状态、客服提醒原因、设备 ID 与 AI 员工 ID，零值字段省略。
+// Notification 表示发往单个受众的变更通知、输入状态、客服提醒或撤销控制，载荷含通知种类、会话 ID、会话类型、版本、会话变化类别、登录会话 ID、输入状态、客服提醒原因与 AI 员工 ID，零值字段省略。
 type Notification struct {
 	OrganizationID   string
 	AudienceKind     AudienceKind
@@ -61,7 +63,6 @@ type Notification struct {
 	Active           bool
 	ServiceSessionID string
 	AttentionReason  domain.ServiceAttentionReason
-	DeviceID         string
 	AgentID          string
 }
 
@@ -130,9 +131,14 @@ func UserAgentMemoryChanged(organizationID, userID, agentID string) Notification
 	return Notification{OrganizationID: organizationID, AudienceKind: AudienceUser, AudienceID: userID, Kind: KindAgentMemoryChanged, AgentID: agentID}
 }
 
-// UserDeviceWorkAdvanced 构造发往设备所属成员受众的设备工作水位通知，版本为设备最新工作水位，Gateway 只转发给该设备的事件流。
-func UserDeviceWorkAdvanced(organizationID, userID, deviceID string, workSeq int64) Notification {
-	return Notification{OrganizationID: organizationID, AudienceKind: AudienceUser, AudienceID: userID, Kind: KindDeviceWorkAdvanced, DeviceID: deviceID, Version: workSeq}
+// ComputerWork 构造发往电脑受众的待执行操作通知，执行器据此领取操作。
+func ComputerWork(organizationID, computerID string) Notification {
+	return Notification{OrganizationID: organizationID, AudienceKind: AudienceComputer, AudienceID: computerID, Kind: KindComputerWork}
+}
+
+// ComputerRevoked 构造电脑撤销控制，Gateway 据此结束该电脑的事件流。
+func ComputerRevoked(organizationID, computerID string) Notification {
+	return Notification{OrganizationID: organizationID, AudienceKind: AudienceComputer, AudienceID: computerID, Kind: KindComputerRevoked}
 }
 
 // WebsiteChannelDisabled 构造网站渠道停用撤销控制，Gateway 据此结束该渠道全部访客事件流；受众 ID 为渠道 ID。
@@ -172,7 +178,7 @@ func UserServiceAttention(organizationID, userID, conversationID, serviceSession
 
 type batchKey struct{}
 
-// mergeKey 标识可合并的通知：同一受众、同一种类、同一会话、同一登录会话、同一客服处理周期与提醒原因、同一设备。
+// mergeKey 标识可合并的通知：同一受众、同一种类、同一会话、同一登录会话、同一客服处理周期与提醒原因、同一 AI 员工。
 type mergeKey struct {
 	organizationID   string
 	audienceKind     AudienceKind
@@ -182,7 +188,6 @@ type mergeKey struct {
 	tokenSessionID   string
 	serviceSessionID string
 	attentionReason  domain.ServiceAttentionReason
-	deviceID         string
 	agentID          string
 }
 
@@ -214,7 +219,7 @@ func Notify(ctx context.Context, notification Notification) {
 	if !ok {
 		panic("realtime: Notify called outside realtime.RunInTx")
 	}
-	key := mergeKey{notification.OrganizationID, notification.AudienceKind, notification.AudienceID, notification.Kind, notification.ConversationID, notification.TokenSessionID, notification.ServiceSessionID, notification.AttentionReason, notification.DeviceID, notification.AgentID}
+	key := mergeKey{notification.OrganizationID, notification.AudienceKind, notification.AudienceID, notification.Kind, notification.ConversationID, notification.TokenSessionID, notification.ServiceSessionID, notification.AttentionReason, notification.AgentID}
 	current, exists := pending.items[key]
 	if !exists {
 		pending.order = append(pending.order, key)

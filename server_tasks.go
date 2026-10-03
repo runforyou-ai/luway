@@ -9,6 +9,7 @@ import (
 	agentevaluationaction "github.com/runforyou-ai/luway/internal/actions/agentevaluation"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	computeraction "github.com/runforyou-ai/luway/internal/actions/computer"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/customerdelivery"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
@@ -88,7 +89,7 @@ func registerServerTasks(deps serverTaskDeps) error {
 		deps.tasks.RegisterSchedule(maintenanceSchedule(customernotify.ScheduleKey, customernotify.ScanActionName, "@every 30s"))
 	}
 
-	// Agent 运行执行、会话标题、AI 员工记忆、退回转人工与评测回放；设备运行收敛扫描每 15 秒把租约过期或失去执行条件的设备运行标记失败。
+	// Agent 运行执行、会话标题、AI 员工记忆、退回转人工与评测回放；电脑巡检每 15 秒结算派发到已撤销或离线电脑且未结束的调用。
 	agentEvaluation := agentevaluationaction.NewWorker(db, deps.agentRun, deps.modelInvoker)
 	agentChatTitle := agentrunaction.NewGenerateAgentChatTitleAction(db, deps.agentRuntime, deps.modelInvoker)
 	agentMemory := agentrunaction.NewExtractAgentMemoryAction(db, deps.tasks, deps.agentRuntime, deps.modelInvoker)
@@ -97,12 +98,12 @@ func registerServerTasks(deps serverTaskDeps) error {
 		registry.RegisterJSON(agentrunaction.AgentChatTitleActionName, agentChatTitle.Execute),
 		registry.RegisterJSON(agentrunaction.AgentMemoryActionName, agentMemory.Execute),
 		registry.RegisterJSONWithTerminalFailure(agentrunaction.ReturnedHandoffActionName, deps.agentRun.HandOffReturnedSession, deps.agentRun.FinalizeReturnedHandoffFailure),
-		registry.RegisterJSON(agentrunaction.DeviceRunSweepActionName, deps.agentRun.SweepDeviceRuns),
+		registry.RegisterJSON(computeraction.SweepActionName, computeraction.NewSweepAction(db, deps.tasks).Execute),
 		registry.RegisterJSONWithTerminalFailure(agentevaluationaction.EvaluateActionName, agentEvaluation.Evaluate, agentEvaluation.FinalizeFailure),
 	); err != nil {
 		return err
 	}
-	deps.tasks.RegisterSchedule(maintenanceSchedule("agent-device-run-sweep", agentrunaction.DeviceRunSweepActionName, "@every 15s"))
+	deps.tasks.RegisterSchedule(maintenanceSchedule("computer-sweep", computeraction.SweepActionName, "@every 15s"))
 
 	// 过期文件每小时扫描一次，逐个删除。
 	scanExpired := filemaintenance.NewScanExpiredAction(db, deps.tasks)
@@ -121,6 +122,13 @@ func registerServerTasks(deps serverTaskDeps) error {
 	partitions := maintenanceSchedule(messagepartition.ScheduleKey, messagepartition.EnsureActionName, "@daily")
 	partitions.Payload, partitions.MaxAttempts = messagepartition.EnsureInput{}, 5
 	deps.tasks.RegisterSchedule(partitions)
+
+	// 每 10 分钟结束开始超过一小时仍在进行中的模型调用，结算或退回预占的积分。
+	sweepModelCalls := modelcall.NewSweepInterruptedAction(db)
+	if err := registry.RegisterJSON(modelcall.SweepInterruptedActionName, sweepModelCalls.Execute); err != nil {
+		return err
+	}
+	deps.tasks.RegisterSchedule(maintenanceSchedule(modelcall.SweepInterruptedScheduleKey, modelcall.SweepInterruptedActionName, "@every 10m"))
 
 	// 运营数据每 10 分钟按平台统计时区重算昨天与今天的账号活跃明细和工作区按日指标。
 	aggregateStats := platformaction.NewAggregateStatsAction(db)

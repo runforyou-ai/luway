@@ -256,7 +256,8 @@ tasks:
       Defaults to a pure-Go static binary on a distroless/static base. The
       production frontend is built first so the embedded assets are current.
 
-      Usage: task build:docker [TAG=myapp:latest] [CGO_ENABLED=1] [GO_IMAGE=...] [RUNTIME_IMAGE=...]
+      Usage: task build:docker [TAG=myapp:latest] [VERSION=0.1.0] [CLIENTS=<客户端目录>] [CGO_ENABLED=1] [GO_IMAGE=...] [RUNTIME_IMAGE=...]
+      CLIENTS 指向含 clients.json 的客户端目录时，镜像内置这些安装包；索引版本须与 VERSION 一致。
       For CGO apps, set CGO_ENABLED=1 with libc-compatible builder/runtime images, e.g.:
         task build:docker CGO_ENABLED=1 GO_IMAGE=golang:1.27-bookworm RUNTIME_IMAGE=gcr.io/distroless/base-debian12
     deps:
@@ -273,6 +274,8 @@ tasks:
         --build-arg CGO_ENABLED={{.CGO_ENABLED | default "0"}}
         --build-arg GO_IMAGE={{.GO_IMAGE | default "golang:1.27-alpine"}}
         --build-arg RUNTIME_IMAGE={{.RUNTIME_IMAGE | default "gcr.io/distroless/static-debian12"}}
+        --build-arg APP_VERSION={{.VERSION | default "dev"}}
+        {{if .CLIENTS}}--build-context clients={{.CLIENTS}}{{end}}
         -t {{.TAG | default (printf "%s:latest" .APP_NAME)}}
         -f build/docker/Dockerfile.server .
     vars:
@@ -294,6 +297,8 @@ tasks:
         vars:
           TAG:
             ref: .TAG
+          CGO_ENABLED:
+            ref: .CGO_ENABLED
     cmds:
       - >-
         docker run --rm

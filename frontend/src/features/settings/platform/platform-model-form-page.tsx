@@ -1,4 +1,4 @@
-/** 平台模型表单页：维护模型属性与按尝试顺序排列的来源，新建后回到列表，编辑时边改边存。 */
+/** 平台模型表单页：维护模型属性、积分价格与按尝试顺序排列的来源，新建后回到列表，编辑时边改边存。 */
 import { useEffect, useMemo, useRef, useState } from "react"
 import { ArrowDownIcon, ArrowUpIcon, ListIcon, PlusIcon, Trash2Icon } from "lucide-react"
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form"
@@ -16,6 +16,7 @@ import {
 } from "@/api"
 import { FormActions } from "@/components/form/form-actions"
 import { FormInputField } from "@/components/form/form-input-field"
+import { SwitchField } from "@/components/form/switch-field"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { ResourceContent } from "@/components/resource-content"
@@ -46,6 +47,8 @@ import { PlatformModelPickerDialog } from "@/features/settings/platform/platform
 import {
   createPlatformModelSchema,
   platformModelFormValue,
+  platformModelPrice,
+  priceFieldsByType,
   type PlatformModelFormValues,
 } from "@/features/settings/platform/platform-model-schema"
 import { resourceKeys } from "@/hooks/resource-keys"
@@ -67,6 +70,7 @@ export function PlatformModelFormPage({ mode }: { mode: "create" | "edit" }) {
         providerRequired: t("platformModels.validation.providerRequired"),
         routesRequired: t("platformModels.validation.routesRequired"),
         routeDuplicate: t("platformModels.validation.routeDuplicate"),
+        priceInvalid: t("platformModels.validation.priceInvalid"),
       }),
     [t, modelMessages],
   )
@@ -81,13 +85,19 @@ export function PlatformModelFormPage({ mode }: { mode: "create" | "edit" }) {
       inputModalities: [],
       contextWindow: "",
       maxOutputTokens: "",
+      priced: true,
+      inputPrice: "",
+      outputPrice: "",
+      requestPrice: "",
       // 新建时预置一条来源，供应商与模型标识的必填提示落在该行控件上。
       routes: [{ key: crypto.randomUUID(), id: "", providerId: "", identifier: "", enabled: true }],
     },
   })
   const routes = useFieldArray({ control: form.control, name: "routes", keyName: "fieldKey" })
   const watchedRoutes = useWatch({ control: form.control, name: "routes" })
-  const isChat = useWatch({ control: form.control, name: "type" }) === AIModelType.AIModelTypeChat
+  const modelType = useWatch({ control: form.control, name: "type" })
+  const isChat = modelType === AIModelType.AIModelTypeChat
+  const priced = useWatch({ control: form.control, name: "priced" })
   const [pickingRoute, setPickingRoute] = useState<number | null>(null)
   const providers = useResource(resourceKeys.platformAIProviders(), (signal) => listPlatformAIProviders(signal))
   const detail = useResource(resourceKeys.platformAIModel(modelId), (signal) => getPlatformAIModel(modelId, signal), {
@@ -141,6 +151,7 @@ export function PlatformModelFormPage({ mode }: { mode: "create" | "edit" }) {
         inputModalities: submitted.inputModalities,
         contextWindow: parseTokenCount(submitted.contextWindow)!,
         maxOutputTokens: submitted.type === AIModelType.AIModelTypeChat ? parseTokenCount(submitted.maxOutputTokens)! : 0,
+        price: platformModelPrice(submitted),
         routes: submitted.routes.map((route) => ({
           id: route.id,
           providerId: route.providerId,
@@ -166,7 +177,7 @@ export function PlatformModelFormPage({ mode }: { mode: "create" | "edit" }) {
       navigate(platformModelListPath)
     },
     errorMessage: t("platformModels.form.saveError"),
-    errorFields: ["name", "type", "inputModalities", "contextWindow", "maxOutputTokens", "routes"],
+    errorFields: ["name", "type", "inputModalities", "contextWindow", "maxOutputTokens", "inputPrice", "outputPrice", "requestPrice", "routes"],
     logLabel: "平台模型保存",
   })
 
@@ -247,6 +258,42 @@ export function PlatformModelFormPage({ mode }: { mode: "create" | "edit" }) {
                 ) : null}
               </div>
             </FieldGroup>
+
+            <FieldSet className="grid gap-3">
+              <FieldLegend>{t("platformModels.form.price")}</FieldLegend>
+              <Controller
+                name="priced"
+                control={form.control}
+                render={({ field }) => (
+                  <SwitchField
+                    id="platform-model-priced"
+                    name={field.name}
+                    label={t("platformModels.form.priced")}
+                    description={t(field.value ? "platformModels.form.pricedHelp" : "platformModels.form.unpricedHelp")}
+                    checked={field.value}
+                    onBlur={field.onBlur}
+                    onCheckedChange={field.onChange}
+                    ref={field.ref}
+                  />
+                )}
+              />
+              {priced ? (
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {priceFieldsByType[modelType].map((name) => (
+                    <FormInputField
+                      key={name}
+                      name={name}
+                      id={`platform-model-${name}`}
+                      control={form.control}
+                      label={t(`platformModels.form.${name}`)}
+                      inputMode="numeric"
+                      autoComplete="off"
+                      required
+                    />
+                  ))}
+                </div>
+              ) : null}
+            </FieldSet>
 
             <FieldSet className="grid gap-3">
               <FieldLegend>

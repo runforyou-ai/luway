@@ -21,6 +21,7 @@ const (
 	VisitorErrorRatingCommentTooLong Key = "visitor_error.rating_comment_too_long"
 	VisitorErrorFileInvalid          Key = "visitor_error.file_invalid"
 	VisitorErrorAttachmentTooLarge   Key = "visitor_error.attachment_too_large"
+	VisitorErrorAttachmentsDisabled  Key = "visitor_error.attachments_disabled"
 	VisitorErrorChatUnavailable      Key = "visitor_error.chat_unavailable"
 	VisitorErrorConversationNotFound Key = "visitor_error.conversation_not_found"
 	VisitorErrorReplyTargetInvalid   Key = "visitor_error.reply_target_invalid"
