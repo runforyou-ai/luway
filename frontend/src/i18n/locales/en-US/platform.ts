@@ -110,6 +110,8 @@ const platform = {
       expiring_other: "The license expires within {{count}} days. Renew it soon.",
       expired: "The license has expired. This platform now runs as the free edition; existing workspaces stay available.",
     },
+    controlMissing: "The licensing service no longer has a license for this server, so it can't be renewed online. Contact your provider.",
+    view: "View license",
     customer: "Customer",
     expiresAt: "Expires",
     workspaceLimit: "Workspace limit",

@@ -110,6 +110,8 @@ const platform = {
       expiring_other: "授权将在 {{count}} 天内到期，请及时续期。",
       expired: "授权已到期，本平台按免费版本运行，已有工作区不受影响。",
     },
+    controlMissing: "授权服务中已查不到本服务器的授权，无法在线续期，请联系服务商。",
+    view: "查看授权",
     customer: "客户",
     expiresAt: "授权期限",
     workspaceLimit: "工作区上限",

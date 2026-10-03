@@ -237,6 +237,7 @@ func licenseFromAction(current platformaction.License) appservice.License {
 	if current.Status != domain.LicenseStatusNone {
 		output.LicenseID, output.Customer = current.LicenseID, current.Customer
 		output.IssuedAt, output.ExpiresAt = &current.IssuedAt, &current.ExpiresAt
+		output.ControlMissingAt = current.ControlMissingAt
 	}
 	return output
 }
