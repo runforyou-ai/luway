@@ -215,7 +215,7 @@ func TestAgentProfileConversationInvalidation(t *testing.T) {
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
 	provider := &servermodels.AIProvider{
-		OrganizationID: f.owner.Organization.ID, Brand: string(domain.AIProviderBrandOpenAI), Name: "资料失效测试模型服务",
+		OrganizationID: &f.owner.Organization.ID, Brand: string(domain.AIProviderBrandOpenAI), Name: "资料失效测试模型服务",
 		CredentialType: string(domain.AIProviderCredentialTypeAPIKey), APIKey: "test-key", APIURL: "https://example.com/v1",
 	}
 	if _, err := f.db.NewInsert().Model(provider).Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {

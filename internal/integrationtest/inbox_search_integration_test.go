@@ -95,7 +95,7 @@ func TestInboxSearch(t *testing.T) {
 	}
 
 	provider := &servermodels.AIProvider{
-		OrganizationID: f.owner.Organization.ID, Brand: string(domain.AIProviderBrandOpenAI),
+		OrganizationID: &f.owner.Organization.ID, Brand: string(domain.AIProviderBrandOpenAI),
 		Name: "检索测试模型服务", CredentialType: string(domain.AIProviderCredentialTypeAPIKey),
 		APIKey: "test-key", APIURL: "https://example.com/v1",
 	}

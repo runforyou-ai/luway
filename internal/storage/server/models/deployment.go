@@ -19,4 +19,6 @@ type Deployment struct {
 	WorkspaceCreationPolicy  string    `bun:"workspace_creation_policy"`
 	StatisticsTimeZone       string    `bun:"statistics_time_zone"`
 	StatisticsRebuildPending bool      `bun:"statistics_rebuild_pending"`
+	InstancePrivateKey       []byte    `bun:"instance_private_key"`
+	TelemetryEnabled         bool      `bun:"telemetry_enabled"`
 }

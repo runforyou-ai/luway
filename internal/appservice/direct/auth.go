@@ -21,6 +21,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 
@@ -38,12 +39,12 @@ type authOps struct {
 	createWorkspace    *organizationaction.CreateWorkspaceAction
 }
 
-// newAuthOps 创建首次安装、账号会话和工作区入口的业务实现依赖。
-func newAuthOps(db *bun.DB, deployment DeploymentConfig) authOps {
+// newAuthOps 创建首次安装、账号会话和工作区入口的业务实现依赖，taskEnqueuer 投递首次安装后的后台任务。
+func newAuthOps(db *bun.DB, deployment DeploymentConfig, taskEnqueuer servertask.TxEnqueuer) authOps {
 	return authOps{
 		deploymentName:     deployment.Name,
 		deploymentSettings: deploymentaction.NewSettingsQuery(db),
-		installWorkspace:   installationaction.NewInstallWorkspaceAction(db),
+		installWorkspace:   installationaction.NewInstallWorkspaceAction(db, taskEnqueuer),
 		login:              authaction.NewLoginAction(db),
 		register:           accountaction.NewRegisterAction(db),
 		logout:             authaction.NewLogoutAction(db),

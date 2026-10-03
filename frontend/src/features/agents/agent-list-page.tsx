@@ -22,6 +22,7 @@ import {
   ListToolbarSearch,
   ListToolbarTotal,
 } from "@/components/list-toolbar"
+import { aiModelLabel } from "@/components/ai-model-options"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { PageHeader } from "@/components/page-header"
 import { PersonalAgentPresenceMark } from "@/components/personal-agent-presence-mark"
@@ -192,7 +193,7 @@ export function AgentListPage() {
                 <span className="block truncate">
                   {agent.execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent
                     ? t("personal.form.executorLocalAgent", { name: localAgentName(agent.execution.localAgent.kind) })
-                    : `${agent.execution.managed.model.providerName} · ${agent.execution.managed.model.name}`}
+                    : aiModelLabel(agent.execution.managed.model)}
                 </span>
               ),
             },

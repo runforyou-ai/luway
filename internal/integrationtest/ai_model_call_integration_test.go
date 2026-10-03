@@ -124,7 +124,7 @@ func addModelRoute(t *testing.T, db bun.IDB, organizationID, modelID, identifier
 	t.Helper()
 	ctx := context.Background()
 	provider := &servermodels.AIProvider{
-		OrganizationID: organizationID, Brand: string(domain.AIProviderBrandOpenRouter), Name: "备用来源 " + identifier,
+		OrganizationID: &organizationID, Brand: string(domain.AIProviderBrandOpenRouter), Name: "备用来源 " + identifier,
 		CredentialType: string(domain.AIProviderCredentialTypeAPIKey), APIKey: "backup-key", APIURL: "https://backup.example.com/v1",
 	}
 	if _, err := db.NewInsert().Model(provider).Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {

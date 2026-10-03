@@ -14,12 +14,13 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ErrUnavailable 表示模型不存在、不属于当前工作区、不满足用途要求或没有可用来源。
+// ErrUnavailable 表示模型不存在、当前工作区不可用、不满足用途要求或没有可用来源。
 var ErrUnavailable = errors.New("AI model unavailable")
 
 // Model 定义解析后的模型、解析时的用途与按尝试顺序排列的可用来源。
 type Model struct {
 	ID              string                        `bun:"id"`
+	Scope           domain.AIModelScope           `bun:"scope"`
 	Name            string                        `bun:"name"`
 	Type            domain.AIModelType            `bun:"model_type"`
 	InputModalities []domain.AIModelInputModality `bun:"input_modalities,type:jsonb"`
@@ -40,9 +41,10 @@ type Route struct {
 	APIURL       string                 `bun:"api_url"`
 }
 
-// Option 定义模型选择器展示的模型及其首选来源的供应商，不含凭据。
+// Option 定义模型选择器展示的模型；工作区模型带首选来源的供应商，平台模型不展示来源，供应商字段为空。
 type Option struct {
 	ID              string                        `bun:"id"`
+	Scope           domain.AIModelScope           `bun:"scope"`
 	Name            string                        `bun:"name"`
 	Type            domain.AIModelType            `bun:"model_type"`
 	InputModalities []domain.AIModelInputModality `bun:"input_modalities,type:jsonb"`
@@ -51,16 +53,24 @@ type Option struct {
 	Brand           domain.AIProviderBrand        `bun:"brand"`
 }
 
-// Join 为查询关联 ai_models AS aim：模型编号取 modelIDExpr，模型须属于 organizationIDExpr 指定的工作区、满足用途要求且至少有一个已启用来源，不满足时 aim 列为空。
+// scopeColumn 是按 ai_models AS aim 的所属工作区计算模型范围的列表达式。
+const scopeColumn = "CASE WHEN aim.organization_id IS NULL THEN 'platform' ELSE 'workspace' END AS scope"
+
+// availableIn 返回模型对 organizationIDExpr 指定的工作区可用的条件：属于该工作区，或是平台模型。
+func availableIn(organizationIDExpr string) string {
+	return "(aim.organization_id = " + organizationIDExpr + " OR aim.organization_id IS NULL)"
+}
+
+// Join 为查询关联 ai_models AS aim：模型编号取 modelIDExpr，模型须对 organizationIDExpr 指定的工作区可用、满足用途要求且至少有一个已启用来源，不满足时 aim 列为空。
 func Join(query *bun.SelectQuery, modelIDExpr, organizationIDExpr string, usage domain.AIModelUsage) *bun.SelectQuery {
 	requirement := mustRequirement(usage)
-	return query.Join("LEFT JOIN ai_models AS aim ON aim.id = "+modelIDExpr+" AND aim.organization_id = "+organizationIDExpr+
+	return query.Join("LEFT JOIN ai_models AS aim ON aim.id = "+modelIDExpr+" AND "+availableIn(organizationIDExpr)+
 		" AND aim.model_type = ? AND (? OR aim.input_modalities @> ?::jsonb)"+
 		" AND EXISTS (SELECT 1 FROM ai_model_routes AS amr WHERE amr.model_id = aim.id AND amr.enabled)",
 		requirement.Type, !requirement.RequiresText, `["text"]`)
 }
 
-// Resolve 读取工作区中满足用途要求的模型及其可用来源，不可用时返回 ErrUnavailable。
+// Resolve 读取对工作区可用且满足用途要求的模型及其可用来源，不可用时返回 ErrUnavailable。
 func Resolve(ctx context.Context, db bun.IDB, organizationID, modelID string, usage domain.AIModelUsage) (*Model, error) {
 	return load(ctx, db, organizationID, modelID, usage, false)
 }
@@ -79,8 +89,9 @@ func load(ctx context.Context, db bun.IDB, organizationID, modelID string, usage
 	model := &Model{Usage: usage}
 	query := db.NewSelect().TableExpr("ai_models AS aim").
 		ColumnExpr("aim.id::text AS id, aim.name, aim.model_type, aim.input_modalities, aim.context_window, aim.max_output_tokens").
+		ColumnExpr(scopeColumn).
 		Where("aim.id = ?", modelID).
-		Where("aim.organization_id = ?", organizationID).
+		Where(availableIn("?"), organizationID).
 		Where("aim.model_type = ?", requirement.Type).
 		Where("? OR aim.input_modalities @> ?::jsonb", !requirement.RequiresText, `["text"]`)
 	if lock {
@@ -110,7 +121,7 @@ func load(ctx context.Context, db bun.IDB, organizationID, modelID string, usage
 	return model, nil
 }
 
-// LoadOptions 批量读取工作区中满足用途要求的模型展示信息，结果按模型编号索引，缺失项表示不可用。
+// LoadOptions 批量读取已保存配置引用的模型展示信息，含暂时没有已启用来源的模型；结果按模型编号索引，缺失项表示模型不存在、对工作区不可用或不满足用途。
 func LoadOptions(ctx context.Context, db bun.IDB, organizationID string, modelIDs []string, usage domain.AIModelUsage) (map[string]Option, error) {
 	options := make([]Option, 0, len(modelIDs))
 	if len(modelIDs) > 0 {
@@ -125,19 +136,20 @@ func LoadOptions(ctx context.Context, db bun.IDB, organizationID string, modelID
 	return result, nil
 }
 
-// optionQuery 构造工作区中满足用途要求且有可用来源的模型展示查询，供应商取首选来源 route AS aip。
+// optionQuery 构造对工作区可用且满足用途要求的模型展示查询；工作区模型输出首选来源的供应商 aip，平台模型不输出来源。
 func optionQuery(db bun.IDB, organizationID string, usage domain.AIModelUsage) *bun.SelectQuery {
 	requirement := mustRequirement(usage)
 	return db.NewSelect().TableExpr("ai_models AS aim").
 		ColumnExpr("aim.id::text AS id, aim.name, aim.model_type, aim.input_modalities").
-		ColumnExpr("aip.id::text AS provider_id, aip.name AS provider_name, aip.brand").
-		Join(`JOIN LATERAL (
+		ColumnExpr(scopeColumn).
+		ColumnExpr("COALESCE(aip.id::text, '') AS provider_id, COALESCE(aip.name, '') AS provider_name, COALESCE(aip.brand, '') AS brand").
+		Join(`LEFT JOIN LATERAL (
 	SELECT provider.id, provider.name, provider.brand FROM ai_model_routes AS amr
 	JOIN ai_providers AS provider ON provider.id = amr.provider_id
-	WHERE amr.model_id = aim.id AND amr.enabled
-	ORDER BY amr.priority ASC, amr.id ASC LIMIT 1
+	WHERE amr.model_id = aim.id AND aim.organization_id IS NOT NULL
+	ORDER BY amr.enabled DESC, amr.priority ASC, amr.id ASC LIMIT 1
 ) AS aip ON true`).
-		Where("aim.organization_id = ?", organizationID).
+		Where(availableIn("?"), organizationID).
 		Where("aim.model_type = ?", requirement.Type).
 		Where("? OR aim.input_modalities @> ?::jsonb", !requirement.RequiresText, `["text"]`)
 }
@@ -151,11 +163,12 @@ func mustRequirement(usage domain.AIModelUsage) domain.AIModelRequirement {
 	return requirement
 }
 
-// Option 返回模型的展示信息，供应商取首选来源。
+// Option 返回模型的展示信息，工作区模型的供应商取首选来源。
 func (m *Model) Option() Option {
-	route := m.Routes[0]
-	return Option{
-		ID: m.ID, Name: m.Name, Type: m.Type, InputModalities: m.InputModalities,
-		ProviderID: route.ProviderID, ProviderName: route.ProviderName, Brand: route.Brand,
+	option := Option{ID: m.ID, Scope: m.Scope, Name: m.Name, Type: m.Type, InputModalities: m.InputModalities}
+	if m.Scope == domain.AIModelScopeWorkspace {
+		route := m.Routes[0]
+		option.ProviderID, option.ProviderName, option.Brand = route.ProviderID, route.ProviderName, route.Brand
 	}
+	return option
 }

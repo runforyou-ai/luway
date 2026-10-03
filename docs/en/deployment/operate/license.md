@@ -1,7 +1,6 @@
 ---
 title: License activation
 order: 1
-requires: [instanceLicense]
 ---
 
 Activate and maintain the instance license on your server.

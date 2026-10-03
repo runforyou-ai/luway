@@ -54,7 +54,7 @@ Luway 是开源、以自托管为主的 AI 原生企业协作产品，使用 Go�
 ## 产品文档
 
 - `docs/` 只放面向使用者、部署者与开发者的产品文档 Markdown，中文在 `zh-cn/`、英文在 `en/`，两种语言页面一一对应；侧边栏栏目与分组在 `docs/nav.yaml`。服务端内置这些源文件，由 `internal/productdocs` 用 goldmark 渲染，在 `/docs/` 下输出与服务端同版本的页面和搜索，并通过 `GetProductDocPage` 为应用内帮助提供正文片段。启动服务端即可预览，`productdocs` 的测试校验中英文对应、frontmatter、站内链接与锚点及导航覆盖。
-- 功能变更与对应文档在同一改动中更新。每页 frontmatter 写 `title`、`order`，只在特定部署可见的页面写 `requires`（`commerce`、`instanceLicense`）；正文中的产品名称写 `{{product}}`，输出时替换为当前部署的品牌名称，标题不写产品名称；站内链接写成 `/docs/<语言>/<页面>/`，提示块用 `> [!NOTE]` 等 GitHub 写法。只面向官方与白标运营方的内容不写进产品文档。
+- 功能变更与对应文档在同一改动中更新。每页 frontmatter 写 `title`、`order`，只在特定部署可见的页面写 `requires`（`commerce`）；正文中的产品名称写 `{{product}}`，输出时替换为当前部署的品牌名称，标题不写产品名称；站内链接写成 `/docs/<语言>/<页面>/`，提示块用 `> [!NOTE]` 等 GitHub 写法。只面向官方与白标运营方的内容不写进产品文档。
 - 文档站点样式在 `frontend/src/product-docs/`：`content.css` 是 `/docs/` 页面与应用内帮助共用的正文排版，`site.css` 是站点布局，经 `wails3 task common:build:docs` 构建到 `internal/productdocs/dist/site`；颜色与圆角取自 `frontend/src/styles/theme-tokens.css`，与 Web 端共用。
 - 应用内帮助入口只引用 `frontend/src/lib/product-docs.ts` 中登记的页面：用户菜单经 `@/platform/product-docs` 打开完整文档，配置页面用 `ProductDocSheet` 在侧栏显示；调整文档页面路径时同步更新登记表。
 

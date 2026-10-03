@@ -48,6 +48,20 @@ export const resourceKeys = {
   deploymentAccounts: (parameters?: KeyParameters) => listKey("deployment-accounts", parameters),
   /** 部署工作区列表，可带筛选分页参数。 */
   deploymentWorkspaces: (parameters?: KeyParameters) => listKey("deployment-workspaces", parameters),
+  /** 部署的平台供应商列表。 */
+  platformAIProviders: () => ["platform-ai-providers"],
+  /** 单个平台供应商。 */
+  platformAIProvider: (id?: string) => itemKey("platform-ai-provider", id),
+  /** 平台供应商可提供的模型。 */
+  platformAIProviderModels: (id?: string) => itemKey("platform-ai-provider-models", id),
+  /** 部署的平台模型目录。 */
+  platformAIModels: () => ["platform-ai-models"],
+  /** 单个平台模型。 */
+  platformAIModel: (id?: string) => itemKey("platform-ai-model", id),
+  /** 平台模型调用记录，可带筛选分页参数。 */
+  platformAIModelCalls: (parameters?: KeyParameters) => listKey("platform-ai-model-calls", parameters),
+  /** 单次平台模型调用及其上游尝试。 */
+  platformAIModelCall: (id?: string) => itemKey("platform-ai-model-call", id),
   /** 当前账号在当前工作区中的成员身份、所属工作区和用户偏好。 */
   identity: () => ["identity"],
   /** 服务会话发起人的资料，随会话内容变化重读。 */
@@ -286,5 +300,12 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.deploymentSettings()[0],
   resourceKeys.deploymentAccounts()[0],
   resourceKeys.deploymentWorkspaces()[0],
+  resourceKeys.platformAIProviders()[0],
+  resourceKeys.platformAIProvider()[0],
+  resourceKeys.platformAIProviderModels()[0],
+  resourceKeys.platformAIModels()[0],
+  resourceKeys.platformAIModel()[0],
+  resourceKeys.platformAIModelCalls()[0],
+  resourceKeys.platformAIModelCall()[0],
   resourceKeys.serverURL()[0],
 ])

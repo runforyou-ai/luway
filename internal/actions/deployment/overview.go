@@ -66,13 +66,7 @@ func (q *OverviewQuery) Execute(ctx context.Context) (Overview, error) {
 		InstanceID: deployment.InstanceID, InstalledAt: deployment.CreatedAt,
 		StatisticsTimeZone: deployment.StatisticsTimeZone, StatsRebuilding: deployment.StatisticsRebuildPending,
 	}
-	if err := q.db.NewRaw(`
-		SELECT
-			(SELECT count(*) FROM accounts),
-			(SELECT count(*) FROM organizations WHERE lifecycle_status IN (?)),
-			(SELECT count(*) FROM users AS u JOIN organizations AS o ON o.id = u.organization_id WHERE u.status = ? AND o.lifecycle_status IN (?))
-	`, bun.In(listedLifecycleStatuses), domain.IdentityStatusActive, bun.In(listedLifecycleStatuses)).
-		Scan(ctx, &overview.AccountCount, &overview.WorkspaceCount, &overview.MemberCount); err != nil {
+	if err := scaleQuery(q.db).Scan(ctx, &overview.AccountCount, &overview.WorkspaceCount, &overview.MemberCount); err != nil {
 		return Overview{}, fmt.Errorf("count deployment scale: %w", err)
 	}
 	today := statsToday(time.Now(), statsLocation(deployment.StatisticsTimeZone))
@@ -111,6 +105,16 @@ func (q *OverviewQuery) Execute(ctx context.Context) (Overview, error) {
 
 // listedLifecycleStatuses 是计入部署规模的工作区状态。
 var listedLifecycleStatuses = []domain.OrganizationLifecycleStatus{domain.OrganizationLifecycleActive, domain.OrganizationLifecycleSuspended}
+
+// scaleQuery 返回部署账号数、工作区数和有效成员数的查询。
+func scaleQuery(db bun.IDB) *bun.RawQuery {
+	return db.NewRaw(`
+		SELECT
+			(SELECT count(*) FROM accounts),
+			(SELECT count(*) FROM organizations WHERE lifecycle_status IN (?)),
+			(SELECT count(*) FROM users AS u JOIN organizations AS o ON o.id = u.organization_id WHERE u.status = ? AND o.lifecycle_status IN (?))
+	`, bun.In(listedLifecycleStatuses), domain.IdentityStatusActive, bun.In(listedLifecycleStatuses))
+}
 
 // activityQuery 返回统计时区 from 至 to（含）之间去重活跃账号数、活跃工作区数、新增账号数和新增工作区数的查询。
 func activityQuery(db bun.IDB, from, to time.Time, timeZone string) *bun.RawQuery {

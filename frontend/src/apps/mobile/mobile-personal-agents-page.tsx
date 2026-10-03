@@ -24,6 +24,7 @@ import {
   MobileScrollArea,
   MobileSearchBar,
 } from "@/apps/mobile/mobile-page"
+import { aiModelLabel } from "@/components/ai-model-options"
 import { PersonalAgentPresenceMark } from "@/components/personal-agent-presence-mark"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { LoadingIndicator } from "@/components/loading-indicator"
@@ -299,7 +300,7 @@ function MobilePersonalAgentDetail({ agent }: { agent: PersonalAgentData }) {
             <dd className="mt-1 break-words text-sm">
               {agent.execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent
                 ? t("personal.form.executorLocalAgent", { name: localAgentName(agent.execution.localAgent.kind) })
-                : `${agent.execution.managed.model.providerName} · ${agent.execution.managed.model.name}`}
+                : aiModelLabel(agent.execution.managed.model)}
             </dd>
           </div>
         </dl>

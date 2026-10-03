@@ -75,6 +75,9 @@ const common = {
     customerService: "客服",
     member: "成员",
   },
+  aiModels: {
+    platformGroup: "平台模型",
+  },
   agentBehavior: {
     tools: "可用工具",
     show: "查看内置规则",
