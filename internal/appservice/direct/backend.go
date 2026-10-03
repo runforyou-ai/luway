@@ -126,7 +126,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
-		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control),
+		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control, s3),
 		platformModelOps:   newPlatformModelOps(db, modelProviderRegistry),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}

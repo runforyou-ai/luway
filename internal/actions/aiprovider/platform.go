@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -38,13 +39,21 @@ type PlatformRecord struct {
 	APIURL         string
 }
 
-// PlatformSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数。
+// providerHealthWindow 是平台供应商健康统计覆盖的时长。
+const providerHealthWindow = 24 * time.Hour
+
+// PlatformSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数；
+// 近 24 小时内结束的上游尝试中，RecentAttempts 为成功、失败与超时的次数，RecentFailures 为失败与超时的次数，LastError 与 LastFailedAt 为最近一次失败或超时的原因与时间，没有时为空。
 type PlatformSummary struct {
-	ID         string                 `bun:"id"`
-	Brand      domain.AIProviderBrand `bun:"brand"`
-	Name       string                 `bun:"name"`
-	APIURL     string                 `bun:"api_url"`
-	ModelCount int                    `bun:"model_count"`
+	ID             string                 `bun:"id"`
+	Brand          domain.AIProviderBrand `bun:"brand"`
+	Name           string                 `bun:"name"`
+	APIURL         string                 `bun:"api_url"`
+	ModelCount     int                    `bun:"model_count"`
+	RecentAttempts int                    `bun:"recent_attempts"`
+	RecentFailures int                    `bun:"recent_failures"`
+	LastError      string                 `bun:"last_error"`
+	LastFailedAt   *time.Time             `bun:"last_failed_at"`
 }
 
 // ListPlatformQuery 读取平台供应商。
@@ -55,12 +64,29 @@ func NewListPlatformQuery(db *bun.DB) *ListPlatformQuery {
 	return &ListPlatformQuery{db: db}
 }
 
-// Execute 按添加顺序返回平台供应商及其服务的平台模型数。
+// Execute 按添加顺序返回平台供应商、其服务的平台模型数与近 24 小时上游尝试的结果。
 func (q *ListPlatformQuery) Execute(ctx context.Context) ([]PlatformSummary, error) {
+	failed := []domain.AIModelCallStatus{domain.AIModelCallStatusFailed, domain.AIModelCallStatusTimedOut}
+	concluded := append([]domain.AIModelCallStatus{domain.AIModelCallStatusSucceeded}, failed...)
+	since := time.Now().Add(-providerHealthWindow)
 	providers := make([]PlatformSummary, 0)
 	if err := q.db.NewSelect().TableExpr("ai_providers AS aip").
 		ColumnExpr("aip.id::text AS id, aip.brand, aip.name, aip.api_url").
 		ColumnExpr("(SELECT count(DISTINCT amr.model_id) FROM ai_model_routes AS amr WHERE amr.provider_id = aip.id) AS model_count").
+		ColumnExpr("coalesce(attempts.concluded, 0) AS recent_attempts, coalesce(attempts.failed, 0) AS recent_failures").
+		ColumnExpr("coalesce(last_failure.error_message, '') AS last_error, last_failure.finished_at AS last_failed_at").
+		Join(`LEFT JOIN LATERAL (
+			SELECT count(*) FILTER (WHERE a.status IN (?)) AS concluded, count(*) FILTER (WHERE a.status IN (?)) AS failed
+			FROM ai_model_call_attempts AS a
+			WHERE a.provider_id = aip.id AND a.finished_at >= ?
+		) AS attempts ON true`, bun.In(concluded), bun.In(failed), since).
+		Join(`LEFT JOIN LATERAL (
+			SELECT a.error_message, a.finished_at
+			FROM ai_model_call_attempts AS a
+			WHERE a.provider_id = aip.id AND a.finished_at >= ? AND a.status IN (?)
+			ORDER BY a.finished_at DESC
+			LIMIT 1
+		) AS last_failure ON true`, since, bun.In(failed)).
 		Where("aip.organization_id IS NULL").
 		OrderExpr("aip.created_at ASC, aip.id ASC").
 		Scan(ctx, &providers); err != nil {

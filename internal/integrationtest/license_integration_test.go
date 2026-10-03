@@ -263,11 +263,21 @@ func TestLicenseOnline(t *testing.T) {
 	fake.mu.Unlock()
 
 	// control 中尚无授权时：手动同步提示先激活，后台同步保持现状。
+	runtime, err := service.GetPlatformRuntimeStatus(ctx, adminMeta)
+	if err != nil || runtime.Control.SyncedAt != nil || runtime.Control.FailedAt != nil || runtime.ObjectStorage.Enabled {
+		t.Fatalf("runtime before sync = %#v, err = %v", runtime, err)
+	}
 	_, err = backend.SyncLicense(ctx, adminMeta)
 	requireErrorMessage(t, err, i18n.ErrorLicenseNotIssued)
 	if err := online.SyncTask(ctx, platformaction.SyncLicenseInput{}); err != nil {
 		t.Fatalf("sync without license: %v", err)
 	}
+	// control 正常应答没有授权时记为同步成功。
+	runtime, err = service.GetPlatformRuntimeStatus(ctx, adminMeta)
+	if err != nil || runtime.Control.SyncedAt == nil || runtime.Control.FailedAt != nil || runtime.Control.Error != "" {
+		t.Fatalf("runtime after sync = %#v, err = %v", runtime.Control, err)
+	}
+	syncedAt := *runtime.Control.SyncedAt
 
 	// 激活码无效或已用于其他服务器时返回对应错误，有效激活码激活授权。
 	_, err = backend.ActivateLicenseOnline(ctx, adminMeta, appservice.ActivateLicenseOnlineInput{ActivationCode: "BAD"})
@@ -277,6 +287,11 @@ func TestLicenseOnline(t *testing.T) {
 	activated, err := service.ActivateLicenseOnline(ctx, adminMeta, appservice.ActivateLicenseOnlineInput{ActivationCode: " GOOD-GOOD-GOOD-GOOD\n"})
 	if err != nil || activated.Status != appservice.LicenseStatusActive || activated.ServerID != serverID || activated.Capabilities.WorkspaceLimit != 0 {
 		t.Fatalf("activated = %#v, err = %v", activated, err)
+	}
+	overview, err := service.GetPlatformOverview(ctx, adminMeta)
+	if err != nil || overview.License.Status != appservice.LicenseStatusActive || overview.License.ServerID != serverID ||
+		overview.License.ExpiresAt == nil || !overview.License.ExpiresAt.Equal(*activated.ExpiresAt) {
+		t.Fatalf("overview license = %#v, err = %v", overview.License, err)
 	}
 
 	// control 续期后后台同步替换为签发更晚的授权码；control 返回较早的授权码时保留本地授权。
@@ -333,6 +348,12 @@ func TestLicenseOnline(t *testing.T) {
 	server.Close()
 	_, err = backend.SyncLicense(ctx, adminMeta)
 	requireErrorMessage(t, err, i18n.ErrorControlUnavailable)
+	// 同步失败记录失败时间与原因，保留最近一次成功的时间。
+	runtime, err = service.GetPlatformRuntimeStatus(ctx, adminMeta)
+	if err != nil || runtime.Control.FailedAt == nil || runtime.Control.Error == "" ||
+		runtime.Control.SyncedAt == nil || runtime.Control.SyncedAt.Before(syncedAt) {
+		t.Fatalf("runtime after failed sync = %#v, err = %v", runtime.Control, err)
+	}
 
 	// 重置服务器标识生成新的服务器标识并删除本地授权。
 	resetID, err := platformaction.ResetServerID(ctx, db)
@@ -342,5 +363,9 @@ func TestLicenseOnline(t *testing.T) {
 	reset, err := service.GetLicense(ctx, adminMeta)
 	if err != nil || reset.ServerID != resetID || reset.Status != appservice.LicenseStatusNone {
 		t.Fatalf("after reset = %#v, err = %v", reset, err)
+	}
+	if runtime, err := service.GetPlatformRuntimeStatus(ctx, adminMeta); err != nil ||
+		runtime.Control.SyncedAt != nil || runtime.Control.FailedAt != nil || runtime.Control.Error != "" {
+		t.Fatalf("runtime after reset = %#v, err = %v", runtime.Control, err)
 	}
 }

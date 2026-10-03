@@ -11,11 +11,11 @@ import (
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
-	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	"github.com/runforyou-ai/luway/internal/common/license"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/integration/control"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -32,7 +32,7 @@ type platformOps struct {
 	listPlatformWorkspaces   *platformaction.ListWorkspacesQuery
 	setWorkspaceStatus       *platformaction.SetWorkspaceStatusAction
 	platformUsage            *platformaction.UsageQuery
-	platformTaskQueues       *platformaction.TaskQueuesQuery
+	platformRuntime          *platformaction.RuntimeStatusQuery
 	platformFailedTasks      *platformaction.FailedTaskListQuery
 	licenseRead              *platformaction.LicenseQuery
 	activateLicense          *platformaction.ActivateLicenseAction
@@ -40,8 +40,8 @@ type platformOps struct {
 	updateTelemetry          *platformaction.UpdateTelemetryAction
 }
 
-// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权。
-func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client) platformOps {
+// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权，s3 是用于检查可用性的对象存储配置。
+func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client, s3 serverfilecontent.S3Config) platformOps {
 	return platformOps{
 		platformOverview:         platformaction.NewOverviewQuery(db),
 		platformSettingsRead:     platformaction.NewSettingsQuery(db),
@@ -52,7 +52,7 @@ func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys 
 		listPlatformWorkspaces:   platformaction.NewListWorkspacesQuery(db),
 		setWorkspaceStatus:       platformaction.NewSetWorkspaceStatusAction(db),
 		platformUsage:            platformaction.NewUsageQuery(db),
-		platformTaskQueues:       platformaction.NewTaskQueuesQuery(db),
+		platformRuntime:          platformaction.NewRuntimeStatusQuery(db, s3),
 		platformFailedTasks:      platformaction.NewFailedTaskListQuery(db),
 		licenseRead:              platformaction.NewLicenseQuery(db),
 		activateLicense:          platformaction.NewActivateLicenseAction(db, licenseKeys),
@@ -61,7 +61,7 @@ func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys 
 	}
 }
 
-// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformOverview, error) {
 	overview, err := o.platformOverview.Execute(ctx)
 	if err != nil {
@@ -79,7 +79,7 @@ func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appserv
 		StatsRebuilding: overview.StatsRebuilding,
 		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
 		Last7Days: appservice.PlatformActivityWindow(overview.Last7Days), Last30Days: appservice.PlatformActivityWindow(overview.Last30Days),
-		Trend: trend,
+		Trend: trend, License: licenseFromAction(overview.License),
 		Capabilities: appservice.Capabilities{
 			WorkspaceLimit: overview.Capabilities.WorkspaceLimit, CustomBranding: overview.Capabilities.CustomBranding,
 		},
@@ -267,7 +267,7 @@ func (o *directOperations) setPlatformWorkspaceStatus(ctx context.Context, meta 
 	return platformWorkspaceFromAction(record), nil
 }
 
-// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 func (o *directOperations) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
 	metrics, err := o.platformUsage.Summary(ctx, input.Days)
 	if err != nil {
@@ -276,7 +276,7 @@ func (o *directOperations) GetPlatformUsage(ctx context.Context, meta appservice
 	return appservice.PlatformUsageMetrics(metrics), nil
 }
 
-// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 func (o *directOperations) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformWorkspaceUsageListInput) (appservice.PlatformWorkspaceUsageList, error) {
 	output, err := o.platformUsage.ListWorkspaces(ctx, platformaction.UsageListInput{
 		Days: input.Days, Sort: platformaction.UsageSort(input.Sort), Page: input.Page, PageSize: input.PageSize,
@@ -297,14 +297,22 @@ func (o *directOperations) ListPlatformWorkspaceUsage(ctx context.Context, meta 
 	}, nil
 }
 
-// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+// GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 func (o *directOperations) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformRuntimeStatus, error) {
-	queues, err := o.platformTaskQueues.Execute(ctx)
+	runtime, err := o.platformRuntime.Execute(ctx)
 	if err != nil {
 		return appservice.PlatformRuntimeStatus{}, platformError(ctx, meta, err, i18n.ErrorPlatformRuntimeFailed, account, "")
 	}
-	status := appservice.PlatformRuntimeStatus{Version: buildinfo.Version, Queues: make([]appservice.PlatformTaskQueue, 0, len(queues))}
-	for _, queue := range queues {
+	status := appservice.PlatformRuntimeStatus{
+		Servers:       make([]appservice.PlatformServer, 0, len(runtime.Servers)),
+		ObjectStorage: appservice.PlatformObjectStorageStatus(runtime.ObjectStorage),
+		Control:       appservice.PlatformControlStatus(runtime.Control),
+		Queues:        make([]appservice.PlatformTaskQueue, 0, len(runtime.Queues)),
+	}
+	for _, server := range runtime.Servers {
+		status.Servers = append(status.Servers, appservice.PlatformServer(server))
+	}
+	for _, queue := range runtime.Queues {
 		status.Queues = append(status.Queues, appservice.PlatformTaskQueue(queue))
 	}
 	return status, nil

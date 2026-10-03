@@ -100,6 +100,12 @@ func Stat(ctx context.Context, config S3Config, key string) (ObjectInfo, error) 
 	return ObjectInfo{ByteSize: aws.ToInt64(output.ContentLength), ETag: aws.ToString(output.ETag)}, nil
 }
 
+// CheckBucket 确认存储桶可以用当前凭据访问。
+func CheckBucket(ctx context.Context, config S3Config) error {
+	_, err := newS3Client(config).HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(config.Bucket)})
+	return err
+}
+
 // Delete 删除对象存储文件。
 func Delete(ctx context.Context, config S3Config, key string) error {
 	_, err := newS3Client(config).DeleteObject(ctx, &s3.DeleteObjectInput{
