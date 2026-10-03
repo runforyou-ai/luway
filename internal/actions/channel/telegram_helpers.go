@@ -60,7 +60,7 @@ func releaseTelegramBotLocks(conn bun.Conn, organizationID string, botIDs []int6
 	defer cancel()
 	for _, botID := range slices.Backward(botIDs) {
 		if _, err := conn.ExecContext(ctx, "SELECT pg_advisory_unlock(hashtextextended(?, 1))", telegramBotLockKey(organizationID, botID)); err != nil {
-			slog.Error("释放 Telegram Bot 锁失败", "organization_id", organizationID, "bot_id", botID)
+			slog.Warn("释放 Telegram Bot 锁失败，已丢弃数据库连接", "organization_id", organizationID, "bot_id", botID, "error", err)
 			_ = conn.Raw(func(any) error { return driver.ErrBadConn })
 			return
 		}

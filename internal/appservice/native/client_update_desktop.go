@@ -76,7 +76,7 @@ func (u *clientUpdater) PrepareClientUpdate(ctx context.Context, meta appservice
 	release, err := u.updater.Check(ctx)
 	if err != nil {
 		slog.Warn("检查客户端更新失败", "error", err)
-		return appservice.ClientUpdate{}, appservice.FailedError(meta, i18n.ErrorClientUpdateFailed)
+		return appservice.ClientUpdate{}, appservice.FailedError(meta, i18n.ErrorClientUpdateFailed, err)
 	}
 	if release == nil {
 		u.ready = ""
@@ -86,7 +86,7 @@ func (u *clientUpdater) PrepareClientUpdate(ctx context.Context, meta appservice
 		u.ready = ""
 		if err := u.updater.DownloadAndInstall(ctx); err != nil {
 			slog.Warn("下载客户端更新失败", "version", release.Version, "error", err)
-			return appservice.ClientUpdate{}, appservice.FailedError(meta, i18n.ErrorClientUpdateFailed)
+			return appservice.ClientUpdate{}, appservice.FailedError(meta, i18n.ErrorClientUpdateFailed, err)
 		}
 		u.ready = release.Version
 		slog.Info("客户端新版本已就绪", "version", release.Version)
@@ -99,13 +99,13 @@ func (u *clientUpdater) RestartClientUpdate(ctx context.Context, meta appservice
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	if u.ready == "" {
-		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed)
+		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed, errors.New("没有已准备好的新版本"))
 	}
 	u.allowQuit(true)
 	if err := u.updater.Restart(ctx); err != nil {
 		u.allowQuit(false)
 		slog.Warn("重启更新客户端失败", "version", u.ready, "error", err)
-		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed)
+		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed, err)
 	}
 	return nil
 }

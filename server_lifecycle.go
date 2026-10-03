@@ -11,6 +11,7 @@ import (
 
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"github.com/runforyou-ai/luway/internal/ingress"
 	"github.com/runforyou-ai/luway/internal/integration/control"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -78,18 +79,27 @@ func (l *realtimeLifecycle) ServiceShutdown() error {
 	return l.publisher.Stop()
 }
 
-// telemetryLifecycle 将向 control 上报运行指标接入 Wails 服务生命周期。
+// telemetryLifecycle 将向 control 上报运行指标与错误接入 Wails 服务生命周期。
 type telemetryLifecycle struct {
-	db      *bun.DB
-	control *control.Client
-	metrics *control.Metrics
+	telemetry *platformaction.Telemetry
+	control   *control.Client
+	metrics   *control.Metrics
+	errors    *control.ErrorReporter
 }
 
-// ServiceStartup 开始每分钟采集并上报运行指标，平台关闭上报时不上报。
+// ServiceStartup 读取上报开关并定期刷新，把 Error 级别日志接入错误上报，开始每分钟采集并上报运行指标；关闭上报时不上报。
 func (l *telemetryLifecycle) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
-	metrics, err := l.control.StartMetrics(ctx, platformaction.TelemetryGauges, func(ctx context.Context) (map[string]int64, error) {
-		return platformaction.TelemetryMetrics(ctx, l.db)
-	})
+	if err := l.telemetry.Refresh(ctx); err != nil {
+		return err
+	}
+	go l.telemetry.Run(ctx)
+	errors, err := l.control.NewErrorReporter(l.telemetry.Enabled)
+	if err != nil {
+		return err
+	}
+	l.errors = errors
+	slog.SetDefault(slog.New(errors.Handler(slog.Default().Handler())))
+	metrics, err := l.control.StartMetrics(ctx, platformaction.TelemetryGauges, l.telemetry.Metrics)
 	if err != nil {
 		return err
 	}
@@ -97,19 +107,22 @@ func (l *telemetryLifecycle) ServiceStartup(ctx context.Context, _ application.S
 	return nil
 }
 
-// ServiceShutdown 上报剩余指标后停止采集。
+// ServiceShutdown 上报剩余指标后停止采集，并等待已上报的错误发送完成。
 func (l *telemetryLifecycle) ServiceShutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return l.metrics.Shutdown(ctx)
+	err := l.metrics.Shutdown(ctx)
+	l.errors.Flush(5 * time.Second)
+	return err
 }
 
-// serverInstanceLifecycle 将服务端进程心跳接入 Wails 服务生命周期，在任务运行时与实时通知启动后注册。
+// serverInstanceLifecycle 将服务端进程心跳接入 Wails 服务生命周期，在任务运行时与实时通知启动后注册；config 是登记时写入的服务端配置。
 type serverInstanceLifecycle struct {
 	db        *bun.DB
 	tasks     *servertask.Runtime
 	publisher *realtime.Publisher
 	hostname  string
+	config    serverconfig.Diagnostics
 	cancel    context.CancelFunc
 	done      chan struct{}
 }
@@ -151,11 +164,12 @@ func (l *serverInstanceLifecycle) ServiceShutdown() error {
 	return platformaction.RemoveInstance(ctx, l.db, l.tasks.InstanceID())
 }
 
-// report 写入本进程的心跳与后台任务、实时通知各自的 NATS 连接状态。
+// report 写入本进程的心跳、后台任务与实时通知各自的 NATS 连接状态，以及登记时的服务端配置。
 func (l *serverInstanceLifecycle) report(ctx context.Context) error {
 	connection := l.publisher.Connection()
 	return platformaction.ReportInstance(ctx, l.db, platformaction.InstanceReport{
 		ID: l.tasks.InstanceID(), Hostname: l.hostname, Version: buildinfo.Version,
 		TasksNATSConnected: l.tasks.BrokerConnected(), RealtimeNATSConnected: connection != nil && connection.IsConnected(),
+		Config: l.config,
 	})
 }

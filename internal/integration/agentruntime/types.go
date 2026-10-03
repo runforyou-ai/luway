@@ -5,11 +5,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/cloudwego/eino/adk/filesystem"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/luway/internal/integration/localskill"
 
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
@@ -131,47 +129,6 @@ type GroundingPolicy string
 // GroundingStrict 要求直接输出的正文在当前输入边界内取得有效依据，否则纠正一次后转人工。
 const GroundingStrict GroundingPolicy = "strict"
 
-// Workspace 是执行设备提供的本机文件与命令访问，相对路径与命令工作目录以会话默认文件夹为起点。
-type Workspace interface {
-	filesystem.Backend
-	filesystem.Shell
-	// Delete 删除一个文件或空文件夹。
-	Delete(ctx context.Context, path string) error
-}
-
-// LocalMCPServer 是个人 AI 员工为这台电脑添加的本地 MCP 服务：Type 为空或 stdio 时启动本地进程，为 sse 或 http 时连接服务地址。
-type LocalMCPServer struct {
-	Name    string
-	Type    string
-	Command string
-	Args    []string
-	Env     map[string]string
-	URL     string
-	Headers map[string]string
-}
-
-// LocalMCP 是执行设备提供的本地 MCP 服务管理，这台电脑上负责人的所有个人 AI 员工共用。
-type LocalMCP interface {
-	// Add 试启动服务并读取工具目录，成功后保存配置并返回服务提供的工具名称；同名服务被替换。
-	Add(ctx context.Context, server LocalMCPServer) ([]string, error)
-	// Remove 删除服务配置，返回服务是否存在。
-	Remove(ctx context.Context, name string) (bool, error)
-	// Names 按名称顺序返回已添加的服务。
-	Names(ctx context.Context) ([]string, error)
-}
-
-// LocalSkills 是执行设备提供的技能目录，这台电脑上负责人的所有个人 AI 员工共用。
-type LocalSkills interface {
-	// List 按名称顺序返回可用技能。
-	List(ctx context.Context) ([]localskill.Skill, error)
-	// Load 返回技能及其 SKILL.md 正文。
-	Load(ctx context.Context, name string) (localskill.Skill, string, error)
-	// Install 从来源安装技能，来源含多个技能时按 name 选择；同名技能被替换。
-	Install(ctx context.Context, source, name string) (localskill.Skill, error)
-	// Remove 删除个人 AI 员工安装的技能，返回技能是否存在。
-	Remove(ctx context.Context, name string) (bool, error)
-}
-
 // RunRequest 定义一次有界 Agent 业务运行。
 type RunRequest struct {
 	RunID                 string
@@ -182,19 +139,18 @@ type RunRequest struct {
 	WebFetch              WebFetch  // 有效配置包含网页读取时由执行侧提供。
 	CustomerHistorySearch CustomerHistorySearch
 	ReadAttachment        AttachmentContent // 为空时附件只以正文中的链接提供给模型。
-	MCPConnections        []MCPServer       // 有效配置中远程 MCP 服务对应的连接配置。
-	Workspace             Workspace         // 有效配置包含本机工具时由执行设备提供的本机文件与命令访问。
-	LocalMCP              LocalMCP          // 有效配置包含本地 MCP 管理工具时由执行设备提供。
-	Skills                LocalSkills       // 有效配置包含技能工具时由执行设备提供。
-	Memory                MemoryLoader      // 有效配置启用记忆时由执行侧提供。
-	ManagedToolchain      bool              // 执行设备为命令提供了托管的 uv、Node.js 与 Python，命令工具与本地 MCP 工具的说明随之补充用法。
-	MaxIterations         int               // 单轮模型与工具迭代上限，零值使用默认值。
-	MaxTurns              int               // 吸收新输入的轮次上限，零值不限制，由运行 context 控制生命周期。
-	StreamID              string
-	Attempt               int
-	OnStream              func(runstream.Delta) // 串行接收合并后的运行流增量，实现不得阻塞。
-	Journal               Journal               // 在安全点持久化过程与恢复状态，为空时运行只在结束时交回结果。
-	Resume                *Resume               // 非空时从上次保存的恢复状态继续执行。
+	MCPConnections        []MCPServer       // 本次运行可调用的 MCP 服务：有效配置中的企业服务与电脑上的本机服务。
+	Computer              Computer          // 有效配置包含电脑工具时由执行侧提供。
+	// ComputerCapabilities 是电脑在运行开始时上报的执行能力，命令工具说明与技能目录据此给出。
+	ComputerCapabilities domain.ComputerCapabilities
+	Memory               MemoryLoader // 有效配置启用记忆时由执行侧提供。
+	MaxIterations        int          // 单轮模型与工具迭代上限，零值使用默认值。
+	MaxTurns             int          // 吸收新输入的轮次上限，零值不限制，由运行 context 控制生命周期。
+	StreamID             string
+	Attempt              int
+	OnStream             func(runstream.Delta) // 串行接收合并后的运行流增量，实现不得阻塞。
+	Journal              Journal               // 在安全点持久化过程与恢复状态，为空时运行只在结束时交回结果。
+	Resume               *Resume               // 非空时从上次保存的恢复状态继续执行。
 }
 
 // modelConfig 合并有效配置中的模型参数与执行侧注入的模型组件工厂。

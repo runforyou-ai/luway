@@ -7,60 +7,61 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 	"time"
 
-	"github.com/cloudwego/eino/adk/filesystem"
-
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/pkg/outputbuffer"
 )
 
 const (
-	// CommandTimeout 是单次命令的默认执行预算。
-	CommandTimeout = 10 * time.Minute
+	// CommandTimeout 是单次命令的执行预算。
+	CommandTimeout = domain.ComputerOperationTimeout
 	// maxOutputBytes 是命令输出保留的字节上限，超出时保留开头与结尾各一半。
 	maxOutputBytes = 256 << 10
 	// outputDrainTimeout 是命令进程树终止后读完剩余输出的时限。
 	outputDrainTimeout = 2 * time.Second
 )
 
-// Execute 以默认文件夹为工作目录，在独立进程树中执行一条命令并返回合并后的标准输出与标准错误。
-// 命令进程退出、超出预算或 context 取消时立即终止整个进程树，命令启动的后台进程随之终止。
-func (b *Backend) Execute(ctx context.Context, req *filesystem.ExecuteRequest) (*filesystem.ExecuteResponse, error) {
-	timeout := CommandTimeout
-	if req.Timeout != nil && *req.Timeout > 0 {
-		timeout = *req.Timeout
-	}
-	// 命令可能改动文件，与写入、修改和删除串行执行；命令预算从取得执行权后开始计时。
-	b.writes.Lock()
-	defer b.writes.Unlock()
-	// 排队期间运行已取消时直接返回，跳过执行命令。
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
+// Run 以默认文件夹为工作目录，在独立进程树中执行一条命令，返回合并后的标准输出与标准错误，并注明非零退出码、超时与截断。
+// 命令进程退出、超出执行预算或 context 取消时立即终止整个进程树，命令启动的后台进程随之终止。
+func (w *Workspace) Run(ctx context.Context, command string) (string, error) {
 	environment, err := commandEnvironment(ctx)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	commandCtx, cancel := context.WithTimeout(ctx, timeout)
+	if err := os.MkdirAll(w.root, 0o755); err != nil {
+		return "", fileError("创建目录", w.root, err)
+	}
+	commandCtx, cancel := context.WithTimeout(ctx, w.timeout)
 	defer cancel()
-	cmd := shellCommand(commandCtx, req.Command)
-	cmd.Dir, cmd.Env = b.root, b.environment.apply(environment)
+	cmd := shellCommand(commandCtx, command)
+	cmd.Dir, cmd.Env = w.root, w.environment.apply(environment)
 	output := outputbuffer.New(maxOutputBytes/2, maxOutputBytes/2)
 	waitErr := runProcessTree(cmd, output)
 	if ctx.Err() != nil {
-		return nil, ctx.Err()
+		return "", ctx.Err()
 	}
-	response := &filesystem.ExecuteResponse{Output: output.String(), Truncated: output.Truncated()}
-	if errors.Is(commandCtx.Err(), context.DeadlineExceeded) {
-		response.TimedOut = true
-		return response, nil
+	parts := make([]string, 0, 3)
+	if text := output.String(); text != "" {
+		parts = append(parts, text)
 	}
-	if _, exited := errors.AsType[*exec.ExitError](waitErr); waitErr != nil && !exited {
-		return nil, fmt.Errorf("命令执行失败：%w", waitErr)
+	switch {
+	case errors.Is(commandCtx.Err(), context.DeadlineExceeded):
+		parts = append(parts, "[命令超时，已终止]")
+	case waitErr != nil:
+		if _, exited := errors.AsType[*exec.ExitError](waitErr); !exited {
+			return "", fmt.Errorf("命令执行失败：%w", waitErr)
+		}
+		parts = append(parts, fmt.Sprintf("[命令以退出码 %d 结束]", cmd.ProcessState.ExitCode()))
 	}
-	exitCode := cmd.ProcessState.ExitCode()
-	response.ExitCode = &exitCode
-	return response, nil
+	if output.Truncated() {
+		parts = append(parts, "[输出过长，已截断中间部分]")
+	}
+	if len(parts) == 0 {
+		return "[命令执行成功，没有输出]", nil
+	}
+	return strings.Join(parts, "\n"), nil
 }
 
 // runProcessTree 在独立进程树中运行命令，合并后的标准输出与标准错误写入 output；

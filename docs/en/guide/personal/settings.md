@@ -15,6 +15,6 @@ This page is being written.
 
 ## Notifications
 
-## Devices
+## Computers
 
 ## Archived chats

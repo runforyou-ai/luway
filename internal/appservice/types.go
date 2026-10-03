@@ -111,19 +111,14 @@ type Brand struct {
 	LinkScheme string `json:"linkScheme"`
 }
 
-// DeviceHeader 是设备运行期调用携带本机设备编号的请求头。
-const DeviceHeader = "X-Device"
-
 // WorkspaceHeader 是工作区级调用携带目标工作区编号的请求头。
 const WorkspaceHeader = "X-Workspace"
 
-// RequestMeta 携带一次应用服务调用的认证、目标工作区和本地化信息；WorkspaceID 经 WorkspaceHeader 传输，
-// DeviceID 只由原生端设备进程设置，经 DeviceHeader 传输。
+// RequestMeta 携带一次应用服务调用的认证、目标工作区和本地化信息；WorkspaceID 经 WorkspaceHeader 传输。
 type RequestMeta struct {
 	Token       string `json:"token"`
 	WorkspaceID string `json:"workspaceId"`
 	Locale      Locale `json:"locale"`
-	DeviceID    string `json:"-"`
 }
 
 // InstallationStatus 定义部署名称、平台是否已完成首次安装、注册策略是否开放注册、平台使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。

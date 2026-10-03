@@ -164,7 +164,7 @@ const expectedFrames: Record<string, RealtimeServerFrame> = {
     ],
   },
   run_stream_ended: { type: "run_stream_ended", runId },
-  device_work_advanced: { type: "device_work_advanced", deviceId: "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a90", workSeq: 9223372036854775807n },
+  computer_work: { type: "computer_work" },
   agent_memory_changed: { type: "agent_memory_changed", agentId: "0190f5a2-7c1e-7d3a-9b2f-3c4d5e6f7a91" },
 }
 

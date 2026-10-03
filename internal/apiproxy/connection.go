@@ -20,7 +20,8 @@ import (
 	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
-const maxResponseBytes = 1 << 20
+// maxResponseBytes 是解码一次服务器 JSON 响应读取的字节上限，覆盖平台诊断信息等完整导出。
+const maxResponseBytes = 32 << 20
 
 // Store 读写原生端连接的服务器地址。
 type Store interface {

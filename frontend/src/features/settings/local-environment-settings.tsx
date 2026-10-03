@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/field"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { AddLocalMCPServerDialog, InstallLocalSkillDialog } from "@/features/settings/local-environment-dialogs"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 import { apiErrorMessage } from "@/lib/form-errors"
@@ -140,7 +141,7 @@ function ToolchainSettings({ environment }: { environment: LocalEnvironmentData 
     } finally {
       setUninstalling(false)
       void invalidate(resourceKeys.localEnvironment())
-      void invalidate(resourceKeys.currentDevice())
+      void invalidate(resourceKeys.currentComputer())
     }
   }
 
@@ -290,9 +291,10 @@ function ComponentPendingState({ environment }: { environment: LocalEnvironmentD
   }
 }
 
-/** 列出本地 MCP 服务，可删除其中一个。 */
+/** 列出本地 MCP 服务，可添加新服务或删除其中一个。 */
 function LocalMCPServers({ servers }: { servers: LocalMCPServerData[] }) {
   const { t } = useTranslation(["settings", "common"])
+  const [adding, setAdding] = useState(false)
   const removal = useConfirmedAction<LocalMCPServerData>({
     action: (server) => removeLocalMCPServer(server.name),
     invalidateKeys: () => [resourceKeys.localEnvironment()],
@@ -303,6 +305,11 @@ function LocalMCPServers({ servers }: { servers: LocalMCPServerData[] }) {
 
   return (
     <>
+      <div className="mb-4 flex justify-end">
+        <Button type="button" variant="outline" onClick={() => setAdding(true)}>
+          {t("local.mcp.add.action")}
+        </Button>
+      </div>
       <ResourceListFrame>
         <ResourceTable
           columns={[
@@ -340,13 +347,15 @@ function LocalMCPServers({ servers }: { servers: LocalMCPServerData[] }) {
         description={t("local.mcp.remove.description")}
         pendingLabel={t("common:actions.deleting")}
       />
+      <AddLocalMCPServerDialog open={adding} onOpenChange={setAdding} />
     </>
   )
 }
 
-/** 列出这台电脑上可用的技能及其来源，AI 员工安装的技能可以删除。 */
+/** 列出这台电脑上可用的技能及其来源，可安装新技能，在这里安装的技能可以删除。 */
 function LocalSkills({ skills }: { skills: LocalSkillData[] }) {
   const { t } = useTranslation(["settings", "common"])
+  const [installing, setInstalling] = useState(false)
   const removal = useConfirmedAction<LocalSkillData>({
     action: (skill) => removeLocalSkill(skill.name),
     invalidateKeys: () => [resourceKeys.localEnvironment()],
@@ -357,6 +366,11 @@ function LocalSkills({ skills }: { skills: LocalSkillData[] }) {
 
   return (
     <>
+      <div className="mb-4 flex justify-end">
+        <Button type="button" variant="outline" onClick={() => setInstalling(true)}>
+          {t("local.skills.install.action")}
+        </Button>
+      </div>
       <ResourceListFrame>
         <ResourceTable
           columns={[
@@ -398,6 +412,7 @@ function LocalSkills({ skills }: { skills: LocalSkillData[] }) {
         description={t("local.skills.remove.description")}
         pendingLabel={t("common:actions.deleting")}
       />
+      <InstallLocalSkillDialog open={installing} onOpenChange={setInstalling} />
     </>
   )
 }

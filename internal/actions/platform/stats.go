@@ -116,7 +116,7 @@ func aggregateDay(ctx context.Context, tx bun.Tx, day time.Time, current bool) e
 		Where("o.created_at < ?", day.AddDate(0, 0, 1))
 	if _, err := tx.NewRaw(`
 		INSERT INTO workspace_daily_stats (
-			organization_id, stat_date, member_count, ai_employee_count, channel_count, device_count, storage_bytes,
+			organization_id, stat_date, member_count, ai_employee_count, channel_count, computer_count, storage_bytes,
 			active_account_count, message_count
 		)
 		?
@@ -127,7 +127,7 @@ func aggregateDay(ctx context.Context, tx bun.Tx, day time.Time, current bool) e
 			member_count = CASE WHEN ? THEN EXCLUDED.member_count ELSE workspace_daily_stats.member_count END,
 			ai_employee_count = CASE WHEN ? THEN EXCLUDED.ai_employee_count ELSE workspace_daily_stats.ai_employee_count END,
 			channel_count = CASE WHEN ? THEN EXCLUDED.channel_count ELSE workspace_daily_stats.channel_count END,
-			device_count = CASE WHEN ? THEN EXCLUDED.device_count ELSE workspace_daily_stats.device_count END,
+			computer_count = CASE WHEN ? THEN EXCLUDED.computer_count ELSE workspace_daily_stats.computer_count END,
 			storage_bytes = CASE WHEN ? THEN EXCLUDED.storage_bytes ELSE workspace_daily_stats.storage_bytes END
 	`, rows, current, current, current, current, current).Exec(ctx); err != nil {
 		return fmt.Errorf("upsert workspace daily stats: %w", err)

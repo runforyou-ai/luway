@@ -44,7 +44,7 @@ export function MemberPersonalAgentsSection({ userId }: { userId: string }) {
                 avatar={{ imageURL: agent.avatarUrl, name: agent.displayName, fallback: "agent" }}
                 mark={<PersonalAgentPresenceMark presence={agent.presence} />}
                 name={agent.displayName}
-                secondary={agent.device.name}
+                secondary={agent.computer.name}
                 description={personalAgentPresenceLabel(agent.presence, t)}
               />
             ),

@@ -43,10 +43,31 @@ Records of finished tasks are kept for 7 days and then cleaned up automatically.
 
 ## Export diagnostics
 
-This section is being written.
+When you need help from your operations team or technical support, click **Export diagnostics** at the top of the **Runtime status** page to create a JSON file. The web app downloads it directly; the desktop app asks where to save it. The file name is `diagnostics-` followed by the export time.
+
+The file contains:
+
+| Content | Details |
+| --- | --- |
+| Basics | When the file was created, and the instance ID of the server that created it |
+| Platform overview | Server ID, statistics time zone, number of accounts, workspaces, and members, active and new accounts and workspaces in the last 7 and 30 days, the daily trend for the last 30 days, and license status |
+| Servers | Each server's version, start time, last heartbeat, NATS connection status, and the configuration it started with |
+| External dependencies | The object storage check and the last licensing service sync. Object storage is checked by the server that creates the file |
+| Database | PostgreSQL version and the latest applied migration |
+| Background tasks | Task counts for each queue, every task waiting to retry and tasks that failed in the last 7 days, with full error messages |
+| Model providers | Attempts, failures, and the latest error for each platform provider in the last 24 hours |
+
+Server configuration includes only settings such as the public URL, listen address, TLS mode, database and NATS addresses, storage mode and bucket, and mail server address. The database password, object storage keys, and SMTP user name and password are never written to the file, and user names and passwords are removed from addresses. Background tasks show only their workspace ID, not the workspace name. The file contains no messages, customer data, or other business content, and no server logs. To read logs, see [Monitoring and diagnostics](/docs/en/deployment/operate/monitoring/).
 
 ## Reporting settings
 
-By default, the server reports runtime metrics to the licensing service every minute: the number of accounts, workspaces, and members, and active accounts and active workspaces in the last 7 days. Only these counts are sent. Messages, customer data, and other business content are never included.
+The **Report runtime metrics and errors** switch on the **Platform overview** page controls whether this platform reports runtime data to the licensing service. It is on by default. A change takes effect immediately on the current server instance and within a minute on other instances.
 
-Platform administrators can turn off **Report runtime metrics** on the **Platform overview** page. The server still syncs its license with the licensing service once a day.
+When it is on, the following is reported:
+
+- Runtime metrics: every minute, the number of accounts, workspaces, and members, plus active accounts and active workspaces over the last 7 days;
+- Errors: when the server fails to handle a request, hits an unexpected exception, or a background task still fails on its last retry, the name of the failed operation or task, the error types, the database error code, the stack trace for exceptions, the server version, and the runtime environment.
+
+The original error message is written only to the server's local log and is never reported. The `event_id` on that log line matches the reported error event, so you can use it to find the full error message in the log. Message content, customer data, file content, access tokens, passwords, keys, and the server host name are never included.
+
+When reporting is off, the server still syncs its license with the licensing service once a day.

@@ -173,11 +173,11 @@ wails3 task build:server
 
 - `actions/` 按领域组织 Action 与 Query；`api/` 是 Gin 对外 HTTP 适配器；`apiproxy/` 是原生端到服务端的类型化代理；`appservice/` 只放跨平台应用服务与传输契约，`appservice/direct/` 放服务端 Backend 实现，`appservice/native/` 放原生端平台能力。
 - 仓库根目录的 `pkg/` 只放与产品业务无关、可独立复用的完整能力，接口不出现业务概念，不得导入 `internal/`，由 `wails3 task check:pkg` 校验并在 `test:server`、`test:desktop` 前执行。
-- 原生端构建不得依赖 `appservice/direct`、`actions`、`storage/server` 等服务端实现，移动端构建不得依赖 `integration/agentruntime`，由 `wails3 task check:deps` 校验并在 `test:server`、`test:desktop` 前执行。
+- 原生端构建不得依赖 `appservice/direct`、`actions`、`storage/server` 等服务端实现与 `integration/agentruntime`，移动端构建不得依赖 `executor`、`computerhost`，由 `wails3 task check:deps` 校验并在 `test:server`、`test:desktop` 前执行。
 - `internal/common` 放产品内部共用、无数据库、无传输层、无平台依赖的工具，小函数和错误放包内，带业务语义的完整能力使用子包。`domain` 只放各层共用的领域值，按概念拆文件。
 - 服务端 PostgreSQL 模型放 `storage/server`；桌面端与移动端共用的 SQLite 连接、迁移执行与模型放 `storage/native`，各端专有模型放 `storage/desktop`、`storage/mobile`；桌面端和移动端的 SQLite 迁移保持独立。
 - `task/server` 是服务端可靠任务运行时，承载 Action 执行语义、投递参数、存储与运行机制。
-- `integration/` 放外部服务客户端与本机能力，`devicehost/` 放桌面端本机设备注册与运行执行，`clientsession/` 放原生端登录会话，`realtime/` 放服务端通知发布，`realtime/gateway` 与 `realtime/protocol` 分别是 SSE 网关和跨端事件契约。
+- `integration/` 放外部服务客户端与本机能力，`executor/` 放电脑执行器（以电脑凭据连接服务端，执行派发给这台电脑的命令、文件与本机 MCP 操作），`computerhost/` 放桌面端电脑注册与执行器接线，`clientsession/` 放原生端登录会话，`realtime/` 放服务端通知发布，`realtime/gateway` 与 `realtime/protocol` 分别是 SSE 网关和跨端事件契约。
 - 仓库根目录只放按构建标签选择的组合根：创建依赖、注册服务与后台任务，不承载业务适配。
 - 跨 Action、应用服务和存储的真实数据库集成测试放 `integrationtest/`。
 
@@ -189,6 +189,8 @@ wails3 task build:server
 - 新增业务方法：在 `Backend` 补方法与指令（GET 的查询结构体在 `types.go` 为每个字段显式加 `query` 标签，不传输的字段用 `query:"-"`），运行生成器，然后只手写 `appservice/direct` 中的 `directOperations` 实现和 Action。无法按统一模式生成的层用 `manual=service,api,proxy` 标记并在对应包手写。服务端经 `filecontent.Links` 生成文件地址，本地存储返回服务端相对路径；API Proxy 在统一解码处把字段名以 `URL` 结尾的本地存储相对路径补全为当前连接地址，不重复切片归一化。
 - 认证由 `appservice/direct/backend_gen.go` 生成的分发层统一处理：`auth` 默认 `member`，先解析账号会话在目标工作区中的成员身份再调用业务实现；只需要登录账号的方法（账号资料、工作区列表与创建等）标记 `auth=account`，平台级管理方法（平台概览、平台账号与工作区、注册与创建策略等）标记 `auth=admin` 并要求当前账号是平台管理员，无需登录的方法标记 `auth=public`。
 - `directOperations` 直接接收已解析的 `identity`，不重复认证，只负责把 Action 返回的语言无关错误码转成结构化、本地化错误并调用 Action。其 Action 与 Query 字段按业务域分组在 `<域>Ops` 结构体中，新增依赖只改对应实现文件。
+- 未预期的失败在 `directOperations` 中转成携带原始错误的 `appservice.FailedError`，不另写日志；生成的分发层由 `settle` 统一收尾：panic 转为带调用栈的错误，非业务错误转为内部错误，请求未取消时以 Error 级别记录原始错误。
+- Error 级别日志只用于需要处理的服务端故障，开启上报时同时作为错误事件上报 control；可自行恢复或已降级处理的问题用 Warn。事件只带 `error` 属性的异常类型链、数据库错误码和错误自带的调用栈，以及 `operation`、`action`、`queue` 属性，错误信息原文与其他属性只写本地日志；日志消息随事件上报，使用固定文案，变量放在属性中。
 - 只读 Query 信任分发层已解析的身份，不重复查询用户状态；写 Action 在事务开始时通过 `actions/identity.LockActiveUser` 校验并锁定活跃用户。
 - Action 直接使用 Bun，按需调用 `common`；记录关联、组织边界和业务规则在事务中显式校验和维护。
 

@@ -5,7 +5,6 @@ package direct
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	serviceissueaction "github.com/runforyou-ai/luway/internal/actions/serviceissue"
 	"github.com/runforyou-ai/luway/internal/appservice"
@@ -32,11 +31,11 @@ func (o *directOperations) GetServiceIssue(ctx context.Context, meta appservice.
 		return appservice.ServiceIssueDetail{}, appservice.NotFoundError(meta, i18n.ErrorServiceIssueNotFound)
 	}
 	if err != nil {
-		return appservice.ServiceIssueDetail{}, serviceIssueError(meta, err, identity.Organization.ID, serviceSessionID)
+		return appservice.ServiceIssueDetail{}, serviceIssueError(meta, err)
 	}
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, detail.RequesterAvatarFileID)
 	if err != nil {
-		return appservice.ServiceIssueDetail{}, serviceIssueError(meta, err, identity.Organization.ID, serviceSessionID)
+		return appservice.ServiceIssueDetail{}, serviceIssueError(meta, err)
 	}
 	output := appservice.ServiceIssueDetail{Issue: serviceIssueOutput(detail.Issue, avatarURLs), Messages: make([]appservice.ServiceTranscriptMessage, 0, len(detail.Messages))}
 	for _, message := range detail.Messages {
@@ -47,10 +46,9 @@ func (o *directOperations) GetServiceIssue(ctx context.Context, meta appservice.
 	return output, nil
 }
 
-// serviceIssueError 记录问题会话读取失败并返回本地化错误。
-func serviceIssueError(meta appservice.RequestMeta, err error, organizationID, serviceSessionID string) error {
-	slog.Warn("读取问题会话失败", "organization_id", organizationID, "service_session_id", serviceSessionID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorServiceIssueLoadFailed)
+// serviceIssueError 把问题会话读取失败转换为本地化错误。
+func serviceIssueError(meta appservice.RequestMeta, err error) error {
+	return appservice.FailedError(meta, i18n.ErrorServiceIssueLoadFailed, err)
 }
 
 // serviceIssueList 把一页问题会话转换为传输结构，并批量生成发起人头像地址。

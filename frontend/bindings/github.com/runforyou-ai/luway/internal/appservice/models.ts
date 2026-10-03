@@ -624,16 +624,14 @@ export interface AgentExecution {
     "revisionId": string;
     "mode": AgentExecutionMode;
     "managed"?: AgentManagedExecution | null;
-    "localAgent"?: AgentLocalAgentExecution | null;
 }
 
 /**
- * AgentExecutionInput 定义执行配置输入，按执行方式填写 managed 或 localAgent；localAgent 只用于个人 AI 员工。
+ * AgentExecutionInput 定义执行配置输入，按执行方式填写 managed。
  */
 export interface AgentExecutionInput {
     "mode": AgentExecutionMode;
     "managed"?: AgentManagedExecutionInput | null;
-    "localAgent"?: AgentLocalAgentExecutionInput | null;
 }
 
 /**
@@ -646,7 +644,6 @@ export enum AgentExecutionMode {
     $zero = "",
 
     AgentExecutionModeManaged = "managed",
-    AgentExecutionModeLocalAgent = "local_agent",
 };
 
 /**
@@ -656,7 +653,6 @@ export interface AgentExecutionSummary {
     "revisionId": string;
     "mode": AgentExecutionMode;
     "managed"?: AgentManagedExecutionSummary | null;
-    "localAgent"?: AgentLocalAgentExecutionSummary | null;
 }
 
 /**
@@ -744,35 +740,12 @@ export interface AgentListItem {
 }
 
 /**
- * AgentListPersonalItem 定义个人 AI 员工目录项的绑定电脑与在线状态。
+ * AgentListPersonalItem 定义个人 AI 员工目录项使用的电脑与在线状态。
  */
 export interface AgentListPersonalItem {
-    "deviceId": string;
-    "deviceName": string;
+    "computerId": string;
+    "computerName": string;
     "presence": PersonalAgentPresence;
-}
-
-/**
- * AgentLocalAgentExecution 定义由本机 Agent 执行的配置。
- */
-export interface AgentLocalAgentExecution {
-    "kind": LocalAgentKind;
-    "systemInstruction": string;
-}
-
-/**
- * AgentLocalAgentExecutionInput 定义由本机 Agent 执行的配置输入。
- */
-export interface AgentLocalAgentExecutionInput {
-    "kind": LocalAgentKind;
-    "systemInstruction": string;
-}
-
-/**
- * AgentLocalAgentExecutionSummary 定义由本机 Agent 执行的配置摘要。
- */
-export interface AgentLocalAgentExecutionSummary {
-    "kind": LocalAgentKind;
 }
 
 /**
@@ -1292,6 +1265,56 @@ export interface ColleagueListInput {
 }
 
 /**
+ * Computer 定义成员注册到工作区的电脑，Online 表示执行器当前在线。
+ */
+export interface Computer {
+    "id": string;
+    "name": string;
+    "platform": ComputerPlatform;
+    "online": boolean;
+    "lastSeenAt": string | null;
+    "createdAt": string;
+}
+
+/**
+ * ComputerList 定义当前成员的电脑列表。
+ */
+export interface ComputerList {
+    "computers": Computer[] | null;
+}
+
+/**
+ * ComputerPlatform 定义电脑的操作系统平台。
+ */
+export enum ComputerPlatform {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    ComputerPlatformMacOS = "macos",
+    ComputerPlatformWindows = "windows",
+    ComputerPlatformLinux = "linux",
+};
+
+/**
+ * ComputerRegistration 定义注册结果：电脑与执行器连接服务端使用的电脑凭据，凭据只在注册时返回一次。
+ */
+export interface ComputerRegistration {
+    "computer": Computer;
+    "credential": string;
+}
+
+/**
+ * ComputerRegistrationInput 定义执行器注册电脑时上报的本机信息。
+ */
+export interface ComputerRegistrationInput {
+    "installId": string;
+    "name": string;
+    "platform": ComputerPlatform;
+}
+
+/**
  * ConnectReason 表示原生端已保存服务器仍进入连接页的原因。
  */
 export enum ConnectReason {
@@ -1649,16 +1672,6 @@ export interface ConversationAgentRun {
     "errorCode": string | null;
     "lastError": string | null;
     "process": ConversationAgentProcess | null;
-
-    /**
-     * ExecutionDeviceID 是执行该运行的设备编号，服务端执行时为空。
-     */
-    "executionDeviceId": string | null;
-
-    /**
-     * ExecutionDeviceName 是执行该运行的设备名称，服务端执行时为空。
-     */
-    "executionDeviceName": string | null;
 }
 
 /**
@@ -2161,14 +2174,14 @@ export interface CreateMessageChannelInput {
 }
 
 /**
- * CreatePersonalAgentInput 定义新建个人 AI 员工的资料、执行配置、企业 MCP 服务与要绑定的本机电脑，avatarFileId 为空时不设置头像。
+ * CreatePersonalAgentInput 定义新建个人 AI 员工的资料、执行配置、企业 MCP 服务与使用的电脑，avatarFileId 为空时不设置头像。
  */
 export interface CreatePersonalAgentInput {
     "displayName": string;
     "avatarFileId": string;
     "execution": AgentExecutionInput;
     "mcpServerIds": string[] | null;
-    "deviceId": string;
+    "computerId": string;
 }
 
 /**
@@ -2384,48 +2397,6 @@ export interface CustomerVisit {
     "language": string;
     "timeZone": string;
     "country": string;
-}
-
-/**
- * Device 定义成员注册到企业的本机设备，LocalAgents 是设备上报的已安装且可用的本机 Agent。
- */
-export interface Device {
-    "id": string;
-    "name": string;
-    "platform": DevicePlatform;
-    "localAgents": LocalAgentKind[] | null;
-    "createdAt": string;
-    "updatedAt": string;
-}
-
-/**
- * DeviceList 定义当前用户的设备列表。
- */
-export interface DeviceList {
-    "devices": Device[] | null;
-}
-
-/**
- * DevicePlatform 定义注册设备的运行平台。
- */
-export enum DevicePlatform {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    DevicePlatformMacOS = "macos",
-    DevicePlatformWindows = "windows",
-    DevicePlatformLinux = "linux",
-};
-
-/**
- * DeviceRegistrationInput 定义设备注册上报的本机信息。
- */
-export interface DeviceRegistrationInput {
-    "installId": string;
-    "name": string;
-    "platform": DevicePlatform;
 }
 
 /**
@@ -3737,22 +3708,10 @@ export interface LoadInboxInput {
 }
 
 /**
- * LocalAgentKind 表示经 ACP 驱动的本机 Agent 种类。
+ * LocalComputer 定义本机在当前工作区的电脑注册状态与运行环境，电脑编号为空表示尚未注册；不作为电脑执行操作的平台运行环境为空。
  */
-export enum LocalAgentKind {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    LocalAgentKindCodex = "codex",
-};
-
-/**
- * LocalDevice 定义本机在当前企业服务器上的设备注册状态与 Agent 运行环境，设备编号为空表示尚未注册；不执行 Agent 运行的平台运行环境为空。
- */
-export interface LocalDevice {
-    "deviceId": string;
+export interface LocalComputer {
+    "computerId": string;
     "toolchain": LocalToolchain | null;
 }
 
@@ -3778,6 +3737,19 @@ export interface LocalMCPServer {
     "command": string;
     "args": string[] | null;
     "url": string;
+}
+
+/**
+ * LocalMCPServerInput 定义添加到这台电脑的本地 MCP 服务：本地进程给出启动命令、参数与环境变量，SSE 与 Streamable HTTP 服务给出地址与请求头。
+ */
+export interface LocalMCPServerInput {
+    "name": string;
+    "type": LocalMCPServerType;
+    "command": string;
+    "args": string[] | null;
+    "env": { [_ in string]?: string } | null;
+    "url": string;
+    "headers": { [_ in string]?: string } | null;
 }
 
 /**
@@ -3813,6 +3785,14 @@ export interface LocalSkill {
     "description": string;
     "source": LocalSkillSource;
     "location": string;
+}
+
+/**
+ * LocalSkillInstallInput 定义要安装到这台电脑的技能来源，来源含多个技能时按 Name 选择。
+ */
+export interface LocalSkillInstallInput {
+    "source": string;
+    "name": string;
 }
 
 /**
@@ -4303,11 +4283,26 @@ export interface PersonalAgent {
     "displayName": string;
     "avatarUrl": string;
     "responsible": PersonalAgentResponsible;
-    "device": PersonalAgentDevice;
+    "computer": PersonalAgentComputer;
     "status": UserStatus;
     "presence": PersonalAgentPresence;
     "execution": AgentExecutionSummary;
     "createdAt": string;
+}
+
+/**
+ * PersonalAgentComputer 定义个人 AI 员工使用的电脑的摘要。
+ */
+export interface PersonalAgentComputer {
+    "id": string;
+    "name": string;
+}
+
+/**
+ * PersonalAgentComputerInput 定义个人 AI 员工要换到的电脑。
+ */
+export interface PersonalAgentComputerInput {
+    "computerId": string;
 }
 
 /**
@@ -4316,22 +4311,6 @@ export interface PersonalAgent {
 export interface PersonalAgentDetail {
     "personalAgent": PersonalAgent;
     "execution": AgentExecution;
-}
-
-/**
- * PersonalAgentDevice 定义个人 AI 员工绑定电脑的摘要，LocalAgents 是该电脑上报的已安装且可用的本机 Agent。
- */
-export interface PersonalAgentDevice {
-    "id": string;
-    "name": string;
-    "localAgents": LocalAgentKind[] | null;
-}
-
-/**
- * PersonalAgentDeviceInput 定义个人 AI 员工要换到的电脑。
- */
-export interface PersonalAgentDeviceInput {
-    "deviceId": string;
 }
 
 /**
@@ -4639,6 +4618,43 @@ export interface PlatformDailyCreditGrantInput {
 }
 
 /**
+ * PlatformDatabaseStatus 定义 PostgreSQL 服务端版本与已执行的最新迁移版本。
+ */
+export interface PlatformDatabaseStatus {
+    "version": string;
+    "migration": number;
+}
+
+/**
+ * PlatformDiagnosticTask 定义诊断信息中一次等待重试或失败的后台任务运行；WorkspaceID 为所属工作区编号，平台级任务为空，FailedAt 为最近一次执行失败的时间。
+ */
+export interface PlatformDiagnosticTask {
+    "id": string;
+    "action": string;
+    "queue": string;
+    "workspaceId": string | null;
+    "retrying": boolean;
+    "attempt": number;
+    "maxAttempts": number;
+    "error": string;
+    "failedAt": string;
+}
+
+/**
+ * PlatformDiagnostics 定义平台管理员导出的诊断信息：GeneratedAt 为生成时间，ExportedBy 为生成诊断信息并检查对象存储的服务端进程编号；
+ * FailedTasks 为全部等待重试与近 7 天失败的任务，AIProviders 为平台供应商及其近 24 小时上游尝试的结果。
+ */
+export interface PlatformDiagnostics {
+    "generatedAt": string;
+    "exportedBy": string;
+    "overview": PlatformOverview;
+    "runtime": PlatformRuntimeStatus;
+    "database": PlatformDatabaseStatus;
+    "failedTasks": PlatformDiagnosticTask[] | null;
+    "aiProviders": PlatformAIProviderSummary[] | null;
+}
+
+/**
  * PlatformFailedTask 定义一次等待重试或近 7 天内失败的后台任务运行；WorkspaceName 为所属工作区名称，平台级任务为空，FailedAt 为最近一次执行失败的时间。
  */
 export interface PlatformFailedTask {
@@ -4714,7 +4730,7 @@ export interface PlatformRuntimeStatus {
 }
 
 /**
- * PlatformServer 定义一个服务端进程及其最近一次心跳；TasksNATSConnected 与 RealtimeNATSConnected 为最近一次心跳时后台任务与实时通知的 NATS 连接是否可用，Online 表示 2 分钟内有心跳。
+ * PlatformServer 定义一个服务端进程及其最近一次心跳；TasksNATSConnected 与 RealtimeNATSConnected 为最近一次心跳时后台任务与实时通知的 NATS 连接是否可用，Online 表示 2 分钟内有心跳，Config 为进程启动时的服务端配置。
  */
 export interface PlatformServer {
     "id": string;
@@ -4725,10 +4741,69 @@ export interface PlatformServer {
     "tasksNatsConnected": boolean;
     "realtimeNatsConnected": boolean;
     "online": boolean;
+    "config": PlatformServerConfig;
 }
 
 /**
- * PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+ * PlatformServerConfig 定义服务端进程的配置，只包含不含密码、密钥和地址凭据的字段；Listen 为监听地址与端口。
+ */
+export interface PlatformServerConfig {
+    "deploymentName": string;
+    "publicURL": string;
+    "listen": string;
+    "tlsMode": string;
+    "database": PlatformServerDatabaseConfig;
+    "nats": PlatformServerNATSConfig;
+    "storage": PlatformServerStorageConfig;
+    "smtp": PlatformServerSMTPConfig;
+    "clientsDirectory": string;
+}
+
+/**
+ * PlatformServerDatabaseConfig 定义 PostgreSQL 连接的地址、账号名、库名与 SSL 模式。
+ */
+export interface PlatformServerDatabaseConfig {
+    "host": string;
+    "port": number;
+    "user": string;
+    "name": string;
+    "sslMode": string;
+}
+
+/**
+ * PlatformServerNATSConfig 定义去掉凭据的 NATS 地址与命名空间。
+ */
+export interface PlatformServerNATSConfig {
+    "url": string;
+    "namespace": string;
+}
+
+/**
+ * PlatformServerSMTPConfig 定义邮件发送配置，Enabled 为假表示未配置 SMTP 主机。
+ */
+export interface PlatformServerSMTPConfig {
+    "enabled": boolean;
+    "host": string;
+    "port": number;
+    "security": string;
+    "fromAddress": string;
+}
+
+/**
+ * PlatformServerStorageConfig 定义文件存储方式：S3Enabled 为假时文件写入 LocalDirectory，为真时写入对象存储桶。
+ */
+export interface PlatformServerStorageConfig {
+    "localDirectory": string;
+    "s3Enabled": boolean;
+    "endpoint": string;
+    "publicBaseURL": string;
+    "region": string;
+    "bucket": string;
+    "forcePathStyle": boolean;
+}
+
+/**
+ * PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
  */
 export interface PlatformSettings {
     "registrationPolicy": RegistrationPolicy;
@@ -4753,7 +4828,7 @@ export interface PlatformTaskQueue {
 }
 
 /**
- * PlatformTelemetryInput 定义运行指标上报开关的修改值。
+ * PlatformTelemetryInput 定义运行指标与错误上报开关的修改值。
  */
 export interface PlatformTelemetryInput {
     "telemetryEnabled": boolean;
@@ -4822,7 +4897,7 @@ export interface PlatformWorkspace {
     "memberCount": number;
     "aiEmployeeCount": number;
     "channelCount": number;
-    "deviceCount": number;
+    "computerCount": number;
     "hasPlatformAdmin": boolean;
     "storageBytes": number;
     "lastActiveOn": string | null;
@@ -4959,8 +5034,7 @@ export enum RegistrationPolicy {
 };
 
 /**
- * RequestMeta 携带一次应用服务调用的认证、目标工作区和本地化信息；WorkspaceID 经 WorkspaceHeader 传输，
- * DeviceID 只由原生端设备进程设置，经 DeviceHeader 传输。
+ * RequestMeta 携带一次应用服务调用的认证、目标工作区和本地化信息；WorkspaceID 经 WorkspaceHeader 传输。
  */
 export interface RequestMeta {
     "token": string;
@@ -6010,6 +6084,14 @@ export enum TelegramWebhookStatus {
     TelegramWebhookStatusWaiting = "waiting",
     TelegramWebhookStatusNormal = "normal",
 };
+
+/**
+ * TextFileInput 定义原生端保存的文本文件：Name 为建议文件名，Content 为 UTF-8 文本内容。
+ */
+export interface TextFileInput {
+    "name": string;
+    "content": string;
+}
 
 /**
  * TransferServiceSessionInput 定义服务周期的转交去向；成员去向填 identityId，团队去向填 teamId，公共队列两者都不填。

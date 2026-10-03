@@ -37,9 +37,6 @@ type AgentRun struct {
 	ErrorCode         *string         `bun:"error_code"`
 	StartedAt         *time.Time      `bun:"started_at"`
 	CompletedAt       *time.Time      `bun:"completed_at"`
-	ExecutionDeviceID *string         `bun:"execution_device_id"`
-	ClaimedAt         *time.Time      `bun:"claimed_at"`
-	LeaseExpiresAt    *time.Time      `bun:"lease_expires_at"`
 	CreatedAt         time.Time       `bun:"created_at"`
 	UpdatedAt         time.Time       `bun:"updated_at"`
 }

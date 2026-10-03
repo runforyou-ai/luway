@@ -5,7 +5,6 @@ package direct
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/appservice"
@@ -17,7 +16,7 @@ import (
 func (o *directOperations) GetAgentRunProcess(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, runID string) (appservice.AgentRunProcess, error) {
 	process, err := o.getAgentRunProcess.Execute(ctx, identity, runID)
 	if err != nil {
-		return appservice.AgentRunProcess{}, agentRunProcessError(ctx, meta, err, identity.Organization.ID, runID)
+		return appservice.AgentRunProcess{}, agentRunProcessError(meta, err)
 	}
 	result := appservice.AgentRunProcess{ID: process.ID, DurationMilliseconds: process.DurationMilliseconds,
 		InputTokens: process.Usage.PromptTokens, OutputTokens: process.Usage.CompletionTokens,
@@ -39,21 +38,20 @@ func (o *directOperations) GetAgentRunProcess(ctx context.Context, meta appservi
 // AuthorizeAgentRunStreamAccess 校验当前成员对运行所属会话的阅读资格。
 func (o *directOperations) AuthorizeAgentRunStreamAccess(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, runID string) error {
 	if _, err := o.authorizeAgentRunStream.Execute(ctx, identity, runID); err != nil {
-		return agentRunProcessError(ctx, meta, err, identity.Organization.ID, runID)
+		return agentRunProcessError(meta, err)
 	}
 	return nil
 }
 
 // agentRunProcessError 转换运行过程详情读取错误。
-func agentRunProcessError(ctx context.Context, meta appservice.RequestMeta, err error, organizationID, runID string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func agentRunProcessError(meta appservice.RequestMeta, err error) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, conversationaction.ErrAgentRunProcessUnavailable) {
 		return appservice.NotFoundError(meta, i18n.ErrorAgentRunProcessUnavailable).WithReason("agent_run_process_unavailable")
 	}
-	slog.Warn("读取 AI 运行过程失败", "organization_id", organizationID, "agent_run_id", runID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorAgentRunProcessReadFailed)
+	return appservice.FailedError(meta, i18n.ErrorAgentRunProcessReadFailed, err)
 }
 
 // conversationAgentProcessFromAction 转换已完成运行的过程引用、模型用量和结果。

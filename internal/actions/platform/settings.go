@@ -13,7 +13,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// Settings 定义平台管理员可修改的平台级策略、平台时区、运行指标上报开关与每日赠送积分。
+// Settings 定义平台管理员可修改的平台级策略、平台时区、运行指标与错误上报开关，以及每日赠送积分。
 type Settings struct {
 	RegistrationPolicy      domain.RegistrationPolicy
 	WorkspaceCreationPolicy domain.WorkspaceCreationPolicy
@@ -43,7 +43,7 @@ func NewSettingsQuery(db *bun.DB) *SettingsQuery {
 	return &SettingsQuery{db: db}
 }
 
-// Execute 返回当前注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// Execute 返回当前注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (q *SettingsQuery) Execute(ctx context.Context) (Settings, error) {
 	platform, err := Load(ctx, q.db)
 	if err != nil {

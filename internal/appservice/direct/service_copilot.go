@@ -20,14 +20,10 @@ import (
 func (o *directOperations) ListServiceCopilotThreads(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.ServiceCopilotThreadList, error) {
 	threads, err := o.listServiceCopilotThreads.Execute(ctx, identity, conversationID)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.ServiceCopilotThreadList{}, ctx.Err()
-		}
 		if errors.Is(err, conversationaction.ErrConversationNotFound) {
 			return appservice.ServiceCopilotThreadList{}, appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
 		}
-		slog.Warn("读取 Copilot 线程失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "error", err)
-		return appservice.ServiceCopilotThreadList{}, appservice.FailedError(meta, i18n.ErrorServiceCopilotThreadListFailed)
+		return appservice.ServiceCopilotThreadList{}, appservice.FailedError(meta, i18n.ErrorServiceCopilotThreadListFailed, err)
 	}
 	fileIDs := make([]*string, 0, len(threads))
 	for _, thread := range threads {
@@ -51,7 +47,7 @@ func (o *directOperations) SendFirstServiceCopilotMessage(ctx context.Context, m
 		ClientMessageID: input.ClientMessageID, Body: input.Body,
 	})
 	if err != nil {
-		return appservice.FirstServiceCopilotMessageResult{}, individualConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "start_copilot")
+		return appservice.FirstServiceCopilotMessageResult{}, individualConversationError(meta, err, "start_copilot")
 	}
 	slog.Info("Copilot 线程首条提问已保存", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "thread_id", result.Thread.ID, "message_id", result.Message.ID, "agent_identity_id", result.Thread.AgentIdentityID)
 	urls, err := o.conversationAvatarURLs(ctx, identity, []conversationaction.ConversationMessage{result.Message}, result.Thread.AgentAvatarFileID)
@@ -68,7 +64,7 @@ func (o *directOperations) SendFirstServiceCopilotMessage(ctx context.Context, m
 func (o *directOperations) SendServiceCopilotTextMessage(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, threadID string, input appservice.ServiceCopilotTextMessageInput) (appservice.ConversationMessage, error) {
 	message, err := o.sendServiceCopilotTextMessage.Execute(ctx, identity, directchataction.InternalTextMessageInput{ConversationID: threadID, ClientMessageID: input.ClientMessageID, Body: input.Body, ReplyToMessageID: input.ReplyToMessageID})
 	if err != nil {
-		return appservice.ConversationMessage{}, individualConversationError(ctx, meta, err, identity.Organization.ID, threadID, "send_copilot")
+		return appservice.ConversationMessage{}, individualConversationError(meta, err, "send_copilot")
 	}
 	slog.Info("Copilot 线程提问已保存", "organization_id", identity.Organization.ID, "thread_id", threadID, "message_id", message.ID)
 	return o.conversationMessageWithAvatar(ctx, identity, message), nil
@@ -80,17 +76,13 @@ func (o *directOperations) StopServiceCopilotReply(ctx context.Context, meta app
 	if err == nil {
 		return appservice.AgentRunStatus(status), nil
 	}
-	if ctx.Err() != nil {
-		return "", ctx.Err()
-	}
 	if errors.Is(err, identityaction.ErrInvalid) {
 		return "", appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
 	if errors.Is(err, conversationaction.ErrConversationNotFound) {
 		return "", appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
 	}
-	slog.Warn("停止 Copilot 回复失败", "organization_id", identity.Organization.ID, "thread_id", threadID, "agent_run_id", runID, "error", err)
-	return "", appservice.FailedError(meta, i18n.ErrorAgentReplyStopFailed)
+	return "", appservice.FailedError(meta, i18n.ErrorAgentReplyStopFailed, err)
 }
 
 // serviceCopilotThreadFromAction 转换线程摘要并补充 AI 员工头像地址。

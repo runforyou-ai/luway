@@ -22,11 +22,11 @@ import (
 func (o *directOperations) ListConversationMessages(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string, input appservice.ConversationMessageListInput) (appservice.ConversationMessageList, error) {
 	before, after, err := decodeMessageCursors(conversationID, input.Before, input.After)
 	if err != nil {
-		return appservice.ConversationMessageList{}, conversationMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationMessageList{}, conversationMessageError(meta, err)
 	}
 	history, err := o.listConversationMessages.Execute(ctx, identity, conversationaction.ConversationMessageHistoryInput{ConversationID: conversationID, Before: before, After: after})
 	if err != nil {
-		return appservice.ConversationMessageList{}, conversationMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationMessageList{}, conversationMessageError(meta, err)
 	}
 	return o.conversationMessageListFromAction(ctx, meta, identity, conversationID, history)
 }
@@ -40,7 +40,7 @@ func (o *directOperations) ReadConversationMessageWindow(ctx context.Context, me
 	}
 	history, err := o.listConversationMessages.Execute(ctx, identity, conversationaction.ConversationMessageHistoryInput{ConversationID: conversationID, Start: &start, End: &end})
 	if err != nil {
-		return appservice.ConversationMessageList{}, conversationMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationMessageList{}, conversationMessageError(meta, err)
 	}
 	return o.conversationMessageListFromAction(ctx, meta, identity, conversationID, history)
 }
@@ -187,8 +187,8 @@ func decodeConversationMessageCursor(value, conversationID string) (conversation
 }
 
 // conversationMessageError 转换成员消息读取错误。
-func conversationMessageError(ctx context.Context, meta appservice.RequestMeta, err error, organizationID, conversationID string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func conversationMessageError(meta appservice.RequestMeta, err error) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, conversationaction.ErrConversationNotFound) {
@@ -203,8 +203,7 @@ func conversationMessageError(ctx context.Context, meta appservice.RequestMeta, 
 	if validationError, ok := errors.AsType[*conversationaction.ValidationError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, conversationMessageValidationKeys))
 	}
-	slog.Warn("读取会话消息失败", "organization_id", organizationID, "conversation_id", conversationID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorConversationMessageListFailed)
+	return appservice.FailedError(meta, i18n.ErrorConversationMessageListFailed, err)
 }
 
 // conversationMessageListFromAction 共用成员消息窗口及游标转换。
@@ -218,7 +217,7 @@ func (o *directOperations) conversationMessageListFromAction(ctx context.Context
 	}
 	avatarURLs, err := o.conversationAvatarURLs(ctx, identity, history.Messages, agentAvatarFileIDs...)
 	if err != nil {
-		return appservice.ConversationMessageList{}, conversationMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationMessageList{}, conversationMessageError(meta, err)
 	}
 	result := appservice.ConversationMessageList{HasEarlier: history.HasEarlier, HasLater: history.HasLater, Messages: make([]appservice.ConversationMessage, 0, len(history.Messages))}
 	result.AgentRuns = make([]appservice.ConversationAgentRun, 0, len(history.AgentRuns))
@@ -226,7 +225,7 @@ func (o *directOperations) conversationMessageListFromAction(ctx context.Context
 		result.AgentRuns = append(result.AgentRuns, appservice.ConversationAgentRun{ID: run.ID, AgentIdentityID: run.AgentIdentityID,
 			AgentName: run.AgentName, AgentPersonalResponsibleName: run.AgentPersonalResponsibleName, AgentAvatarURL: optionalFileURL(avatarURLs, run.AgentAvatarFileID),
 			Status: appservice.AgentRunStatus(run.Status), ErrorCode: run.ErrorCode, LastError: run.LastError,
-			Process: conversationAgentProcessFromAction(run.Process), ExecutionDeviceID: run.ExecutionDeviceID, ExecutionDeviceName: run.ExecutionDeviceName})
+			Process: conversationAgentProcessFromAction(run.Process)})
 	}
 	result.PendingAgents = make([]appservice.ConversationPendingAgent, 0, len(history.PendingAgents))
 	for _, agent := range history.PendingAgents {

@@ -48,7 +48,7 @@ func newAgentEvaluationOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer) agent
 func (o *directOperations) GetAgentEvaluation(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string) (appservice.AgentEvaluation, error) {
 	overview, err := o.getAgentEvaluation.Execute(ctx, identity, agentID)
 	if err != nil {
-		return appservice.AgentEvaluation{}, agentEvaluationError(ctx, meta, err, i18n.ErrorAgentEvaluationLoadFailed, identity.Organization.ID, agentID)
+		return appservice.AgentEvaluation{}, agentEvaluationError(meta, err, i18n.ErrorAgentEvaluationLoadFailed)
 	}
 	output := appservice.AgentEvaluation{
 		Latest: agentEvaluationRunSummary(overview.Latest), Previous: agentEvaluationRunSummary(overview.Previous),
@@ -71,7 +71,7 @@ func (o *directOperations) GetAgentEvaluation(ctx context.Context, meta appservi
 func (o *directOperations) StartAgentEvaluationRun(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string) error {
 	runID, err := o.startAgentEvaluationRun.Execute(ctx, identity, agentID)
 	if err != nil {
-		return agentEvaluationError(ctx, meta, err, i18n.ErrorAgentEvaluationStartFailed, identity.Organization.ID, agentID)
+		return agentEvaluationError(meta, err, i18n.ErrorAgentEvaluationStartFailed)
 	}
 	slog.Info("评测运行已发起", "organization_id", identity.Organization.ID, "agent_id", agentID, "evaluation_run_id", runID)
 	return nil
@@ -81,7 +81,7 @@ func (o *directOperations) StartAgentEvaluationRun(ctx context.Context, meta app
 func (o *directOperations) CreateAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string, input appservice.AgentEvaluationCaseInput) (appservice.AgentEvaluationCase, error) {
 	created, err := o.createAgentEvaluationCase.Execute(ctx, identity, agentID, agentEvaluationCaseInput(input))
 	if err != nil {
-		return appservice.AgentEvaluationCase{}, agentEvaluationError(ctx, meta, err, i18n.ErrorAgentEvaluationCaseSaveFailed, identity.Organization.ID, agentID)
+		return appservice.AgentEvaluationCase{}, agentEvaluationError(meta, err, i18n.ErrorAgentEvaluationCaseSaveFailed)
 	}
 	return agentEvaluationCase(*created), nil
 }
@@ -90,7 +90,7 @@ func (o *directOperations) CreateAgentEvaluationCase(ctx context.Context, meta a
 func (o *directOperations) GetAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID, caseID string) (appservice.AgentEvaluationCaseDetail, error) {
 	detail, err := o.getAgentEvaluationCase.Execute(ctx, identity, agentID, caseID)
 	if err != nil {
-		return appservice.AgentEvaluationCaseDetail{}, agentEvaluationError(ctx, meta, err, i18n.ErrorAgentEvaluationLoadFailed, identity.Organization.ID, agentID)
+		return appservice.AgentEvaluationCaseDetail{}, agentEvaluationError(meta, err, i18n.ErrorAgentEvaluationLoadFailed)
 	}
 	output := appservice.AgentEvaluationCaseDetail{Case: agentEvaluationCase(detail.Case), Attempts: make([]appservice.AgentEvaluationAttempt, 0, len(detail.Attempts))}
 	for _, attempt := range detail.Attempts {
@@ -121,7 +121,7 @@ func (o *directOperations) GetAgentEvaluationCase(ctx context.Context, meta apps
 func (o *directOperations) UpdateAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID, caseID string, input appservice.AgentEvaluationCaseInput) (appservice.AgentEvaluationCase, error) {
 	updated, err := o.updateAgentEvaluationCase.Execute(ctx, identity, agentID, caseID, agentEvaluationCaseInput(input))
 	if err != nil {
-		return appservice.AgentEvaluationCase{}, agentEvaluationError(ctx, meta, err, i18n.ErrorAgentEvaluationCaseSaveFailed, identity.Organization.ID, agentID)
+		return appservice.AgentEvaluationCase{}, agentEvaluationError(meta, err, i18n.ErrorAgentEvaluationCaseSaveFailed)
 	}
 	return agentEvaluationCase(*updated), nil
 }
@@ -129,7 +129,7 @@ func (o *directOperations) UpdateAgentEvaluationCase(ctx context.Context, meta a
 // DeleteAgentEvaluationCase 删除评测用例。
 func (o *directOperations) DeleteAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID, caseID string) error {
 	if err := o.deleteAgentEvaluationCase.Execute(ctx, identity, agentID, caseID); err != nil {
-		return agentEvaluationError(ctx, meta, err, i18n.ErrorAgentEvaluationCaseDeleteFailed, identity.Organization.ID, agentID)
+		return agentEvaluationError(meta, err, i18n.ErrorAgentEvaluationCaseDeleteFailed)
 	}
 	return nil
 }
@@ -137,7 +137,7 @@ func (o *directOperations) DeleteAgentEvaluationCase(ctx context.Context, meta a
 // RerunAgentEvaluationCase 在最近一次运行中重新运行一条用例。
 func (o *directOperations) RerunAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID, caseID string) error {
 	if err := o.rerunAgentEvaluationCase.Execute(ctx, identity, agentID, caseID); err != nil {
-		return agentEvaluationError(ctx, meta, err, i18n.ErrorAgentEvaluationRerunFailed, identity.Organization.ID, agentID)
+		return agentEvaluationError(meta, err, i18n.ErrorAgentEvaluationRerunFailed)
 	}
 	return nil
 }
@@ -146,7 +146,7 @@ func (o *directOperations) RerunAgentEvaluationCase(ctx context.Context, meta ap
 func (o *directOperations) AddServiceIssueToEvaluation(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, serviceSessionID string, input appservice.ServiceIssueEvaluationInput) (appservice.AgentEvaluationCase, error) {
 	created, err := o.addServiceIssueCase.Execute(ctx, identity, serviceSessionID, input.QuestionMessageID)
 	if err != nil {
-		return appservice.AgentEvaluationCase{}, agentEvaluationError(ctx, meta, err, i18n.ErrorAgentEvaluationCaseSaveFailed, identity.Organization.ID, "")
+		return appservice.AgentEvaluationCase{}, agentEvaluationError(meta, err, i18n.ErrorAgentEvaluationCaseSaveFailed)
 	}
 	slog.Info("问题会话已加入评测", "organization_id", identity.Organization.ID, "service_session_id", serviceSessionID, "evaluation_case_id", created.ID)
 	return agentEvaluationCase(*created), nil
@@ -191,10 +191,7 @@ func agentEvaluationRunSummary(summary *agentevaluationaction.RunSummary) *appse
 }
 
 // agentEvaluationError 把评测错误转换为结构化、本地化错误。
-func agentEvaluationError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID, agentID string) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func agentEvaluationError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		fields := make(map[string]i18n.Key, len(validationError.Fields))
 		for field, code := range validationError.Fields {
@@ -233,6 +230,5 @@ func agentEvaluationError(ctx context.Context, meta appservice.RequestMeta, err 
 	case errors.Is(err, agentevaluationaction.ErrResultNotFound):
 		return appservice.ConflictError(meta, i18n.ErrorAgentEvaluationRerunUnavailable, "agent_evaluation_result_not_found")
 	}
-	slog.Warn("处理 AI 员工评测失败", "organization_id", organizationID, "agent_id", agentID, "error", err)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }

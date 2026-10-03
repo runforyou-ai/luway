@@ -5,7 +5,6 @@ package agentrun
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -100,30 +99,6 @@ func loadAgentMemoryEntries(ctx context.Context, db bun.IDB, organizationID, age
 		entries = append(entries, agentruntime.MemoryEntry{Path: row.Path, Name: row.Name, Description: row.Description, Body: row.Body, UpdatedAt: row.UpdatedAt})
 	}
 	return entries, nil
-}
-
-// LoadDeviceRunMemory 读取设备持有运行所属个人 AI 员工的记忆，有效配置未启用记忆时返回空。
-func (a *ExecuteAction) LoadDeviceRunMemory(ctx context.Context, device RunDevice, runID string) ([]agentruntime.MemoryEntry, error) {
-	run, err := a.requireDeviceLease(ctx, device, runID)
-	if err != nil {
-		return nil, err
-	}
-	var assignment agentruntime.Assignment
-	if len(run.BehaviorSnapshot) > 0 {
-		if err := json.Unmarshal(run.BehaviorSnapshot, &assignment); err != nil {
-			return nil, fmt.Errorf("decode device agent run assignment: %w", err)
-		}
-	}
-	if !assignment.Memory {
-		return []agentruntime.MemoryEntry{}, nil
-	}
-	var agentID string
-	if err := a.db.NewSelect().Model((*servermodels.Agent)(nil)).Column("id").
-		Where("a.organization_id = ? AND a.identity_id = ?", run.OrganizationID, run.AgentIdentityID).
-		Scan(ctx, &agentID); err != nil {
-		return nil, fmt.Errorf("load device agent run personal agent: %w", err)
-	}
-	return loadAgentMemoryEntries(ctx, a.db, run.OrganizationID, agentID)
 }
 
 // Execute 从提取进度之后最早的新消息起分析一批，把记忆变更与新的提取进度在同一事务中写入并通知负责人，仍有未提取的消息时投递下一批；会话不是个人 AI 员工单聊、个人 AI 员工已停用或没有有效托管配置时不提取。

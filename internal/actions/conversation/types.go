@@ -47,7 +47,7 @@ const (
 	ConflictReasonAttachmentTooLarge = "attachment_too_large"
 	// ConflictReasonPersonalAgentPaused 表示个人 AI 员工已被负责人暂停，不接收新请求。
 	ConflictReasonPersonalAgentPaused = "personal_agent_paused"
-	// ConflictReasonPersonalAgentUnbound 表示个人 AI 员工绑定的电脑已撤销，负责人换到新电脑前不接收新请求。
+	// ConflictReasonPersonalAgentUnbound 表示个人 AI 员工使用的电脑已撤销，负责人换到新电脑前不接收新请求。
 	ConflictReasonPersonalAgentUnbound = "personal_agent_unbound"
 	// ConflictReasonPinOrderVersionStale 表示提交的置顶顺序版本不是当前版本。
 	ConflictReasonPinOrderVersionStale = "pin_order_version_stale"
@@ -241,10 +241,6 @@ type ConversationAgentRun struct {
 	ErrorCode                    *string
 	LastError                    *string
 	Process                      *ConversationAgentProcess
-	// ExecutionDeviceID 是执行该运行的设备编号，服务端执行时为空。
-	ExecutionDeviceID *string
-	// ExecutionDeviceName 是执行该运行的设备名称，服务端执行时为空。
-	ExecutionDeviceName *string
 }
 
 // ConversationNotificationSettings 定义当前用户的会话提醒设置。

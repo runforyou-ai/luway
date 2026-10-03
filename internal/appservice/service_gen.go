@@ -605,7 +605,7 @@ func (s *Service) ResumePersonalAgent(ctx context.Context, meta RequestMeta, age
 }
 
 // MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-func (s *Service) MovePersonalAgent(ctx context.Context, meta RequestMeta, agentID string, input PersonalAgentDeviceInput) (PersonalAgent, error) {
+func (s *Service) MovePersonalAgent(ctx context.Context, meta RequestMeta, agentID string, input PersonalAgentComputerInput) (PersonalAgent, error) {
 	return WithNormalizedSlices(s.backend.MovePersonalAgent(ctx, meta, agentID, input))
 }
 
@@ -679,7 +679,7 @@ func (s *Service) GetPlatformOverview(ctx context.Context, meta RequestMeta) (Pl
 	return WithNormalizedSlices(s.backend.GetPlatformOverview(ctx, meta))
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (s *Service) GetPlatformSettings(ctx context.Context, meta RequestMeta) (PlatformSettings, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformSettings(ctx, meta))
 }
@@ -699,7 +699,7 @@ func (s *Service) UpdatePlatformDailyCreditGrant(ctx context.Context, meta Reque
 	return WithNormalizedSlices(s.backend.UpdatePlatformDailyCreditGrant(ctx, meta, input))
 }
 
-// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (s *Service) UpdatePlatformTelemetry(ctx context.Context, meta RequestMeta, input PlatformTelemetryInput) (PlatformSettings, error) {
 	return WithNormalizedSlices(s.backend.UpdatePlatformTelemetry(ctx, meta, input))
 }
@@ -782,6 +782,11 @@ func (s *Service) GetPlatformRuntimeStatus(ctx context.Context, meta RequestMeta
 // ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 func (s *Service) ListPlatformFailedTasks(ctx context.Context, meta RequestMeta, input PlatformFailedTaskListInput) (PlatformFailedTaskList, error) {
 	return WithNormalizedSlices(s.backend.ListPlatformFailedTasks(ctx, meta, input))
+}
+
+// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (s *Service) GetPlatformDiagnostics(ctx context.Context, meta RequestMeta) (PlatformDiagnostics, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformDiagnostics(ctx, meta))
 }
 
 // GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
@@ -1429,17 +1434,17 @@ func (s *Service) DismissKnowledgeGap(ctx context.Context, meta RequestMeta, gap
 	return s.backend.DismissKnowledgeGap(ctx, meta, gapID)
 }
 
-// RegisterDevice 注册当前用户的本机设备。
-func (s *Service) RegisterDevice(ctx context.Context, meta RequestMeta, input DeviceRegistrationInput) (Device, error) {
-	return WithNormalizedSlices(s.backend.RegisterDevice(ctx, meta, input))
+// RegisterComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+func (s *Service) RegisterComputer(ctx context.Context, meta RequestMeta, input ComputerRegistrationInput) (ComputerRegistration, error) {
+	return WithNormalizedSlices(s.backend.RegisterComputer(ctx, meta, input))
 }
 
-// ListDevices 返回当前用户已注册的设备。
-func (s *Service) ListDevices(ctx context.Context, meta RequestMeta) (DeviceList, error) {
-	return WithNormalizedSlices(s.backend.ListDevices(ctx, meta))
+// ListComputers 返回当前成员未撤销的电脑。
+func (s *Service) ListComputers(ctx context.Context, meta RequestMeta) (ComputerList, error) {
+	return WithNormalizedSlices(s.backend.ListComputers(ctx, meta))
 }
 
-// RevokeDevice 撤销当前用户的设备。
-func (s *Service) RevokeDevice(ctx context.Context, meta RequestMeta, deviceID string) error {
-	return s.backend.RevokeDevice(ctx, meta, deviceID)
+// RevokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+func (s *Service) RevokeComputer(ctx context.Context, meta RequestMeta, computerID string) error {
+	return s.backend.RevokeComputer(ctx, meta, computerID)
 }

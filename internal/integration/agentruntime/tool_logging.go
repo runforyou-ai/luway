@@ -18,23 +18,51 @@ type toolCallContextKey struct{}
 // awaitingResult 是等待外部结果的调用在本批工具中的占位结果。
 const awaitingResult = `{"status":"awaiting_external_result"}`
 
+// toolCallMetadata 是当前工具调用的模型调用标识、记录编号与能否挂起。
 type toolCallMetadata struct {
-	CallID string
+	CallID      string
+	RecordID    string
+	Suspendable bool
+}
+
+// ToolCallID 返回 Runtime 为当前工具调用分配的记录编号；不在工具调用中时为空。
+func ToolCallID(ctx context.Context) string {
+	metadata, _ := ctx.Value(toolCallContextKey{}).(toolCallMetadata)
+	return metadata.RecordID
+}
+
+// suspendable 判断当前工具调用能否以 ErrAwaitExternal 挂起运行：只有主 Agent 的调用可以挂起。
+func suspendable(ctx context.Context) bool {
+	metadata, _ := ctx.Value(toolCallContextKey{}).(toolCallMetadata)
+	return metadata.Suspendable
+}
+
+// withoutSuspend 返回当前工具调用不可挂起的 context，用于结果需要由工具自身加工后才能交给模型的调用。
+func withoutSuspend(ctx context.Context) context.Context {
+	metadata, ok := ctx.Value(toolCallContextKey{}).(toolCallMetadata)
+	if !ok {
+		return ctx
+	}
+	metadata.Suspendable = false
+	return context.WithValue(ctx, toolCallContextKey{}, metadata)
 }
 
 // toolObserver 接收工具调用开始与结束的通知。
 type toolObserver interface {
-	// toolStarted 在工具开始执行时调用。
-	toolStarted(ctx context.Context, input *compose.ToolInput, at time.Time) error
+	// toolStarted 在工具开始执行时调用，返回调用的记录编号。
+	toolStarted(ctx context.Context, input *compose.ToolInput, at time.Time) (string, error)
 	// toolFinished 在工具执行结束时调用，err 为工具返回的错误，等待外部结果时为 ErrAwaitExternal。
 	toolFinished(ctx context.Context, input *compose.ToolInput, at time.Time, result string, err error) error
 }
 
-// toolStarted 把工具调用标记为执行中。
-func (r *processRecorder) toolStarted(ctx context.Context, input *compose.ToolInput, at time.Time) error {
-	return r.updateTool(ctx, input.CallID, func(call *ToolCall) {
+// toolStarted 把工具调用标记为执行中并返回记录编号。
+func (r *processRecorder) toolStarted(ctx context.Context, input *compose.ToolInput, at time.Time) (string, error) {
+	var id string
+	err := r.updateTool(ctx, input.CallID, func(call *ToolCall) {
 		call.Status, call.StartedAt = domain.AgentToolCallRunning, &at
+		id = call.ID
 	})
+	return id, err
 }
 
 // toolFinished 记录工具调用的结果、错误或等待外部结果并清除子 Agent 活动，随后保存工具改动的执行期状态。
@@ -105,22 +133,24 @@ func toolExecutionMiddleware(observer toolObserver) compose.ToolMiddleware {
 // recordToolCall 执行一次工具调用并通知观察者、记录日志；普通工具错误编码为交回模型的错误消息返回，执行取消和框架中断原样返回错误。
 func recordToolCall(ctx context.Context, observer toolObserver, input *compose.ToolInput, call func(context.Context) (string, error)) (string, error) {
 	startedAt := time.Now()
-	if err := observer.toolStarted(ctx, input, startedAt); err != nil {
+	recordID, err := observer.toolStarted(ctx, input, startedAt)
+	if err != nil {
 		return "", err
 	}
+	_, main := observer.(*processRecorder)
 	runID := runIDFromContext(ctx)
 	slog.Info("Agent Tool 调用开始",
 		"agent_run_id", runID,
 		"tool_name", input.Name,
 		"tool_call_id", input.CallID,
 	)
-	toolContext := context.WithValue(ctx, toolCallContextKey{}, toolCallMetadata{CallID: input.CallID})
+	toolContext := context.WithValue(ctx, toolCallContextKey{}, toolCallMetadata{CallID: input.CallID, RecordID: recordID, Suspendable: main})
 	result, err := call(toolContext)
 	if finishErr := observer.toolFinished(ctx, input, time.Now(), result, err); finishErr != nil {
 		return "", finishErr
 	}
 	// 主 Agent 等待外部结果的调用先交给模型一条占位结果，运行在本批工具结束后挂起，恢复时替换为实际结果。
-	if _, main := observer.(*processRecorder); main && errors.Is(err, ErrAwaitExternal) {
+	if main && errors.Is(err, ErrAwaitExternal) {
 		slog.Info("Agent Tool 调用等待外部结果", "agent_run_id", runIDFromContext(ctx), "tool_name", input.Name, "tool_call_id", input.CallID)
 		return awaitingResult, nil
 	}
