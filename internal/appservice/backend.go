@@ -501,6 +501,9 @@ type Backend interface {
 	// ListPlatformServerErrors 返回近 7 天的服务端错误记录。
 	//appservice:route GET /platform/runtime/server-errors auth=admin
 	ListPlatformServerErrors(context.Context, RequestMeta, PlatformServerErrorListInput) (PlatformServerErrorList, error)
+	// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+	//appservice:route GET /platform/diagnostics auth=admin
+	GetPlatformDiagnostics(context.Context, RequestMeta) (PlatformDiagnostics, error)
 	// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
 	//appservice:route GET /platform/workspaces/:workspaceID/credits auth=admin
 	GetPlatformWorkspaceCredits(context.Context, RequestMeta, string) (CreditBalance, error)
@@ -927,6 +930,11 @@ type RealtimeConnector interface {
 // ImageSelector 由支持原生文件对话框的平台实现。
 type ImageSelector interface {
 	SelectImage(context.Context, RequestMeta) (ImageFile, error)
+}
+
+// FileSaver 由支持原生保存对话框的平台实现。
+type FileSaver interface {
+	SaveTextFile(context.Context, RequestMeta, TextFileInput) (bool, error)
 }
 
 // ConversationWindowOpener 由支持多窗口的平台实现，在独立窗口打开指定会话。

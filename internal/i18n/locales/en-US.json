@@ -220,6 +220,7 @@
   "error.platform_workspace_update_failed": "Couldn't change the workspace status.",
   "error.platform_usage_failed": "Couldn't load business usage.",
   "error.platform_runtime_failed": "Couldn't load the runtime status.",
+  "error.platform_diagnostics_failed": "Couldn't generate the diagnostics.",
   "error.license_read_failed": "Couldn't load the license.",
   "error.license_activate_failed": "Couldn't activate the license.",
   "error.license_invalid": "This license code is invalid. Make sure you copied all of it.",

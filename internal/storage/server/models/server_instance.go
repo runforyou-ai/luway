@@ -5,6 +5,7 @@ package models
 import (
 	"time"
 
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"github.com/uptrace/bun"
 )
 
@@ -19,4 +20,6 @@ type ServerInstance struct {
 	Version               string    `bun:"version"`
 	TasksNATSConnected    bool      `bun:"tasks_nats_connected"`
 	RealtimeNATSConnected bool      `bun:"realtime_nats_connected"`
+	// Config 是进程启动时可写入诊断信息的服务端配置。
+	Config serverconfig.Diagnostics `bun:"config,type:jsonb"`
 }

@@ -11,6 +11,7 @@ import (
 
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
+	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"github.com/runforyou-ai/luway/internal/ingress"
 	"github.com/runforyou-ai/luway/internal/integration/control"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -133,12 +134,13 @@ func (l *telemetryLifecycle) ServiceShutdown() error {
 	return err
 }
 
-// serverInstanceLifecycle 将服务端进程心跳接入 Wails 服务生命周期，在任务运行时与实时通知启动后注册。
+// serverInstanceLifecycle 将服务端进程心跳接入 Wails 服务生命周期，在任务运行时与实时通知启动后注册；config 是登记时写入的服务端配置。
 type serverInstanceLifecycle struct {
 	db        *bun.DB
 	tasks     *servertask.Runtime
 	publisher *realtime.Publisher
 	hostname  string
+	config    serverconfig.Diagnostics
 	cancel    context.CancelFunc
 	done      chan struct{}
 }
@@ -180,11 +182,12 @@ func (l *serverInstanceLifecycle) ServiceShutdown() error {
 	return platformaction.RemoveInstance(ctx, l.db, l.tasks.InstanceID())
 }
 
-// report 写入本进程的心跳与后台任务、实时通知各自的 NATS 连接状态。
+// report 写入本进程的心跳、后台任务与实时通知各自的 NATS 连接状态，以及登记时的服务端配置。
 func (l *serverInstanceLifecycle) report(ctx context.Context) error {
 	connection := l.publisher.Connection()
 	return platformaction.ReportInstance(ctx, l.db, platformaction.InstanceReport{
 		ID: l.tasks.InstanceID(), Hostname: l.hostname, Version: buildinfo.Version,
 		TasksNATSConnected: l.tasks.BrokerConnected(), RealtimeNATSConnected: connection != nil && connection.IsConnected(),
+		Config: l.config,
 	})
 }

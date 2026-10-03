@@ -56,6 +56,7 @@ var adminBackendMethods = map[string]bool{
 	"GetPlatformRuntimeStatus":           true,
 	"ListPlatformFailedTasks":            true,
 	"ListPlatformServerErrors":           true,
+	"GetPlatformDiagnostics":             true,
 	"ListPlatformAIProviders":            true,
 	"GetPlatformAIProvider":              true,
 	"ListPlatformAIProviderModels":       true,

@@ -21,6 +21,9 @@ import (
 // realtimeIdleTimeout 是原生端未收到任何服务端事件即断开事件流的时限，服务端每 25 秒发送心跳。
 const realtimeIdleTimeout = 60 * time.Second
 
+// maxRealtimeEventBytes 是实时事件流中单条事件的字节上限。
+const maxRealtimeEventBytes = 1 << 20
+
 // realtimeConnectTimeout 是原生端等待事件流响应头的时限。
 var realtimeConnectTimeout = 30 * time.Second
 
@@ -454,7 +457,7 @@ func (c *realtimeClient) receive(session *realtimeSession, body io.ReadCloser) {
 	idle := time.AfterFunc(realtimeIdleTimeout, session.cancel)
 	defer idle.Stop()
 	scanner := bufio.NewScanner(body)
-	scanner.Buffer(nil, maxResponseBytes)
+	scanner.Buffer(nil, maxRealtimeEventBytes)
 	for scanner.Scan() {
 		idle.Reset(realtimeIdleTimeout)
 		// 服务端每条事件只有一行 data。

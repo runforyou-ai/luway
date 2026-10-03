@@ -3,6 +3,7 @@ import {
   ActivateLicense,
   ActivateLicenseOnline,
   DeactivatePlatformAccount,
+  GetPlatformDiagnostics,
   GetPlatformRuntimeStatus,
   GetPlatformUsage,
   GetPlatformOverview,
@@ -132,6 +133,9 @@ export function listPlatformWorkspaceUsage(query: Partial<PlatformWorkspaceUsage
 
 /** 读取服务端进程、外部依赖与后台任务各队列的运行状态。 */
 export const getPlatformRuntimeStatus = bind(GetPlatformRuntimeStatus)
+
+/** 生成平台诊断信息，不含密码、密钥与业务内容。 */
+export const getPlatformDiagnostics = bind(GetPlatformDiagnostics)
 
 /** 读取近 7 天内失败与等待重试的后台任务。 */
 export function listPlatformFailedTasks(query: Partial<PlatformFailedTaskListInput>, signal?: AbortSignal) {

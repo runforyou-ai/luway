@@ -94,6 +94,8 @@ type DeploymentConfig struct {
 	LicenseKeys      license.Keys
 	Control          *control.Client
 	Telemetry        *platformaction.Telemetry
+	// InstanceID 是本服务端进程编号，写入导出的诊断信息。
+	InstanceID string
 }
 
 // New 创建直接访问服务端存储的应用后端。
@@ -129,7 +131,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
-		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control, s3, deployment.Telemetry),
+		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control, s3, deployment.Telemetry, deployment.InstanceID),
 		platformModelOps:   newPlatformModelOps(db, modelProviderRegistry),
 		creditOps:          newCreditOps(db),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},

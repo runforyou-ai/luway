@@ -1741,6 +1741,17 @@ func (b *Backend) ListPlatformServerErrors(ctx context.Context, meta appservice.
 	return b.ops.ListPlatformServerErrors(ctx, meta, account, input)
 }
 
+// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (b *Backend) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformDiagnostics, err error) {
+	defer settle(ctx, "GetPlatformDiagnostics", &err, internalError(meta))
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformDiagnostics
+		return zero, err
+	}
+	return b.ops.GetPlatformDiagnostics(ctx, meta, account)
+}
+
 // GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
 func (b *Backend) GetPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (_ appservice.CreditBalance, err error) {
 	defer settle(ctx, "GetPlatformWorkspaceCredits", &err, internalError(meta))
