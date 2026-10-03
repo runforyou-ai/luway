@@ -69,6 +69,14 @@ const (
 	AIModelTypeDecision  AIModelType = "decision"
 )
 
+// AIModelScope 定义模型范围：平台模型由部署提供并对全部工作区可用，工作区模型只属于所在工作区。
+type AIModelScope string
+
+const (
+	AIModelScopePlatform  AIModelScope = "platform"
+	AIModelScopeWorkspace AIModelScope = "workspace"
+)
+
 // AIModelUsage 定义业务使用模型的用途，每种用途对应确定的模型类型与输入能力要求。
 type AIModelUsage string
 

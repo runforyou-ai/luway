@@ -1,7 +1,6 @@
 ---
 title: 授权激活
 order: 1
-requires: [instanceLicense]
 ---
 
 在服务器上激活与维护实例授权。

@@ -111,12 +111,12 @@ type call struct {
 // begin 写入进行中的调用记录；Agent 运行时已为本次模型调用分配编号时沿用该编号。
 func (i *Invoker) begin(ctx context.Context, scope Scope, target *aimodel.Model) (*call, error) {
 	record := &servermodels.AIModelCall{
-		ID: agentruntime.ModelCallID(ctx), OrganizationID: scope.OrganizationID, ModelID: target.ID, ModelName: target.Name, ModelUsage: string(target.Usage),
+		ID: agentruntime.ModelCallID(ctx), OrganizationID: scope.OrganizationID, ModelID: target.ID, ModelName: target.Name, ModelUsage: string(target.Usage), ModelScope: string(target.Scope),
 		ActorType: string(scope.Actor), ActorID: optional(scope.ActorID),
 		SourceType: string(scope.Source), SourceID: optional(scope.SourceID),
 		Status: string(domain.AIModelCallStatusRunning),
 	}
-	columns := []string{"organization_id", "model_id", "model_name", "model_usage", "actor_type", "actor_id", "source_type", "source_id", "status"}
+	columns := []string{"organization_id", "model_id", "model_name", "model_usage", "model_scope", "actor_type", "actor_id", "source_type", "source_id", "status"}
 	if record.ID != "" {
 		columns = append(columns, "id")
 	}

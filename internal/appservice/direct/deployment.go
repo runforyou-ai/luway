@@ -12,8 +12,10 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
+	"github.com/runforyou-ai/luway/internal/common/license"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/integration/control"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -29,10 +31,14 @@ type deploymentOps struct {
 	updateDeploymentAccount  *deploymentaction.UpdateAccountAction
 	listDeploymentWorkspaces *deploymentaction.ListWorkspacesQuery
 	setWorkspaceStatus       *deploymentaction.SetWorkspaceStatusAction
+	instanceLicenseRead      *deploymentaction.LicenseQuery
+	activateInstanceLicense  *deploymentaction.ActivateLicenseAction
+	onlineInstanceLicense    *deploymentaction.OnlineLicenseAction
+	updateTelemetry          *deploymentaction.UpdateTelemetryAction
 }
 
-// newDeploymentOps 创建部署管理的业务实现依赖。
-func newDeploymentOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer) deploymentOps {
+// newDeploymentOps 创建部署管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权。
+func newDeploymentOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client) deploymentOps {
 	return deploymentOps{
 		deploymentOverview:       deploymentaction.NewOverviewQuery(db),
 		deploymentSettingsRead:   deploymentaction.NewSettingsQuery(db),
@@ -42,6 +48,10 @@ func newDeploymentOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer) deployment
 		updateDeploymentAccount:  deploymentaction.NewUpdateAccountAction(db),
 		listDeploymentWorkspaces: deploymentaction.NewListWorkspacesQuery(db),
 		setWorkspaceStatus:       deploymentaction.NewSetWorkspaceStatusAction(db),
+		instanceLicenseRead:      deploymentaction.NewLicenseQuery(db),
+		activateInstanceLicense:  deploymentaction.NewActivateLicenseAction(db, licenseKeys),
+		onlineInstanceLicense:    deploymentaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
+		updateTelemetry:          deploymentaction.NewUpdateTelemetryAction(db),
 	}
 }
 
@@ -70,7 +80,7 @@ func (o *directOperations) GetDeploymentOverview(ctx context.Context, meta appse
 	}, nil
 }
 
-// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 func (o *directOperations) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.DeploymentSettings, error) {
 	settings, err := o.deploymentSettingsRead.Execute(ctx)
 	if err != nil {
@@ -100,6 +110,16 @@ func (o *directOperations) UpdateDeploymentStatisticsTimeZone(ctx context.Contex
 		return appservice.DeploymentSettings{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentSettingsUpdateFailed, account, "")
 	}
 	slog.Info("统计时区已修改", "account_id", account.Account.ID, "statistics_time_zone", settings.StatisticsTimeZone)
+	return deploymentSettingsFromAction(settings), nil
+}
+
+// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+func (o *directOperations) UpdateDeploymentTelemetry(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentTelemetryInput) (appservice.DeploymentSettings, error) {
+	settings, err := o.updateTelemetry.Execute(ctx, account, input.TelemetryEnabled)
+	if err != nil {
+		return appservice.DeploymentSettings{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentSettingsUpdateFailed, account, "")
+	}
+	slog.Info("运行指标上报开关已修改", "account_id", account.Account.ID, "telemetry_enabled", settings.TelemetryEnabled)
 	return deploymentSettingsFromAction(settings), nil
 }
 
@@ -158,6 +178,63 @@ func (o *directOperations) ListDeploymentWorkspaces(ctx context.Context, meta ap
 	return appservice.DeploymentWorkspaceList{Workspaces: workspaces, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total}}, nil
 }
 
+// GetInstanceLicense 返回实例标识与实例授权状态。
+func (o *directOperations) GetInstanceLicense(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.InstanceLicense, error) {
+	current, err := o.instanceLicenseRead.Execute(ctx)
+	if err != nil {
+		return appservice.InstanceLicense{}, deploymentError(ctx, meta, err, i18n.ErrorInstanceLicenseReadFailed, account, "")
+	}
+	return instanceLicenseFromAction(current), nil
+}
+
+// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
+func (o *directOperations) ActivateInstanceLicense(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.ActivateInstanceLicenseInput) (appservice.InstanceLicense, error) {
+	current, err := o.activateInstanceLicense.Execute(ctx, account, input.LicenseCode)
+	if err != nil {
+		return appservice.InstanceLicense{}, deploymentError(ctx, meta, err, i18n.ErrorInstanceLicenseActivateFailed, account, "")
+	}
+	slog.Info("实例授权已激活", "account_id", account.Account.ID, "license_id", current.LicenseID, "expires_at", current.ExpiresAt)
+	return instanceLicenseFromAction(current), nil
+}
+
+// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+func (o *directOperations) ActivateInstanceLicenseOnline(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.ActivateInstanceLicenseOnlineInput) (appservice.InstanceLicense, error) {
+	current, err := o.onlineInstanceLicense.Activate(ctx, account, input.ActivationCode)
+	if err != nil {
+		return appservice.InstanceLicense{}, deploymentError(ctx, meta, err, i18n.ErrorInstanceLicenseActivateFailed, account, "")
+	}
+	slog.Info("实例授权已在线激活", "account_id", account.Account.ID, "license_id", current.LicenseID, "expires_at", current.ExpiresAt)
+	return instanceLicenseFromAction(current), nil
+}
+
+// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+func (o *directOperations) SyncInstanceLicense(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.InstanceLicense, error) {
+	current, err := o.onlineInstanceLicense.Sync(ctx, account)
+	if errors.Is(err, deploymentaction.ErrLicenseExpired) {
+		return appservice.InstanceLicense{}, appservice.InvalidError(meta, i18n.ErrorInstanceLicenseRenewalRequired, nil)
+	}
+	if err != nil {
+		return appservice.InstanceLicense{}, deploymentError(ctx, meta, err, i18n.ErrorInstanceLicenseSyncFailed, account, "")
+	}
+	slog.Info("实例授权已同步", "account_id", account.Account.ID, "license_id", current.LicenseID, "expires_at", current.ExpiresAt)
+	return instanceLicenseFromAction(current), nil
+}
+
+// instanceLicenseFromAction 把实例授权状态转换为应用契约，未激活时不返回授权字段。
+func instanceLicenseFromAction(current deploymentaction.License) appservice.InstanceLicense {
+	output := appservice.InstanceLicense{
+		InstanceID: current.InstanceID, Status: appservice.LicenseStatus(current.Status),
+		Capabilities: appservice.InstanceCapabilities{
+			WorkspaceLimit: current.Capabilities.WorkspaceLimit, CustomBranding: current.Capabilities.CustomBranding,
+		},
+	}
+	if current.Status != domain.LicenseStatusNone {
+		output.LicenseID, output.Customer = current.LicenseID, current.Customer
+		output.IssuedAt, output.ExpiresAt = &current.IssuedAt, &current.ExpiresAt
+	}
+	return output
+}
+
 // SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 func (o *directOperations) SuspendDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, workspaceID string) (appservice.DeploymentWorkspace, error) {
 	return o.setDeploymentWorkspaceStatus(ctx, meta, account, workspaceID, domain.OrganizationLifecycleSuspended, "工作区已暂停")
@@ -204,6 +281,7 @@ func deploymentSettingsFromAction(settings deploymentaction.Settings) appservice
 		RegistrationPolicy:      appservice.RegistrationPolicy(settings.RegistrationPolicy),
 		WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicy(settings.WorkspaceCreationPolicy),
 		StatisticsTimeZone:      settings.StatisticsTimeZone,
+		TelemetryEnabled:        settings.TelemetryEnabled,
 	}
 }
 
@@ -253,6 +331,23 @@ func deploymentError(ctx context.Context, meta appservice.RequestMeta, err error
 	}
 	if errors.Is(err, deploymentaction.ErrNoActiveMembership) {
 		return appservice.InvalidError(meta, i18n.ErrorDeploymentAccountNoWorkspace, nil)
+	}
+	// 把授权码校验与 control 通信错误映射为本地化文案键。
+	licenseErrors := map[error]i18n.Key{
+		deploymentaction.ErrLicenseInvalid:             i18n.ErrorInstanceLicenseInvalid,
+		deploymentaction.ErrLicenseInstanceMismatch:    i18n.ErrorInstanceLicenseInstanceMismatch,
+		deploymentaction.ErrLicenseExpired:             i18n.ErrorInstanceLicenseExpired,
+		deploymentaction.ErrLicenseSuperseded:          i18n.ErrorInstanceLicenseSuperseded,
+		deploymentaction.ErrActivationCodeInvalid:      i18n.ErrorActivationCodeInvalid,
+		deploymentaction.ErrActivationInstanceMismatch: i18n.ErrorActivationInstanceMismatch,
+		deploymentaction.ErrInstanceKeyMismatch:        i18n.ErrorInstanceKeyMismatch,
+		deploymentaction.ErrLicenseNotIssued:           i18n.ErrorInstanceLicenseNotIssued,
+		deploymentaction.ErrControlUnavailable:         i18n.ErrorControlUnavailable,
+	}
+	for target, key := range licenseErrors {
+		if errors.Is(err, target) {
+			return appservice.InvalidError(meta, key, nil)
+		}
 	}
 	attributes := []any{"account_id", account.Account.ID, "failure", failureKey, "error", err}
 	if accountID != "" {

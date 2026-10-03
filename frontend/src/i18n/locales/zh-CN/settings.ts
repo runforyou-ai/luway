@@ -23,9 +23,13 @@ const settings = {
     modelServices: "模型服务",
     webSearch: "联网搜索",
     deploymentOverview: "部署概览",
+    deploymentLicense: "实例授权",
     deploymentAccounts: "全部账号",
     deploymentWorkspaces: "全部工作区",
     deploymentRegistration: "注册与创建",
+    deploymentPlatformModels: "平台模型",
+    deploymentPlatformProviders: "平台供应商",
+    deploymentPlatformCalls: "模型调用",
   },
   profile: {
     title: "个人资料",

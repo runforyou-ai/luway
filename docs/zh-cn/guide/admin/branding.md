@@ -1,7 +1,6 @@
 ---
 title: 品牌
 order: 4
-requires: [instanceLicense]
 ---
 
 在授权范围内使用企业自己的品牌。

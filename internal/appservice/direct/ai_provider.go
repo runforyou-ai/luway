@@ -39,11 +39,14 @@ func aiModelOptionFromAction(option aimodelaction.Option) appservice.AIModelOpti
 	for _, modality := range option.InputModalities {
 		inputModalities = append(inputModalities, appservice.AIModelInputModality(modality))
 	}
-	return appservice.AIModelOption{
-		ID: option.ID, Name: option.Name, Type: appservice.AIModelType(option.Type),
-		InputModalities: inputModalities, ProviderID: option.ProviderID, ProviderName: option.ProviderName,
-		ProviderBrand: appservice.AIProviderBrand(option.Brand),
+	output := appservice.AIModelOption{
+		ID: option.ID, Scope: appservice.AIModelScope(option.Scope), Name: option.Name, Type: appservice.AIModelType(option.Type),
+		InputModalities: inputModalities,
 	}
+	if option.Scope == domain.AIModelScopeWorkspace {
+		output.Provider = &appservice.AIModelOptionProvider{ID: option.ProviderID, Name: option.ProviderName, Brand: appservice.AIProviderBrand(option.Brand)}
+	}
+	return output
 }
 
 // ListAIProviders 返回当前企业的模型服务供应商列表。
@@ -253,20 +256,22 @@ func aiProviderModelsFromAction(input []aiprovideraction.Model) []appservice.AIP
 	return models
 }
 
+// aiProviderFieldCodes 是模型服务供应商校验错误码对应的文案键。
+var aiProviderFieldCodes = map[common.FieldCode]i18n.Key{
+	aiprovideraction.ValidationBrandInvalid:          i18n.FieldAIProviderBrandInvalid,
+	aiprovideraction.ValidationCredentialTypeInvalid: i18n.FieldAIProviderCredentialTypeInvalid,
+	aiprovideraction.ValidationNameRequired:          i18n.FieldAIProviderNameRequired,
+	aiprovideraction.ValidationNameTooLong:           i18n.FieldAIProviderNameTooLong,
+	aiprovideraction.ValidationNameDuplicate:         i18n.FieldAIProviderNameDuplicate,
+	aiprovideraction.ValidationAPIKeyRequired:        i18n.FieldAPIKeyRequired,
+	aiprovideraction.ValidationAPIKeyTooLong:         i18n.FieldAIProviderAPIKeyTooLong,
+	aiprovideraction.ValidationAPIURLRequired:        i18n.FieldAIProviderAPIURLRequired,
+	aiprovideraction.ValidationAPIURLInvalid:         i18n.FieldAIProviderAPIURLInvalid,
+	aiprovideraction.ValidationModelsInvalid:         i18n.FieldAIProviderModelsInvalid,
+	aiprovideraction.ValidationModelsInUse:           i18n.FieldAIProviderModelsInUse,
+}
+
 // aiProviderFieldKeys 映射模型服务供应商校验错误。
 func aiProviderFieldKeys(fields map[string]common.FieldCode) map[string]i18n.Key {
-	keys := map[common.FieldCode]i18n.Key{
-		aiprovideraction.ValidationBrandInvalid:          i18n.FieldAIProviderBrandInvalid,
-		aiprovideraction.ValidationCredentialTypeInvalid: i18n.FieldAIProviderCredentialTypeInvalid,
-		aiprovideraction.ValidationNameRequired:          i18n.FieldAIProviderNameRequired,
-		aiprovideraction.ValidationNameTooLong:           i18n.FieldAIProviderNameTooLong,
-		aiprovideraction.ValidationNameDuplicate:         i18n.FieldAIProviderNameDuplicate,
-		aiprovideraction.ValidationAPIKeyRequired:        i18n.FieldAPIKeyRequired,
-		aiprovideraction.ValidationAPIKeyTooLong:         i18n.FieldAIProviderAPIKeyTooLong,
-		aiprovideraction.ValidationAPIURLRequired:        i18n.FieldAIProviderAPIURLRequired,
-		aiprovideraction.ValidationAPIURLInvalid:         i18n.FieldAIProviderAPIURLInvalid,
-		aiprovideraction.ValidationModelsInvalid:         i18n.FieldAIProviderModelsInvalid,
-		aiprovideraction.ValidationModelsInUse:           i18n.FieldAIProviderModelsInUse,
-	}
-	return translateValidationFields(fields, keys)
+	return translateValidationFields(fields, aiProviderFieldCodes)
 }

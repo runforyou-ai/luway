@@ -55,10 +55,8 @@ func TestInboxContextDeepWindow(t *testing.T) {
 			}
 		}
 	}
-	// 批量造数后刷新数据库统计信息。
-	if _, err := f.db.ExecContext(ctx, "ANALYZE"); err != nil {
-		t.Fatal(err)
-	}
+	// 批量造数后刷新收件箱相关表的统计信息。
+	analyzeInboxTables(ctx, t, f.db)
 	login := loginMember(t, f.db, f.owner.Organization.ID, f.memberEmail, "password123")
 	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
 	meta := appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID}

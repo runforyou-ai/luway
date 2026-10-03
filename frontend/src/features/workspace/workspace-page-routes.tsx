@@ -315,6 +315,10 @@ const workspaceRouteDefinitions = [
     element: <DeploymentSettingsPage section="overview" />,
   },
   {
+    path: "/settings/deployment/license",
+    element: <DeploymentSettingsPage section="license" />,
+  },
+  {
     path: "/settings/deployment/accounts",
     element: <DeploymentSettingsPage section="accounts" />,
   },
@@ -325,6 +329,34 @@ const workspaceRouteDefinitions = [
   {
     path: "/settings/deployment/registration",
     element: <DeploymentSettingsPage section="registration" />,
+  },
+  {
+    path: "/settings/deployment/platform-models",
+    element: <DeploymentSettingsPage section="platformModels" />,
+  },
+  {
+    path: "/settings/deployment/platform-models/new",
+    element: <DeploymentSettingsPage section="platformModelCreate" />,
+  },
+  {
+    path: "/settings/deployment/platform-models/:modelId",
+    element: <DeploymentSettingsPage section="platformModelEdit" />,
+  },
+  {
+    path: "/settings/deployment/platform-providers",
+    element: <DeploymentSettingsPage section="platformProviders" />,
+  },
+  {
+    path: "/settings/deployment/platform-providers/new/:brand",
+    element: <DeploymentSettingsPage section="platformProviderCreate" />,
+  },
+  {
+    path: "/settings/deployment/platform-providers/:providerId",
+    element: <DeploymentSettingsPage section="platformProviderEdit" />,
+  },
+  {
+    path: "/settings/deployment/platform-model-calls",
+    element: <DeploymentSettingsPage section="platformCalls" />,
   },
 ] as const satisfies readonly {
   path: string

@@ -115,7 +115,11 @@ export function ModelProviderListPage() {
         />
       </ResourceListLayout>
 
-      <ModelProviderBrandDialog open={choosingBrand} onOpenChange={setChoosingBrand} />
+      <ModelProviderBrandDialog
+        open={choosingBrand}
+        onOpenChange={setChoosingBrand}
+        createPath={(brand) => `/settings/model-services/new/${brand}`}
+      />
       <ConfirmationDialog
         {...deletion.dialog}
         title={

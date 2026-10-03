@@ -31,6 +31,20 @@ export function AcceptKnowledgeGap(meta: $models.RequestMeta, gapID: string, inp
 }
 
 /**
+ * ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
+ */
+export function ActivateInstanceLicense(meta: $models.RequestMeta, input: $models.ActivateInstanceLicenseInput): $CancellablePromise<$models.InstanceLicense> {
+    return $Call.ByID(1751582854, meta, input);
+}
+
+/**
+ * ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+ */
+export function ActivateInstanceLicenseOnline(meta: $models.RequestMeta, input: $models.ActivateInstanceLicenseOnlineInput): $CancellablePromise<$models.InstanceLicense> {
+    return $Call.ByID(4084186685, meta, input);
+}
+
+/**
  * ActivateMessageChannel 启用消息渠道。
  */
 export function ActivateMessageChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.MessageChannelSummary> {
@@ -269,6 +283,20 @@ export function CreatePersonalAgent(meta: $models.RequestMeta, input: $models.Cr
 }
 
 /**
+ * CreatePlatformAIModel 创建对全部工作区可用的平台模型。
+ */
+export function CreatePlatformAIModel(meta: $models.RequestMeta, input: $models.PlatformAIModelInput): $CancellablePromise<$models.PlatformAIModel> {
+    return $Call.ByID(2461638809, meta, input);
+}
+
+/**
+ * CreatePlatformAIProvider 创建平台供应商。
+ */
+export function CreatePlatformAIProvider(meta: $models.RequestMeta, input: $models.PlatformAIProviderInput): $CancellablePromise<$models.PlatformAIProvider> {
+    return $Call.ByID(2551674969, meta, input);
+}
+
+/**
  * CreateRole 创建自定义角色。
  */
 export function CreateRole(meta: $models.RequestMeta, input: $models.RoleInput): $CancellablePromise<$models.Role> {
@@ -406,6 +434,20 @@ export function DeleteKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseI
  */
 export function DeleteMCPServer(meta: $models.RequestMeta, mcpServerID: string): $CancellablePromise<void> {
     return $Call.ByID(4252262845, meta, mcpServerID);
+}
+
+/**
+ * DeletePlatformAIModel 删除没有被工作区引用的平台模型。
+ */
+export function DeletePlatformAIModel(meta: $models.RequestMeta, modelID: string): $CancellablePromise<void> {
+    return $Call.ByID(3286523956, meta, modelID);
+}
+
+/**
+ * DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
+ */
+export function DeletePlatformAIProvider(meta: $models.RequestMeta, providerID: string): $CancellablePromise<void> {
+    return $Call.ByID(746247814, meta, providerID);
 }
 
 /**
@@ -584,7 +626,7 @@ export function GetDeploymentOverview(meta: $models.RequestMeta): $CancellablePr
 }
 
 /**
- * GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+ * GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
  */
 export function GetDeploymentSettings(meta: $models.RequestMeta): $CancellablePromise<$models.DeploymentSettings> {
     return $Call.ByID(1568829417, meta);
@@ -609,6 +651,13 @@ export function GetInboxContext(meta: $models.RequestMeta, input: $models.InboxC
  */
 export function GetInboxConversation(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.InboxConversation> {
     return $Call.ByID(894338794, meta, conversationID);
+}
+
+/**
+ * GetInstanceLicense 返回实例标识与实例授权状态。
+ */
+export function GetInstanceLicense(meta: $models.RequestMeta): $CancellablePromise<$models.InstanceLicense> {
+    return $Call.ByID(4098040715, meta);
 }
 
 /**
@@ -679,6 +728,27 @@ export function GetMessageChannel(meta: $models.RequestMeta, channelID: string):
  */
 export function GetPersonalAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.PersonalAgentDetail> {
     return $Call.ByID(2947776232, meta, agentID);
+}
+
+/**
+ * GetPlatformAIModel 返回平台模型详情。
+ */
+export function GetPlatformAIModel(meta: $models.RequestMeta, modelID: string): $CancellablePromise<$models.PlatformAIModel> {
+    return $Call.ByID(2188595423, meta, modelID);
+}
+
+/**
+ * GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
+ */
+export function GetPlatformAIModelCall(meta: $models.RequestMeta, callID: string): $CancellablePromise<$models.PlatformAIModelCallDetail> {
+    return $Call.ByID(250192015, meta, callID);
+}
+
+/**
+ * GetPlatformAIProvider 返回平台供应商详情。
+ */
+export function GetPlatformAIProvider(meta: $models.RequestMeta, providerID: string): $CancellablePromise<$models.PlatformAIProvider> {
+    return $Call.ByID(2894097023, meta, providerID);
 }
 
 /**
@@ -1050,6 +1120,34 @@ export function ListPendingConversationMentions(meta: $models.RequestMeta, conve
  */
 export function ListPersonalAgents(meta: $models.RequestMeta): $CancellablePromise<$models.PersonalAgentList> {
     return $Call.ByID(2069829351, meta);
+}
+
+/**
+ * ListPlatformAIModelCalls 返回平台模型调用记录。
+ */
+export function ListPlatformAIModelCalls(meta: $models.RequestMeta, input: $models.PlatformAIModelCallListInput): $CancellablePromise<$models.PlatformAIModelCallList> {
+    return $Call.ByID(2710196006, meta, input);
+}
+
+/**
+ * ListPlatformAIModels 返回部署的平台模型目录。
+ */
+export function ListPlatformAIModels(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformAIModelList> {
+    return $Call.ByID(227332154, meta);
+}
+
+/**
+ * ListPlatformAIProviderModels 返回平台供应商可提供的模型。
+ */
+export function ListPlatformAIProviderModels(meta: $models.RequestMeta, providerID: string): $CancellablePromise<$models.AIProviderModelList> {
+    return $Call.ByID(1028669523, meta, providerID);
+}
+
+/**
+ * ListPlatformAIProviders 返回部署的平台供应商。
+ */
+export function ListPlatformAIProviders(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformAIProviderList> {
+    return $Call.ByID(2564705962, meta);
 }
 
 /**
@@ -1662,6 +1760,13 @@ export function SuspendDeploymentWorkspace(meta: $models.RequestMeta, workspaceI
 }
 
 /**
+ * SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+ */
+export function SyncInstanceLicense(meta: $models.RequestMeta): $CancellablePromise<$models.InstanceLicense> {
+    return $Call.ByID(1009075032, meta);
+}
+
+/**
  * TakeOpenedNotificationPath 返回并清除最近一次被点击的系统通知要打开的页面地址；没有待打开的页面或当前端不投递原生通知时返回空串。
  */
 export function TakeOpenedNotificationPath(meta: $models.RequestMeta): $CancellablePromise<string> {
@@ -1851,6 +1956,13 @@ export function UpdateDeploymentStatisticsTimeZone(meta: $models.RequestMeta, in
 }
 
 /**
+ * UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+ */
+export function UpdateDeploymentTelemetry(meta: $models.RequestMeta, input: $models.DeploymentTelemetryInput): $CancellablePromise<$models.DeploymentSettings> {
+    return $Call.ByID(263517666, meta, input);
+}
+
+/**
  * UpdateGroupConversation 修改群聊资料。
  */
 export function UpdateGroupConversation(meta: $models.RequestMeta, conversationID: string, input: $models.GroupConversationProfileInput): $CancellablePromise<$models.GroupConversation> {
@@ -1925,6 +2037,20 @@ export function UpdateOrganization(meta: $models.RequestMeta, input: $models.Org
  */
 export function UpdatePersonalAgent(meta: $models.RequestMeta, agentID: string, input: $models.PersonalAgentInput): $CancellablePromise<$models.PersonalAgent> {
     return $Call.ByID(2283001353, meta, agentID, input);
+}
+
+/**
+ * UpdatePlatformAIModel 修改平台模型的属性与来源。
+ */
+export function UpdatePlatformAIModel(meta: $models.RequestMeta, modelID: string, input: $models.PlatformAIModelInput): $CancellablePromise<$models.PlatformAIModel> {
+    return $Call.ByID(2016586242, meta, modelID, input);
+}
+
+/**
+ * UpdatePlatformAIProvider 修改平台供应商。
+ */
+export function UpdatePlatformAIProvider(meta: $models.RequestMeta, providerID: string, input: $models.PlatformAIProviderUpdateInput): $CancellablePromise<$models.PlatformAIProvider> {
+    return $Call.ByID(3142742500, meta, providerID, input);
 }
 
 /**

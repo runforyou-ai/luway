@@ -10,6 +10,36 @@ export interface AIHandoffReasonCount {
 }
 
 /**
+ * AIModelCallActor 表示模型调用的发起主体类型。
+ */
+export enum AIModelCallActor {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    AIModelCallActorMember = "member",
+    AIModelCallActorAgent = "agent",
+    AIModelCallActorSystem = "system",
+};
+
+/**
+ * AIModelCallStatus 表示模型调用及其上游尝试的状态。
+ */
+export enum AIModelCallStatus {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    AIModelCallStatusRunning = "running",
+    AIModelCallStatusSucceeded = "succeeded",
+    AIModelCallStatusFailed = "failed",
+    AIModelCallStatusCanceled = "canceled",
+    AIModelCallStatusTimedOut = "timed_out",
+};
+
+/**
  * AIModelInputModality 表示模型支持的输入模态。
  */
 export enum AIModelInputModality {
@@ -25,16 +55,15 @@ export enum AIModelInputModality {
 };
 
 /**
- * AIModelOption 定义模型选择器中的模型及其所属供应商。
+ * AIModelOption 定义模型选择器中的模型；工作区模型带所属供应商，平台模型的 Provider 为空。
  */
 export interface AIModelOption {
     "id": string;
+    "scope": AIModelScope;
     "name": string;
     "type": AIModelType;
     "inputModalities": AIModelInputModality[] | null;
-    "providerId": string;
-    "providerName": string;
-    "providerBrand": AIProviderBrand;
+    "provider": AIModelOptionProvider | null;
 }
 
 /**
@@ -43,6 +72,28 @@ export interface AIModelOption {
 export interface AIModelOptionList {
     "models": AIModelOption[] | null;
 }
+
+/**
+ * AIModelOptionProvider 定义工作区模型选项所属的供应商。
+ */
+export interface AIModelOptionProvider {
+    "id": string;
+    "name": string;
+    "brand": AIProviderBrand;
+}
+
+/**
+ * AIModelScope 表示模型范围：平台模型由部署提供，工作区模型由工作区自行配置。
+ */
+export enum AIModelScope {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    AIModelScopePlatform = "platform",
+    AIModelScopeWorkspace = "workspace",
+};
 
 /**
  * AIModelType 表示 AI 模型用途。
@@ -328,6 +379,20 @@ export enum AccountStatus {
     AccountStatusActive = "active",
     AccountStatusInactive = "inactive",
 };
+
+/**
+ * ActivateInstanceLicenseInput 定义部署管理员粘贴的授权码。
+ */
+export interface ActivateInstanceLicenseInput {
+    "licenseCode": string;
+}
+
+/**
+ * ActivateInstanceLicenseOnlineInput 定义部署管理员输入的激活码。
+ */
+export interface ActivateInstanceLicenseOnlineInput {
+    "activationCode": string;
+}
 
 /**
  * Agent 定义 AI 员工信息，Behavior 是该员工当前生效的内置工作规则与可用工具，HandoffTeamID 为空表示转人工进入公共队列，Responsible 为空表示未指定负责人。
@@ -2283,12 +2348,13 @@ export interface DeploymentPoliciesInput {
 }
 
 /**
- * DeploymentSettings 定义部署注册策略、工作区创建策略和运营数据统计时区。
+ * DeploymentSettings 定义部署注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
  */
 export interface DeploymentSettings {
     "registrationPolicy": RegistrationPolicy;
     "workspaceCreationPolicy": WorkspaceCreationPolicy;
     "statisticsTimeZone": string;
+    "telemetryEnabled": boolean;
 }
 
 /**
@@ -2296,6 +2362,13 @@ export interface DeploymentSettings {
  */
 export interface DeploymentStatisticsTimeZoneInput {
     "statisticsTimeZone": string;
+}
+
+/**
+ * DeploymentTelemetryInput 定义运行指标上报开关的修改值。
+ */
+export interface DeploymentTelemetryInput {
+    "telemetryEnabled": boolean;
 }
 
 /**
@@ -3093,6 +3166,19 @@ export interface InstanceCapabilities {
 }
 
 /**
+ * InstanceLicense 定义实例标识、实例授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有实例标识、状态和免费能力。
+ */
+export interface InstanceLicense {
+    "instanceId": string;
+    "status": LicenseStatus;
+    "licenseId": string;
+    "customer": string;
+    "issuedAt": string | null;
+    "expiresAt": string | null;
+    "capabilities": InstanceCapabilities;
+}
+
+/**
  * Invitation 定义工作区中待接受的邀请，待接受但已过期的邀请状态为 expired。
  */
 export interface Invitation {
@@ -3651,6 +3737,20 @@ export interface KnowledgeWebDocumentInput {
     "title": string;
     "sourceUrl": string;
 }
+
+/**
+ * LicenseStatus 表示实例授权状态。
+ */
+export enum LicenseStatus {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    LicenseStatusNone = "none",
+    LicenseStatusActive = "active",
+    LicenseStatusExpired = "expired",
+};
 
 /**
  * LoadInboxInput 定义会话列表范围、筛选、会话名称搜索和分页边界。
@@ -4313,6 +4413,175 @@ export interface PersonalAgentResponsible {
     "userId": string;
     "identityId": string;
     "displayName": string;
+}
+
+/**
+ * PlatformAIModel 定义平台模型的属性与按尝试顺序排列的来源。
+ */
+export interface PlatformAIModel {
+    "id": string;
+    "name": string;
+    "type": AIModelType;
+    "inputModalities": AIModelInputModality[] | null;
+    "contextWindow": number;
+    "maxOutputTokens": number;
+    "routes": PlatformAIModelRoute[] | null;
+}
+
+/**
+ * PlatformAIModelCall 定义一次平台模型调用及其归属工作区。
+ */
+export interface PlatformAIModelCall {
+    "id": string;
+    "createdAt": string;
+    "finishedAt": string | null;
+    "modelId": string;
+    "modelName": string;
+    "usage": AIModelUsage;
+    "workspaceId": string;
+    "workspaceName": string;
+    "actor": AIModelCallActor;
+    "status": AIModelCallStatus;
+    "inputTokens": number;
+    "cachedInputTokens": number;
+    "outputTokens": number;
+    "errorMessage": string;
+    "attemptCount": number;
+}
+
+/**
+ * PlatformAIModelCallAttempt 定义平台模型调用的一次上游尝试。
+ */
+export interface PlatformAIModelCallAttempt {
+    "id": string;
+    "createdAt": string;
+    "finishedAt": string | null;
+    "providerName": string;
+    "identifier": string;
+    "status": AIModelCallStatus;
+    "inputTokens": number;
+    "cachedInputTokens": number;
+    "outputTokens": number;
+    "errorMessage": string;
+}
+
+/**
+ * PlatformAIModelCallDetail 定义平台模型调用及其按顺序排列的上游尝试。
+ */
+export interface PlatformAIModelCallDetail {
+    "call": PlatformAIModelCall;
+    "attempts": PlatformAIModelCallAttempt[] | null;
+}
+
+/**
+ * PlatformAIModelCallList 定义平台模型调用记录分页结果。
+ */
+export interface PlatformAIModelCallList {
+    "calls": PlatformAIModelCall[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * PlatformAIModelCallListInput 定义平台模型调用记录的筛选与分页条件：ModelID、Status 为空表示不限，Query 按工作区名称或标识匹配。
+ */
+export interface PlatformAIModelCallListInput {
+    "modelId": string;
+    "status": AIModelCallStatus;
+    "query": string;
+    "page": number;
+    "pageSize": number;
+}
+
+/**
+ * PlatformAIModelInput 定义平台模型的属性与按尝试顺序排列的来源。
+ */
+export interface PlatformAIModelInput {
+    "name": string;
+    "type": AIModelType;
+    "inputModalities": AIModelInputModality[] | null;
+    "contextWindow": number;
+    "maxOutputTokens": number;
+    "routes": PlatformAIModelRouteInput[] | null;
+}
+
+/**
+ * PlatformAIModelList 定义平台模型目录。
+ */
+export interface PlatformAIModelList {
+    "models": PlatformAIModel[] | null;
+}
+
+/**
+ * PlatformAIModelRoute 定义平台模型的一个来源及其供应商。
+ */
+export interface PlatformAIModelRoute {
+    "id": string;
+    "providerId": string;
+    "providerName": string;
+    "providerBrand": AIProviderBrand;
+    "identifier": string;
+    "enabled": boolean;
+}
+
+/**
+ * PlatformAIModelRouteInput 定义平台模型的一个来源，保存时编号为空表示新增来源。
+ */
+export interface PlatformAIModelRouteInput {
+    "id": string;
+    "providerId": string;
+    "identifier": string;
+    "enabled": boolean;
+}
+
+/**
+ * PlatformAIProvider 定义平台供应商详情。
+ */
+export interface PlatformAIProvider {
+    "id": string;
+    "brand": AIProviderBrand;
+    "name": string;
+    "credentialType": AIProviderCredentialType;
+    "apiKey": string;
+    "apiUrl": string;
+}
+
+/**
+ * PlatformAIProviderInput 定义创建平台供应商的名称与连接配置。
+ */
+export interface PlatformAIProviderInput {
+    "brand": AIProviderBrand;
+    "name": string;
+    "credentialType": AIProviderCredentialType;
+    "apiKey": string;
+    "apiUrl": string;
+}
+
+/**
+ * PlatformAIProviderList 定义平台供应商列表。
+ */
+export interface PlatformAIProviderList {
+    "providers": PlatformAIProviderSummary[] | null;
+}
+
+/**
+ * PlatformAIProviderSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数。
+ */
+export interface PlatformAIProviderSummary {
+    "id": string;
+    "brand": AIProviderBrand;
+    "name": string;
+    "apiUrl": string;
+    "modelCount": number;
+}
+
+/**
+ * PlatformAIProviderUpdateInput 定义修改平台供应商的字段，品牌沿用创建时的值。
+ */
+export interface PlatformAIProviderUpdateInput {
+    "name": string;
+    "credentialType": AIProviderCredentialType;
+    "apiKey": string;
+    "apiUrl": string;
 }
 
 /**

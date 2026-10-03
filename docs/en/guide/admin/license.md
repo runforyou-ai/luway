@@ -1,7 +1,6 @@
 ---
 title: Instance license
 order: 3
-requires: [instanceLicense]
 ---
 
 Activate a commercial license to unlock multiple workspaces and other capabilities.
