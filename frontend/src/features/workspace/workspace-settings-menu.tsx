@@ -10,8 +10,10 @@ import {
   Building2Icon,
   HeadsetIcon,
   ChevronLeftIcon,
+  CoinsIcon,
   CircleUserRoundIcon,
   GaugeIcon,
+  HeartPulseIcon,
   KeyRoundIcon,
   LayoutGridIcon,
   LockKeyholeIcon,
@@ -160,7 +162,7 @@ export function WorkspaceSettingsMenu({
           {t("navigation.roles")}
         </PagePaneLink>
       </PagePaneGroup>
-      {/* 集成：模型服务与联网搜索供 AI 使用。 */}
+      {/* 集成：模型服务、积分与联网搜索供 AI 使用。 */}
       <PagePaneGroup title={t("groups.integrations")} collapsed={collapsed}>
         <PagePaneLink
           collapsed={collapsed}
@@ -168,6 +170,13 @@ export function WorkspaceSettingsMenu({
           icon={BrainCircuitIcon}
         >
           {t("navigation.modelServices")}
+        </PagePaneLink>
+        <PagePaneLink
+          collapsed={collapsed}
+          to="/settings/credits"
+          icon={CoinsIcon}
+        >
+          {t("navigation.credits")}
         </PagePaneLink>
         <PagePaneLink
           collapsed={collapsed}
@@ -195,17 +204,10 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/platform/runtime"
-            icon={ActivityIcon}
+            to="/settings/platform/workspaces"
+            icon={LayoutGridIcon}
           >
-            {t("navigation.platformRuntime")}
-          </PagePaneLink>
-          <PagePaneLink
-            collapsed={collapsed}
-            to="/settings/platform/license"
-            icon={KeyRoundIcon}
-          >
-            {t("navigation.platformLicense")}
+            {t("navigation.platformWorkspaces")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
@@ -216,24 +218,10 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/platform/workspaces"
-            icon={LayoutGridIcon}
-          >
-            {t("navigation.platformWorkspaces")}
-          </PagePaneLink>
-          <PagePaneLink
-            collapsed={collapsed}
             to="/settings/platform/registration"
             icon={UserPlusIcon}
           >
             {t("navigation.platformRegistration")}
-          </PagePaneLink>
-          <PagePaneLink
-            collapsed={collapsed}
-            to="/settings/platform/models"
-            icon={BrainCircuitIcon}
-          >
-            {t("navigation.platformModels")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
@@ -244,10 +232,38 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
+            to="/settings/platform/models"
+            icon={BrainCircuitIcon}
+          >
+            {t("navigation.platformModels")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
             to="/settings/platform/model-calls"
             icon={ActivityIcon}
           >
             {t("navigation.platformCalls")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/credits"
+            icon={CoinsIcon}
+          >
+            {t("navigation.platformCredits")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/runtime"
+            icon={HeartPulseIcon}
+          >
+            {t("navigation.platformRuntime")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/license"
+            icon={KeyRoundIcon}
+          >
+            {t("navigation.platformLicense")}
           </PagePaneLink>
         </PagePaneGroup>
       ) : null}

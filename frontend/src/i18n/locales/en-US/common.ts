@@ -89,7 +89,32 @@ const common = {
     member: "Member",
   },
   aiModels: {
+    pricedOption: "{{name}} ({{price}})",
     platformGroup: "Platform models",
+    usages: {
+      agent: "AI employee",
+      summary: "Summary",
+      translation: "Translation",
+      decision: "Decision",
+      embedding: "Embedding",
+      rerank: "Rerank",
+    },
+    callStatuses: {
+      running: "Running",
+      succeeded: "Succeeded",
+      failed: "Failed",
+      canceled: "Canceled",
+      timed_out: "Timed out",
+    },
+    tokens: "Input {{input}} · Output {{output}}",
+  },
+  credits: {
+    amount_one: "{{formatted}} credit",
+    amount_other: "{{formatted}} credits",
+    free: "Free",
+    tokenPrice: "Input {{input}} · Output {{output}} credits/1M tokens",
+    inputPrice: "{{input}} credits/1M tokens",
+    requestPrice: "{{request}} credits per call",
   },
   agentBehavior: {
     tools: "Available tools",

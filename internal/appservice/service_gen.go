@@ -674,12 +674,12 @@ func (s *Service) AcceptInvitation(ctx context.Context, meta RequestMeta, input 
 	return WithNormalizedSlices(s.backend.AcceptInvitation(ctx, meta, input))
 }
 
-// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 func (s *Service) GetPlatformOverview(ctx context.Context, meta RequestMeta) (PlatformOverview, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformOverview(ctx, meta))
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
 func (s *Service) GetPlatformSettings(ctx context.Context, meta RequestMeta) (PlatformSettings, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformSettings(ctx, meta))
 }
@@ -689,9 +689,14 @@ func (s *Service) UpdatePlatformSettings(ctx context.Context, meta RequestMeta, 
 	return WithNormalizedSlices(s.backend.UpdatePlatformSettings(ctx, meta, input))
 }
 
-// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (s *Service) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta RequestMeta, input PlatformStatisticsTimeZoneInput) (PlatformSettings, error) {
-	return WithNormalizedSlices(s.backend.UpdatePlatformStatisticsTimeZone(ctx, meta, input))
+// UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+func (s *Service) UpdatePlatformTimeZone(ctx context.Context, meta RequestMeta, input PlatformTimeZoneInput) (PlatformSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdatePlatformTimeZone(ctx, meta, input))
+}
+
+// UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
+func (s *Service) UpdatePlatformDailyCreditGrant(ctx context.Context, meta RequestMeta, input PlatformDailyCreditGrantInput) (PlatformSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdatePlatformDailyCreditGrant(ctx, meta, input))
 }
 
 // UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
@@ -759,17 +764,17 @@ func (s *Service) ResumePlatformWorkspace(ctx context.Context, meta RequestMeta,
 	return WithNormalizedSlices(s.backend.ResumePlatformWorkspace(ctx, meta, workspaceID))
 }
 
-// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 func (s *Service) GetPlatformUsage(ctx context.Context, meta RequestMeta, input PlatformUsageInput) (PlatformUsageMetrics, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformUsage(ctx, meta, input))
 }
 
-// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 func (s *Service) ListPlatformWorkspaceUsage(ctx context.Context, meta RequestMeta, input PlatformWorkspaceUsageListInput) (PlatformWorkspaceUsageList, error) {
 	return WithNormalizedSlices(s.backend.ListPlatformWorkspaceUsage(ctx, meta, input))
 }
 
-// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+// GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 func (s *Service) GetPlatformRuntimeStatus(ctx context.Context, meta RequestMeta) (PlatformRuntimeStatus, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformRuntimeStatus(ctx, meta))
 }
@@ -779,7 +784,22 @@ func (s *Service) ListPlatformFailedTasks(ctx context.Context, meta RequestMeta,
 	return WithNormalizedSlices(s.backend.ListPlatformFailedTasks(ctx, meta, input))
 }
 
-// ListPlatformAIProviders 返回平台供应商。
+// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
+func (s *Service) GetPlatformWorkspaceCredits(ctx context.Context, meta RequestMeta, workspaceID string) (CreditBalance, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformWorkspaceCredits(ctx, meta, workspaceID))
+}
+
+// ListPlatformWorkspaceCreditEntries 返回工作区的积分流水。
+func (s *Service) ListPlatformWorkspaceCreditEntries(ctx context.Context, meta RequestMeta, workspaceID string, input CreditEntryListInput) (CreditEntryList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformWorkspaceCreditEntries(ctx, meta, workspaceID, input))
+}
+
+// AdjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
+func (s *Service) AdjustPlatformWorkspaceCredits(ctx context.Context, meta RequestMeta, workspaceID string, input PlatformCreditAdjustmentInput) (PlatformCreditAdjustment, error) {
+	return WithNormalizedSlices(s.backend.AdjustPlatformWorkspaceCredits(ctx, meta, workspaceID, input))
+}
+
+// ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 func (s *Service) ListPlatformAIProviders(ctx context.Context, meta RequestMeta) (PlatformAIProviderList, error) {
 	return WithNormalizedSlices(s.backend.ListPlatformAIProviders(ctx, meta))
 }
@@ -1112,6 +1132,16 @@ func (s *Service) DeleteRole(ctx context.Context, meta RequestMeta, roleID strin
 // ListAIModelOptions 返回当前工作区满足指定用途的模型。
 func (s *Service) ListAIModelOptions(ctx context.Context, meta RequestMeta, usage AIModelUsage) (AIModelOptionList, error) {
 	return WithNormalizedSlices(s.backend.ListAIModelOptions(ctx, meta, usage))
+}
+
+// GetCreditBalance 返回当前工作区的可用积分与今天的每日赠送。
+func (s *Service) GetCreditBalance(ctx context.Context, meta RequestMeta) (CreditBalance, error) {
+	return WithNormalizedSlices(s.backend.GetCreditBalance(ctx, meta))
+}
+
+// ListCreditEntries 返回当前工作区的积分流水。
+func (s *Service) ListCreditEntries(ctx context.Context, meta RequestMeta, input CreditEntryListInput) (CreditEntryList, error) {
+	return WithNormalizedSlices(s.backend.ListCreditEntries(ctx, meta, input))
 }
 
 // ListAIProviders 返回当前企业的模型服务供应商列表。

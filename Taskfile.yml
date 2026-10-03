@@ -188,11 +188,17 @@ tasks:
     summary: Builds a Docker image for server mode deployment
     cmds:
       - task: common:build:docker
+        vars:
+          # 服务端镜像为纯静态二进制。
+          CGO_ENABLED: "0"
 
   run:docker:
     summary: Builds and runs the Docker image
     cmds:
       - task: common:run:docker
+        vars:
+          # 服务端镜像为纯静态二进制。
+          CGO_ENABLED: "0"
 
   test:
     summary: 运行前端、服务端和当前平台桌面端测试

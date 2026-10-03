@@ -37,7 +37,7 @@ func NewAggregateStatsAction(db *bun.DB) *AggregateStatsAction {
 	return &AggregateStatsAction{db: db}
 }
 
-// Execute 在运营数据汇总锁内读取统计时区后重建昨天和今天；平台带有重建标记时清空后从安装日起全部重建并清除标记。今天写入当前规模与截至此刻的活跃数据，其余日期只重算活跃数据；平台尚未完成首次安装时不执行。
+// Execute 在运营数据汇总锁内读取平台时区后重建昨天和今天；平台带有重建标记时清空后从安装日起全部重建并清除标记。今天写入当前规模与截至此刻的活跃数据，其余日期只重算活跃数据；平台尚未完成首次安装时不执行。
 func (a *AggregateStatsAction) Execute(ctx context.Context, _ AggregateStatsInput) error {
 	return a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock(?)", statsLockKey); err != nil {
@@ -50,7 +50,7 @@ func (a *AggregateStatsAction) Execute(ctx context.Context, _ AggregateStatsInpu
 		if err != nil {
 			return err
 		}
-		location := statsLocation(platform.StatisticsTimeZone)
+		location := statsLocation(platform.TimeZone)
 		today := statsToday(time.Now(), location)
 		from := today.AddDate(0, 0, -1)
 		rebuildAll := platform.StatisticsRebuildPending
@@ -74,9 +74,9 @@ func (a *AggregateStatsAction) Execute(ctx context.Context, _ AggregateStatsInpu
 			}
 		}
 		if rebuildAll {
-			// 重建期间统计时区再次修改时保留标记，由随之投递的重建任务清除。
+			// 重建期间平台时区再次修改时保留标记，由随之投递的重建任务清除。
 			if _, err := tx.NewUpdate().Model(platform).Set("statistics_rebuild_pending = FALSE").WherePK().
-				Where("statistics_time_zone = ?", platform.StatisticsTimeZone).Exec(ctx); err != nil {
+				Where("time_zone = ?", platform.TimeZone).Exec(ctx); err != nil {
 				return fmt.Errorf("clear stats rebuild flag: %w", err)
 			}
 		}
@@ -84,7 +84,7 @@ func (a *AggregateStatsAction) Execute(ctx context.Context, _ AggregateStatsInpu
 	})
 }
 
-// aggregateDay 按当前统计时区重建一天的账号活跃明细并写入工作区按日指标；day 是统计时区当天零点，current 为真时同时刷新规模字段。
+// aggregateDay 按当前平台时区重建一天的账号活跃明细并写入工作区按日指标；day 是平台时区当天零点，current 为真时同时刷新规模字段。
 func aggregateDay(ctx context.Context, tx bun.Tx, day time.Time, current bool) error {
 	date := day.Format(time.DateOnly)
 	lower, upper := serverstorage.MessageIDLowerBound(day), serverstorage.MessageIDLowerBound(day.AddDate(0, 0, 1))
@@ -135,7 +135,7 @@ func aggregateDay(ctx context.Context, tx bun.Tx, day time.Time, current bool) e
 	return nil
 }
 
-// statsLocation 返回统计时区，名称无法解析时使用 UTC。
+// statsLocation 返回平台时区，名称无法解析时使用 UTC。
 func statsLocation(name string) *time.Location {
 	location, err := time.LoadLocation(name)
 	if err != nil {
@@ -144,7 +144,7 @@ func statsLocation(name string) *time.Location {
 	return location
 }
 
-// statsToday 返回时刻在统计时区所在日期的零点。
+// statsToday 返回时刻在平台时区所在日期的零点。
 func statsToday(now time.Time, location *time.Location) time.Time {
 	local := now.In(location)
 	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location)

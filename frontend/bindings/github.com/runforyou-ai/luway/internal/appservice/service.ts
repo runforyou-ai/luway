@@ -87,6 +87,13 @@ export function AddTeamMembers(meta: $models.RequestMeta, teamID: string, input:
 }
 
 /**
+ * AdjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
+ */
+export function AdjustPlatformWorkspaceCredits(meta: $models.RequestMeta, workspaceID: string, input: $models.PlatformCreditAdjustmentInput): $CancellablePromise<$models.PlatformCreditAdjustment> {
+    return $Call.ByID(1815488196, meta, workspaceID, input);
+}
+
+/**
  * AuthorizeAgentRunStreamAccess 校验当前成员对运行所属会话的阅读资格，原生端读取本机执行中运行的过程流前调用。
  */
 export function AuthorizeAgentRunStreamAccess(meta: $models.RequestMeta, runID: string): $CancellablePromise<void> {
@@ -619,6 +626,13 @@ export function GetConversationTranslation(meta: $models.RequestMeta, conversati
 }
 
 /**
+ * GetCreditBalance 返回当前工作区的可用积分与今天的每日赠送。
+ */
+export function GetCreditBalance(meta: $models.RequestMeta): $CancellablePromise<$models.CreditBalance> {
+    return $Call.ByID(660044054, meta);
+}
+
+/**
  * GetCustomerIdentitySecret 读取当前企业的客户身份密钥，未生成时为空。
  */
 export function GetCustomerIdentitySecret(meta: $models.RequestMeta): $CancellablePromise<$models.CustomerIdentitySecret> {
@@ -745,31 +759,38 @@ export function GetPlatformAIProvider(meta: $models.RequestMeta, providerID: str
 }
 
 /**
- * GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+ * GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
  */
 export function GetPlatformOverview(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformOverview> {
     return $Call.ByID(2438992039, meta);
 }
 
 /**
- * GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+ * GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
  */
 export function GetPlatformRuntimeStatus(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformRuntimeStatus> {
     return $Call.ByID(1435911514, meta);
 }
 
 /**
- * GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+ * GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
  */
 export function GetPlatformSettings(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformSettings> {
     return $Call.ByID(3295853609, meta);
 }
 
 /**
- * GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+ * GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
  */
 export function GetPlatformUsage(meta: $models.RequestMeta, input: $models.PlatformUsageInput): $CancellablePromise<$models.PlatformUsageMetrics> {
     return $Call.ByID(1535144459, meta, input);
+}
+
+/**
+ * GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
+ */
+export function GetPlatformWorkspaceCredits(meta: $models.RequestMeta, workspaceID: string): $CancellablePromise<$models.CreditBalance> {
+    return $Call.ByID(419006929, meta, workspaceID);
 }
 
 /**
@@ -1039,6 +1060,13 @@ export function ListConversationMessages(meta: $models.RequestMeta, conversation
 }
 
 /**
+ * ListCreditEntries 返回当前工作区的积分流水。
+ */
+export function ListCreditEntries(meta: $models.RequestMeta, input: $models.CreditEntryListInput): $CancellablePromise<$models.CreditEntryList> {
+    return $Call.ByID(2369565244, meta, input);
+}
+
+/**
  * ListInboxChannels 返回收件箱渠道筛选候选，含已停用渠道。
  */
 export function ListInboxChannels(meta: $models.RequestMeta): $CancellablePromise<$models.InboxChannelList> {
@@ -1158,7 +1186,7 @@ export function ListPlatformAIProviderModels(meta: $models.RequestMeta, provider
 }
 
 /**
- * ListPlatformAIProviders 返回平台供应商。
+ * ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
  */
 export function ListPlatformAIProviders(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformAIProviderList> {
     return $Call.ByID(2564705962, meta);
@@ -1179,7 +1207,14 @@ export function ListPlatformFailedTasks(meta: $models.RequestMeta, input: $model
 }
 
 /**
- * ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+ * ListPlatformWorkspaceCreditEntries 返回工作区的积分流水。
+ */
+export function ListPlatformWorkspaceCreditEntries(meta: $models.RequestMeta, workspaceID: string, input: $models.CreditEntryListInput): $CancellablePromise<$models.CreditEntryList> {
+    return $Call.ByID(3895077506, meta, workspaceID, input);
+}
+
+/**
+ * ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
  */
 export function ListPlatformWorkspaceUsage(meta: $models.RequestMeta, input: $models.PlatformWorkspaceUsageListInput): $CancellablePromise<$models.PlatformWorkspaceUsageList> {
     return $Call.ByID(4092791250, meta, input);
@@ -2075,6 +2110,13 @@ export function UpdatePlatformAIProvider(meta: $models.RequestMeta, providerID: 
 }
 
 /**
+ * UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
+ */
+export function UpdatePlatformDailyCreditGrant(meta: $models.RequestMeta, input: $models.PlatformDailyCreditGrantInput): $CancellablePromise<$models.PlatformSettings> {
+    return $Call.ByID(1533063053, meta, input);
+}
+
+/**
  * UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
  */
 export function UpdatePlatformSettings(meta: $models.RequestMeta, input: $models.PlatformPoliciesInput): $CancellablePromise<$models.PlatformSettings> {
@@ -2082,17 +2124,17 @@ export function UpdatePlatformSettings(meta: $models.RequestMeta, input: $models
 }
 
 /**
- * UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
- */
-export function UpdatePlatformStatisticsTimeZone(meta: $models.RequestMeta, input: $models.PlatformStatisticsTimeZoneInput): $CancellablePromise<$models.PlatformSettings> {
-    return $Call.ByID(3143334923, meta, input);
-}
-
-/**
  * UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
  */
 export function UpdatePlatformTelemetry(meta: $models.RequestMeta, input: $models.PlatformTelemetryInput): $CancellablePromise<$models.PlatformSettings> {
     return $Call.ByID(396298102, meta, input);
+}
+
+/**
+ * UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+ */
+export function UpdatePlatformTimeZone(meta: $models.RequestMeta, input: $models.PlatformTimeZoneInput): $CancellablePromise<$models.PlatformSettings> {
+    return $Call.ByID(366153812, meta, input);
 }
 
 /**

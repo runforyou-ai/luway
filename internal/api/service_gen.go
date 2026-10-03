@@ -154,7 +154,8 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/platform/overview", s.getPlatformOverview)
 	router.GET("/platform/settings", s.getPlatformSettings)
 	router.PUT("/platform/settings", s.updatePlatformSettings)
-	router.PUT("/platform/settings/statistics-time-zone", s.updatePlatformStatisticsTimeZone)
+	router.PUT("/platform/settings/time-zone", s.updatePlatformTimeZone)
+	router.PUT("/platform/settings/daily-credit-grant", s.updatePlatformDailyCreditGrant)
 	router.PUT("/platform/settings/telemetry", s.updatePlatformTelemetry)
 	router.GET("/platform/accounts", s.listPlatformAccounts)
 	router.POST("/platform/accounts/:accountID/deactivate", s.deactivatePlatformAccount)
@@ -172,6 +173,9 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/platform/usage/workspaces", s.listPlatformWorkspaceUsage)
 	router.GET("/platform/runtime", s.getPlatformRuntimeStatus)
 	router.GET("/platform/runtime/failed-tasks", s.listPlatformFailedTasks)
+	router.GET("/platform/workspaces/:workspaceID/credits", s.getPlatformWorkspaceCredits)
+	router.GET("/platform/workspaces/:workspaceID/credits/entries", s.listPlatformWorkspaceCreditEntries)
+	router.POST("/platform/workspaces/:workspaceID/credits/adjustments", s.adjustPlatformWorkspaceCredits)
 	router.GET("/platform/model-providers", s.listPlatformAIProviders)
 	router.GET("/platform/model-providers/:providerID", s.getPlatformAIProvider)
 	router.GET("/platform/model-providers/:providerID/models", s.listPlatformAIProviderModels)
@@ -239,6 +243,8 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.PUT("/settings/roles/:roleID", s.updateRole)
 	router.DELETE("/settings/roles/:roleID", s.deleteRole)
 	router.GET("/ai-models", s.listAIModelOptions)
+	router.GET("/credits", s.getCreditBalance)
+	router.GET("/credits/entries", s.listCreditEntries)
 	router.GET("/settings/model-services", s.listAIProviders)
 	router.GET("/settings/model-services/:providerID", s.getAIProvider)
 	router.GET("/settings/model-services/models", s.listAvailableAIModels)
@@ -1406,13 +1412,13 @@ func (s *Service) acceptInvitation(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+// getPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 func (s *Service) getPlatformOverview(c *gin.Context) {
 	output, err := s.application.GetPlatformOverview(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+// getPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
 func (s *Service) getPlatformSettings(c *gin.Context) {
 	output, err := s.application.GetPlatformSettings(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1428,13 +1434,23 @@ func (s *Service) updatePlatformSettings(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (s *Service) updatePlatformStatisticsTimeZone(c *gin.Context) {
-	var input appservice.PlatformStatisticsTimeZoneInput
+// updatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+func (s *Service) updatePlatformTimeZone(c *gin.Context) {
+	var input appservice.PlatformTimeZoneInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.UpdatePlatformStatisticsTimeZone(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.UpdatePlatformTimeZone(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// updatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
+func (s *Service) updatePlatformDailyCreditGrant(c *gin.Context) {
+	var input appservice.PlatformDailyCreditGrantInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.UpdatePlatformDailyCreditGrant(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -1536,7 +1552,7 @@ func (s *Service) resumePlatformWorkspace(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+// getPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 func (s *Service) getPlatformUsage(c *gin.Context) {
 	input, ok := bindPlatformUsageInputQuery(c)
 	if !ok {
@@ -1546,7 +1562,7 @@ func (s *Service) getPlatformUsage(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+// listPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 func (s *Service) listPlatformWorkspaceUsage(c *gin.Context) {
 	input, ok := bindPlatformWorkspaceUsageListInputQuery(c)
 	if !ok {
@@ -1556,7 +1572,7 @@ func (s *Service) listPlatformWorkspaceUsage(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+// getPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 func (s *Service) getPlatformRuntimeStatus(c *gin.Context) {
 	output, err := s.application.GetPlatformRuntimeStatus(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1572,7 +1588,33 @@ func (s *Service) listPlatformFailedTasks(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listPlatformAIProviders 返回平台供应商。
+// getPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
+func (s *Service) getPlatformWorkspaceCredits(c *gin.Context) {
+	output, err := s.application.GetPlatformWorkspaceCredits(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listPlatformWorkspaceCreditEntries 返回工作区的积分流水。
+func (s *Service) listPlatformWorkspaceCreditEntries(c *gin.Context) {
+	input, ok := bindCreditEntryListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListPlatformWorkspaceCreditEntries(c.Request.Context(), requestMeta(c), c.Param("workspaceID"), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// adjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
+func (s *Service) adjustPlatformWorkspaceCredits(c *gin.Context) {
+	var input appservice.PlatformCreditAdjustmentInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.AdjustPlatformWorkspaceCredits(c.Request.Context(), requestMeta(c), c.Param("workspaceID"), input)
+	writeResult(c, http.StatusCreated, output, err)
+}
+
+// listPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 func (s *Service) listPlatformAIProviders(c *gin.Context) {
 	output, err := s.application.ListPlatformAIProviders(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -2092,6 +2134,22 @@ func (s *Service) deleteRole(c *gin.Context) {
 // listAIModelOptions 返回当前工作区满足指定用途的模型。
 func (s *Service) listAIModelOptions(c *gin.Context) {
 	output, err := s.application.ListAIModelOptions(c.Request.Context(), requestMeta(c), appservice.AIModelUsage(c.Query("usage")))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getCreditBalance 返回当前工作区的可用积分与今天的每日赠送。
+func (s *Service) getCreditBalance(c *gin.Context) {
+	output, err := s.application.GetCreditBalance(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listCreditEntries 返回当前工作区的积分流水。
+func (s *Service) listCreditEntries(c *gin.Context) {
+	input, ok := bindCreditEntryListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListCreditEntries(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -2750,6 +2808,22 @@ func bindConversationMessageWindowInputQuery(c *gin.Context) (appservice.Convers
 	return appservice.ConversationMessageWindowInput{
 		Start: c.Query("start"),
 		End:   c.Query("end"),
+	}, true
+}
+
+// bindCreditEntryListInputQuery 从查询参数解析 appservice.CreditEntryListInput。
+func bindCreditEntryListInputQuery(c *gin.Context) (appservice.CreditEntryListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.CreditEntryListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.CreditEntryListInput{}, false
+	}
+	return appservice.CreditEntryListInput{
+		Page:     page,
+		PageSize: pageSize,
 	}, true
 }
 

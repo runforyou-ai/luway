@@ -1,15 +1,18 @@
-/** 平台设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，统计时区，服务器标识、运行指标上报开关、安装时间和工作区上限。 */
+/** 平台设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，平台时区，授权状态，服务器标识、运行指标上报开关、安装时间和工作区上限。 */
 import { useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 import { toast } from "sonner"
 import { z } from "zod"
 
 import {
+  LicenseStatus,
   getPlatformOverview,
   getPlatformSettings,
-  updatePlatformStatisticsTimeZone,
+  updatePlatformTimeZone,
   updatePlatformTelemetry,
+  type License,
   type PlatformSettings,
 } from "@/api"
 import { SwitchField } from "@/components/form/switch-field"
@@ -26,14 +29,15 @@ import { useCopyFeedback } from "@/hooks/use-copy-feedback"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { useLicenseStatusHelp, useRefreshAtLicenseExpiry } from "@/features/settings/platform/platform-license-page"
 import { supportedTimeZones } from "@/lib/time-zones"
 import { zodResolver } from "@/lib/zod-resolver"
 
-/** 统计时区表单校验。 */
-const statisticsTimeZoneSchema = z.object({ statisticsTimeZone: z.string().min(1) })
+/** 平台时区表单校验。 */
+const timeZoneSchema = z.object({ timeZone: z.string().min(1) })
 
-/** 统计时区表单值。 */
-type StatisticsTimeZoneFormValues = z.infer<typeof statisticsTimeZoneSchema>
+/** 平台时区表单值。 */
+type TimeZoneFormValues = z.infer<typeof timeZoneSchema>
 
 /** 运行指标上报开关表单校验。 */
 const telemetrySchema = z.object({ telemetryEnabled: z.boolean() })
@@ -41,12 +45,12 @@ const telemetrySchema = z.object({ telemetryEnabled: z.boolean() })
 /** 运行指标上报开关表单值。 */
 type TelemetryFormValues = z.infer<typeof telemetrySchema>
 
-/** 展示平台规模、活跃趋势和服务器信息，统计时区与上报开关修改后立即保存，服务器标识可一键复制。 */
+/** 展示平台规模、活跃趋势和服务器信息，平台时区与上报开关修改后立即保存，服务器标识可一键复制。 */
 export function PlatformOverviewPage() {
   const { t, i18n } = useTranslation(["platform", "common"])
   const { formatDateTime } = useDateTime()
   const { copied, copy } = useCopyFeedback<"serverId">()
-  // 按新统计时区重建期间每隔几秒刷新，重建完成后停止。
+  // 按新时区重建期间每隔几秒刷新，重建完成后停止。
   const overview = useResource(resourceKeys.platformOverview(), (signal) => getPlatformOverview(signal), {
     staleTime: 0,
     refetchInterval: (current) => (current?.statsRebuilding ? 3000 : false),
@@ -56,6 +60,8 @@ export function PlatformOverviewPage() {
     refetchOnWindowFocus: false,
   })
   const data = overview.data
+  // 有效授权到期后重新读取概览，授权状态与工作区上限随之更新。
+  useRefreshAtLicenseExpiry(data?.license, overview.refresh)
   const count = useMemo(() => new Intl.NumberFormat(i18n.resolvedLanguage), [i18n.resolvedLanguage])
   const dayLabel = useMemo(
     () => new Intl.DateTimeFormat(i18n.resolvedLanguage, { month: "numeric", day: "numeric", timeZone: "UTC" }),
@@ -120,7 +126,8 @@ export function PlatformOverviewPage() {
               </ReportSection>
 
               <FieldGroup className="grid">
-                <StatisticsTimeZoneField settings={settings.data} />
+                <TimeZoneField settings={settings.data} />
+                <LicenseField license={data.license} />
                 <Field>
                   <FieldLabel htmlFor="platform-server-id">{t("overview.serverId")}</FieldLabel>
                   <div className="flex items-center gap-2">
@@ -156,40 +163,73 @@ export function PlatformOverviewPage() {
   )
 }
 
-/** 统计时区选择框，选择后立即保存并刷新概览中的活跃数据。 */
-function StatisticsTimeZoneField({ settings }: { settings: PlatformSettings }) {
+/** 只读的授权状态：有效时显示客户与到期时间，临近到期或已到期时在下方提醒，可进入授权页管理。 */
+function LicenseField({ license }: { license: License }) {
+  const { t } = useTranslation("platform")
+  const { formatDateTime } = useDateTime()
+  const help = useLicenseStatusHelp(license)
+  const statusLabels: Record<string, string> = {
+    [LicenseStatus.LicenseStatusNone]: t("license.statuses.none"),
+    [LicenseStatus.LicenseStatusActive]: t("license.statuses.active"),
+    [LicenseStatus.LicenseStatusExpired]: t("license.statuses.expired"),
+  }
+  const value =
+    license.status === LicenseStatus.LicenseStatusNone
+      ? statusLabels[license.status]
+      : t("overview.licenseSummary", {
+          status: statusLabels[license.status],
+          customer: license.customer,
+          expiresAt: license.expiresAt ? formatDateTime(license.expiresAt) : "",
+        })
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="platform-license">{t("overview.license")}</FieldLabel>
+      <div className="flex items-center gap-2">
+        <Input id="platform-license" value={value} readOnly className="text-muted-foreground" />
+        <Button asChild variant="outline" className="h-11 shrink-0">
+          <Link to="/settings/platform/license">{t("overview.manageLicense")}</Link>
+        </Button>
+      </div>
+      {help ? <FieldDescription>{help}</FieldDescription> : null}
+    </Field>
+  )
+}
+
+/** 平台时区选择框，选择后立即保存并刷新概览中的活跃数据。 */
+function TimeZoneField({ settings }: { settings: PlatformSettings }) {
   const { t } = useTranslation("platform")
   const invalidate = useResourceInvalidator()
-  const timeZones = useMemo(() => supportedTimeZones(settings.statisticsTimeZone), [settings.statisticsTimeZone])
-  const form = useForm<StatisticsTimeZoneFormValues>({
-    resolver: zodResolver(statisticsTimeZoneSchema),
+  const timeZones = useMemo(() => supportedTimeZones(settings.timeZone), [settings.timeZone])
+  const form = useForm<TimeZoneFormValues>({
+    resolver: zodResolver(timeZoneSchema),
     shouldUseNativeValidation: true,
-    defaultValues: { statisticsTimeZone: settings.statisticsTimeZone },
+    defaultValues: { timeZone: settings.timeZone },
   })
   const { submit } = useFormSave({
     form,
-    schema: statisticsTimeZoneSchema,
+    schema: timeZoneSchema,
     autoSave: true,
     save: async (values) => {
-      const saved = await updatePlatformStatisticsTimeZone(values)
+      const saved = await updatePlatformTimeZone(values)
       void invalidate(resourceKeys.platformOverview())
       return saved
     },
-    savedValues: (saved) => ({ statisticsTimeZone: saved.statisticsTimeZone }),
+    savedValues: (saved) => ({ timeZone: saved.timeZone }),
     errorMessage: t("overview.timeZoneSaveError"),
-    errorFields: ["statisticsTimeZone"],
-    logLabel: "保存统计时区",
+    errorFields: ["timeZone"],
+    logLabel: "保存平台时区",
   })
 
   return (
     <form onSubmit={form.handleSubmit(submit)} noValidate>
       <Controller
-        name="statisticsTimeZone"
+        name="timeZone"
         control={form.control}
         render={({ field, fieldState }) => (
           <Field data-invalid={fieldState.invalid}>
             <FieldLabel htmlFor={field.name} required>
-              {t("overview.statisticsTimeZone")}
+              {t("overview.timeZone")}
             </FieldLabel>
             <NativeSelect {...field} id={field.name} aria-invalid={fieldState.invalid}>
               {timeZones.map((timeZone) => (
@@ -198,7 +238,7 @@ function StatisticsTimeZoneField({ settings }: { settings: PlatformSettings }) {
                 </option>
               ))}
             </NativeSelect>
-            <FieldDescription>{t("overview.statisticsTimeZoneHelp")}</FieldDescription>
+            <FieldDescription>{t("overview.timeZoneHelp")}</FieldDescription>
           </Field>
         )}
       />

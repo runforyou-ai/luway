@@ -303,6 +303,10 @@ const workspaceRouteDefinitions = [
     ),
   },
   {
+    path: "/settings/credits",
+    element: <SettingsPage section="credits" />,
+  },
+  {
     path: "/settings/web-search",
     element: (
       <SettingsPage section="webSearch">
@@ -365,6 +369,10 @@ const workspaceRouteDefinitions = [
   {
     path: "/settings/platform/model-calls",
     element: <PlatformSettingsPage section="platformCalls" />,
+  },
+  {
+    path: "/settings/platform/credits",
+    element: <PlatformSettingsPage section="credits" />,
   },
 ] as const satisfies readonly {
   path: string

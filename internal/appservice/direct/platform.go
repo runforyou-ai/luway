@@ -11,11 +11,11 @@ import (
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
-	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	"github.com/runforyou-ai/luway/internal/common/license"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/integration/control"
+	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -23,45 +23,45 @@ import (
 
 // platformOps 持有平台管理的 Action 和 Query。
 type platformOps struct {
-	platformOverview         *platformaction.OverviewQuery
-	platformSettingsRead     *platformaction.SettingsQuery
-	updatePlatformPolicies   *platformaction.UpdatePoliciesAction
-	updateStatisticsTimeZone *platformaction.UpdateStatisticsTimeZoneAction
-	listPlatformAccounts     *platformaction.ListAccountsQuery
-	updatePlatformAccount    *platformaction.UpdateAccountAction
-	listPlatformWorkspaces   *platformaction.ListWorkspacesQuery
-	setWorkspaceStatus       *platformaction.SetWorkspaceStatusAction
-	platformUsage            *platformaction.UsageQuery
-	platformTaskQueues       *platformaction.TaskQueuesQuery
-	platformFailedTasks      *platformaction.FailedTaskListQuery
-	licenseRead              *platformaction.LicenseQuery
-	activateLicense          *platformaction.ActivateLicenseAction
-	onlineLicense            *platformaction.OnlineLicenseAction
-	updateTelemetry          *platformaction.UpdateTelemetryAction
+	platformOverview       *platformaction.OverviewQuery
+	platformSettingsRead   *platformaction.SettingsQuery
+	updatePlatformPolicies *platformaction.UpdatePoliciesAction
+	updateTimeZone         *platformaction.UpdateTimeZoneAction
+	listPlatformAccounts   *platformaction.ListAccountsQuery
+	updatePlatformAccount  *platformaction.UpdateAccountAction
+	listPlatformWorkspaces *platformaction.ListWorkspacesQuery
+	setWorkspaceStatus     *platformaction.SetWorkspaceStatusAction
+	platformUsage          *platformaction.UsageQuery
+	platformRuntime        *platformaction.RuntimeStatusQuery
+	platformFailedTasks    *platformaction.FailedTaskListQuery
+	licenseRead            *platformaction.LicenseQuery
+	activateLicense        *platformaction.ActivateLicenseAction
+	onlineLicense          *platformaction.OnlineLicenseAction
+	updateTelemetry        *platformaction.UpdateTelemetryAction
 }
 
-// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权。
-func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client) platformOps {
+// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权，s3 是用于检查可用性的对象存储配置。
+func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client, s3 serverfilecontent.S3Config) platformOps {
 	return platformOps{
-		platformOverview:         platformaction.NewOverviewQuery(db),
-		platformSettingsRead:     platformaction.NewSettingsQuery(db),
-		updatePlatformPolicies:   platformaction.NewUpdatePoliciesAction(db),
-		updateStatisticsTimeZone: platformaction.NewUpdateStatisticsTimeZoneAction(db, taskEnqueuer),
-		listPlatformAccounts:     platformaction.NewListAccountsQuery(db),
-		updatePlatformAccount:    platformaction.NewUpdateAccountAction(db),
-		listPlatformWorkspaces:   platformaction.NewListWorkspacesQuery(db),
-		setWorkspaceStatus:       platformaction.NewSetWorkspaceStatusAction(db),
-		platformUsage:            platformaction.NewUsageQuery(db),
-		platformTaskQueues:       platformaction.NewTaskQueuesQuery(db),
-		platformFailedTasks:      platformaction.NewFailedTaskListQuery(db),
-		licenseRead:              platformaction.NewLicenseQuery(db),
-		activateLicense:          platformaction.NewActivateLicenseAction(db, licenseKeys),
-		onlineLicense:            platformaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
-		updateTelemetry:          platformaction.NewUpdateTelemetryAction(db),
+		platformOverview:       platformaction.NewOverviewQuery(db),
+		platformSettingsRead:   platformaction.NewSettingsQuery(db),
+		updatePlatformPolicies: platformaction.NewUpdatePoliciesAction(db),
+		updateTimeZone:         platformaction.NewUpdateTimeZoneAction(db, taskEnqueuer),
+		listPlatformAccounts:   platformaction.NewListAccountsQuery(db),
+		updatePlatformAccount:  platformaction.NewUpdateAccountAction(db),
+		listPlatformWorkspaces: platformaction.NewListWorkspacesQuery(db),
+		setWorkspaceStatus:     platformaction.NewSetWorkspaceStatusAction(db),
+		platformUsage:          platformaction.NewUsageQuery(db),
+		platformRuntime:        platformaction.NewRuntimeStatusQuery(db, s3),
+		platformFailedTasks:    platformaction.NewFailedTaskListQuery(db),
+		licenseRead:            platformaction.NewLicenseQuery(db),
+		activateLicense:        platformaction.NewActivateLicenseAction(db, licenseKeys),
+		onlineLicense:          platformaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
+		updateTelemetry:        platformaction.NewUpdateTelemetryAction(db),
 	}
 }
 
-// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformOverview, error) {
 	overview, err := o.platformOverview.Execute(ctx)
 	if err != nil {
@@ -75,18 +75,18 @@ func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appserv
 		})
 	}
 	return appservice.PlatformOverview{
-		ServerID: overview.ServerID, InstalledAt: overview.InstalledAt, StatisticsTimeZone: overview.StatisticsTimeZone,
+		ServerID: overview.ServerID, InstalledAt: overview.InstalledAt, TimeZone: overview.TimeZone,
 		StatsRebuilding: overview.StatsRebuilding,
 		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
 		Last7Days: appservice.PlatformActivityWindow(overview.Last7Days), Last30Days: appservice.PlatformActivityWindow(overview.Last30Days),
-		Trend: trend,
+		Trend: trend, License: licenseFromAction(overview.License),
 		Capabilities: appservice.Capabilities{
 			WorkspaceLimit: overview.Capabilities.WorkspaceLimit, CustomBranding: overview.Capabilities.CustomBranding,
 		},
 	}, nil
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
 func (o *directOperations) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformSettings, error) {
 	settings, err := o.platformSettingsRead.Execute(ctx)
 	if err != nil {
@@ -109,13 +109,13 @@ func (o *directOperations) UpdatePlatformSettings(ctx context.Context, meta apps
 	return platformSettingsFromAction(settings), nil
 }
 
-// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (o *directOperations) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformStatisticsTimeZoneInput) (appservice.PlatformSettings, error) {
-	settings, err := o.updateStatisticsTimeZone.Execute(ctx, account, input.StatisticsTimeZone)
+// UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+func (o *directOperations) UpdatePlatformTimeZone(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformTimeZoneInput) (appservice.PlatformSettings, error) {
+	settings, err := o.updateTimeZone.Execute(ctx, account, input.TimeZone)
 	if err != nil {
 		return appservice.PlatformSettings{}, platformError(ctx, meta, err, i18n.ErrorPlatformSettingsUpdateFailed, account, "")
 	}
-	slog.Info("统计时区已修改", "account_id", account.Account.ID, "statistics_time_zone", settings.StatisticsTimeZone)
+	slog.Info("平台时区已修改", "account_id", account.Account.ID, "time_zone", settings.TimeZone)
 	return platformSettingsFromAction(settings), nil
 }
 
@@ -237,6 +237,7 @@ func licenseFromAction(current platformaction.License) appservice.License {
 	if current.Status != domain.LicenseStatusNone {
 		output.LicenseID, output.Customer = current.LicenseID, current.Customer
 		output.IssuedAt, output.ExpiresAt = &current.IssuedAt, &current.ExpiresAt
+		output.ControlMissingAt = current.ControlMissingAt
 	}
 	return output
 }
@@ -267,7 +268,7 @@ func (o *directOperations) setPlatformWorkspaceStatus(ctx context.Context, meta 
 	return platformWorkspaceFromAction(record), nil
 }
 
-// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 func (o *directOperations) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
 	metrics, err := o.platformUsage.Summary(ctx, input.Days)
 	if err != nil {
@@ -276,7 +277,7 @@ func (o *directOperations) GetPlatformUsage(ctx context.Context, meta appservice
 	return appservice.PlatformUsageMetrics(metrics), nil
 }
 
-// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 func (o *directOperations) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformWorkspaceUsageListInput) (appservice.PlatformWorkspaceUsageList, error) {
 	output, err := o.platformUsage.ListWorkspaces(ctx, platformaction.UsageListInput{
 		Days: input.Days, Sort: platformaction.UsageSort(input.Sort), Page: input.Page, PageSize: input.PageSize,
@@ -297,14 +298,22 @@ func (o *directOperations) ListPlatformWorkspaceUsage(ctx context.Context, meta 
 	}, nil
 }
 
-// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+// GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 func (o *directOperations) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformRuntimeStatus, error) {
-	queues, err := o.platformTaskQueues.Execute(ctx)
+	runtime, err := o.platformRuntime.Execute(ctx)
 	if err != nil {
 		return appservice.PlatformRuntimeStatus{}, platformError(ctx, meta, err, i18n.ErrorPlatformRuntimeFailed, account, "")
 	}
-	status := appservice.PlatformRuntimeStatus{Version: buildinfo.Version, Queues: make([]appservice.PlatformTaskQueue, 0, len(queues))}
-	for _, queue := range queues {
+	status := appservice.PlatformRuntimeStatus{
+		Servers:       make([]appservice.PlatformServer, 0, len(runtime.Servers)),
+		ObjectStorage: appservice.PlatformObjectStorageStatus(runtime.ObjectStorage),
+		Control:       appservice.PlatformControlStatus(runtime.Control),
+		Queues:        make([]appservice.PlatformTaskQueue, 0, len(runtime.Queues)),
+	}
+	for _, server := range runtime.Servers {
+		status.Servers = append(status.Servers, appservice.PlatformServer(server))
+	}
+	for _, queue := range runtime.Queues {
 		status.Queues = append(status.Queues, appservice.PlatformTaskQueue(queue))
 	}
 	return status, nil
@@ -347,8 +356,9 @@ func platformSettingsFromAction(settings platformaction.Settings) appservice.Pla
 	return appservice.PlatformSettings{
 		RegistrationPolicy:      appservice.RegistrationPolicy(settings.RegistrationPolicy),
 		WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicy(settings.WorkspaceCreationPolicy),
-		StatisticsTimeZone:      settings.StatisticsTimeZone,
+		TimeZone:                settings.TimeZone,
 		TelemetryEnabled:        settings.TelemetryEnabled,
+		DailyCreditGrant:        settings.DailyCreditGrant,
 	}
 }
 
@@ -381,7 +391,7 @@ func platformError(ctx context.Context, meta appservice.RequestMeta, err error, 
 			platformaction.ValidationAccountStatusInvalid:           i18n.FieldUserStatusInvalid,
 			platformaction.ValidationRegistrationPolicyInvalid:      i18n.FieldRegistrationPolicyInvalid,
 			platformaction.ValidationWorkspaceCreationPolicyInvalid: i18n.FieldWorkspaceCreationPolicyInvalid,
-			platformaction.ValidationStatisticsTimeZoneInvalid:      i18n.FieldTimeZoneInvalid,
+			platformaction.ValidationTimeZoneInvalid:                i18n.FieldTimeZoneInvalid,
 			platformaction.ValidationWorkspaceSortInvalid:           i18n.FieldPlatformQueryInvalid,
 			platformaction.ValidationWorkspaceStatusInvalid:         i18n.FieldPlatformQueryInvalid,
 			platformaction.ValidationUsageSortInvalid:               i18n.FieldPlatformQueryInvalid,

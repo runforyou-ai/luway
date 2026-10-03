@@ -33,13 +33,18 @@ type PlatformAIProvider struct {
 	APIURL         string                   `json:"apiUrl"`
 }
 
-// PlatformAIProviderSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数。
+// PlatformAIProviderSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数；
+// 近 24 小时内结束的上游尝试中，RecentAttempts 为成功、失败与超时的次数，RecentFailures 为失败与超时的次数，LastError 与 LastFailedAt 为最近一次失败或超时的原因与时间，没有时为空。
 type PlatformAIProviderSummary struct {
-	ID         string          `json:"id"`
-	Brand      AIProviderBrand `json:"brand"`
-	Name       string          `json:"name"`
-	APIURL     string          `json:"apiUrl"`
-	ModelCount int             `json:"modelCount"`
+	ID             string          `json:"id"`
+	Brand          AIProviderBrand `json:"brand"`
+	Name           string          `json:"name"`
+	APIURL         string          `json:"apiUrl"`
+	ModelCount     int             `json:"modelCount"`
+	RecentAttempts int             `json:"recentAttempts"`
+	RecentFailures int             `json:"recentFailures"`
+	LastError      string          `json:"lastError"`
+	LastFailedAt   *time.Time      `json:"lastFailedAt"`
 }
 
 // PlatformAIProviderList 定义平台供应商列表。
@@ -55,13 +60,14 @@ type PlatformAIModelRouteInput struct {
 	Enabled    bool   `json:"enabled"`
 }
 
-// PlatformAIModelInput 定义平台模型的属性与按尝试顺序排列的来源。
+// PlatformAIModelInput 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价，工作区不可使用。
 type PlatformAIModelInput struct {
 	Name            string                      `json:"name"`
 	Type            AIModelType                 `json:"type"`
 	InputModalities []AIModelInputModality      `json:"inputModalities"`
 	ContextWindow   int64                       `json:"contextWindow"`
 	MaxOutputTokens int64                       `json:"maxOutputTokens"`
+	Price           *CreditPrice                `json:"price"`
 	Routes          []PlatformAIModelRouteInput `json:"routes"`
 }
 
@@ -75,7 +81,7 @@ type PlatformAIModelRoute struct {
 	Enabled       bool            `json:"enabled"`
 }
 
-// PlatformAIModel 定义平台模型的属性与按尝试顺序排列的来源。
+// PlatformAIModel 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价。
 type PlatformAIModel struct {
 	ID              string                 `json:"id"`
 	Name            string                 `json:"name"`
@@ -83,6 +89,7 @@ type PlatformAIModel struct {
 	InputModalities []AIModelInputModality `json:"inputModalities"`
 	ContextWindow   int64                  `json:"contextWindow"`
 	MaxOutputTokens int64                  `json:"maxOutputTokens"`
+	Price           *CreditPrice           `json:"price"`
 	Routes          []PlatformAIModelRoute `json:"routes"`
 }
 
@@ -120,7 +127,7 @@ type PlatformAIModelCallListInput struct {
 	PageSize int               `json:"pageSize" query:"pageSize,default=50"`
 }
 
-// PlatformAIModelCall 定义一次平台模型调用及其归属工作区。
+// PlatformAIModelCall 定义一次平台模型调用及其归属工作区；Credits 进行中为预占积分，结束后为实际扣除积分，CreditShortfall 为余额不足未能补扣的积分。
 type PlatformAIModelCall struct {
 	ID                string            `json:"id"`
 	CreatedAt         time.Time         `json:"createdAt"`
@@ -137,6 +144,8 @@ type PlatformAIModelCall struct {
 	OutputTokens      int64             `json:"outputTokens"`
 	ErrorMessage      string            `json:"errorMessage"`
 	AttemptCount      int               `json:"attemptCount"`
+	Credits           int64             `json:"credits"`
+	CreditShortfall   int64             `json:"creditShortfall"`
 }
 
 // PlatformAIModelCallList 定义平台模型调用记录分页结果。

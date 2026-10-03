@@ -52,7 +52,7 @@ func ControlIdentity(ctx context.Context, db bun.IDB) (control.Identity, error) 
 	return control.Identity{ServerID: platform.ServerID, PrivateKey: ed25519.NewKeyFromSeed(platform.ServerPrivateKey)}, nil
 }
 
-// ResetServerID 为平台生成新的服务器标识与签名私钥并删除本地授权，返回新服务器标识。
+// ResetServerID 为平台生成新的服务器标识与签名私钥，删除本地授权并清空与 control 同步的结果，返回新服务器标识。
 func ResetServerID(ctx context.Context, db *bun.DB) (string, error) {
 	var serverID string
 	err := db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
@@ -68,6 +68,9 @@ func ResetServerID(ctx context.Context, db *bun.DB) (string, error) {
 		return tx.NewUpdate().Model((*servermodels.Platform)(nil)).
 			Set("server_id = uuidv7()").
 			Set("server_private_key = gen_random_bytes(32)").
+			Set("control_synced_at = NULL").
+			Set("control_failed_at = NULL").
+			Set("control_error = ''").
 			Set("updated_at = now()").
 			Where("server_id = ?", platform.ServerID).
 			Returning("server_id").
@@ -94,18 +97,29 @@ func (a *OnlineLicenseAction) Activate(ctx context.Context, operator *servermode
 	if err != nil {
 		return License{}, controlError(err)
 	}
-	return a.store(ctx, operator, code)
+	output, err := a.store(ctx, operator, code)
+	if err != nil {
+		return License{}, err
+	}
+	// 激活成功即与 control 完成一次同步。
+	if err := a.record(ctx, nil); err != nil {
+		return License{}, err
+	}
+	return output, nil
 }
 
-// Sync 由平台管理员立即向 control 登记服务器并拉取授权；control 没有授权、授权码已到期或不晚于本地授权时，本地授权有效则返回本地授权。
+// Sync 由平台管理员立即向 control 登记服务器并拉取授权；control 没有授权时只要本地有授权即返回本地授权，control 的授权码已到期或不晚于本地授权时本地授权有效则返回本地授权。
 func (a *OnlineLicenseAction) Sync(ctx context.Context, operator *servermodels.AccountIdentity) (License, error) {
 	code, err := a.fetch(ctx)
+	var output License
 	if err == nil {
-		var output License
 		output, err = a.store(ctx, operator, code)
-		if err == nil {
-			return output, nil
-		}
+	}
+	if recordErr := a.record(ctx, err); recordErr != nil {
+		return License{}, recordErr
+	}
+	if err == nil {
+		return output, nil
 	}
 	if !errors.Is(err, ErrLicenseNotIssued) && !errors.Is(err, ErrLicenseExpired) {
 		return License{}, err
@@ -114,7 +128,7 @@ func (a *OnlineLicenseAction) Sync(ctx context.Context, operator *servermodels.A
 	if queryErr != nil {
 		return License{}, queryErr
 	}
-	if current.Status == domain.LicenseStatusActive {
+	if current.Status == domain.LicenseStatusActive || (errors.Is(err, ErrLicenseNotIssued) && current.Status != domain.LicenseStatusNone) {
 		return current, nil
 	}
 	return License{}, err
@@ -128,39 +142,73 @@ func (a *OnlineLicenseAction) SyncTask(ctx context.Context, _ SyncLicenseInput) 
 		return err
 	}
 	code, err := a.fetch(ctx)
-	if errors.Is(err, ErrLicenseNotIssued) {
-		return nil
+	if err == nil {
+		_, err = a.store(ctx, nil, code)
 	}
-	if err != nil {
-		return err
+	if recordErr := a.record(ctx, err); recordErr != nil {
+		return recordErr
 	}
-	_, err = a.store(ctx, nil, code)
-	if errors.Is(err, ErrLicenseExpired) {
+	if errors.Is(err, ErrLicenseNotIssued) || errors.Is(err, ErrLicenseExpired) {
 		return nil
 	}
 	return err
 }
 
-// fetch 登记服务器后拉取 control 中本服务器当前的授权码。
+// record 记录一次与 control 同步的结果：授权码已保存、control 没有授权或只有已到期的授权码时为成功，连接、验签或保存失败时记录失败时间与原因。
+func (a *OnlineLicenseAction) record(ctx context.Context, syncErr error) error {
+	update := a.db.NewUpdate().Model((*servermodels.Platform)(nil)).Where("true")
+	if syncErr == nil || errors.Is(syncErr, ErrLicenseNotIssued) || errors.Is(syncErr, ErrLicenseExpired) {
+		update = update.Set("control_synced_at = now()").Set("control_failed_at = NULL").Set("control_error = ''")
+	} else {
+		update = update.Set("control_failed_at = now()").Set("control_error = ?", syncErr.Error())
+	}
+	if _, err := update.Exec(ctx); err != nil {
+		return errors.Join(syncErr, fmt.Errorf("record control sync: %w", err))
+	}
+	return nil
+}
+
+// fetch 登记服务器后拉取 control 中本服务器当前的授权码；control 中查不到授权时在本地授权上记录首次查不到的时间。
 func (a *OnlineLicenseAction) fetch(ctx context.Context) (string, error) {
 	if err := a.control.Register(ctx); err != nil {
 		return "", controlError(err)
 	}
 	code, err := a.control.License(ctx)
+	if errors.Is(err, control.ErrLicenseNotFound) {
+		if _, updateErr := a.db.NewUpdate().Model((*servermodels.License)(nil)).
+			Set("control_missing_at = now()").
+			Where("server_id = (SELECT pf.server_id FROM platforms AS pf LIMIT 1)").
+			Where("control_missing_at IS NULL").
+			Exec(ctx); updateErr != nil {
+			return "", updateErr
+		}
+	}
 	if err != nil {
 		return "", controlError(err)
 	}
 	return code, nil
 }
 
-// store 验签 control 返回的授权码并保存，授权码不晚于当前授权时返回当前授权。
+// store 验签 control 返回的授权码并保存，授权码不晚于当前授权时返回当前授权；授权码属于本服务器时清空 control 中查不到授权的记录。
 func (a *OnlineLicenseAction) store(ctx context.Context, operator *servermodels.AccountIdentity, code string) (License, error) {
 	claims, err := license.Parse(code, a.keys)
 	if err != nil {
 		return License{}, fmt.Errorf("%w: %w", ErrLicenseInvalid, err)
 	}
 	output, err := storeLicense(ctx, a.db, operator, claims)
-	if errors.Is(err, ErrLicenseSuperseded) {
+	superseded := errors.Is(err, ErrLicenseSuperseded)
+	// 授权码已保存、不晚于当前授权或已到期时都表明 control 中有本服务器的授权。
+	if err == nil || superseded || errors.Is(err, ErrLicenseExpired) {
+		if _, updateErr := a.db.NewUpdate().Model((*servermodels.License)(nil)).
+			Set("control_missing_at = NULL").
+			Where("server_id = ?", claims.ServerID).
+			Where("control_missing_at IS NOT NULL").
+			Exec(ctx); updateErr != nil {
+			return License{}, updateErr
+		}
+		output.ControlMissingAt = nil
+	}
+	if superseded {
 		return NewLicenseQuery(a.db).Execute(ctx)
 	}
 	return output, err

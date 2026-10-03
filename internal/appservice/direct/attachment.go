@@ -51,26 +51,35 @@ func (o *directOperations) SendAttachmentMessage(ctx context.Context, meta appse
 	return output, nil
 }
 
-// GetAttachmentDownload 按文件实际存储位置创建带原始文件名的下载请求。
+// GetAttachmentDownload 按文件实际存储位置创建带原始文件名的下载请求，可内嵌展示的图片同时返回预览地址。
 func (o *directOperations) GetAttachmentDownload(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID, messageID string) (appservice.FileDownload, error) {
 	record, err := o.listConversationMessages.GetAttachmentFile(ctx, identity, conversationID, messageID)
 	if err != nil {
 		return appservice.FileDownload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileNotFound)
 	}
+	_, inline := domain.InlineImageExtension(record.ContentType)
 	if record.StorageBackend == string(domain.FileStorageBackendLocal) {
 		contentURL, err := o.links.URL(domain.FileStorageBackendLocal, record.StorageKey)
 		if err != nil {
 			return appservice.FileDownload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileNotFound)
 		}
-		return appservice.FileDownload{URL: contentURL + "?download=" + url.QueryEscape(record.OriginalName), PreviewURL: contentURL + "?inline=1"}, nil
+		download := appservice.FileDownload{URL: contentURL + "?download=" + url.QueryEscape(record.OriginalName)}
+		if inline {
+			download.PreviewURL = contentURL
+		}
+		return download, nil
 	}
 	request, err := serverfilecontent.PresignDownload(ctx, o.s3, record.StorageKey, mime.FormatMediaType("attachment", map[string]string{"filename": record.OriginalName}))
 	if err != nil {
 		return appservice.FileDownload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileNotFound)
 	}
-	preview, err := serverfilecontent.PresignDownload(ctx, o.s3, record.StorageKey, "inline")
-	if err != nil {
-		return appservice.FileDownload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileNotFound)
+	download := appservice.FileDownload{URL: request.URL}
+	if inline {
+		preview, err := serverfilecontent.PresignDownload(ctx, o.s3, record.StorageKey, "inline")
+		if err != nil {
+			return appservice.FileDownload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileNotFound)
+		}
+		download.PreviewURL = preview.URL
 	}
-	return appservice.FileDownload{URL: request.URL, PreviewURL: preview.URL}, nil
+	return download, nil
 }

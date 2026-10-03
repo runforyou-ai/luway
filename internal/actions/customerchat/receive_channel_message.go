@@ -89,7 +89,7 @@ var errNewSessionRouteRequired = errors.New("new service session route required"
 // ReceiveInboundCustomerMessage 在调用方事务中幂等写入客户文本或附件消息；新客服处理周期路由到队列时投递分配任务，路由目标先于渠道身份与会话取共享锁。
 func ReceiveInboundCustomerMessage(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, channel *servermodels.Channel, input InboundCustomerMessageInput) (InboundCustomerMessageResult, error) {
 	ids := generateIDs()
-	// 不加锁预判目标会话是否已有进行中周期：单会话渠道取该渠道身份最早的会话，网站渠道取访客指定的会话，未指定时新建会话。
+	// 不加锁预判目标会话是否已有进行中周期：单会话写入取该渠道身份最近有消息的会话，指定会话时取访客指定的会话，其余情况新建会话。
 	open := false
 	if input.SingleConversation || input.RequestedConversationID != nil {
 		query := db.NewSelect().TableExpr("contact_channel_identities AS cci").
@@ -101,9 +101,10 @@ func ReceiveInboundCustomerMessage(ctx context.Context, db bun.IDB, enqueuer ser
 		if input.RequestedConversationID != nil {
 			query = query.Where("cc.conversation_id = ?", *input.RequestedConversationID)
 		} else {
-			query = query.Where(`cc.conversation_id = (SELECT first.conversation_id FROM channel_conversations AS first
-				WHERE first.organization_id = cci.organization_id AND first.contact_channel_identity_id = cci.id
-				ORDER BY first.created_at ASC, first.conversation_id ASC LIMIT 1)`)
+			query = query.Where(`cc.conversation_id = (SELECT recent.conversation_id FROM channel_conversations AS recent
+				JOIN conversations AS recent_cv ON recent_cv.organization_id = recent.organization_id AND recent_cv.id = recent.conversation_id
+				WHERE recent.organization_id = cci.organization_id AND recent.contact_channel_identity_id = cci.id
+				ORDER BY recent_cv.last_message_at DESC NULLS LAST, recent.conversation_id DESC LIMIT 1)`)
 		}
 		var err error
 		if open, err = query.Exists(ctx); err != nil {
@@ -459,7 +460,7 @@ func inboundCustomerMessageResult(summary ConversationSummary, session *servermo
 	}
 }
 
-// selectSingleChannelConversation 取得渠道身份固定映射的最早渠道会话。
+// selectSingleChannelConversation 取得渠道身份最近有消息的渠道会话，没有时新建。
 func selectSingleChannelConversation(ctx context.Context, db bun.IDB, organizationID, channelIdentityID, requesterSubjectID, body, conversationID string) (*servermodels.Conversation, bool, error) {
 	conversation := &servermodels.Conversation{}
 	err := db.NewSelect().Model(conversation).
@@ -467,7 +468,7 @@ func selectSingleChannelConversation(ctx context.Context, db bun.IDB, organizati
 		Where("cv.organization_id = ?", organizationID).
 		Where("cv.type = ?", domain.ConversationTypeChannel).
 		Where("cc.contact_channel_identity_id = ?", channelIdentityID).
-		OrderExpr("cc.created_at ASC, cc.conversation_id ASC").
+		OrderExpr("cv.last_message_at DESC NULLS LAST, cc.conversation_id DESC").
 		Limit(1).
 		Scan(ctx)
 	if err == nil {

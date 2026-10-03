@@ -16,7 +16,12 @@ import (
 // Embed 记录一次调用并按来源顺序为输入文本生成指定维度的向量。
 func (i *Invoker) Embed(ctx context.Context, scope Scope, target *aimodel.Model, dimension int, inputs []string) ([][]float32, error) {
 	var vectors [][]float32
-	err := i.run(ctx, scope, target, func(ctx context.Context, route aimodel.Route) (Usage, error) {
+	var size int
+	for _, input := range inputs {
+		size += len(input)
+	}
+	estimate := Usage{InputTokens: estimateTokens(size, 0)}
+	err := i.run(ctx, scope, target, estimate, func(ctx context.Context, route aimodel.Route) (Usage, error) {
 		baseURL, err := modelprovider.CompatibleBaseURL(string(route.Brand), route.APIURL)
 		if err != nil {
 			return Usage{}, &embedding.Error{Code: "embedding_model_unavailable"}
@@ -34,7 +39,12 @@ func (i *Invoker) Embed(ctx context.Context, scope Scope, target *aimodel.Model,
 // Rerank 记录一次调用并按来源顺序为候选文本打分，返回候选下标与相关性得分。
 func (i *Invoker) Rerank(ctx context.Context, scope Scope, target *aimodel.Model, query string, documents []string, topN int) ([]rerank.Score, error) {
 	var scores []rerank.Score
-	err := i.run(ctx, scope, target, func(ctx context.Context, route aimodel.Route) (Usage, error) {
+	size := len(query)
+	for _, document := range documents {
+		size += len(document)
+	}
+	estimate := Usage{InputTokens: estimateTokens(size, 0)}
+	err := i.run(ctx, scope, target, estimate, func(ctx context.Context, route aimodel.Route) (Usage, error) {
 		baseURL, err := modelprovider.CompatibleBaseURL(string(route.Brand), route.APIURL)
 		if err != nil {
 			return Usage{}, &rerank.Error{Code: "rerank_model_unavailable"}
@@ -54,10 +64,10 @@ func (i *Invoker) Rerank(ctx context.Context, scope Scope, target *aimodel.Model
 	return scores, err
 }
 
-// Decide 记录一次调用并按来源顺序把状态和一组判断题提交给判断模型，返回按题目键索引的结果。
+// Decide 记录一次调用并按来源顺序把状态和一组判断题提交给判断模型，返回按题目键索引的结果；判断接口不返回 Token 用量，平台模型只按次计费。
 func (i *Invoker) Decide(ctx context.Context, scope Scope, target *aimodel.Model, state any, questions map[string]decision.Question) (map[string]decision.Answer, error) {
 	var answers map[string]decision.Answer
-	err := i.run(ctx, scope, target, func(ctx context.Context, route aimodel.Route) (Usage, error) {
+	err := i.run(ctx, scope, target, Usage{}, func(ctx context.Context, route aimodel.Route) (Usage, error) {
 		var err error
 		answers, err = i.upstreams.Decider.Decide(ctx, decision.Credential{BaseURL: route.APIURL, APIKey: route.APIKey}, route.Identifier, state, questions)
 		return Usage{}, err

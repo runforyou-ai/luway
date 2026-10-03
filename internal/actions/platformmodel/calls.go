@@ -42,6 +42,8 @@ type Call struct {
 	OutputTokens      int64                    `bun:"output_tokens"`
 	ErrorMessage      string                   `bun:"error_message"`
 	AttemptCount      int                      `bun:"attempt_count"`
+	Credits           int64                    `bun:"credits"`
+	CreditShortfall   int64                    `bun:"credit_shortfall"`
 }
 
 // CallAttempt 定义平台模型调用的一次上游尝试。
@@ -166,6 +168,6 @@ func selectCalls(db bun.IDB) *bun.SelectQuery {
 	return db.NewSelect().TableExpr("ai_model_calls AS amc").
 		ColumnExpr("amc.id::text AS id, amc.created_at, amc.finished_at, amc.model_id::text AS model_id, amc.model_name, amc.model_usage").
 		ColumnExpr("o.id::text AS workspace_id, o.name AS workspace_name, amc.actor_type, amc.source_type, amc.status").
-		ColumnExpr("amc.input_tokens, amc.cached_input_tokens, amc.output_tokens, amc.error_message").
+		ColumnExpr("amc.input_tokens, amc.cached_input_tokens, amc.output_tokens, amc.error_message, amc.credits, amc.credit_shortfall").
 		ColumnExpr("(SELECT count(*) FROM ai_model_call_attempts AS amca WHERE amca.call_id = amc.id) AS attempt_count")
 }

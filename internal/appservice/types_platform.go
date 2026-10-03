@@ -45,30 +45,32 @@ type Capabilities struct {
 	CustomBranding bool `json:"customBranding"`
 }
 
-// PlatformOverview 定义服务器标识、安装时间、规模、活跃情况和平台能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
+// PlatformOverview 定义服务器标识、安装时间、规模、活跃情况、授权状态和当前生效的平台能力；活跃与新增按 TimeZone 划分日期，StatsRebuilding 表示正在按新时区重建。
 type PlatformOverview struct {
-	ServerID           string                  `json:"serverId"`
-	InstalledAt        time.Time               `json:"installedAt"`
-	StatisticsTimeZone string                  `json:"statisticsTimeZone"`
-	StatsRebuilding    bool                    `json:"statsRebuilding"`
-	AccountCount       int                     `json:"accountCount"`
-	WorkspaceCount     int                     `json:"workspaceCount"`
-	MemberCount        int                     `json:"memberCount"`
-	Last7Days          PlatformActivityWindow  `json:"last7Days"`
-	Last30Days         PlatformActivityWindow  `json:"last30Days"`
-	Trend              []PlatformDailyActivity `json:"trend"`
-	Capabilities       Capabilities            `json:"capabilities"`
+	ServerID        string                  `json:"serverId"`
+	InstalledAt     time.Time               `json:"installedAt"`
+	TimeZone        string                  `json:"timeZone"`
+	StatsRebuilding bool                    `json:"statsRebuilding"`
+	AccountCount    int                     `json:"accountCount"`
+	WorkspaceCount  int                     `json:"workspaceCount"`
+	MemberCount     int                     `json:"memberCount"`
+	Last7Days       PlatformActivityWindow  `json:"last7Days"`
+	Last30Days      PlatformActivityWindow  `json:"last30Days"`
+	Trend           []PlatformDailyActivity `json:"trend"`
+	License         License                 `json:"license"`
+	Capabilities    Capabilities            `json:"capabilities"`
 }
 
-// License 定义服务器标识、授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有服务器标识、状态和免费能力。
+// License 定义服务器标识、授权状态、授权编号、客户、签发与到期时间、授权码授予的能力，以及与 control 同步时查不到本服务器授权的起始时间；未激活时只有服务器标识、状态和免费能力。
 type License struct {
-	ServerID     string        `json:"serverId"`
-	Status       LicenseStatus `json:"status"`
-	LicenseID    string        `json:"licenseId"`
-	Customer     string        `json:"customer"`
-	IssuedAt     *time.Time    `json:"issuedAt"`
-	ExpiresAt    *time.Time    `json:"expiresAt"`
-	Capabilities Capabilities  `json:"capabilities"`
+	ServerID         string        `json:"serverId"`
+	Status           LicenseStatus `json:"status"`
+	LicenseID        string        `json:"licenseId"`
+	Customer         string        `json:"customer"`
+	IssuedAt         *time.Time    `json:"issuedAt"`
+	ExpiresAt        *time.Time    `json:"expiresAt"`
+	Capabilities     Capabilities  `json:"capabilities"`
+	ControlMissingAt *time.Time    `json:"controlMissingAt"`
 }
 
 // ActivateLicenseInput 定义平台管理员粘贴的授权码。
@@ -98,12 +100,13 @@ type PlatformDailyActivity struct {
 	NewWorkspaces    int    `json:"newWorkspaces"`
 }
 
-// PlatformSettings 定义平台注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
+// PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
 type PlatformSettings struct {
 	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy"`
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
-	StatisticsTimeZone      string                  `json:"statisticsTimeZone"`
+	TimeZone                string                  `json:"timeZone"`
 	TelemetryEnabled        bool                    `json:"telemetryEnabled"`
+	DailyCreditGrant        int64                   `json:"dailyCreditGrant"`
 }
 
 // PlatformPoliciesInput 定义平台注册策略和工作区创建策略的修改值。
@@ -117,9 +120,9 @@ type PlatformTelemetryInput struct {
 	TelemetryEnabled bool `json:"telemetryEnabled"`
 }
 
-// PlatformStatisticsTimeZoneInput 定义运营数据统计时区的修改值。
-type PlatformStatisticsTimeZoneInput struct {
-	StatisticsTimeZone string `json:"statisticsTimeZone"`
+// PlatformTimeZoneInput 定义平台时区的修改值。
+type PlatformTimeZoneInput struct {
+	TimeZone string `json:"timeZone"`
 }
 
 // PlatformAccountListInput 定义平台账号列表的筛选与分页条件，Status 缺省为有效账号。
@@ -196,9 +199,10 @@ const (
 	PlatformUsageSortConversations   PlatformUsageSort = "conversations"
 	PlatformUsageSortFirstResponse   PlatformUsageSort = "first_response"
 	PlatformUsageSortKnowledgeGaps   PlatformUsageSort = "knowledge_gaps"
+	PlatformUsageSortModelTokens     PlatformUsageSort = "model_tokens"
 )
 
-// PlatformUsageInput 定义业务使用的统计范围：最近 Days 天内关闭的客服周期。
+// PlatformUsageInput 定义业务使用的统计范围：最近 Days 天内关闭的客服周期与开始的平台模型调用。
 type PlatformUsageInput struct {
 	Days int `json:"days" query:"days,default=30"`
 }
@@ -213,15 +217,22 @@ type PlatformWorkspaceUsageListInput struct {
 
 // PlatformUsageMetrics 定义业务使用指标，口径与工作区的 AI 表现和团队表现报表一致：ServiceSessions 为已关闭周期数，Conversations 为其所属会话去重数；
 // AIClosed 为其中 AI 员工接待过的周期数，AIResolved 与 HandedOff 为其中 AI 独立解决与发生过转人工的周期数；首响为按工作时间计的真人首响（秒），没有样本时为空；KnowledgeGaps 为全部待处理的待补知识条数。
+// ModelCalls 为平台模型调用数，ModelCallsConcluded 为其中成功、失败与超时的调用数，ModelCallsFailed 为其中失败与超时的调用数；InputTokens 含命中缓存的 CachedInputTokens。
 type PlatformUsageMetrics struct {
-	ServiceSessions     int  `json:"serviceSessions"`
-	Conversations       int  `json:"conversations"`
-	AIClosed            int  `json:"aiClosed"`
-	AIResolved          int  `json:"aiResolved"`
-	HandedOff           int  `json:"handedOff"`
-	FirstResponseMedian *int `json:"firstResponseMedian"`
-	FirstResponseP90    *int `json:"firstResponseP90"`
-	KnowledgeGaps       int  `json:"knowledgeGaps"`
+	ServiceSessions     int   `json:"serviceSessions"`
+	Conversations       int   `json:"conversations"`
+	AIClosed            int   `json:"aiClosed"`
+	AIResolved          int   `json:"aiResolved"`
+	HandedOff           int   `json:"handedOff"`
+	FirstResponseMedian *int  `json:"firstResponseMedian"`
+	FirstResponseP90    *int  `json:"firstResponseP90"`
+	KnowledgeGaps       int   `json:"knowledgeGaps"`
+	ModelCalls          int   `json:"modelCalls"`
+	ModelCallsConcluded int   `json:"modelCallsConcluded"`
+	ModelCallsFailed    int   `json:"modelCallsFailed"`
+	InputTokens         int64 `json:"inputTokens"`
+	CachedInputTokens   int64 `json:"cachedInputTokens"`
+	OutputTokens        int64 `json:"outputTokens"`
 }
 
 // PlatformWorkspaceUsage 定义一个工作区的业务使用指标。
@@ -239,10 +250,37 @@ type PlatformWorkspaceUsageList struct {
 	Page       PageInfo                 `json:"page"`
 }
 
-// PlatformRuntimeStatus 定义服务端版本与后台任务各队列的运行概况。
+// PlatformRuntimeStatus 定义服务端进程、外部依赖与后台任务各队列的运行状态。
 type PlatformRuntimeStatus struct {
-	Version string              `json:"version"`
-	Queues  []PlatformTaskQueue `json:"queues"`
+	Servers       []PlatformServer            `json:"servers"`
+	ObjectStorage PlatformObjectStorageStatus `json:"objectStorage"`
+	Control       PlatformControlStatus       `json:"control"`
+	Queues        []PlatformTaskQueue         `json:"queues"`
+}
+
+// PlatformServer 定义一个服务端进程及其最近一次心跳；TasksNATSConnected 与 RealtimeNATSConnected 为最近一次心跳时后台任务与实时通知的 NATS 连接是否可用，Online 表示 2 分钟内有心跳。
+type PlatformServer struct {
+	ID                    string    `json:"id"`
+	StartedAt             time.Time `json:"startedAt"`
+	HeartbeatAt           time.Time `json:"heartbeatAt"`
+	Hostname              string    `json:"hostname"`
+	Version               string    `json:"version"`
+	TasksNATSConnected    bool      `json:"tasksNatsConnected"`
+	RealtimeNATSConnected bool      `json:"realtimeNatsConnected"`
+	Online                bool      `json:"online"`
+}
+
+// PlatformObjectStorageStatus 定义对象存储状态：Enabled 为假表示文件写入服务器本地目录；Error 为存储桶检查失败的原因，可以访问时为空。
+type PlatformObjectStorageStatus struct {
+	Enabled bool   `json:"enabled"`
+	Error   string `json:"error"`
+}
+
+// PlatformControlStatus 定义与 control 同步的结果：SyncedAt 为最近一次成功的时间，从未成功时为空；FailedAt 与 Error 为此后最近一次失败的时间与原因。
+type PlatformControlStatus struct {
+	SyncedAt *time.Time `json:"syncedAt"`
+	FailedAt *time.Time `json:"failedAt"`
+	Error    string     `json:"error"`
 }
 
 // PlatformTaskQueue 定义一个后台任务队列的运行概况：Waiting 为已到执行时间仍在排队的任务数，OldestWaitingSince 为其中最早的到期时间，没有排队任务时为空；

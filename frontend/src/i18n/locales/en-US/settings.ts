@@ -20,6 +20,7 @@ const settings = {
     customerService: "Customer service",
     members: "Members",
     roles: "Roles and permissions",
+    credits: "Credits",
     modelServices: "Model services",
     webSearch: "Web search",
     platformOverview: "Platform overview",
@@ -32,6 +33,7 @@ const settings = {
     platformModels: "Platform models",
     platformProviders: "Platform providers",
     platformCalls: "Model calls",
+    platformCredits: "Credits",
   },
   profile: {
     title: "Profile",
@@ -72,6 +74,30 @@ const settings = {
   security: {
     title: "Login & security",
     description: "Change your sign-in password",
+  },
+  credits: {
+    title: "Credits",
+    description: "Platform models use credits at their listed prices. When credits run out, platform models pause.",
+    loadError: "Couldn't load credits. Try again later.",
+    available: "Available credits",
+    dailyGrant: "{{amount}} granted daily",
+    noDailyGrant: "No daily grant",
+    dailyGrantRemaining: "Left from today's grant",
+    dailyGrantExpires: "Resets at {{time}}",
+    noDailyGrantToday: "No grant today",
+    entries: {
+      title: "Credit history",
+      amount: "Credits",
+      time: "Time",
+      empty: "No credit activity yet",
+      reserved: "Reserved",
+      kinds: {
+        daily_grant: "Daily grant",
+        adjustment: "Platform adjustment",
+        model_call: "Model call",
+        expiration: "Grant expired",
+      },
+    },
   },
   archivedChats: {
     title: "Archived chats",

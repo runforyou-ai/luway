@@ -76,7 +76,7 @@ func TestPlatformModels(t *testing.T) {
 	input := appservice.PlatformAIModelInput{
 		Name: "DeepSeek V4.1 Flash", Type: appservice.AIModelTypeChat,
 		InputModalities: []appservice.AIModelInputModality{appservice.AIModelInputModalityText},
-		ContextWindow:   131072, MaxOutputTokens: 8192,
+		ContextWindow:   131072, MaxOutputTokens: 8192, Price: &appservice.CreditPrice{},
 		Routes: []appservice.PlatformAIModelRouteInput{
 			{ProviderID: primary.ID, Identifier: "deepseek/flash", Enabled: true},
 			{ProviderID: backup.ID, Identifier: "deepseek-flash", Enabled: true},
@@ -153,6 +153,19 @@ func TestPlatformModels(t *testing.T) {
 		detail.Attempts[0].ProviderName != "主来源" || detail.Attempts[0].Status != appservice.AIModelCallStatusFailed ||
 		detail.Attempts[1].ProviderName != "备用来源" || detail.Attempts[1].Status != appservice.AIModelCallStatusSucceeded {
 		t.Fatalf("call detail = %#v, err = %v", detail, err)
+	}
+	// 供应商列表按近 24 小时的上游尝试给出失败次数与最近一次失败原因。
+	health, err := backend.ListPlatformAIProviders(ctx, adminMeta)
+	if err != nil || len(health.Providers) != 2 {
+		t.Fatalf("provider health = %#v, err = %v", health, err)
+	}
+	if first := health.Providers[0]; first.ID != primary.ID || first.RecentAttempts != 1 || first.RecentFailures != 1 ||
+		first.LastError != detail.Attempts[0].ErrorMessage || first.LastError == "" || first.LastFailedAt == nil {
+		t.Fatalf("primary provider health = %#v", first)
+	}
+	if second := health.Providers[1]; second.ID != backup.ID || second.RecentAttempts != 1 || second.RecentFailures != 0 ||
+		second.LastError != "" || second.LastFailedAt != nil {
+		t.Fatalf("backup provider health = %#v", second)
 	}
 	filtered, err := backend.ListPlatformAIModelCalls(ctx, adminMeta, appservice.PlatformAIModelCallListInput{Status: appservice.AIModelCallStatusFailed, Page: 1, PageSize: 50})
 	if err != nil || len(filtered.Calls) != 0 {

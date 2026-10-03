@@ -28,6 +28,17 @@ func LanguageTag(locale string) string {
 	return brandLocales[locale]
 }
 
+// SitePath 返回产品站指定语言目录下的页面地址，以斜杠结尾；page 为空时是产品首页。
+func SitePath(locale, page string) string {
+	if page == "" {
+		return "/" + locale + "/"
+	}
+	return "/" + locale + "/" + page + "/"
+}
+
+// SiteDownloadPage 是产品站客户端下载页在语言目录下的路径。
+const SiteDownloadPage = "download"
+
 // productPlaceholder 是正文中的产品名称占位符，输出时替换为当前平台的品牌名称。
 const productPlaceholder = "{{product}}"
 

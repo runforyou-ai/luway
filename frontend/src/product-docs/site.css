@@ -81,7 +81,8 @@ body.docs-body {
   text-decoration: none;
 }
 
-.site-nav a:hover {
+.site-nav a:hover,
+.site-nav a[aria-current="page"] {
   color: var(--foreground);
 }
 
@@ -382,7 +383,7 @@ body.docs-body {
     cursor: pointer;
   }
 
-  .docs-mobile-home {
+  .docs-mobile-site {
     display: block;
     padding: 0.375rem 1rem 0.5rem;
     color: var(--foreground);
@@ -398,9 +399,9 @@ body.docs-body {
   }
 }
 
-/* 极窄屏收起页头导航，首页入口由文档移动目录提供；文档页头换行，搜索框独占第二行。 */
+/* 极窄屏收起文档页头导航，首页与下载入口由文档移动目录提供；文档页头换行，搜索框独占第二行。 */
 @media (max-width: 480px) {
-  .site-nav {
+  .docs-body .site-nav {
     display: none;
   }
 

@@ -4,10 +4,11 @@ import { useTranslation } from "react-i18next"
 /** 可选的统计天数，第一个为默认值。 */
 export const periodOptions = [30, 7, 90] as const
 
-/** 返回按当前语言格式化计数、占比与时长的方法，分母为 0 或时长没有样本时显示占位符。 */
+/** 返回按当前语言格式化计数、简写计数、占比与时长的方法，分母为 0 或时长没有样本时显示占位符。 */
 export function useReportFormat() {
   const { t, i18n } = useTranslation("common")
   const count = new Intl.NumberFormat(i18n.resolvedLanguage)
+  const compact = new Intl.NumberFormat(i18n.resolvedLanguage, { notation: "compact", maximumFractionDigits: 1 })
   const percent = new Intl.NumberFormat(i18n.resolvedLanguage, {
     style: "percent",
     maximumFractionDigits: 1,
@@ -15,6 +16,8 @@ export function useReportFormat() {
   return {
     /** 格式化计数。 */
     count: (value: number) => count.format(value),
+    /** 按语言习惯简写较大的计数，如 1.2M、1.2万。 */
+    compact: (value: number) => compact.format(value),
     /** 格式化占比。 */
     rate: (part: number, total: number) =>
       total > 0 ? percent.format(part / total) : t("report.empty"),
