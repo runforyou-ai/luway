@@ -1,4 +1,4 @@
-/** 平台设置的业务使用页：按统计周期查看平台整体与各工作区关闭的服务周期、AI 独立解决率、转人工率、真人首响和待补知识。 */
+/** 平台设置的业务使用页：按统计周期查看平台整体与各工作区关闭的服务周期、AI 独立解决率、转人工率、真人首响、待补知识和平台模型用量。 */
 import { LayoutGridIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -28,12 +28,13 @@ const sortOptions = [
   [PlatformUsageSort.PlatformUsageSortConversations, "usage.sorts.conversations"],
   [PlatformUsageSort.PlatformUsageSortFirstResponse, "usage.sorts.firstResponse"],
   [PlatformUsageSort.PlatformUsageSortKnowledgeGaps, "usage.sorts.knowledgeGaps"],
+  [PlatformUsageSort.PlatformUsageSortModelTokens, "usage.sorts.modelTokens"],
 ] as const
 
 /** 展示平台整体业务使用指标，并按所选排序列出各工作区的指标。 */
 export function PlatformUsagePage() {
   const { t } = useTranslation("platform")
-  const { count, rate, duration } = useReportFormat()
+  const { count, compact, rate, duration } = useReportFormat()
   const { searchParams, setParameters } = useListSearchParams()
   const days = periodOptions.find((option) => String(option) === searchParams.get("days")) ?? periodOptions[0]
   const sort = optionalWailsEnum(PlatformUsageSort, searchParams.get("sort")) ?? PlatformUsageSort.PlatformUsageSortServiceSessions
@@ -74,7 +75,7 @@ export function PlatformUsagePage() {
 
       <ResourceListLayout resources={[summary, list]} errorMessage={t("usage.loadError")} more={list.more}>
         {total ? (
-          <div className="mx-3 mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="mx-3 mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
             <StatTile
               label={t("usage.serviceSessions")}
               value={count(total.serviceSessions)}
@@ -102,6 +103,24 @@ export function PlatformUsagePage() {
               label={t("usage.knowledgeGaps")}
               value={count(total.knowledgeGaps)}
               detail={t("usage.knowledgeGapsDetail")}
+            />
+            <StatTile
+              label={t("usage.modelCalls")}
+              value={count(total.modelCalls)}
+              detail={t("usage.modelCallsDetail", {
+                rate: rate(total.modelCallsFailed, total.modelCallsConcluded),
+                failed: count(total.modelCallsFailed),
+                concluded: count(total.modelCallsConcluded),
+              })}
+            />
+            <StatTile
+              label={t("usage.modelTokens")}
+              value={compact(total.inputTokens + total.outputTokens)}
+              detail={t("usage.modelTokensDetail", {
+                input: compact(total.inputTokens),
+                cached: compact(total.cachedInputTokens),
+                output: compact(total.outputTokens),
+              })}
             />
           </div>
         ) : null}
@@ -136,6 +155,12 @@ export function PlatformUsagePage() {
               header: t("usage.firstResponse"),
               cellClassName: "hidden w-px whitespace-nowrap text-right text-muted-foreground tabular-nums sm:table-cell",
               cell: (item) => t("usage.firstResponseCell", { duration: duration(item.metrics.firstResponseMedian) }),
+            },
+            {
+              key: "modelTokens",
+              header: t("usage.modelTokens"),
+              cellClassName: "hidden w-px whitespace-nowrap text-right text-muted-foreground tabular-nums sm:table-cell",
+              cell: (item) => t("usage.modelTokensCell", { formatted: compact(item.metrics.inputTokens + item.metrics.outputTokens) }),
             },
             {
               key: "knowledgeGaps",

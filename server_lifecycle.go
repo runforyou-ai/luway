@@ -4,11 +4,13 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os/signal"
 	"syscall"
 	"time"
 
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
+	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	"github.com/runforyou-ai/luway/internal/ingress"
 	"github.com/runforyou-ai/luway/internal/integration/control"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -100,4 +102,60 @@ func (l *telemetryLifecycle) ServiceShutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	return l.metrics.Shutdown(ctx)
+}
+
+// serverInstanceLifecycle 将服务端进程心跳接入 Wails 服务生命周期，在任务运行时与实时通知启动后注册。
+type serverInstanceLifecycle struct {
+	db        *bun.DB
+	tasks     *servertask.Runtime
+	publisher *realtime.Publisher
+	hostname  string
+	cancel    context.CancelFunc
+	done      chan struct{}
+}
+
+// ServiceStartup 登记服务端进程，之后按间隔刷新心跳与 NATS 连接状态。
+func (l *serverInstanceLifecycle) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
+	if err := l.report(ctx); err != nil {
+		return err
+	}
+	ctx, l.cancel = context.WithCancel(context.WithoutCancel(ctx))
+	l.done = make(chan struct{})
+	go func() {
+		defer close(l.done)
+		ticker := time.NewTicker(platformaction.InstanceHeartbeatInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if err := l.report(ctx); err != nil && ctx.Err() == nil {
+					slog.Warn("刷新服务端心跳失败", "error", err)
+				}
+			}
+		}
+	}()
+	return nil
+}
+
+// ServiceShutdown 停止心跳并删除本进程记录。
+func (l *serverInstanceLifecycle) ServiceShutdown() error {
+	if l.cancel == nil {
+		return nil
+	}
+	l.cancel()
+	<-l.done
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return platformaction.RemoveInstance(ctx, l.db, l.tasks.InstanceID())
+}
+
+// report 写入本进程的心跳与后台任务、实时通知各自的 NATS 连接状态。
+func (l *serverInstanceLifecycle) report(ctx context.Context) error {
+	connection := l.publisher.Connection()
+	return platformaction.ReportInstance(ctx, l.db, platformaction.InstanceReport{
+		ID: l.tasks.InstanceID(), Hostname: l.hostname, Version: buildinfo.Version,
+		TasksNATSConnected: l.tasks.BrokerConnected(), RealtimeNATSConnected: connection != nil && connection.IsConnected(),
+	})
 }

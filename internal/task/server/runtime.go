@@ -59,6 +59,16 @@ func New(db *bun.DB, natsConfig serverconfig.NATSConfig) *Runtime {
 	return runtime
 }
 
+// InstanceID 返回本进程的运行时实例编号，即 Worker 标识的前缀。
+func (r *Runtime) InstanceID() string {
+	return r.instanceID
+}
+
+// BrokerConnected 返回运行时当前是否与 NATS 保持连接；只在 Start 与 Stop 之间调用。
+func (r *Runtime) BrokerConnected() bool {
+	return r.connection != nil && r.connection.IsConnected()
+}
+
 // Registry 返回 Action 注册表。
 func (r *Runtime) Registry() *Registry {
 	return r.registry

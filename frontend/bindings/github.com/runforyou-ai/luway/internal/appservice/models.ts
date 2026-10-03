@@ -4418,7 +4418,8 @@ export interface PlatformAIProviderList {
 }
 
 /**
- * PlatformAIProviderSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数。
+ * PlatformAIProviderSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数；
+ * 近 24 小时内结束的上游尝试中，RecentAttempts 为成功、失败与超时的次数，RecentFailures 为失败与超时的次数，LastError 与 LastFailedAt 为最近一次失败或超时的原因与时间，没有时为空。
  */
 export interface PlatformAIProviderSummary {
     "id": string;
@@ -4426,6 +4427,10 @@ export interface PlatformAIProviderSummary {
     "name": string;
     "apiUrl": string;
     "modelCount": number;
+    "recentAttempts": number;
+    "recentFailures": number;
+    "lastError": string;
+    "lastFailedAt": string | null;
 }
 
 /**
@@ -4480,6 +4485,15 @@ export interface PlatformActivityWindow {
 }
 
 /**
+ * PlatformControlStatus 定义与 control 同步的结果：SyncedAt 为最近一次成功的时间，从未成功时为空；FailedAt 与 Error 为此后最近一次失败的时间与原因。
+ */
+export interface PlatformControlStatus {
+    "syncedAt": string | null;
+    "failedAt": string | null;
+    "error": string;
+}
+
+/**
  * PlatformDailyActivity 定义一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数，Date 为 YYYY-MM-DD。
  */
 export interface PlatformDailyActivity {
@@ -4522,7 +4536,15 @@ export interface PlatformFailedTaskListInput {
 }
 
 /**
- * PlatformOverview 定义服务器标识、安装时间、规模、活跃情况和平台能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
+ * PlatformObjectStorageStatus 定义对象存储状态：Enabled 为假表示文件写入服务器本地目录；Error 为存储桶检查失败的原因，可以访问时为空。
+ */
+export interface PlatformObjectStorageStatus {
+    "enabled": boolean;
+    "error": string;
+}
+
+/**
+ * PlatformOverview 定义服务器标识、安装时间、规模、活跃情况、授权状态和当前生效的平台能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
  */
 export interface PlatformOverview {
     "serverId": string;
@@ -4535,6 +4557,7 @@ export interface PlatformOverview {
     "last7Days": PlatformActivityWindow;
     "last30Days": PlatformActivityWindow;
     "trend": PlatformDailyActivity[] | null;
+    "license": License;
     "capabilities": Capabilities;
 }
 
@@ -4547,11 +4570,27 @@ export interface PlatformPoliciesInput {
 }
 
 /**
- * PlatformRuntimeStatus 定义服务端版本与后台任务各队列的运行概况。
+ * PlatformRuntimeStatus 定义服务端进程、外部依赖与后台任务各队列的运行状态。
  */
 export interface PlatformRuntimeStatus {
-    "version": string;
+    "servers": PlatformServer[] | null;
+    "objectStorage": PlatformObjectStorageStatus;
+    "control": PlatformControlStatus;
     "queues": PlatformTaskQueue[] | null;
+}
+
+/**
+ * PlatformServer 定义一个服务端进程及其最近一次心跳；TasksNATSConnected 与 RealtimeNATSConnected 为最近一次心跳时后台任务与实时通知的 NATS 连接是否可用，Online 表示 2 分钟内有心跳。
+ */
+export interface PlatformServer {
+    "id": string;
+    "startedAt": string;
+    "heartbeatAt": string;
+    "hostname": string;
+    "version": string;
+    "tasksNatsConnected": boolean;
+    "realtimeNatsConnected": boolean;
+    "online": boolean;
 }
 
 /**
@@ -4593,7 +4632,7 @@ export interface PlatformTelemetryInput {
 }
 
 /**
- * PlatformUsageInput 定义业务使用的统计范围：最近 Days 天内关闭的客服周期。
+ * PlatformUsageInput 定义业务使用的统计范围：最近 Days 天内关闭的客服周期与开始的平台模型调用。
  */
 export interface PlatformUsageInput {
     "days": number;
@@ -4602,6 +4641,7 @@ export interface PlatformUsageInput {
 /**
  * PlatformUsageMetrics 定义业务使用指标，口径与工作区的 AI 表现和团队表现报表一致：ServiceSessions 为已关闭周期数，Conversations 为其所属会话去重数；
  * AIClosed 为其中 AI 员工接待过的周期数，AIResolved 与 HandedOff 为其中 AI 独立解决与发生过转人工的周期数；首响为按工作时间计的真人首响（秒），没有样本时为空；KnowledgeGaps 为全部待处理的待补知识条数。
+ * ModelCalls 为平台模型调用数，ModelCallsConcluded 为其中成功、失败与超时的调用数，ModelCallsFailed 为其中失败与超时的调用数；InputTokens 含命中缓存的 CachedInputTokens。
  */
 export interface PlatformUsageMetrics {
     "serviceSessions": number;
@@ -4612,6 +4652,12 @@ export interface PlatformUsageMetrics {
     "firstResponseMedian": number | null;
     "firstResponseP90": number | null;
     "knowledgeGaps": number;
+    "modelCalls": number;
+    "modelCallsConcluded": number;
+    "modelCallsFailed": number;
+    "inputTokens": number;
+    "cachedInputTokens": number;
+    "outputTokens": number;
 }
 
 /**
@@ -4627,6 +4673,7 @@ export enum PlatformUsageSort {
     PlatformUsageSortConversations = "conversations",
     PlatformUsageSortFirstResponse = "first_response",
     PlatformUsageSortKnowledgeGaps = "knowledge_gaps",
+    PlatformUsageSortModelTokens = "model_tokens",
 };
 
 /**

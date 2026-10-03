@@ -67,7 +67,8 @@ func (o *directOperations) ListPlatformAIProviders(ctx context.Context, meta app
 	for _, provider := range providers {
 		output = append(output, appservice.PlatformAIProviderSummary{
 			ID: provider.ID, Brand: appservice.AIProviderBrand(provider.Brand), Name: provider.Name, APIURL: provider.APIURL,
-			ModelCount: provider.ModelCount,
+			ModelCount: provider.ModelCount, RecentAttempts: provider.RecentAttempts, RecentFailures: provider.RecentFailures,
+			LastError: provider.LastError, LastFailedAt: provider.LastFailedAt,
 		})
 	}
 	return appservice.PlatformAIProviderList{Providers: output}, nil

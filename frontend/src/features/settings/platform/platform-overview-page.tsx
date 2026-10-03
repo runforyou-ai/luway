@@ -1,15 +1,18 @@
-/** 平台设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，统计时区，服务器标识、运行指标上报开关、安装时间和工作区上限。 */
+/** 平台设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，统计时区，授权状态，服务器标识、运行指标上报开关、安装时间和工作区上限。 */
 import { useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
+import { Link } from "react-router"
 import { toast } from "sonner"
 import { z } from "zod"
 
 import {
+  LicenseStatus,
   getPlatformOverview,
   getPlatformSettings,
   updatePlatformStatisticsTimeZone,
   updatePlatformTelemetry,
+  type License,
   type PlatformSettings,
 } from "@/api"
 import { SwitchField } from "@/components/form/switch-field"
@@ -26,6 +29,7 @@ import { useCopyFeedback } from "@/hooks/use-copy-feedback"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { useLicenseStatusHelp, useRefreshAtLicenseExpiry } from "@/features/settings/platform/platform-license-page"
 import { supportedTimeZones } from "@/lib/time-zones"
 import { zodResolver } from "@/lib/zod-resolver"
 
@@ -56,6 +60,8 @@ export function PlatformOverviewPage() {
     refetchOnWindowFocus: false,
   })
   const data = overview.data
+  // 有效授权到期后重新读取概览，授权状态与工作区上限随之更新。
+  useRefreshAtLicenseExpiry(data?.license, overview.refresh)
   const count = useMemo(() => new Intl.NumberFormat(i18n.resolvedLanguage), [i18n.resolvedLanguage])
   const dayLabel = useMemo(
     () => new Intl.DateTimeFormat(i18n.resolvedLanguage, { month: "numeric", day: "numeric", timeZone: "UTC" }),
@@ -121,6 +127,7 @@ export function PlatformOverviewPage() {
 
               <FieldGroup className="grid">
                 <StatisticsTimeZoneField settings={settings.data} />
+                <LicenseField license={data.license} />
                 <Field>
                   <FieldLabel htmlFor="platform-server-id">{t("overview.serverId")}</FieldLabel>
                   <div className="flex items-center gap-2">
@@ -153,6 +160,39 @@ export function PlatformOverviewPage() {
         </ResourceContent>
       </PageContent>
     </div>
+  )
+}
+
+/** 只读的授权状态：有效时显示客户与到期时间，临近到期或已到期时在下方提醒，可进入授权页管理。 */
+function LicenseField({ license }: { license: License }) {
+  const { t } = useTranslation("platform")
+  const { formatDateTime } = useDateTime()
+  const help = useLicenseStatusHelp(license)
+  const statusLabels: Record<string, string> = {
+    [LicenseStatus.LicenseStatusNone]: t("license.statuses.none"),
+    [LicenseStatus.LicenseStatusActive]: t("license.statuses.active"),
+    [LicenseStatus.LicenseStatusExpired]: t("license.statuses.expired"),
+  }
+  const value =
+    license.status === LicenseStatus.LicenseStatusNone
+      ? statusLabels[license.status]
+      : t("overview.licenseSummary", {
+          status: statusLabels[license.status],
+          customer: license.customer,
+          expiresAt: license.expiresAt ? formatDateTime(license.expiresAt) : "",
+        })
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="platform-license">{t("overview.license")}</FieldLabel>
+      <div className="flex items-center gap-2">
+        <Input id="platform-license" value={value} readOnly className="text-muted-foreground" />
+        <Button asChild variant="outline" className="h-11 shrink-0">
+          <Link to="/settings/platform/license">{t("overview.manageLicense")}</Link>
+        </Button>
+      </div>
+      {help ? <FieldDescription>{help}</FieldDescription> : null}
+    </Field>
   )
 }
 

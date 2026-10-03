@@ -4,7 +4,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/runforyou-ai/luway/docs"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
@@ -129,6 +131,10 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		api.WithTelegramWebhook(telegramWebhook),
 	)
 	publicLookup := channelaction.NewGetPublicWebsiteChannelQuery(db).Execute
+	hostname, err := os.Hostname()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("read hostname: %w", err)
+	}
 
 	// 注册健康检查、业务与文件路由、公开聊天入口及后台服务生命周期。
 	services := []application.Service{
@@ -140,6 +146,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewServiceWithOptions(httpAPI, application.ServiceOptions{Route: "/api"}),
 		application.NewServiceWithOptions(api.NewLocalObjectService(direct.NewLocalObjectAuthorizer(db), localFiles), application.ServiceOptions{Route: domain.LocalFilePublicPath + "/"}),
 		application.NewService(&serverTaskLifecycle{runtime: tasks}),
+		application.NewService(&serverInstanceLifecycle{db: db, tasks: tasks, publisher: realtimePublisher, hostname: hostname}),
 		application.NewService(&telemetryLifecycle{db: db, control: controlClient}),
 		application.NewServiceWithOptions(publicweb.NewEmbedService(publicLookup), application.ServiceOptions{Route: "/embed"}),
 		application.NewServiceWithOptions(publicweb.NewChatService(publicLookup), application.ServiceOptions{Route: "/chat/"}),
