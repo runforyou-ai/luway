@@ -13,6 +13,7 @@ import {
   CoinsIcon,
   CircleUserRoundIcon,
   GaugeIcon,
+  HeartPulseIcon,
   KeyRoundIcon,
   LayoutGridIcon,
   LockKeyholeIcon,
@@ -203,17 +204,10 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/platform/runtime"
-            icon={ActivityIcon}
+            to="/settings/platform/workspaces"
+            icon={LayoutGridIcon}
           >
-            {t("navigation.platformRuntime")}
-          </PagePaneLink>
-          <PagePaneLink
-            collapsed={collapsed}
-            to="/settings/platform/license"
-            icon={KeyRoundIcon}
-          >
-            {t("navigation.platformLicense")}
+            {t("navigation.platformWorkspaces")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
@@ -224,13 +218,6 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/platform/workspaces"
-            icon={LayoutGridIcon}
-          >
-            {t("navigation.platformWorkspaces")}
-          </PagePaneLink>
-          <PagePaneLink
-            collapsed={collapsed}
             to="/settings/platform/registration"
             icon={UserPlusIcon}
           >
@@ -238,17 +225,17 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/platform/models"
-            icon={BrainCircuitIcon}
-          >
-            {t("navigation.platformModels")}
-          </PagePaneLink>
-          <PagePaneLink
-            collapsed={collapsed}
             to="/settings/platform/providers"
             icon={ServerIcon}
           >
             {t("navigation.platformProviders")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/models"
+            icon={BrainCircuitIcon}
+          >
+            {t("navigation.platformModels")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
@@ -263,6 +250,20 @@ export function WorkspaceSettingsMenu({
             icon={CoinsIcon}
           >
             {t("navigation.platformCredits")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/runtime"
+            icon={HeartPulseIcon}
+          >
+            {t("navigation.platformRuntime")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/license"
+            icon={KeyRoundIcon}
+          >
+            {t("navigation.platformLicense")}
           </PagePaneLink>
         </PagePaneGroup>
       ) : null}

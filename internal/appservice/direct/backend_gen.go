@@ -1350,7 +1350,7 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return b.ops.AcceptInvitation(ctx, meta, account, input)
 }
 
-// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformOverview, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1530,7 +1530,7 @@ func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.R
 	return b.ops.ResumePlatformWorkspace(ctx, meta, account, workspaceID)
 }
 
-// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1540,7 +1540,7 @@ func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestM
 	return b.ops.GetPlatformUsage(ctx, meta, account, input)
 }
 
-// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceUsageListInput) (appservice.PlatformWorkspaceUsageList, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1550,7 +1550,7 @@ func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservic
 	return b.ops.ListPlatformWorkspaceUsage(ctx, meta, account, input)
 }
 
-// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+// GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformRuntimeStatus, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1600,7 +1600,7 @@ func (b *Backend) AdjustPlatformWorkspaceCredits(ctx context.Context, meta appse
 	return b.ops.AdjustPlatformWorkspaceCredits(ctx, meta, account, workspaceID, input)
 }
 
-// ListPlatformAIProviders 返回平台供应商。
+// ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIProviderList, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {

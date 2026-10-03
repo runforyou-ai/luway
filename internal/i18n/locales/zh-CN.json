@@ -768,5 +768,14 @@
   "site.self_host_action": "查看部署指南",
   "site.closing_title": "开始使用{{.Product}}",
   "site.closing_body": "登录工作区开始工作，或阅读文档了解更多功能。",
+  "site.download": "下载",
+  "site.download_title": "下载客户端",
+  "site.download_body": "安装桌面端，连接当前服务器使用{{.Product}}。",
+  "site.download_version": "版本 {{.Version}}",
+  "site.download_current": "当前设备",
+  "site.download_unavailable": "当前服务器未提供",
+  "site.download_coming_soon": "即将推出",
+  "site.download_mac_universal": "Apple 芯片与 Intel",
+  "site.download_web": "无需安装，也可以在浏览器中使用。",
   "error.product_doc_not_found": "文档页面不存在。"
 }

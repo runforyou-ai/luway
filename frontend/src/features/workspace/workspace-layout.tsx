@@ -23,6 +23,7 @@ import {
 } from "@/features/notifications/use-new-message-notifications"
 import { GlobalSearchProvider } from "@/features/inbox/global-search"
 import { useInboxAttention } from "@/features/inbox/inbox-attention"
+import { useLicenseReminder } from "@/features/settings/platform/license-reminder"
 import { SessionShell } from "@/features/session/session-shell"
 import {
   WorkspaceHistoryNav,
@@ -74,6 +75,7 @@ export function WorkspaceLayout() {
 function WorkspaceShell({ identity }: { identity: Identity }) {
   useClearSelectionOnNavigation()
   useDesktopWindowMode("workspace")
+  useLicenseReminder()
   const location = useLocation()
   const { t } = useTranslation("workspace")
   const navigate = useNavigate()

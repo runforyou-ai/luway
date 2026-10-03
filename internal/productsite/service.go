@@ -1,16 +1,18 @@
 //go:build server
 
-// Package productsite 在服务端根路径输出产品首页，与 /docs/ 下的产品文档共用页头与样式。
+// Package productsite 在服务端根路径输出产品首页与客户端下载页，与 /docs/ 下的产品文档共用页头与样式。
 package productsite
 
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
 	"strings"
 
+	"github.com/runforyou-ai/luway/internal/clientrelease"
 	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
@@ -20,7 +22,7 @@ import (
 //go:embed page.html
 var pageTemplateSource string
 
-// pageTemplate 渲染产品首页与 404 页面。
+// pageTemplate 渲染产品首页、下载页与 404 页面。
 var pageTemplate = template.Must(template.New("page").Parse(pageTemplateSource))
 
 // textKeys 是页面模板使用的界面文案。
@@ -36,6 +38,8 @@ var textKeys = map[string]i18n.Key{
 	"platformDesktop": i18n.SitePlatformDesktop, "platformMobile": i18n.SitePlatformMobile,
 	"selfHostTitle": i18n.SiteSelfHostTitle, "selfHostBody": i18n.SiteSelfHostBody, "selfHostAction": i18n.SiteSelfHostAction,
 	"closingTitle": i18n.SiteClosingTitle, "closingBody": i18n.SiteClosingBody,
+	"download": i18n.SiteDownload, "downloadTitle": i18n.SiteDownloadTitle, "downloadBody": i18n.SiteDownloadBody,
+	"downloadCurrent": i18n.SiteDownloadCurrent, "downloadWeb": i18n.SiteDownloadWeb,
 }
 
 // features 是首页能力区块的图标与文案，按展示顺序排列。
@@ -62,20 +66,51 @@ var icons = map[string]template.HTML{
 	"web":           `<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>`,
 	"desktop":       `<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>`,
 	"mobile":        `<rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/>`,
+	"download":      `<path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/>`,
 	"server":        `<rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/>`,
 }
 
-// Service 在根路径下按语言目录输出产品首页，其余路径输出 404 页面。
+// platforms 是下载页的平台，按展示顺序排列；os 为空的平台尚未提供安装包。
+var platforms = []struct {
+	id, name, icon, os string
+}{
+	{"windows", "Windows", "desktop", clientrelease.OSWindows},
+	{"macos", "macOS", "desktop", clientrelease.OSDarwin},
+	{"linux", "Linux", "desktop", clientrelease.OSLinux},
+	{"android", "Android", "mobile", ""},
+	{"ios", "iOS", "mobile", ""},
+}
+
+// formatLabels 是不随语言变化的安装包名称，按格式索引。
+var formatLabels = map[string]string{
+	clientrelease.FormatAppImage: "AppImage",
+	clientrelease.FormatDeb:      "Debian / Ubuntu",
+	clientrelease.FormatRPM:      "Fedora / openSUSE",
+	clientrelease.FormatPacman:   "Arch Linux",
+}
+
+// archLabels 是安装包的处理器架构名称。
+var archLabels = map[string]string{"amd64": "x64", "arm64": "ARM64"}
+
+// 产品站的页面。
+const (
+	pageHome     = "home"
+	pageDownload = "download"
+	pageNotFound = "notFound"
+)
+
+// Service 在根路径下按语言目录输出产品首页与客户端下载页，其余路径输出 404 页面。
 type Service struct {
 	stylesheet string
+	clients    *clientrelease.Catalog
 }
 
-// NewService 创建产品首页服务；stylesheet 为与文档站点共用的样式地址。
-func NewService(stylesheet string) *Service {
-	return &Service{stylesheet: stylesheet}
+// NewService 创建产品站服务；stylesheet 为与文档站点共用的样式地址，clients 为服务器提供下载的客户端安装包。
+func NewService(stylesheet string, clients *clientrelease.Catalog) *Service {
+	return &Service{stylesheet: stylesheet, clients: clients}
 }
 
-// ServeHTTP 处理产品首页请求：根路径按语言偏好跳转到对应语言的首页。
+// ServeHTTP 处理产品站请求：根路径按语言偏好跳转到对应语言的首页，语言目录下输出首页与下载页。
 func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet && request.Method != http.MethodHead {
 		writer.Header().Set("Allow", "GET, HEAD")
@@ -84,24 +119,23 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 	requestPath := request.URL.Path
 	if requestPath == "" || requestPath == "/" {
-		http.Redirect(writer, request, homePath(productdocs.PreferredLocale(request)), http.StatusFound)
+		http.Redirect(writer, request, productdocs.SitePath(productdocs.PreferredLocale(request), ""), http.StatusFound)
 		return
 	}
-	locale := strings.Trim(requestPath, "/")
-	if productdocs.LanguageTag(locale) == "" {
-		s.write(writer, request, http.StatusNotFound, s.newView(productdocs.PreferredLocale(request), true))
+	locale, page, _ := strings.Cut(strings.Trim(requestPath, "/"), "/")
+	if productdocs.LanguageTag(locale) == "" || (page != "" && page != productdocs.SiteDownloadPage) {
+		s.write(writer, request, http.StatusNotFound, s.newView(productdocs.PreferredLocale(request), pageNotFound))
 		return
 	}
-	if requestPath != homePath(locale) {
-		http.Redirect(writer, request, homePath(locale), http.StatusMovedPermanently)
+	if target := productdocs.SitePath(locale, page); requestPath != target {
+		http.Redirect(writer, request, target, http.StatusMovedPermanently)
 		return
 	}
-	s.write(writer, request, http.StatusOK, s.newView(locale, false))
-}
-
-// homePath 返回指定语言目录的首页地址。
-func homePath(locale string) string {
-	return "/" + locale + "/"
+	if page == productdocs.SiteDownloadPage {
+		s.write(writer, request, http.StatusOK, s.newView(locale, pageDownload))
+		return
+	}
+	s.write(writer, request, http.StatusOK, s.newView(locale, pageHome))
 }
 
 // pageView 是页面模板的数据。
@@ -112,14 +146,17 @@ type pageView struct {
 	Stylesheet     string
 	HomePath       string
 	DocsPath       string
+	DownloadPath   string
 	DeploymentPath string
 	AppPath        string
 	Text           map[string]string
 	Features       []featureView
+	Platforms      []platformView
+	ClientVersion  string
 	Languages      []languageView
 	Icons          map[string]template.HTML
 	Script         template.JS
-	NotFound       bool
+	Page           string
 }
 
 // featureView 是一个能力区块的模板数据。
@@ -127,6 +164,22 @@ type featureView struct {
 	Icon  string
 	Title string
 	Body  string
+}
+
+// platformView 是下载页一个平台的模板数据；没有安装包时 Status 说明原因。
+type platformView struct {
+	ID        string
+	Name      string
+	Icon      string
+	Downloads []downloadView
+	Status    string
+}
+
+// downloadView 是一个安装包的模板数据。
+type downloadView struct {
+	Label string
+	Size  string
+	URL   string
 }
 
 // languageView 是语言切换项的模板数据。
@@ -137,14 +190,15 @@ type languageView struct {
 	Current bool
 }
 
-// newView 生成指定语言的页面数据；notFound 为真时生成 404 页面。
-func (s *Service) newView(locale string, notFound bool) pageView {
+// newView 生成指定语言、指定页面的页面数据。
+func (s *Service) newView(locale, page string) pageView {
 	tag := productdocs.LanguageTag(locale)
 	view := pageView{
 		Lang: tag, Product: brand.Current().Name(tag), Stylesheet: s.stylesheet,
-		HomePath: homePath(locale), DocsPath: productdocs.PagePath(locale, ""),
+		HomePath: productdocs.SitePath(locale, ""), DocsPath: productdocs.PagePath(locale, ""),
+		DownloadPath:   productdocs.SitePath(locale, productdocs.SiteDownloadPage),
 		DeploymentPath: productdocs.PagePath(locale, "deployment"), AppPath: domain.WebAppPath,
-		Text: i18n.LocalizeMap(tag, textKeys), Icons: icons, Script: productdocs.AccountScript, NotFound: notFound,
+		Text: i18n.LocalizeMap(tag, textKeys), Icons: icons, Script: productdocs.AccountScript, Page: page,
 	}
 	// 版权主体来自构建品牌，产品名称与构建品牌一致时显示。
 	if view.Product == brand.Build().Name(tag) {
@@ -155,13 +209,58 @@ func (s *Service) newView(locale string, notFound bool) pageView {
 		body, _ := i18n.Localize(tag, feature.body)
 		view.Features = append(view.Features, featureView{Icon: feature.icon, Title: title, Body: body})
 	}
+	if page == pageDownload {
+		view.Platforms = s.platformViews(tag)
+		if version := s.clients.Version(); version != "" {
+			view.ClientVersion = i18n.LocalizeTemplate(tag, i18n.SiteDownloadVersion, map[string]any{"Version": version})
+		}
+	}
 	for _, candidate := range productdocs.Locales {
+		// 下载页切换语言时停留在下载页，其余页面切换到对应语言的首页。
+		target := productdocs.SitePath(candidate, "")
+		if page == pageDownload {
+			target = productdocs.SitePath(candidate, productdocs.SiteDownloadPage)
+		}
 		view.Languages = append(view.Languages, languageView{
 			Label: productdocs.LanguageLabel(candidate), Lang: productdocs.LanguageTag(candidate),
-			Path: homePath(candidate), Current: candidate == locale,
+			Path: target, Current: candidate == locale,
 		})
 	}
 	return view
+}
+
+// platformViews 按平台归组服务器提供的安装包，移动端显示即将推出，未提供安装包的桌面平台显示未提供。
+func (s *Service) platformViews(tag string) []platformView {
+	unavailable, _ := i18n.Localize(tag, i18n.SiteDownloadUnavailable)
+	comingSoon, _ := i18n.Localize(tag, i18n.SiteDownloadComingSoon)
+	universal, _ := i18n.Localize(tag, i18n.SiteDownloadMacUniversal)
+	views := make([]platformView, 0, len(platforms))
+	for _, platform := range platforms {
+		view := platformView{ID: platform.id, Name: platform.name, Icon: platform.icon}
+		for _, file := range s.clients.Files() {
+			if file.OS != platform.os {
+				continue
+			}
+			label := formatLabels[file.Format] + " · " + archLabels[file.Arch]
+			switch file.Format {
+			case clientrelease.FormatEXE:
+				label = archLabels[file.Arch]
+			case clientrelease.FormatDMG:
+				label = universal
+			}
+			view.Downloads = append(view.Downloads, downloadView{
+				Label: label, Size: fmt.Sprintf("%.1f MB", float64(file.Size)/(1<<20)), URL: clientrelease.URL(file),
+			})
+		}
+		switch {
+		case platform.os == "":
+			view.Status = comingSoon
+		case len(view.Downloads) == 0:
+			view.Status = unavailable
+		}
+		views = append(views, view)
+	}
+	return views
 }
 
 // write 渲染页面模板并写入响应。

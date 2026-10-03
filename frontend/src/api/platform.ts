@@ -39,7 +39,7 @@ const listPlatformWorkspacesBound = bind(ListPlatformWorkspaces)
 const listPlatformWorkspaceUsageBound = bind(ListPlatformWorkspaceUsage)
 const listPlatformFailedTasksBound = bind(ListPlatformFailedTasks)
 
-/** 读取服务器标识、规模、活跃趋势和平台能力。 */
+/** 读取服务器标识、规模、活跃趋势、授权状态和平台能力。 */
 export const getPlatformOverview = bind(GetPlatformOverview)
 
 /** 读取服务器标识与授权状态。 */
@@ -111,10 +111,10 @@ export function listPlatformWorkspaces(query: Partial<PlatformWorkspaceListInput
   )
 }
 
-/** 读取平台整体最近若干天的客服业务使用指标。 */
+/** 读取平台整体最近若干天的客服业务使用指标与平台模型用量。 */
 export const getPlatformUsage = bind(GetPlatformUsage)
 
-/** 读取各工作区最近若干天的客服业务使用指标，天数缺省为 30，排序缺省按服务周期数。 */
+/** 读取各工作区最近若干天的客服业务使用指标与平台模型用量，天数缺省为 30，排序缺省按服务周期数。 */
 export function listPlatformWorkspaceUsage(query: Partial<PlatformWorkspaceUsageListInput>, signal?: AbortSignal) {
   return listPlatformWorkspaceUsageBound(
     {
@@ -127,7 +127,7 @@ export function listPlatformWorkspaceUsage(query: Partial<PlatformWorkspaceUsage
   )
 }
 
-/** 读取服务端版本与后台任务各队列的运行概况。 */
+/** 读取服务端进程、外部依赖与后台任务各队列的运行状态。 */
 export const getPlatformRuntimeStatus = bind(GetPlatformRuntimeStatus)
 
 /** 读取近 7 天内失败与等待重试的后台任务。 */

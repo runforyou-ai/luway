@@ -1,4 +1,4 @@
-/** Web 端「在客户端中使用」对话框：打开桌面端或用手机扫码，客户端随即进入当前服务器的连接确认。 */
+/** Web 端「在客户端中使用」对话框：打开或下载桌面端、用手机扫码，客户端随即进入当前服务器的连接确认。 */
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -11,8 +11,9 @@ import {
 } from "@/components/ui/dialog"
 import { useQRCode } from "@/hooks/use-qr-code"
 import { useBrand } from "@/lib/brand"
+import { clientDownloadPath } from "@/lib/client-download"
 
-/** 展示唤起桌面端的按钮和供移动端扫码的连接链接二维码。 */
+/** 展示唤起或下载桌面端的按钮和供移动端扫码的连接链接二维码。 */
 export function ClientLinkDialog({
   open,
   onOpenChange,
@@ -20,7 +21,7 @@ export function ClientLinkDialog({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const { t } = useTranslation(["connection", "common"])
+  const { t, i18n } = useTranslation(["connection", "common"])
   const brand = useBrand()
   // Web 端页面来源即当前服务器的部署地址。
   const link = `${brand.linkScheme}://connect?server=${encodeURIComponent(window.location.origin)}`
@@ -37,9 +38,16 @@ export function ClientLinkDialog({
           <section className="space-y-2">
             <p className="font-medium">{t("clientLink.desktop")}</p>
             <p className="text-muted-foreground">{t("clientLink.desktopHelp")}</p>
-            <Button asChild className="mt-1">
-              <a href={link}>{t("clientLink.openDesktop")}</a>
-            </Button>
+            <div className="mt-1 flex flex-wrap gap-2">
+              <Button asChild>
+                <a href={link}>{t("clientLink.openDesktop")}</a>
+              </Button>
+              <Button asChild variant="outline">
+                <a href={clientDownloadPath(i18n.language)} target="_blank" rel="noreferrer">
+                  {t("clientLink.downloadDesktop")}
+                </a>
+              </Button>
+            </div>
           </section>
           <section className="space-y-2">
             <p className="font-medium">{t("clientLink.mobile")}</p>

@@ -33,13 +33,18 @@ type PlatformAIProvider struct {
 	APIURL         string                   `json:"apiUrl"`
 }
 
-// PlatformAIProviderSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数。
+// PlatformAIProviderSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数；
+// 近 24 小时内结束的上游尝试中，RecentAttempts 为成功、失败与超时的次数，RecentFailures 为失败与超时的次数，LastError 与 LastFailedAt 为最近一次失败或超时的原因与时间，没有时为空。
 type PlatformAIProviderSummary struct {
-	ID         string          `json:"id"`
-	Brand      AIProviderBrand `json:"brand"`
-	Name       string          `json:"name"`
-	APIURL     string          `json:"apiUrl"`
-	ModelCount int             `json:"modelCount"`
+	ID             string          `json:"id"`
+	Brand          AIProviderBrand `json:"brand"`
+	Name           string          `json:"name"`
+	APIURL         string          `json:"apiUrl"`
+	ModelCount     int             `json:"modelCount"`
+	RecentAttempts int             `json:"recentAttempts"`
+	RecentFailures int             `json:"recentFailures"`
+	LastError      string          `json:"lastError"`
+	LastFailedAt   *time.Time      `json:"lastFailedAt"`
 }
 
 // PlatformAIProviderList 定义平台供应商列表。

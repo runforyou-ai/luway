@@ -5,25 +5,73 @@ package platform
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 
-// TaskQueuesQuery 读取平台后台任务各队列的运行概况。
-type TaskQueuesQuery struct {
-	db *bun.DB
+// bucketCheckTimeout 是检查对象存储桶的时限。
+const bucketCheckTimeout = 3 * time.Second
+
+// RuntimeStatus 定义服务端进程、外部依赖与后台任务各队列的运行状态。
+type RuntimeStatus struct {
+	Servers       []ServerInstance
+	ObjectStorage ObjectStorageStatus
+	Control       ControlStatus
+	Queues        []servertask.QueueStatus
 }
 
-// NewTaskQueuesQuery 创建后台任务队列概况查询。
-func NewTaskQueuesQuery(db *bun.DB) *TaskQueuesQuery {
-	return &TaskQueuesQuery{db: db}
+// ObjectStorageStatus 定义对象存储状态：Enabled 为假表示文件写入服务器本地目录；Error 为存储桶检查失败的原因，可以访问时为空。
+type ObjectStorageStatus struct {
+	Enabled bool
+	Error   string
 }
 
-// Execute 返回有未结束任务或近期失败任务的各队列运行概况。
-func (q *TaskQueuesQuery) Execute(ctx context.Context) ([]servertask.QueueStatus, error) {
-	return servertask.ReadQueueStatuses(ctx, q.db)
+// ControlStatus 定义与 control 同步的结果：SyncedAt 为最近一次成功的时间，FailedAt 与 Error 为此后最近一次失败的时间与原因。
+type ControlStatus struct {
+	SyncedAt *time.Time
+	FailedAt *time.Time
+	Error    string
+}
+
+// RuntimeStatusQuery 读取平台运行状态。
+type RuntimeStatusQuery struct {
+	db      *bun.DB
+	storage filecontent.S3Config
+}
+
+// NewRuntimeStatusQuery 创建运行状态查询，storage 是部署级对象存储配置。
+func NewRuntimeStatusQuery(db *bun.DB, storage filecontent.S3Config) *RuntimeStatusQuery {
+	return &RuntimeStatusQuery{db: db, storage: storage}
+}
+
+// Execute 返回服务端进程、对象存储与 control 状态，以及有未结束任务或近期失败任务的各队列运行概况；开启对象存储时实时检查存储桶。
+func (q *RuntimeStatusQuery) Execute(ctx context.Context) (RuntimeStatus, error) {
+	platform, err := Load(ctx, q.db)
+	if err != nil {
+		return RuntimeStatus{}, err
+	}
+	status := RuntimeStatus{
+		ObjectStorage: ObjectStorageStatus{Enabled: q.storage.Enabled},
+		Control:       ControlStatus{SyncedAt: platform.ControlSyncedAt, FailedAt: platform.ControlFailedAt, Error: platform.ControlError},
+	}
+	if status.Servers, err = listInstances(ctx, q.db); err != nil {
+		return RuntimeStatus{}, err
+	}
+	if status.Queues, err = servertask.ReadQueueStatuses(ctx, q.db); err != nil {
+		return RuntimeStatus{}, err
+	}
+	if q.storage.Enabled {
+		checkCtx, cancel := context.WithTimeout(ctx, bucketCheckTimeout)
+		defer cancel()
+		if err := filecontent.CheckBucket(checkCtx, q.storage); err != nil {
+			status.ObjectStorage.Error = err.Error()
+		}
+	}
+	return status, nil
 }
 
 // FailedTask 定义一次失败或等待重试的后台任务运行；WorkspaceName 为所属工作区名称，平台级任务为空。

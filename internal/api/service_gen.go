@@ -1412,7 +1412,7 @@ func (s *Service) acceptInvitation(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+// getPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 func (s *Service) getPlatformOverview(c *gin.Context) {
 	output, err := s.application.GetPlatformOverview(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1552,7 +1552,7 @@ func (s *Service) resumePlatformWorkspace(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+// getPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 func (s *Service) getPlatformUsage(c *gin.Context) {
 	input, ok := bindPlatformUsageInputQuery(c)
 	if !ok {
@@ -1562,7 +1562,7 @@ func (s *Service) getPlatformUsage(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+// listPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 func (s *Service) listPlatformWorkspaceUsage(c *gin.Context) {
 	input, ok := bindPlatformWorkspaceUsageListInputQuery(c)
 	if !ok {
@@ -1572,7 +1572,7 @@ func (s *Service) listPlatformWorkspaceUsage(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+// getPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 func (s *Service) getPlatformRuntimeStatus(c *gin.Context) {
 	output, err := s.application.GetPlatformRuntimeStatus(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1614,7 +1614,7 @@ func (s *Service) adjustPlatformWorkspaceCredits(c *gin.Context) {
 	writeResult(c, http.StatusCreated, output, err)
 }
 
-// listPlatformAIProviders 返回平台供应商。
+// listPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 func (s *Service) listPlatformAIProviders(c *gin.Context) {
 	output, err := s.application.ListPlatformAIProviders(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)

@@ -14,7 +14,7 @@ import (
 // overviewTrendDays 是平台概览趋势覆盖的天数，含今天。
 const overviewTrendDays = 30
 
-// Overview 定义服务器标识、安装时间、规模、活跃情况和当前能力；StatsRebuilding 表示正在按新时区重建运营数据。
+// Overview 定义服务器标识、安装时间、规模、活跃情况、授权状态和当前生效的能力；StatsRebuilding 表示正在按新时区重建运营数据。
 type Overview struct {
 	ServerID        string
 	InstalledAt     time.Time
@@ -26,6 +26,7 @@ type Overview struct {
 	Last7Days       ActivityWindow
 	Last30Days      ActivityWindow
 	Trend           []DailyActivity
+	License         License
 	Capabilities    domain.Capabilities
 }
 
@@ -56,7 +57,7 @@ func NewOverviewQuery(db *bun.DB) *OverviewQuery {
 	return &OverviewQuery{db: db}
 }
 
-// Execute 返回服务器标识、安装时间、规模、近 7 天与近 30 天的活跃和新增情况、近 30 天逐日趋势和平台能力。
+// Execute 返回服务器标识、安装时间、规模、近 7 天与近 30 天的活跃和新增情况、近 30 天逐日趋势、授权状态和平台能力。
 func (q *OverviewQuery) Execute(ctx context.Context) (Overview, error) {
 	platform, err := Load(ctx, q.db)
 	if err != nil {
@@ -95,11 +96,12 @@ func (q *OverviewQuery) Execute(ctx context.Context) (Overview, error) {
 		Scan(ctx, &overview.Trend); err != nil {
 		return Overview{}, fmt.Errorf("read platform activity trend: %w", err)
 	}
-	capabilities, err := Capabilities(ctx, q.db)
+	current, err := loadLicense(ctx, q.db)
 	if err != nil {
 		return Overview{}, err
 	}
-	overview.Capabilities = capabilities
+	current.ServerID = platform.ServerID
+	overview.License, overview.Capabilities = current, effectiveCapabilities(current)
 	return overview, nil
 }
 

@@ -263,11 +263,21 @@ func TestLicenseOnline(t *testing.T) {
 	fake.mu.Unlock()
 
 	// control 中尚无授权时：手动同步提示先激活，后台同步保持现状。
+	runtime, err := service.GetPlatformRuntimeStatus(ctx, adminMeta)
+	if err != nil || runtime.Control.SyncedAt != nil || runtime.Control.FailedAt != nil || runtime.ObjectStorage.Enabled {
+		t.Fatalf("runtime before sync = %#v, err = %v", runtime, err)
+	}
 	_, err = backend.SyncLicense(ctx, adminMeta)
 	requireErrorMessage(t, err, i18n.ErrorLicenseNotIssued)
 	if err := online.SyncTask(ctx, platformaction.SyncLicenseInput{}); err != nil {
 		t.Fatalf("sync without license: %v", err)
 	}
+	// control 正常应答没有授权时记为同步成功。
+	runtime, err = service.GetPlatformRuntimeStatus(ctx, adminMeta)
+	if err != nil || runtime.Control.SyncedAt == nil || runtime.Control.FailedAt != nil || runtime.Control.Error != "" {
+		t.Fatalf("runtime after sync = %#v, err = %v", runtime.Control, err)
+	}
+	syncedAt := *runtime.Control.SyncedAt
 
 	// 激活码无效或已用于其他服务器时返回对应错误，有效激活码激活授权。
 	_, err = backend.ActivateLicenseOnline(ctx, adminMeta, appservice.ActivateLicenseOnlineInput{ActivationCode: "BAD"})
@@ -277,6 +287,11 @@ func TestLicenseOnline(t *testing.T) {
 	activated, err := service.ActivateLicenseOnline(ctx, adminMeta, appservice.ActivateLicenseOnlineInput{ActivationCode: " GOOD-GOOD-GOOD-GOOD\n"})
 	if err != nil || activated.Status != appservice.LicenseStatusActive || activated.ServerID != serverID || activated.Capabilities.WorkspaceLimit != 0 {
 		t.Fatalf("activated = %#v, err = %v", activated, err)
+	}
+	overview, err := service.GetPlatformOverview(ctx, adminMeta)
+	if err != nil || overview.License.Status != appservice.LicenseStatusActive || overview.License.ServerID != serverID ||
+		overview.License.ExpiresAt == nil || !overview.License.ExpiresAt.Equal(*activated.ExpiresAt) {
+		t.Fatalf("overview license = %#v, err = %v", overview.License, err)
 	}
 
 	// control 续期后后台同步替换为签发更晚的授权码；control 返回较早的授权码时保留本地授权。
@@ -305,8 +320,8 @@ func TestLicenseOnline(t *testing.T) {
 	}
 	fake.mu.Unlock()
 
-	// control 不再有授权或只返回已到期的授权码时，手动同步保留本地有效授权。
-	for _, code := range []string{"", signTestLicense(t, privateKey, serverID, now.AddDate(-2, 0, 0), now.Add(-time.Hour), map[string]any{})} {
+	// control 不再有授权或只返回已到期的授权码时，手动同步保留本地有效授权；查不到授权时记录起始时间，再次查到授权码时清空。
+	for _, code := range []string{"", "", signTestLicense(t, privateKey, serverID, now.AddDate(-2, 0, 0), now.Add(-time.Hour), map[string]any{})} {
 		fake.mu.Lock()
 		fake.licenseCode = code
 		fake.mu.Unlock()
@@ -314,6 +329,57 @@ func TestLicenseOnline(t *testing.T) {
 		if err != nil || local.Status != appservice.LicenseStatusActive || !local.ExpiresAt.Equal(*synced.ExpiresAt) {
 			t.Fatalf("local = %#v, err = %v", local, err)
 		}
+		if (code == "") != (local.ControlMissingAt != nil) {
+			t.Fatalf("control missing at = %v for code %q", local.ControlMissingAt, code)
+		}
+	}
+
+	// 后台同步查不到授权时保留首次查不到的时间。
+	fake.mu.Lock()
+	fake.licenseCode = ""
+	fake.mu.Unlock()
+	if err := online.SyncTask(ctx, platformaction.SyncLicenseInput{}); err != nil {
+		t.Fatalf("sync missing: %v", err)
+	}
+	missing, err := service.GetLicense(ctx, adminMeta)
+	if err != nil || missing.ControlMissingAt == nil {
+		t.Fatalf("missing = %#v, err = %v", missing, err)
+	}
+	if err := online.SyncTask(ctx, platformaction.SyncLicenseInput{}); err != nil {
+		t.Fatalf("sync missing again: %v", err)
+	}
+	stillMissing, err := service.GetLicense(ctx, adminMeta)
+	if err != nil || stillMissing.ControlMissingAt == nil || !stillMissing.ControlMissingAt.Equal(*missing.ControlMissingAt) {
+		t.Fatalf("still missing = %#v, err = %v", stillMissing, err)
+	}
+
+	// 离线替换授权码时清空查不到授权的记录。
+	replaced, err := service.ActivateLicense(ctx, adminMeta, appservice.ActivateLicenseInput{
+		LicenseCode: signTestLicense(t, privateKey, serverID, now.Add(time.Minute), now.AddDate(2, 0, 0), map[string]any{license.CapabilityWorkspaceLimit: 0}),
+	})
+	if err != nil || replaced.ControlMissingAt != nil {
+		t.Fatalf("replaced = %#v, err = %v", replaced, err)
+	}
+
+	// 在线激活取得不晚于当前授权的授权码时同样清空查不到授权的记录。
+	if err := online.SyncTask(ctx, platformaction.SyncLicenseInput{}); err != nil {
+		t.Fatalf("sync missing before activation: %v", err)
+	}
+	reactivated, err := service.ActivateLicenseOnline(ctx, adminMeta, appservice.ActivateLicenseOnlineInput{ActivationCode: "GOOD-GOOD-GOOD-GOOD"})
+	if err != nil || reactivated.ControlMissingAt != nil || !reactivated.ExpiresAt.Equal(*replaced.ExpiresAt) {
+		t.Fatalf("reactivated = %#v, err = %v", reactivated, err)
+	}
+
+	// 本地授权已到期且 control 查不到授权时，手动同步返回本地授权并带上查不到授权的记录。
+	if _, err := db.NewUpdate().Table("licenses").Set("expires_at = now() - interval '1 hour'").Where("server_id = ?", serverID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	fake.mu.Lock()
+	fake.licenseCode = ""
+	fake.mu.Unlock()
+	expiredMissing, err := service.SyncLicense(ctx, adminMeta)
+	if err != nil || expiredMissing.Status != appservice.LicenseStatusExpired || expiredMissing.ControlMissingAt == nil {
+		t.Fatalf("expired missing = %#v, err = %v", expiredMissing, err)
 	}
 
 	// 关闭上报后不再采集运行指标。
@@ -333,6 +399,12 @@ func TestLicenseOnline(t *testing.T) {
 	server.Close()
 	_, err = backend.SyncLicense(ctx, adminMeta)
 	requireErrorMessage(t, err, i18n.ErrorControlUnavailable)
+	// 同步失败记录失败时间与原因，保留最近一次成功的时间。
+	runtime, err = service.GetPlatformRuntimeStatus(ctx, adminMeta)
+	if err != nil || runtime.Control.FailedAt == nil || runtime.Control.Error == "" ||
+		runtime.Control.SyncedAt == nil || runtime.Control.SyncedAt.Before(syncedAt) {
+		t.Fatalf("runtime after failed sync = %#v, err = %v", runtime.Control, err)
+	}
 
 	// 重置服务器标识生成新的服务器标识并删除本地授权。
 	resetID, err := platformaction.ResetServerID(ctx, db)
@@ -342,5 +414,9 @@ func TestLicenseOnline(t *testing.T) {
 	reset, err := service.GetLicense(ctx, adminMeta)
 	if err != nil || reset.ServerID != resetID || reset.Status != appservice.LicenseStatusNone {
 		t.Fatalf("after reset = %#v, err = %v", reset, err)
+	}
+	if runtime, err := service.GetPlatformRuntimeStatus(ctx, adminMeta); err != nil ||
+		runtime.Control.SyncedAt != nil || runtime.Control.FailedAt != nil || runtime.Control.Error != "" {
+		t.Fatalf("runtime after reset = %#v, err = %v", runtime.Control, err)
 	}
 }

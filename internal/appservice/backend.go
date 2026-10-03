@@ -432,7 +432,7 @@ type Backend interface {
 	// AcceptInvitation 由当前账号接受邀请并加入工作区。
 	//appservice:route POST /invitation-acceptances auth=account
 	AcceptInvitation(context.Context, RequestMeta, InvitationTokenInput) (Workspace, error)
-	// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+	// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 	//appservice:route GET /platform/overview auth=admin
 	GetPlatformOverview(context.Context, RequestMeta) (PlatformOverview, error)
 	// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
@@ -486,13 +486,13 @@ type Backend interface {
 	// ResumePlatformWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 	//appservice:route POST /platform/workspaces/:workspaceID/resume auth=admin
 	ResumePlatformWorkspace(context.Context, RequestMeta, string) (PlatformWorkspace, error)
-	// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+	// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 	//appservice:route GET /platform/usage auth=admin
 	GetPlatformUsage(context.Context, RequestMeta, PlatformUsageInput) (PlatformUsageMetrics, error)
-	// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+	// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 	//appservice:route GET /platform/usage/workspaces auth=admin
 	ListPlatformWorkspaceUsage(context.Context, RequestMeta, PlatformWorkspaceUsageListInput) (PlatformWorkspaceUsageList, error)
-	// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+	// GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 	//appservice:route GET /platform/runtime auth=admin
 	GetPlatformRuntimeStatus(context.Context, RequestMeta) (PlatformRuntimeStatus, error)
 	// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
@@ -507,7 +507,7 @@ type Backend interface {
 	// AdjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
 	//appservice:route POST /platform/workspaces/:workspaceID/credits/adjustments status=201 auth=admin
 	AdjustPlatformWorkspaceCredits(context.Context, RequestMeta, string, PlatformCreditAdjustmentInput) (PlatformCreditAdjustment, error)
-	// ListPlatformAIProviders 返回平台供应商。
+	// ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 	//appservice:route GET /platform/model-providers auth=admin
 	ListPlatformAIProviders(context.Context, RequestMeta) (PlatformAIProviderList, error)
 	// GetPlatformAIProvider 返回平台供应商详情。

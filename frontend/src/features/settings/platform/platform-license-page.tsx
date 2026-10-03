@@ -31,6 +31,7 @@ import {
   type LicenseActivationFormValues,
   type OnlineActivationFormValues,
 } from "@/features/settings/platform/platform-license-schema"
+import { licenseRemainingDays, renewalReminderDays } from "@/features/settings/platform/license-reminder"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useCopyFeedback } from "@/hooks/use-copy-feedback"
 import { useDateTime } from "@/hooks/use-date-time"
@@ -40,9 +41,6 @@ import { applyBrand } from "@/lib/brand"
 import { apiErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
 import { zodResolver } from "@/lib/zod-resolver"
-
-/** 授权到期前开始提醒续期的天数。 */
-const renewalReminderDays = 30
 
 /** 浏览器定时器允许的最大延迟毫秒数。 */
 const maxTimerDelay = 2_147_483_647
@@ -65,18 +63,7 @@ export function PlatformLicensePage() {
     )
   }, [status, expiresAt, customBranding])
 
-  // 有效授权到期后重新读取授权状态。
-  useEffect(() => {
-    if (status !== LicenseStatus.LicenseStatusActive || !expiresAt) return
-    let timer = 0
-    // 到期时间超出单次定时器上限时分段续设。
-    const schedule = () => {
-      const delay = Math.max(new Date(expiresAt).getTime() - Date.now(), 0) + 1000
-      timer = delay > maxTimerDelay ? window.setTimeout(schedule, maxTimerDelay) : window.setTimeout(() => void refreshLicense(), delay)
-    }
-    schedule()
-    return () => window.clearTimeout(timer)
-  }, [status, expiresAt, refreshLicense])
+  useRefreshAtLicenseExpiry(license.data, refreshLicense)
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -90,14 +77,31 @@ export function PlatformLicensePage() {
   )
 }
 
+/** 有效授权到期后调用 refresh 重新读取，授权尚未读取或不是有效状态时不计时。 */
+export function useRefreshAtLicenseExpiry(license: License | undefined, refresh: () => unknown) {
+  const status = license?.status
+  const expiresAt = license?.expiresAt
+  useEffect(() => {
+    if (status !== LicenseStatus.LicenseStatusActive || !expiresAt) return
+    let timer = 0
+    // 到期时间超出单次定时器上限时分段续设。
+    const schedule = () => {
+      const delay = Math.max(new Date(expiresAt).getTime() - Date.now(), 0) + 1000
+      timer = delay > maxTimerDelay ? window.setTimeout(schedule, maxTimerDelay) : window.setTimeout(() => void refresh(), delay)
+    }
+    schedule()
+    return () => window.clearTimeout(timer)
+  }, [status, expiresAt, refresh])
+}
+
 /** 返回授权状态下方的说明：未激活时说明免费范围，临近到期或已到期时提醒续期。 */
-function useStatusHelp(license: License) {
+export function useLicenseStatusHelp(license: License) {
   const { t } = useTranslation("platform")
   if (license.status === LicenseStatus.LicenseStatusNone) {
     return t("license.statusHelp.none", { count: license.capabilities.workspaceLimit })
   }
   if (license.status === LicenseStatus.LicenseStatusExpired) return t("license.statusHelp.expired")
-  const remainingDays = Math.max(1, Math.ceil((new Date(license.expiresAt ?? 0).getTime() - Date.now()) / 86_400_000))
+  const remainingDays = licenseRemainingDays(license)
   return remainingDays <= renewalReminderDays ? t("license.statusHelp.expiring", { count: remainingDays }) : null
 }
 
@@ -121,7 +125,7 @@ function LicenseDetails({ license }: { license: License }) {
   const [submitting, setSubmitting] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const replaceButtonRef = useRef<HTMLButtonElement>(null)
-  const statusHelp = useStatusHelp(license)
+  const statusHelp = useLicenseStatusHelp(license)
   const licensed = license.status !== LicenseStatus.LicenseStatusNone
   const active = license.status === LicenseStatus.LicenseStatusActive
   const statusLabels: Record<string, string> = {
@@ -135,12 +139,13 @@ function LicenseDetails({ license }: { license: License }) {
     if (!licensed) setReplacing(false)
   }, [licensed])
 
-  /** 向授权服务同步授权，按签发时间是否变化提示已更新或已是最新。 */
+  /** 向授权服务同步授权：授权服务中查不到本服务器授权时提示联系服务商，其余按签发时间是否变化提示已更新或已是最新。 */
   async function sync() {
     setSyncing(true)
     try {
       const synced = await syncLicense()
-      toast.success(synced.issuedAt === license.issuedAt ? t("license.syncUnchanged") : t("license.syncUpdated"))
+      if (synced.controlMissingAt) toast.warning(t("license.controlMissing"))
+      else toast.success(synced.issuedAt === license.issuedAt ? t("license.syncUnchanged") : t("license.syncUpdated"))
       licenseChanged()
     } catch (error) {
       if (recoverSession(error, navigate)) return
@@ -158,6 +163,9 @@ function LicenseDetails({ license }: { license: License }) {
           <FieldLabel htmlFor="license-status">{t("license.status")}</FieldLabel>
           <Input id="license-status" value={statusLabels[license.status] ?? ""} readOnly className="text-muted-foreground" />
           {statusHelp ? <FieldDescription>{statusHelp}</FieldDescription> : null}
+          {licensed && license.controlMissingAt ? (
+            <FieldDescription className="text-destructive">{t("license.controlMissing")}</FieldDescription>
+          ) : null}
         </Field>
         {licensed ? (
           <>
