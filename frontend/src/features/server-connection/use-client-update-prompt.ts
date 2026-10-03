@@ -9,7 +9,7 @@ import { isDesktopMainWindow } from "@/platform/desktop-window"
 
 const promptToastId = "client-update"
 
-/** 主窗口的成员事件流每次连上服务器时准备服务器提供的客户端新版本，提示显示期间不重复弹出；关闭提示后下次连上服务器时再次提示，重启失败时立即重新提示，服务器不再提供新版本时收起提示。 */
+/** 主窗口的成员事件流每次连上服务器时准备服务器提供的客户端新版本，提示显示期间不重复弹出；关闭提示后下次连上服务器时再次提示，重启失败时提示保留，服务器不再提供新版本时收起提示。 */
 export function useClientUpdatePrompt() {
   const { t } = useTranslation(["connection", "common"])
   useEffect(() => {
@@ -28,10 +28,11 @@ export function useClientUpdatePrompt() {
         },
         action: {
           label: t("update.restart"),
-          onClick: () => {
+          // 点击后保留提示：重启成功时应用退出，失败时可以再次重启。
+          onClick: (event) => {
+            event.preventDefault()
             void restartClientUpdate().catch((error: unknown) => {
               toast.error(isApiError(error) ? apiErrorMessage(error) : t("common:errors.network"))
-              showPrompt(version)
             })
           },
         },
