@@ -577,10 +577,17 @@ export function GetCustomerIdentitySecret(meta: $models.RequestMeta): $Cancellab
 }
 
 /**
- * GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+ * GetDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
  */
 export function GetDeploymentOverview(meta: $models.RequestMeta): $CancellablePromise<$models.DeploymentOverview> {
     return $Call.ByID(546094695, meta);
+}
+
+/**
+ * GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+ */
+export function GetDeploymentRuntimeStatus(meta: $models.RequestMeta): $CancellablePromise<$models.DeploymentRuntimeStatus> {
+    return $Call.ByID(2511637786, meta);
 }
 
 /**
@@ -588,6 +595,13 @@ export function GetDeploymentOverview(meta: $models.RequestMeta): $CancellablePr
  */
 export function GetDeploymentSettings(meta: $models.RequestMeta): $CancellablePromise<$models.DeploymentSettings> {
     return $Call.ByID(1568829417, meta);
+}
+
+/**
+ * GetDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+ */
+export function GetDeploymentUsage(meta: $models.RequestMeta, input: $models.DeploymentUsageInput): $CancellablePromise<$models.DeploymentUsageMetrics> {
+    return $Call.ByID(4291168203, meta, input);
 }
 
 /**
@@ -938,6 +952,20 @@ export function ListConversationMessages(meta: $models.RequestMeta, conversation
  */
 export function ListDeploymentAccounts(meta: $models.RequestMeta, input: $models.DeploymentAccountListInput): $CancellablePromise<$models.DeploymentAccountList> {
     return $Call.ByID(180456726, meta, input);
+}
+
+/**
+ * ListDeploymentFailedTasks 返回近 7 天内失败与等待重试的后台任务。
+ */
+export function ListDeploymentFailedTasks(meta: $models.RequestMeta, input: $models.DeploymentFailedTaskListInput): $CancellablePromise<$models.DeploymentFailedTaskList> {
+    return $Call.ByID(282833375, meta, input);
+}
+
+/**
+ * ListDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+ */
+export function ListDeploymentWorkspaceUsage(meta: $models.RequestMeta, input: $models.DeploymentWorkspaceUsageListInput): $CancellablePromise<$models.DeploymentWorkspaceUsageList> {
+    return $Call.ByID(4060872414, meta, input);
 }
 
 /**

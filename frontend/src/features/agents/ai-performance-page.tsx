@@ -9,9 +9,11 @@ import {
 import { ListToolbar, ListToolbarFilter } from "@/components/list-toolbar"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
+import { ReportPeriodFilter } from "@/components/report-parts"
 import { ResourceContent } from "@/components/resource-content"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { periodOptions } from "@/hooks/use-report-format"
 import { useResource } from "@/hooks/use-resource"
 
 import { mineAgentFilter } from "./agent-navigation"
@@ -23,8 +25,7 @@ import {
   type ReportFilter,
 } from "./ai-performance-lists"
 import { AIPerformanceOverview } from "./ai-performance-overview"
-import { ReportChannelFilter, ReportPeriodFilter, useReportSearchParams } from "./report-filters"
-import { periodOptions } from "./report-format"
+import { ReportChannelFilter, useReportSearchParams } from "./report-filters"
 
 /** 页签，第一个为默认值。 */
 const reportTabs = ["overview", "knowledgeGaps", "issues", "channels", "categories"] as const

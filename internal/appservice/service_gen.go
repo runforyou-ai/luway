@@ -674,7 +674,7 @@ func (s *Service) AcceptInvitation(ctx context.Context, meta RequestMeta, input 
 	return WithNormalizedSlices(s.backend.AcceptInvitation(ctx, meta, input))
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+// GetDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
 func (s *Service) GetDeploymentOverview(ctx context.Context, meta RequestMeta) (DeploymentOverview, error) {
 	return WithNormalizedSlices(s.backend.GetDeploymentOverview(ctx, meta))
 }
@@ -732,6 +732,26 @@ func (s *Service) SuspendDeploymentWorkspace(ctx context.Context, meta RequestMe
 // ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 func (s *Service) ResumeDeploymentWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (DeploymentWorkspace, error) {
 	return WithNormalizedSlices(s.backend.ResumeDeploymentWorkspace(ctx, meta, workspaceID))
+}
+
+// GetDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+func (s *Service) GetDeploymentUsage(ctx context.Context, meta RequestMeta, input DeploymentUsageInput) (DeploymentUsageMetrics, error) {
+	return WithNormalizedSlices(s.backend.GetDeploymentUsage(ctx, meta, input))
+}
+
+// ListDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (s *Service) ListDeploymentWorkspaceUsage(ctx context.Context, meta RequestMeta, input DeploymentWorkspaceUsageListInput) (DeploymentWorkspaceUsageList, error) {
+	return WithNormalizedSlices(s.backend.ListDeploymentWorkspaceUsage(ctx, meta, input))
+}
+
+// GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (s *Service) GetDeploymentRuntimeStatus(ctx context.Context, meta RequestMeta) (DeploymentRuntimeStatus, error) {
+	return WithNormalizedSlices(s.backend.GetDeploymentRuntimeStatus(ctx, meta))
+}
+
+// ListDeploymentFailedTasks 返回近 7 天内失败与等待重试的后台任务。
+func (s *Service) ListDeploymentFailedTasks(ctx context.Context, meta RequestMeta, input DeploymentFailedTaskListInput) (DeploymentFailedTaskList, error) {
+	return WithNormalizedSlices(s.backend.ListDeploymentFailedTasks(ctx, meta, input))
 }
 
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。

@@ -47,6 +47,10 @@ var adminBackendMethods = map[string]bool{
 	"ListDeploymentWorkspaces":           true,
 	"SuspendDeploymentWorkspace":         true,
 	"ResumeDeploymentWorkspace":          true,
+	"GetDeploymentUsage":                 true,
+	"ListDeploymentWorkspaceUsage":       true,
+	"GetDeploymentRuntimeStatus":         true,
+	"ListDeploymentFailedTasks":          true,
 }
 
 // TestBackendMethodsRequireAuthentication 验证非公开方法在无会话时都被挡回登录入口，

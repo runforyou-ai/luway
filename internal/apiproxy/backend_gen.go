@@ -915,7 +915,7 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return output, err
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+// GetDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
 func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentOverview, error) {
 	var output appservice.DeploymentOverview
 	err := b.do(ctx, meta, http.MethodGet, "/deployment/overview", nil, nil, &output)
@@ -996,6 +996,34 @@ func (b *Backend) SuspendDeploymentWorkspace(ctx context.Context, meta appservic
 func (b *Backend) ResumeDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
 	var output appservice.DeploymentWorkspace
 	err := b.do(ctx, meta, http.MethodPost, "/deployment/workspaces/"+url.PathEscape(workspaceID)+"/resume", nil, nil, &output)
+	return output, err
+}
+
+// GetDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+func (b *Backend) GetDeploymentUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentUsageInput) (appservice.DeploymentUsageMetrics, error) {
+	var output appservice.DeploymentUsageMetrics
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/usage", encodeDeploymentUsageInputQuery(input), nil, &output)
+	return output, err
+}
+
+// ListDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (b *Backend) ListDeploymentWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentWorkspaceUsageListInput) (appservice.DeploymentWorkspaceUsageList, error) {
+	var output appservice.DeploymentWorkspaceUsageList
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/usage/workspaces", encodeDeploymentWorkspaceUsageListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (b *Backend) GetDeploymentRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentRuntimeStatus, error) {
+	var output appservice.DeploymentRuntimeStatus
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/runtime", nil, nil, &output)
+	return output, err
+}
+
+// ListDeploymentFailedTasks 返回近 7 天内失败与等待重试的后台任务。
+func (b *Backend) ListDeploymentFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentFailedTaskListInput) (appservice.DeploymentFailedTaskList, error) {
+	var output appservice.DeploymentFailedTaskList
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/runtime/failed-tasks", encodeDeploymentFailedTaskListInputQuery(input), nil, &output)
 	return output, err
 }
 
@@ -1870,11 +1898,36 @@ func encodeDeploymentAccountListInputQuery(input appservice.DeploymentAccountLis
 	return query
 }
 
+// encodeDeploymentFailedTaskListInputQuery 将 appservice.DeploymentFailedTaskListInput 编码为查询参数。
+func encodeDeploymentFailedTaskListInputQuery(input appservice.DeploymentFailedTaskListInput) url.Values {
+	query := url.Values{}
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodeDeploymentUsageInputQuery 将 appservice.DeploymentUsageInput 编码为查询参数。
+func encodeDeploymentUsageInputQuery(input appservice.DeploymentUsageInput) url.Values {
+	query := url.Values{}
+	setPositiveQuery(query, "days", input.Days)
+	return query
+}
+
 // encodeDeploymentWorkspaceListInputQuery 将 appservice.DeploymentWorkspaceListInput 编码为查询参数。
 func encodeDeploymentWorkspaceListInputQuery(input appservice.DeploymentWorkspaceListInput) url.Values {
 	query := url.Values{}
 	setQuery(query, "query", input.Query)
 	setQuery(query, "status", string(input.Status))
+	setQuery(query, "sort", string(input.Sort))
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodeDeploymentWorkspaceUsageListInputQuery 将 appservice.DeploymentWorkspaceUsageListInput 编码为查询参数。
+func encodeDeploymentWorkspaceUsageListInputQuery(input appservice.DeploymentWorkspaceUsageListInput) url.Values {
+	query := url.Values{}
+	setPositiveQuery(query, "days", input.Days)
 	setQuery(query, "sort", string(input.Sort))
 	setPositiveQuery(query, "page", input.Page)
 	setPositiveQuery(query, "pageSize", input.PageSize)

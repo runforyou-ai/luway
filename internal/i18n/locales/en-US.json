@@ -218,6 +218,8 @@
   "error.deployment_workspace_not_found": "This workspace wasn't found.",
   "error.deployment_workspace_has_admin": "This workspace has a deployment admin and can't be suspended.",
   "error.deployment_workspace_update_failed": "Couldn't change the workspace status.",
+  "error.deployment_usage_failed": "Couldn't load business usage.",
+  "error.deployment_runtime_failed": "Couldn't load the runtime status.",
   "error.channel_not_found": "This message channel could not be found.",
   "error.channel_list_failed": "Could not load message channels.",
   "error.channel_read_failed": "Could not load the message channel.",

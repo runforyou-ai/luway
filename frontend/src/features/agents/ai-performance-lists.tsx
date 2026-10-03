@@ -25,7 +25,7 @@ import { recoverSession } from "@/lib/session-navigation"
 
 import { AIKnowledgeGapSheet } from "./ai-knowledge-gap-sheet"
 import { aiIssueTypes } from "./ai-performance-format"
-import { useReportFormat } from "./report-format"
+import { useReportFormat } from "@/hooks/use-report-format"
 import { ServiceIssueTable } from "./service-issue-list"
 
 /** 报表与待补知识共用的筛选范围：agentId 限定单个 AI 员工，mine 限定为本人负责的 AI 员工。 */

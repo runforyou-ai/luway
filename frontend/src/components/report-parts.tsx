@@ -1,7 +1,26 @@
-/** 报表概览共用的指标卡、分区、条形列表、逐日柱状图与空状态说明。 */
+/** 报表共用的统计周期筛选、指标卡、分区、条形列表、逐日柱状图与空状态说明。 */
 import type { ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 
+import { ListToolbarFilter } from "@/components/list-toolbar"
+import { periodOptions } from "@/hooks/use-report-format"
 import { cn } from "@/lib/utils"
+
+/** 按结束时间筛选的统计周期。 */
+export function ReportPeriodFilter({ value, onValueChange }: { value: number; onValueChange: (value: string) => void }) {
+  const { t } = useTranslation("common")
+  return (
+    <ListToolbarFilter
+      label={t("report.period")}
+      value={String(value)}
+      options={periodOptions.map((option) => ({
+        value: String(option),
+        label: t("report.periodDays", { count: option }),
+      }))}
+      onValueChange={onValueChange}
+    />
+  )
+}
 
 /** 指标卡：名称、主数值与一行说明；给出 onClick 时整卡可点击。 */
 export function StatTile({
@@ -39,11 +58,11 @@ export function StatTile({
   )
 }
 
-/** 概览分区：小标题与内容。 */
-export function ReportSection({ title, children }: { title: string; children: ReactNode }) {
+/** 概览分区：小标题与内容；titleClassName 用于在列表外框中对齐标题。 */
+export function ReportSection({ title, titleClassName, children }: { title: string; titleClassName?: string; children: ReactNode }) {
   return (
     <section className="space-y-3">
-      <h3 className="text-sm font-medium">{title}</h3>
+      <h3 className={cn("text-sm font-medium", titleClassName)}>{title}</h3>
       {children}
     </section>
   )

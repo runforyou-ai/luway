@@ -23,6 +23,8 @@ const settings = {
     modelServices: "Model services",
     webSearch: "Web search",
     deploymentOverview: "Deployment overview",
+    deploymentUsage: "Business usage",
+    deploymentRuntime: "Runtime status",
     deploymentAccounts: "All accounts",
     deploymentWorkspaces: "All workspaces",
     deploymentRegistration: "Sign-up & creation",

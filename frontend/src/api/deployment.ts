@@ -1,10 +1,14 @@
-/** 部署管理调用：部署概况、部署设置、部署账号和部署工作区。 */
+/** 部署管理调用：部署概况、部署设置、部署账号、部署工作区、业务使用和运行状态。 */
 import {
   DeactivateDeploymentAccount,
+  GetDeploymentRuntimeStatus,
+  GetDeploymentUsage,
   GetDeploymentOverview,
   GetDeploymentSettings,
   GrantDeploymentAdmin,
   ListDeploymentAccounts,
+  ListDeploymentFailedTasks,
+  ListDeploymentWorkspaceUsage,
   ListDeploymentWorkspaces,
   ReactivateDeploymentAccount,
   ResumeDeploymentWorkspace,
@@ -15,17 +19,22 @@ import {
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   AccountStatus,
+  DeploymentUsageSort,
   DeploymentWorkspaceSort,
   WorkspaceStatus,
   type DeploymentAccountListInput,
+  type DeploymentFailedTaskListInput,
+  type DeploymentWorkspaceUsageListInput,
   type DeploymentWorkspaceListInput,
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 
 const listDeploymentAccountsBound = bind(ListDeploymentAccounts)
 const listDeploymentWorkspacesBound = bind(ListDeploymentWorkspaces)
+const listDeploymentWorkspaceUsageBound = bind(ListDeploymentWorkspaceUsage)
+const listDeploymentFailedTasksBound = bind(ListDeploymentFailedTasks)
 
-/** 读取部署实例标识、服务端版本、规模、活跃趋势和实例能力。 */
+/** 读取部署实例标识、规模、活跃趋势和实例能力。 */
 export const getDeploymentOverview = bind(GetDeploymentOverview)
 
 /** 读取部署注册策略、工作区创建策略和统计时区。 */
@@ -80,4 +89,28 @@ export function listDeploymentWorkspaces(query: Partial<DeploymentWorkspaceListI
     },
     signal,
   )
+}
+
+/** 读取部署整体最近若干天的客服业务使用指标。 */
+export const getDeploymentUsage = bind(GetDeploymentUsage)
+
+/** 读取各工作区最近若干天的客服业务使用指标，天数缺省为 30，排序缺省按服务周期数。 */
+export function listDeploymentWorkspaceUsage(query: Partial<DeploymentWorkspaceUsageListInput>, signal?: AbortSignal) {
+  return listDeploymentWorkspaceUsageBound(
+    {
+      days: query.days ?? 30,
+      sort: query.sort ?? DeploymentUsageSort.DeploymentUsageSortServiceSessions,
+      page: query.page ?? 1,
+      pageSize: query.pageSize ?? 50,
+    },
+    signal,
+  )
+}
+
+/** 读取服务端版本与后台任务各队列的运行概况。 */
+export const getDeploymentRuntimeStatus = bind(GetDeploymentRuntimeStatus)
+
+/** 读取近 7 天内失败与等待重试的后台任务。 */
+export function listDeploymentFailedTasks(query: Partial<DeploymentFailedTaskListInput>, signal?: AbortSignal) {
+  return listDeploymentFailedTasksBound({ page: query.page ?? 1, pageSize: query.pageSize ?? 50 }, signal)
 }
