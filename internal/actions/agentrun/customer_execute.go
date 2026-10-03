@@ -12,6 +12,7 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/customerdelivery"
@@ -362,12 +363,12 @@ func suppressCustomerRun(ctx context.Context, db bun.IDB, run *servermodels.Agen
 		Set("completed_at = now()").
 		Set("updated_at = now()").
 		WherePK().
-		Where("status IN (?, ?)", domain.AgentRunStatusQueued, domain.AgentRunStatusRunning).
+		Where("status IN (?)", bun.In(domain.AgentRunActiveStatuses)).
 		Exec(ctx)
 	if err != nil {
 		return fmt.Errorf("suppress customer agent run: %w", err)
 	}
-	return nil
+	return agentprocess.CancelUnsettled(ctx, db, run.OrganizationID, run.ID)
 }
 
 // ensureCustomerAgentParticipant 取得或创建客户会话中的 Agent 参与者。

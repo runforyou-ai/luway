@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
@@ -30,8 +31,6 @@ const (
 const (
 	// maxNameLength 是供应商名称的最大字符数。
 	maxNameLength = 100
-	// maxModelFieldLength 是模型标识和名称的最大字符数。
-	maxModelFieldLength = 200
 	// maxAPIKeyBytes 是 API 密钥的最大字节数。
 	maxAPIKeyBytes = 2048
 )
@@ -41,31 +40,20 @@ type ValidationError = common.FieldError
 
 // normalizeInput 规范化模型服务供应商输入并校验模型目录。
 func normalizeInput(input Input) (Input, map[string]ValidationCode) {
-	fields := make(map[string]ValidationCode)
-	input.Name = strings.TrimSpace(input.Name)
-	connection, connectionFields := normalizeConnectionInput(ConnectionInput{
+	name, connection, fields := normalizeProvider(input.Name, ConnectionInput{
 		Brand: input.Brand, CredentialType: input.CredentialType, APIKey: input.APIKey, APIURL: input.APIURL,
 	})
+	input.Name = name
 	input.Brand = connection.Brand
 	input.CredentialType = connection.CredentialType
 	input.APIKey = connection.APIKey
 	input.APIURL = connection.APIURL
-	for field, code := range connectionFields {
-		fields[field] = code
-	}
-
-	if input.Name == "" {
-		fields["name"] = ValidationNameRequired
-	} else if utf8.RuneCountInString(input.Name) > maxNameLength {
-		fields["name"] = ValidationNameTooLong
-	}
 
 	seen := make(map[string]struct{}, len(input.Models))
 	seenIDs := make(map[string]struct{}, len(input.Models))
 	models := make([]Model, 0, len(input.Models))
 	for _, model := range input.Models {
 		model.Identifier = strings.TrimSpace(model.Identifier)
-		model.Name = strings.TrimSpace(model.Name)
 		// 已有模型的编号须为不重复的 UUID。
 		if model.ID != "" {
 			id, valid := common.NormalizeUUID(model.ID)
@@ -76,9 +64,7 @@ func normalizeInput(input Input) (Input, map[string]ValidationCode) {
 			model.ID = id
 			seenIDs[id] = struct{}{}
 		}
-		if model.Identifier == "" || utf8.RuneCountInString(model.Identifier) > maxModelFieldLength ||
-			model.Name == "" || utf8.RuneCountInString(model.Name) > maxModelFieldLength ||
-			model.ContextWindow <= 0 || !normalizeModel(&model) {
+		if !aimodel.ValidIdentifier(model.Identifier) || !normalizeModel(&model) {
 			fields["models"] = ValidationModelsInvalid
 			continue
 		}
@@ -94,6 +80,18 @@ func normalizeInput(input Input) (Input, map[string]ValidationCode) {
 	}
 	input.Models = models
 	return input, fields
+}
+
+// normalizeProvider 规范化并校验供应商名称与连接配置。
+func normalizeProvider(name string, connection ConnectionInput) (string, ConnectionInput, map[string]ValidationCode) {
+	name = strings.TrimSpace(name)
+	connection, fields := normalizeConnectionInput(connection)
+	if name == "" {
+		fields["name"] = ValidationNameRequired
+	} else if utf8.RuneCountInString(name) > maxNameLength {
+		fields["name"] = ValidationNameTooLong
+	}
+	return name, connection, fields
 }
 
 // normalizeConnectionInput 规范化并校验模型服务连接草稿。
@@ -126,41 +124,15 @@ func normalizeConnectionInput(input ConnectionInput) (ConnectionInput, map[strin
 	return input, fields
 }
 
-// normalizeModel 规范化并校验模型用途与输入模态。
+// normalizeModel 规范化并校验模型属性。
 func normalizeModel(model *Model) bool {
-	if !validInputModalities(model.InputModalities) {
+	spec := aimodel.Spec{
+		Name: model.Name, Type: model.Type, InputModalities: model.InputModalities,
+		ContextWindow: model.ContextWindow, MaxOutputTokens: model.MaxOutputTokens,
+	}
+	if aimodel.NormalizeSpec(&spec) != "" {
 		return false
 	}
-	switch model.Type {
-	case domain.AIModelTypeChat:
-		return model.MaxOutputTokens > 0
-	case domain.AIModelTypeEmbedding, domain.AIModelTypeRerank, domain.AIModelTypeDecision:
-		model.MaxOutputTokens = 0
-		return true
-	default:
-		return false
-	}
-}
-
-// validInputModalities 校验模型至少声明一种且不重复的输入模态。
-func validInputModalities(modalities []domain.AIModelInputModality) bool {
-	if len(modalities) == 0 {
-		return false
-	}
-	seen := make(map[domain.AIModelInputModality]struct{}, len(modalities))
-	for _, modality := range modalities {
-		switch modality {
-		case domain.AIModelInputModalityText,
-			domain.AIModelInputModalityImage,
-			domain.AIModelInputModalityAudio,
-			domain.AIModelInputModalityVideo:
-		default:
-			return false
-		}
-		if _, exists := seen[modality]; exists {
-			return false
-		}
-		seen[modality] = struct{}{}
-	}
+	model.Name, model.MaxOutputTokens = spec.Name, spec.MaxOutputTokens
 	return true
 }

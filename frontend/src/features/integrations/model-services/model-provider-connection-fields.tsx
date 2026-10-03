@@ -7,11 +7,19 @@ import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { NativeSelect } from "@/components/ui/native-select"
 import { ModelProviderBrandIcon } from "./model-provider-brand-icon"
 import { aiProviderBrandConfigs } from "./model-provider-brands"
-import type { AIProviderFormValues } from "./model-provider-schema"
+import type { AIProviderConnectionFormValues } from "./model-provider-schema"
 
 /** 展示供应商连接字段及条件必填的密钥。 */
-export function ModelProviderConnectionFields({ form, mode }: { form: UseFormReturn<AIProviderFormValues>; mode: "create" | "edit" }) {
+export function ModelProviderConnectionFields<T extends AIProviderConnectionFormValues>({
+  form: fullForm,
+  mode,
+}: {
+  form: UseFormReturn<T>
+  mode: "create" | "edit"
+}) {
   const { t } = useTranslation("integrations")
+  // 表单至少包含连接字段，这里只按连接字段读写。
+  const form = fullForm as unknown as UseFormReturn<AIProviderConnectionFormValues>
   const watchedBrand = form.watch("brand") as AIProviderBrandId
   const brandConfig = aiProviderBrandConfigs[watchedBrand]
   const brandName = t(brandConfig.nameKey)
@@ -50,7 +58,7 @@ export function ModelProviderConnectionFields({ form, mode }: { form: UseFormRet
                 aria-invalid={fieldState.invalid}
                 onChange={(event) => {
                   const next = event.target
-                    .value as AIProviderFormValues["credentialType"]
+                    .value as AIProviderConnectionFormValues["credentialType"]
                   field.onChange(next)
                   // 不需要凭据的服务不保留已填写的密钥。
                   if (

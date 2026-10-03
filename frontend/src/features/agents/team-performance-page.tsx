@@ -5,13 +5,14 @@ import { getTeamPerformanceReport, listTeams, ServiceReportDimension } from "@/a
 import { ListToolbar, ListToolbarFilter } from "@/components/list-toolbar"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
+import { ReportPeriodFilter } from "@/components/report-parts"
 import { ResourceContent } from "@/components/resource-content"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { periodOptions } from "@/hooks/use-report-format"
 import { useResource } from "@/hooks/use-resource"
 
-import { ReportChannelFilter, ReportPeriodFilter, useReportSearchParams } from "./report-filters"
-import { periodOptions } from "./report-format"
+import { ReportChannelFilter, useReportSearchParams } from "./report-filters"
 import {
   TeamPerformanceBreakdownList,
   TeamPerformanceIssueList,

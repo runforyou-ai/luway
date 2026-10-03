@@ -30,6 +30,7 @@ func run(arguments []string) error {
 	configPath := flags.String("config", "", "显式指定 YAML 配置文件")
 	checkConfig := flags.Bool("check-config", false, "校验配置后退出")
 	showVersion := flags.Bool("version", false, "输出版本号后退出")
+	resetInstance := flags.Bool("reset-instance", false, "为部署生成新的实例标识与签名私钥并删除本地授权后退出，用于复制数据库搭建的新部署；执行前先停止服务端")
 	if err := flags.Parse(arguments); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			return nil
@@ -66,6 +67,15 @@ func run(arguments []string) error {
 		}
 	}()
 
+	if *resetInstance {
+		instanceID, err := deploymentaction.ResetInstance(context.Background(), appStorage.DB())
+		if err != nil {
+			return fmt.Errorf("reset instance: %w", err)
+		}
+		_, err = fmt.Fprintln(os.Stdout, "实例已重置，新实例标识："+instanceID)
+		return err
+	}
+
 	// 部署品牌配置只在实例授权授予自定义品牌且未到期时生效。
 	brandingUntil, err := deploymentaction.CustomBrandingUntil(context.Background(), appStorage.DB())
 	if err != nil {
@@ -76,7 +86,7 @@ func run(arguments []string) error {
 		slog.Warn("实例授权未授予自定义品牌或授权已到期，部署品牌配置暂不生效")
 	}
 
-	services, realtimeMiddleware, productSite, err := applicationServices(appStorage, config)
+	services, middleware, productSite, err := applicationServices(appStorage, config)
 	if err != nil {
 		return fmt.Errorf("initialize application services: %w", err)
 	}
@@ -112,8 +122,8 @@ func run(arguments []string) error {
 		DisableDefaultSignalHandler: true,
 		Assets: application.AssetOptions{
 			Handler: entry,
-			// 实时事件流在 Wails 资源服务之前处理。
-			Middleware: realtimeMiddleware,
+			// 接口版本检查与实时事件流在 Wails 资源服务之前处理。
+			Middleware: middleware,
 		},
 		Server: application.ServerOptions{
 			Host: config.Server.Host,

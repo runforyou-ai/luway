@@ -1381,7 +1381,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 	// 覆盖 AI 员工的创建、执行配置修订、状态切换、团队与渠道联动及团队删除。
 	runStep("AI员工", func(t *testing.T) {
 		provider := &servermodels.AIProvider{
-			OrganizationID: loggedIn.Identity.Organization.ID,
+			OrganizationID: &loggedIn.Identity.Organization.ID,
 			Brand:          string(domain.AIProviderBrandOpenAI),
 			Name:           "测试模型服务",
 			CredentialType: string(domain.AIProviderCredentialTypeAPIKey),
@@ -1970,7 +1970,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 		if err := db.NewSelect().Model(&savedBlocks).Where("arb.agent_run_id = ?", run.ID).Order("position ASC").Scan(context.Background()); err != nil {
 			t.Fatal(err)
 		}
-		if len(savedBlocks) != 1 || savedBlocks[0].ID != successfulBlocks[0].ID || savedBlocks[0].OrganizationID != run.OrganizationID || !strings.Contains(string(savedBlocks[0].Payload), "计算过程") {
+		if len(savedBlocks) != 1 || savedBlocks[0].ID != successfulBlocks[0].ID || savedBlocks[0].OrganizationID != run.OrganizationID || savedBlocks[0].Content == nil || *savedBlocks[0].Content != "计算过程" {
 			t.Fatalf("saved blocks = %#v", savedBlocks)
 		}
 		if len(executionStreams) != 2 || executionStreams[0] == "" || executionStreams[0] == executionStreams[1] {

@@ -4,7 +4,7 @@ package appservice
 
 import "context"
 
-// InstallationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
+// InstallationStatus 返回部署名称、首次安装状态、是否开放注册、产品品牌和接口版本。
 func (s *Service) InstallationStatus(ctx context.Context, meta RequestMeta) (InstallationStatus, error) {
 	return WithNormalizedSlices(s.backend.InstallationStatus(ctx, meta))
 }
@@ -674,12 +674,12 @@ func (s *Service) AcceptInvitation(ctx context.Context, meta RequestMeta, input 
 	return WithNormalizedSlices(s.backend.AcceptInvitation(ctx, meta, input))
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+// GetDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
 func (s *Service) GetDeploymentOverview(ctx context.Context, meta RequestMeta) (DeploymentOverview, error) {
 	return WithNormalizedSlices(s.backend.GetDeploymentOverview(ctx, meta))
 }
 
-// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 func (s *Service) GetDeploymentSettings(ctx context.Context, meta RequestMeta) (DeploymentSettings, error) {
 	return WithNormalizedSlices(s.backend.GetDeploymentSettings(ctx, meta))
 }
@@ -692,6 +692,11 @@ func (s *Service) UpdateDeploymentSettings(ctx context.Context, meta RequestMeta
 // UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
 func (s *Service) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta RequestMeta, input DeploymentStatisticsTimeZoneInput) (DeploymentSettings, error) {
 	return WithNormalizedSlices(s.backend.UpdateDeploymentStatisticsTimeZone(ctx, meta, input))
+}
+
+// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+func (s *Service) UpdateDeploymentTelemetry(ctx context.Context, meta RequestMeta, input DeploymentTelemetryInput) (DeploymentSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdateDeploymentTelemetry(ctx, meta, input))
 }
 
 // ListDeploymentAccounts 返回部署内的账号。
@@ -724,14 +729,24 @@ func (s *Service) ListDeploymentWorkspaces(ctx context.Context, meta RequestMeta
 	return WithNormalizedSlices(s.backend.ListDeploymentWorkspaces(ctx, meta, input))
 }
 
-// GetInstanceLicense 返回实例授权状态。
+// GetInstanceLicense 返回实例标识与实例授权状态。
 func (s *Service) GetInstanceLicense(ctx context.Context, meta RequestMeta) (InstanceLicense, error) {
 	return WithNormalizedSlices(s.backend.GetInstanceLicense(ctx, meta))
 }
 
-// ActivateInstanceLicense 用授权码激活或替换实例授权。
+// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
 func (s *Service) ActivateInstanceLicense(ctx context.Context, meta RequestMeta, input ActivateInstanceLicenseInput) (InstanceLicense, error) {
 	return WithNormalizedSlices(s.backend.ActivateInstanceLicense(ctx, meta, input))
+}
+
+// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+func (s *Service) ActivateInstanceLicenseOnline(ctx context.Context, meta RequestMeta, input ActivateInstanceLicenseOnlineInput) (InstanceLicense, error) {
+	return WithNormalizedSlices(s.backend.ActivateInstanceLicenseOnline(ctx, meta, input))
+}
+
+// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+func (s *Service) SyncInstanceLicense(ctx context.Context, meta RequestMeta) (InstanceLicense, error) {
+	return WithNormalizedSlices(s.backend.SyncInstanceLicense(ctx, meta))
 }
 
 // SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
@@ -742,6 +757,91 @@ func (s *Service) SuspendDeploymentWorkspace(ctx context.Context, meta RequestMe
 // ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 func (s *Service) ResumeDeploymentWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (DeploymentWorkspace, error) {
 	return WithNormalizedSlices(s.backend.ResumeDeploymentWorkspace(ctx, meta, workspaceID))
+}
+
+// GetDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+func (s *Service) GetDeploymentUsage(ctx context.Context, meta RequestMeta, input DeploymentUsageInput) (DeploymentUsageMetrics, error) {
+	return WithNormalizedSlices(s.backend.GetDeploymentUsage(ctx, meta, input))
+}
+
+// ListDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (s *Service) ListDeploymentWorkspaceUsage(ctx context.Context, meta RequestMeta, input DeploymentWorkspaceUsageListInput) (DeploymentWorkspaceUsageList, error) {
+	return WithNormalizedSlices(s.backend.ListDeploymentWorkspaceUsage(ctx, meta, input))
+}
+
+// GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (s *Service) GetDeploymentRuntimeStatus(ctx context.Context, meta RequestMeta) (DeploymentRuntimeStatus, error) {
+	return WithNormalizedSlices(s.backend.GetDeploymentRuntimeStatus(ctx, meta))
+}
+
+// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (s *Service) ListDeploymentFailedTasks(ctx context.Context, meta RequestMeta, input DeploymentFailedTaskListInput) (DeploymentFailedTaskList, error) {
+	return WithNormalizedSlices(s.backend.ListDeploymentFailedTasks(ctx, meta, input))
+}
+
+// ListPlatformAIProviders 返回部署的平台供应商。
+func (s *Service) ListPlatformAIProviders(ctx context.Context, meta RequestMeta) (PlatformAIProviderList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformAIProviders(ctx, meta))
+}
+
+// GetPlatformAIProvider 返回平台供应商详情。
+func (s *Service) GetPlatformAIProvider(ctx context.Context, meta RequestMeta, providerID string) (PlatformAIProvider, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformAIProvider(ctx, meta, providerID))
+}
+
+// ListPlatformAIProviderModels 返回平台供应商可提供的模型。
+func (s *Service) ListPlatformAIProviderModels(ctx context.Context, meta RequestMeta, providerID string) (AIProviderModelList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformAIProviderModels(ctx, meta, providerID))
+}
+
+// CreatePlatformAIProvider 创建平台供应商。
+func (s *Service) CreatePlatformAIProvider(ctx context.Context, meta RequestMeta, input PlatformAIProviderInput) (PlatformAIProvider, error) {
+	return WithNormalizedSlices(s.backend.CreatePlatformAIProvider(ctx, meta, input))
+}
+
+// UpdatePlatformAIProvider 修改平台供应商。
+func (s *Service) UpdatePlatformAIProvider(ctx context.Context, meta RequestMeta, providerID string, input PlatformAIProviderUpdateInput) (PlatformAIProvider, error) {
+	return WithNormalizedSlices(s.backend.UpdatePlatformAIProvider(ctx, meta, providerID, input))
+}
+
+// DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
+func (s *Service) DeletePlatformAIProvider(ctx context.Context, meta RequestMeta, providerID string) error {
+	return s.backend.DeletePlatformAIProvider(ctx, meta, providerID)
+}
+
+// ListPlatformAIModels 返回部署的平台模型目录。
+func (s *Service) ListPlatformAIModels(ctx context.Context, meta RequestMeta) (PlatformAIModelList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformAIModels(ctx, meta))
+}
+
+// GetPlatformAIModel 返回平台模型详情。
+func (s *Service) GetPlatformAIModel(ctx context.Context, meta RequestMeta, modelID string) (PlatformAIModel, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformAIModel(ctx, meta, modelID))
+}
+
+// CreatePlatformAIModel 创建对全部工作区可用的平台模型。
+func (s *Service) CreatePlatformAIModel(ctx context.Context, meta RequestMeta, input PlatformAIModelInput) (PlatformAIModel, error) {
+	return WithNormalizedSlices(s.backend.CreatePlatformAIModel(ctx, meta, input))
+}
+
+// UpdatePlatformAIModel 修改平台模型的属性与来源。
+func (s *Service) UpdatePlatformAIModel(ctx context.Context, meta RequestMeta, modelID string, input PlatformAIModelInput) (PlatformAIModel, error) {
+	return WithNormalizedSlices(s.backend.UpdatePlatformAIModel(ctx, meta, modelID, input))
+}
+
+// DeletePlatformAIModel 删除没有被工作区引用的平台模型。
+func (s *Service) DeletePlatformAIModel(ctx context.Context, meta RequestMeta, modelID string) error {
+	return s.backend.DeletePlatformAIModel(ctx, meta, modelID)
+}
+
+// ListPlatformAIModelCalls 返回平台模型调用记录。
+func (s *Service) ListPlatformAIModelCalls(ctx context.Context, meta RequestMeta, input PlatformAIModelCallListInput) (PlatformAIModelCallList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformAIModelCalls(ctx, meta, input))
+}
+
+// GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
+func (s *Service) GetPlatformAIModelCall(ctx context.Context, meta RequestMeta, callID string) (PlatformAIModelCallDetail, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformAIModelCall(ctx, meta, callID))
 }
 
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。

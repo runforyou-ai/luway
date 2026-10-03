@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { type Brand, ConnectReason, connectServer, isApiError, probeServer } from "@/api"
+import { type Brand, ConnectReason, connectServer, isApiError, probeServer, SessionState } from "@/api"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Button } from "@/components/ui/button"
 import { FieldGroup } from "@/components/ui/field"
@@ -33,7 +33,7 @@ type DetectedServer = {
 export function ServerConnectionForm() {
   const { t } = useTranslation(["connection", "common"])
   const navigate = useNavigate()
-  const { completeStartup, connectReason } = useStartup()
+  const { completeStartup, connectReason, restartStartup } = useStartup()
   const [detected, setDetected] = useState<DetectedServer | null>(null)
   const [detecting, setDetecting] = useState(false)
   const [connecting, setConnecting] = useState(false)
@@ -116,7 +116,7 @@ export function ServerConnectionForm() {
     return () => window.removeEventListener("online", onOnline)
   }, [connectReason])
 
-  /** 保存已检测的服务器并前往登录。 */
+  /** 保存已检测的服务器并前往登录；服务器要求升级客户端时前往升级页。 */
   async function connectDetectedServer(server = detected) {
     if (!server) {
       return
@@ -129,6 +129,13 @@ export function ServerConnectionForm() {
       completeStartup()
       navigate("/login", { replace: true })
     } catch (error) {
+      // 服务器地址已保存，仅本端接口版本过旧时前往升级页并重新启动检测。
+      if (isApiError(error) && error.state === SessionState.SessionStateUpgrade) {
+        clearPendingServerLink()
+        restartStartup()
+        navigate("/upgrade", { replace: true })
+        return
+      }
       if (isApiError(error)) {
         toast.error(apiErrorMessage(error, ["serverUrl"]))
         return
@@ -143,13 +150,15 @@ export function ServerConnectionForm() {
 
   return (
     <>
-      {/* 已保存的服务器暂时连不上或尚未完成首次安装时说明原因，连不上时提供重试。 */}
+      {/* 已保存的服务器暂时连不上、尚未完成首次安装或版本过旧时说明原因，连不上时提供重试。 */}
       {savedUrl && connectReason ? (
         <div role="status" className="mb-4 flex items-start gap-3 text-sm text-warning">
           <p className="min-w-0 flex-1">
             {connectReason === ConnectReason.ConnectReasonUnreachable
               ? t("savedServerUnreachable", { host: new URL(savedUrl).host })
-              : t("serverNotInstalled", { host: new URL(savedUrl).host })}
+              : connectReason === ConnectReason.ConnectReasonServerOutdated
+                ? t("serverOutdated", { host: new URL(savedUrl).host })
+                : t("serverNotInstalled", { host: new URL(savedUrl).host })}
           </p>
           {connectReason === ConnectReason.ConnectReasonUnreachable ? (
             <Button type="button" size="sm" variant="outline" className="shrink-0" disabled={busy} onClick={() => void retrySavedServer()}>

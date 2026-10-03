@@ -31,7 +31,7 @@ import type { NonNullArrays } from "@/api/normalize"
 
 export type AIProviderBrandId = Exclude<AIProviderBrand, AIProviderBrand.$zero>
 
-type AIProviderCredentialTypeId = Exclude<
+export type AIProviderCredentialTypeId = Exclude<
   AIProviderCredentialType,
   AIProviderCredentialType.$zero
 >
@@ -79,11 +79,11 @@ export type AIModelUsageId = Exclude<AIModelUsage, AIModelUsage.$zero>
 
 export type AIModelOptionData = Omit<
   NonNullArrays<AIModelOption>,
-  "type" | "inputModalities" | "providerBrand"
+  "type" | "inputModalities" | "provider"
 > & {
   type: AIModelTypeId
   inputModalities: AIModelInputModalityId[]
-  providerBrand: AIProviderBrandId
+  provider: { id: string; name: string; brand: AIProviderBrandId } | null
 }
 
 type AIProviderListData = Omit<

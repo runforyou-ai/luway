@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -34,14 +35,32 @@ type planStore struct {
 	shown    []runstream.PlanTask // 按任务编号排列的展示清单。
 }
 
-// newPlanMiddleware 创建任务清单中间件，任务只存在于本次运行的内存中。
-func newPlanMiddleware(ctx context.Context, recorder *processRecorder) (adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage], error) {
+// newPlanMiddleware 创建任务清单中间件并返回任务存储，任务保存在本次运行的内存与恢复状态中。
+func newPlanMiddleware(ctx context.Context, recorder *processRecorder) (adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage], *planStore, error) {
 	store := &planStore{recorder: recorder, files: make(map[string]string)}
 	middleware, err := plantask.NewTyped[*schema.AgenticMessage](ctx, &plantask.Config{Backend: store, BaseDir: planTaskDir})
 	if err != nil {
-		return nil, fmt.Errorf("create plan task middleware: %w", err)
+		return nil, nil, fmt.Errorf("create plan task middleware: %w", err)
 	}
-	return middleware, nil
+	return middleware, store, nil
+}
+
+// snapshot 返回任务文件的副本。
+func (s *planStore) snapshot() map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return maps.Clone(s.files)
+}
+
+// restore 写回已保存的任务文件与展示清单。
+func (s *planStore) restore(files map[string]string, shown []runstream.PlanTask) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.files = maps.Clone(files)
+	if s.files == nil {
+		s.files = make(map[string]string)
+	}
+	s.shown = slices.Clone(shown)
 }
 
 // LsInfo 列出目录下的文件。

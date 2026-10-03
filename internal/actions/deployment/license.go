@@ -28,8 +28,9 @@ var (
 	ErrLicenseSuperseded = errors.New("license code is not newer than the current license")
 )
 
-// License 定义实例授权状态；Capabilities 是授权码授予的能力，授权到期后实例按免费取值运行。
+// License 定义实例标识与授权状态；Capabilities 是授权码授予的能力，授权到期后实例按免费取值运行。
 type License struct {
+	InstanceID   string
 	Status       domain.LicenseStatus
 	LicenseID    string
 	Customer     string
@@ -85,7 +86,7 @@ func licenseFromModel(record *servermodels.InstanceLicense, now time.Time) (Lice
 		status = domain.LicenseStatusExpired
 	}
 	return License{
-		Status: status, LicenseID: record.LicenseID, Customer: record.Customer,
+		InstanceID: record.InstanceID, Status: status, LicenseID: record.LicenseID, Customer: record.Customer,
 		IssuedAt: record.IssuedAt, ExpiresAt: record.ExpiresAt,
 		Capabilities: capabilitiesFromLicense(granted),
 	}, nil
@@ -117,12 +118,15 @@ func NewLicenseQuery(db *bun.DB) *LicenseQuery {
 	return &LicenseQuery{db: db}
 }
 
-// Execute 返回实例当前的授权状态。
+// Execute 返回实例标识与当前的授权状态。
 func (q *LicenseQuery) Execute(ctx context.Context) (License, error) {
-	if _, err := Load(ctx, q.db); err != nil {
+	deployment, err := Load(ctx, q.db)
+	if err != nil {
 		return License{}, err
 	}
-	return loadLicense(ctx, q.db)
+	current, err := loadLicense(ctx, q.db)
+	current.InstanceID = deployment.InstanceID
+	return current, err
 }
 
 // ActivateLicenseAction 用授权码激活或替换实例授权。
@@ -136,20 +140,27 @@ func NewActivateLicenseAction(db *bun.DB, keys license.Keys) *ActivateLicenseAct
 	return &ActivateLicenseAction{db: db, keys: keys}
 }
 
-// Execute 验签授权码并校验实例标识与授权期限，签发时间晚于当前授权时替换，重复提交当前授权码时原样返回；完成后按新授权应用部署品牌。
+// Execute 验签授权码后保存为实例授权，签发时间不晚于当前授权的其他授权码返回 ErrLicenseSuperseded。
 func (a *ActivateLicenseAction) Execute(ctx context.Context, operator *servermodels.AccountIdentity, code string) (License, error) {
 	claims, err := license.Parse(code, a.keys)
 	if err != nil {
 		return License{}, fmt.Errorf("%w: %w", ErrLicenseInvalid, err)
 	}
+	return storeLicense(ctx, a.db, operator, claims)
+}
+
+// storeLicense 在事务内校验实例标识与授权期限后保存授权：首次激活或签发时间晚于当前授权时写入，与当前授权码相同时原样返回，其余返回 ErrLicenseSuperseded；operator 非空时先确认其仍是有效部署管理员；完成后按新授权应用部署品牌。
+func storeLicense(ctx context.Context, db *bun.DB, operator *servermodels.AccountIdentity, claims license.Claims) (License, error) {
 	capabilities, err := json.Marshal(claims.Capabilities)
 	if err != nil {
 		return License{}, err
 	}
 	var output License
-	err = a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		if err := lockActiveAdmins(ctx, tx, operator); err != nil {
-			return err
+	err = db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+		if operator != nil {
+			if err := lockActiveAdmins(ctx, tx, operator); err != nil {
+				return err
+			}
 		}
 		deployment, err := Lock(ctx, tx)
 		if err != nil {

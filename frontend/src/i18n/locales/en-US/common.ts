@@ -50,6 +50,19 @@ const common = {
     addedAt: "Added {{time}}",
     addedAtColumn: "Added",
   },
+  report: {
+    period: "Ended",
+    periodDays: "Last {{count}} days",
+    empty: "—",
+    durations: {
+      seconds: "{{count}} sec",
+      minutes: "{{count}} min",
+      hours: "{{count}} hr",
+      hoursMinutes: "{{hours}} hr {{minutes}} min",
+      days: "{{count}} d",
+      daysHours: "{{days}} d {{hours}} hr",
+    },
+  },
   table: {
     actions: "Actions",
   },
@@ -74,6 +87,9 @@ const common = {
     admin: "Administrator",
     customerService: "Customer service",
     member: "Member",
+  },
+  aiModels: {
+    platformGroup: "Platform models",
   },
   agentBehavior: {
     tools: "Available tools",

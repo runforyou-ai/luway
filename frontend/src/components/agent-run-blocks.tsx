@@ -99,6 +99,10 @@ export function useToolStatusLabel() {
     [AgentToolCallStatus.AgentToolCallRunning]: t("agentToolRunning"),
     [AgentToolCallStatus.AgentToolCallSucceeded]: t("agentToolSucceeded"),
     [AgentToolCallStatus.AgentToolCallFailed]: t("agentToolFailed"),
+    [AgentToolCallStatus.AgentToolCallWaiting]: t("agentToolWaiting"),
+    [AgentToolCallStatus.AgentToolCallCancelled]: t("agentToolCancelled"),
+    [AgentToolCallStatus.AgentToolCallInterrupted]: t("agentToolInterrupted"),
+    [AgentToolCallStatus.AgentToolCallNeedsReview]: t("agentToolNeedsReview"),
   })[status]
 }
 
@@ -106,7 +110,8 @@ export function useToolStatusLabel() {
 export function AgentTool({ call, detail, inBubble, onToggle }: { call: AgentToolCall; detail?: ReactNode; inBubble?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation("inbox")
   const { t: tCommon } = useTranslation("common")
-  const failed = call.status === AgentToolCallStatus.AgentToolCallFailed
+  // 失败与待核对的状态以警示色显示。
+  const alerting = call.status === AgentToolCallStatus.AgentToolCallFailed || call.status === AgentToolCallStatus.AgentToolCallNeedsReview
   const statusLabel = useToolStatusLabel()(call.status)
   const surface = inBubble ? "bg-background" : "bg-muted"
   return (
@@ -116,7 +121,7 @@ export function AgentTool({ call, detail, inBubble, onToggle }: { call: AgentToo
           <span className="block break-all font-medium">{agentToolLabel(call.name, tCommon)}</span>
           {detail ? <span className="mt-0.5 block text-muted-foreground">{detail}</span> : null}
         </span>
-        <span className={cn("shrink-0 text-muted-foreground", failed && "text-destructive")}>
+        <span className={cn("shrink-0 text-muted-foreground", alerting && "text-destructive")}>
           {statusLabel}
         </span>
         <ChevronDownIcon aria-hidden className="size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-180" />

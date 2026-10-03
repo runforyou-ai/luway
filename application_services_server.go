@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/runforyou-ai/luway/docs"
@@ -10,17 +11,20 @@ import (
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	"github.com/runforyou-ai/luway/internal/common/license"
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/ingress"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/control"
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
 	"github.com/runforyou-ai/luway/internal/productdocs"
 	"github.com/runforyou-ai/luway/internal/productsite"
@@ -36,7 +40,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// applicationServices 组装服务端入口、业务服务和后台任务，并返回处理实时事件流的资源中间件与根路径下的产品首页。
+// applicationServices 组装服务端入口、业务服务和后台任务，并返回检查原生端接口版本、处理实时事件流的资源中间件与根路径下的产品首页。
 func applicationServices(appStorage *serverstorage.Store, config serverconfig.Config) ([]application.Service, application.Middleware, http.Handler, error) {
 	db := appStorage.DB()
 	// 为 HTTPS 入口提供部署地址和证书缓存。
@@ -79,15 +83,21 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	executeAgentRun := agentrunaction.NewExecuteAction(db, tasks, agentRuntime, modelInvoker, agentAttachments, knowledgeRetrieval, emailSender)
 	serviceReplySuggestions := agentrunaction.NewGenerateServiceReplySuggestionsAction(db, agentRuntime, modelInvoker, agentAttachments)
 	telegramAPI := telegramintegration.NewClient(connectiontest.NewHTTPClient())
+	// control 客户端用部署实例的身份签名请求，在线授权与指标上报共用。
+	controlClient := control.New(control.BaseURL, buildinfo.Version, func(ctx context.Context) (control.Identity, error) {
+		return deploymentaction.ControlIdentity(ctx, db)
+	})
+	onlineLicense := deploymentaction.NewOnlineLicenseAction(db, license.PublicKeys(), controlClient)
 	if err := registerServerTasks(serverTaskDeps{
 		db: db, maintenanceDB: appStorage.MaintenanceDB(), tasks: tasks, publicURL: config.Server.PublicURL, localFiles: localFiles, fileS3: fileS3, fileReader: fileReader,
 		emailSender: emailSender, agentRuntime: agentRuntime, modelInvoker: modelInvoker, agentSchedule: agentRunScheduler, agentRun: executeAgentRun, telegramAPI: telegramAPI,
+		onlineLicense: onlineLicense,
 	}); err != nil {
 		return nil, nil, nil, err
 	}
 
-	// 产品文档按部署状态过滤页面：当前部署使用实例授权且未配对商业服务。
-	productDocs, err := productdocs.Load(docs.Content, productdocs.Conditions{productdocs.ConditionInstanceLicense: true})
+	// 产品文档按部署状态过滤页面：当前部署未配对商业服务。
+	productDocs, err := productdocs.Load(docs.Content, productdocs.Conditions{})
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -99,6 +109,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	// 组装企业成员与网站匿名访客各自的业务入口。
 	deployment := directDeploymentConfig(config, emailSender)
 	deployment.ProductDocs = productDocs
+	deployment.Control = controlClient
 	translator := translationaction.NewTranslator(db, agentRuntime, modelInvoker)
 	directBackend := direct.New(db, deployment, localFiles, fileS3, agentRunScheduler, executeAgentRun, tasks, serviceReplySuggestions, translator, knowledgeRetrieval)
 	boundService := appservice.New(directBackend)
@@ -130,11 +141,16 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewServiceWithOptions(httpAPI, application.ServiceOptions{Route: "/api"}),
 		application.NewServiceWithOptions(api.NewLocalObjectService(direct.NewLocalObjectAuthorizer(db), localFiles), application.ServiceOptions{Route: domain.LocalFilePublicPath + "/"}),
 		application.NewService(&serverTaskLifecycle{runtime: tasks}),
+		application.NewService(&telemetryLifecycle{db: db, control: controlClient}),
 		application.NewServiceWithOptions(publicweb.NewEmbedService(publicLookup), application.ServiceOptions{Route: "/embed"}),
 		application.NewServiceWithOptions(publicweb.NewChatService(publicLookup), application.ServiceOptions{Route: "/chat/"}),
 		application.NewServiceWithOptions(productDocsService, application.ServiceOptions{Route: "/docs"}),
 	}
-	return services, realtimeGateway.Middleware, productsite.NewService(productdocs.StylesheetPath()), nil
+	// 先拦截接口版本过旧的原生端请求，再处理实时事件流。
+	middleware := func(next http.Handler) http.Handler {
+		return api.ClientVersionMiddleware(realtimeGateway.Middleware(next))
+	}
+	return services, middleware, productsite.NewService(productdocs.StylesheetPath()), nil
 }
 
 // fileContentS3Config 把部署级对象存储配置转换为文件内容层配置。

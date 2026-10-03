@@ -10,6 +10,36 @@ export interface AIHandoffReasonCount {
 }
 
 /**
+ * AIModelCallActor 表示模型调用的发起主体类型。
+ */
+export enum AIModelCallActor {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    AIModelCallActorMember = "member",
+    AIModelCallActorAgent = "agent",
+    AIModelCallActorSystem = "system",
+};
+
+/**
+ * AIModelCallStatus 表示模型调用及其上游尝试的状态。
+ */
+export enum AIModelCallStatus {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    AIModelCallStatusRunning = "running",
+    AIModelCallStatusSucceeded = "succeeded",
+    AIModelCallStatusFailed = "failed",
+    AIModelCallStatusCanceled = "canceled",
+    AIModelCallStatusTimedOut = "timed_out",
+};
+
+/**
  * AIModelInputModality 表示模型支持的输入模态。
  */
 export enum AIModelInputModality {
@@ -25,16 +55,15 @@ export enum AIModelInputModality {
 };
 
 /**
- * AIModelOption 定义模型选择器中的模型及其所属供应商。
+ * AIModelOption 定义模型选择器中的模型；工作区模型带所属供应商，平台模型的 Provider 为空。
  */
 export interface AIModelOption {
     "id": string;
+    "scope": AIModelScope;
     "name": string;
     "type": AIModelType;
     "inputModalities": AIModelInputModality[] | null;
-    "providerId": string;
-    "providerName": string;
-    "providerBrand": AIProviderBrand;
+    "provider": AIModelOptionProvider | null;
 }
 
 /**
@@ -43,6 +72,28 @@ export interface AIModelOption {
 export interface AIModelOptionList {
     "models": AIModelOption[] | null;
 }
+
+/**
+ * AIModelOptionProvider 定义工作区模型选项所属的供应商。
+ */
+export interface AIModelOptionProvider {
+    "id": string;
+    "name": string;
+    "brand": AIProviderBrand;
+}
+
+/**
+ * AIModelScope 表示模型范围：平台模型由部署提供，工作区模型由工作区自行配置。
+ */
+export enum AIModelScope {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    AIModelScopePlatform = "platform",
+    AIModelScopeWorkspace = "workspace",
+};
 
 /**
  * AIModelType 表示 AI 模型用途。
@@ -334,6 +385,13 @@ export enum AccountStatus {
  */
 export interface ActivateInstanceLicenseInput {
     "licenseCode": string;
+}
+
+/**
+ * ActivateInstanceLicenseOnlineInput 定义部署管理员输入的激活码。
+ */
+export interface ActivateInstanceLicenseOnlineInput {
+    "activationCode": string;
 }
 
 /**
@@ -891,6 +949,7 @@ export enum AgentRunStatus {
 
     AgentRunStatusQueued = "queued",
     AgentRunStatusRunning = "running",
+    AgentRunStatusWaiting = "waiting",
     AgentRunStatusSucceeded = "succeeded",
     AgentRunStatusFailed = "failed",
     AgentRunStatusCancelled = "cancelled",
@@ -968,6 +1027,18 @@ export enum AgentToolCallStatus {
     AgentToolCallRunning = "running",
     AgentToolCallSucceeded = "succeeded",
     AgentToolCallFailed = "failed",
+    AgentToolCallWaiting = "waiting",
+    AgentToolCallCancelled = "cancelled",
+
+    /**
+     * AgentToolCallInterrupted 表示执行中断且没有外部副作用。
+     */
+    AgentToolCallInterrupted = "interrupted",
+
+    /**
+     * AgentToolCallNeedsReview 表示有外部副作用的调用中断，实际结果待人工核对。
+     */
+    AgentToolCallNeedsReview = "needs_review",
 };
 
 /**
@@ -1192,6 +1263,11 @@ export enum ConnectReason {
      * ConnectReasonNotInstalled 表示已保存的服务器尚未完成首次安装。
      */
     ConnectReasonNotInstalled = "not_installed",
+
+    /**
+     * ConnectReasonServerOutdated 表示已保存的服务器接口版本低于原生端要求的最低版本。
+     */
+    ConnectReasonServerOutdated = "server_outdated",
 };
 
 /**
@@ -2251,11 +2327,41 @@ export interface DeploymentDailyActivity {
 }
 
 /**
- * DeploymentOverview 定义部署实例标识、服务端版本、安装时间、规模、活跃情况和实例能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
+ * DeploymentFailedTask 定义一次等待重试或近 7 天内失败的后台任务运行；WorkspaceName 为所属工作区名称，部署级任务为空，FailedAt 为最近一次执行失败的时间。
+ */
+export interface DeploymentFailedTask {
+    "id": string;
+    "action": string;
+    "queue": string;
+    "workspaceName": string | null;
+    "retrying": boolean;
+    "attempt": number;
+    "maxAttempts": number;
+    "error": string;
+    "failedAt": string;
+}
+
+/**
+ * DeploymentFailedTaskList 定义失败任务分页结果。
+ */
+export interface DeploymentFailedTaskList {
+    "tasks": DeploymentFailedTask[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * DeploymentFailedTaskListInput 定义失败任务列表的分页。
+ */
+export interface DeploymentFailedTaskListInput {
+    "page": number;
+    "pageSize": number;
+}
+
+/**
+ * DeploymentOverview 定义部署实例标识、安装时间、规模、活跃情况和实例能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
  */
 export interface DeploymentOverview {
     "instanceId": string;
-    "version": string;
     "installedAt": string;
     "statisticsTimeZone": string;
     "statsRebuilding": boolean;
@@ -2277,12 +2383,21 @@ export interface DeploymentPoliciesInput {
 }
 
 /**
- * DeploymentSettings 定义部署注册策略、工作区创建策略和运营数据统计时区。
+ * DeploymentRuntimeStatus 定义服务端版本与后台任务各队列的运行概况。
+ */
+export interface DeploymentRuntimeStatus {
+    "version": string;
+    "queues": DeploymentTaskQueue[] | null;
+}
+
+/**
+ * DeploymentSettings 定义部署注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
  */
 export interface DeploymentSettings {
     "registrationPolicy": RegistrationPolicy;
     "workspaceCreationPolicy": WorkspaceCreationPolicy;
     "statisticsTimeZone": string;
+    "telemetryEnabled": boolean;
 }
 
 /**
@@ -2291,6 +2406,64 @@ export interface DeploymentSettings {
 export interface DeploymentStatisticsTimeZoneInput {
     "statisticsTimeZone": string;
 }
+
+/**
+ * DeploymentTaskQueue 定义一个后台任务队列的运行概况：Waiting 为已到执行时间仍在排队的任务数，OldestWaitingSince 为其中最早的到期时间，没有排队任务时为空；
+ * Running 为执行中的任务数，Retrying 为执行失败后等待重试的任务数，Paused 为所属工作区暂停而挂起的任务数，Failed 为近 7 天失败且不再重试的任务数。
+ */
+export interface DeploymentTaskQueue {
+    "queue": string;
+    "waiting": number;
+    "oldestWaitingSince": string | null;
+    "running": number;
+    "retrying": number;
+    "paused": number;
+    "failed": number;
+}
+
+/**
+ * DeploymentTelemetryInput 定义运行指标上报开关的修改值。
+ */
+export interface DeploymentTelemetryInput {
+    "telemetryEnabled": boolean;
+}
+
+/**
+ * DeploymentUsageInput 定义业务使用的统计范围：最近 Days 天内关闭的客服周期。
+ */
+export interface DeploymentUsageInput {
+    "days": number;
+}
+
+/**
+ * DeploymentUsageMetrics 定义业务使用指标，口径与工作区的 AI 表现和团队表现报表一致：ServiceSessions 为已关闭周期数，Conversations 为其所属会话去重数；
+ * AIClosed 为其中 AI 员工接待过的周期数，AIResolved 与 HandedOff 为其中 AI 独立解决与发生过转人工的周期数；首响为按工作时间计的真人首响（秒），没有样本时为空；KnowledgeGaps 为全部待处理的待补知识条数。
+ */
+export interface DeploymentUsageMetrics {
+    "serviceSessions": number;
+    "conversations": number;
+    "aiClosed": number;
+    "aiResolved": number;
+    "handedOff": number;
+    "firstResponseMedian": number | null;
+    "firstResponseP90": number | null;
+    "knowledgeGaps": number;
+}
+
+/**
+ * DeploymentUsageSort 表示业务使用工作区列表的排序方式，均为降序。
+ */
+export enum DeploymentUsageSort {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    DeploymentUsageSortServiceSessions = "service_sessions",
+    DeploymentUsageSortConversations = "conversations",
+    DeploymentUsageSortFirstResponse = "first_response",
+    DeploymentUsageSortKnowledgeGaps = "knowledge_gaps",
+};
 
 /**
  * DeploymentWorkspace 定义部署工作区列表中的一个工作区、状态与当前规模；HasDeploymentAdmin 表示有有效部署管理员成员，此时不能暂停；LastActiveOn 为最近有活跃的日期 YYYY-MM-DD，从未活跃时为空。
@@ -2343,6 +2516,35 @@ export enum DeploymentWorkspaceSort {
     DeploymentWorkspaceSortMemberCount = "member_count",
     DeploymentWorkspaceSortStorage = "storage",
 };
+
+/**
+ * DeploymentWorkspaceUsage 定义一个工作区的业务使用指标。
+ */
+export interface DeploymentWorkspaceUsage {
+    "id": string;
+    "name": string;
+    "slug": string;
+    "status": WorkspaceStatus;
+    "metrics": DeploymentUsageMetrics;
+}
+
+/**
+ * DeploymentWorkspaceUsageList 定义一页工作区业务使用指标。
+ */
+export interface DeploymentWorkspaceUsageList {
+    "workspaces": DeploymentWorkspaceUsage[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * DeploymentWorkspaceUsageListInput 定义业务使用工作区列表的统计范围、排序与分页，Sort 缺省按服务周期数。
+ */
+export interface DeploymentWorkspaceUsageListInput {
+    "days": number;
+    "sort": DeploymentUsageSort;
+    "page": number;
+    "pageSize": number;
+}
 
 /**
  * Device 定义成员注册到企业的本机设备，LocalAgents 是设备上报的已安装且可用的本机 Agent。
@@ -3069,13 +3271,15 @@ export interface InstallWorkspaceInput {
 }
 
 /**
- * InstallationStatus 定义部署名称、部署是否已完成首次安装、注册策略是否开放注册和部署使用的产品品牌。
+ * InstallationStatus 定义部署名称、部署是否已完成首次安装、注册策略是否开放注册、部署使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。
  */
 export interface InstallationStatus {
     "deploymentName": string;
     "installed": boolean;
     "registrationOpen": boolean;
     "brand": Brand;
+    "apiVersion": number;
+    "minClientApiVersion": number;
 }
 
 /**
@@ -3087,9 +3291,10 @@ export interface InstanceCapabilities {
 }
 
 /**
- * InstanceLicense 定义实例授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有状态和免费能力。
+ * InstanceLicense 定义实例标识、实例授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有实例标识、状态和免费能力。
  */
 export interface InstanceLicense {
+    "instanceId": string;
     "status": LicenseStatus;
     "licenseId": string;
     "customer": string;
@@ -4336,6 +4541,175 @@ export interface PersonalAgentResponsible {
 }
 
 /**
+ * PlatformAIModel 定义平台模型的属性与按尝试顺序排列的来源。
+ */
+export interface PlatformAIModel {
+    "id": string;
+    "name": string;
+    "type": AIModelType;
+    "inputModalities": AIModelInputModality[] | null;
+    "contextWindow": number;
+    "maxOutputTokens": number;
+    "routes": PlatformAIModelRoute[] | null;
+}
+
+/**
+ * PlatformAIModelCall 定义一次平台模型调用及其归属工作区。
+ */
+export interface PlatformAIModelCall {
+    "id": string;
+    "createdAt": string;
+    "finishedAt": string | null;
+    "modelId": string;
+    "modelName": string;
+    "usage": AIModelUsage;
+    "workspaceId": string;
+    "workspaceName": string;
+    "actor": AIModelCallActor;
+    "status": AIModelCallStatus;
+    "inputTokens": number;
+    "cachedInputTokens": number;
+    "outputTokens": number;
+    "errorMessage": string;
+    "attemptCount": number;
+}
+
+/**
+ * PlatformAIModelCallAttempt 定义平台模型调用的一次上游尝试。
+ */
+export interface PlatformAIModelCallAttempt {
+    "id": string;
+    "createdAt": string;
+    "finishedAt": string | null;
+    "providerName": string;
+    "identifier": string;
+    "status": AIModelCallStatus;
+    "inputTokens": number;
+    "cachedInputTokens": number;
+    "outputTokens": number;
+    "errorMessage": string;
+}
+
+/**
+ * PlatformAIModelCallDetail 定义平台模型调用及其按顺序排列的上游尝试。
+ */
+export interface PlatformAIModelCallDetail {
+    "call": PlatformAIModelCall;
+    "attempts": PlatformAIModelCallAttempt[] | null;
+}
+
+/**
+ * PlatformAIModelCallList 定义平台模型调用记录分页结果。
+ */
+export interface PlatformAIModelCallList {
+    "calls": PlatformAIModelCall[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * PlatformAIModelCallListInput 定义平台模型调用记录的筛选与分页条件：ModelID、Status 为空表示不限，Query 按工作区名称或标识匹配。
+ */
+export interface PlatformAIModelCallListInput {
+    "modelId": string;
+    "status": AIModelCallStatus;
+    "query": string;
+    "page": number;
+    "pageSize": number;
+}
+
+/**
+ * PlatformAIModelInput 定义平台模型的属性与按尝试顺序排列的来源。
+ */
+export interface PlatformAIModelInput {
+    "name": string;
+    "type": AIModelType;
+    "inputModalities": AIModelInputModality[] | null;
+    "contextWindow": number;
+    "maxOutputTokens": number;
+    "routes": PlatformAIModelRouteInput[] | null;
+}
+
+/**
+ * PlatformAIModelList 定义平台模型目录。
+ */
+export interface PlatformAIModelList {
+    "models": PlatformAIModel[] | null;
+}
+
+/**
+ * PlatformAIModelRoute 定义平台模型的一个来源及其供应商。
+ */
+export interface PlatformAIModelRoute {
+    "id": string;
+    "providerId": string;
+    "providerName": string;
+    "providerBrand": AIProviderBrand;
+    "identifier": string;
+    "enabled": boolean;
+}
+
+/**
+ * PlatformAIModelRouteInput 定义平台模型的一个来源，保存时编号为空表示新增来源。
+ */
+export interface PlatformAIModelRouteInput {
+    "id": string;
+    "providerId": string;
+    "identifier": string;
+    "enabled": boolean;
+}
+
+/**
+ * PlatformAIProvider 定义平台供应商详情。
+ */
+export interface PlatformAIProvider {
+    "id": string;
+    "brand": AIProviderBrand;
+    "name": string;
+    "credentialType": AIProviderCredentialType;
+    "apiKey": string;
+    "apiUrl": string;
+}
+
+/**
+ * PlatformAIProviderInput 定义创建平台供应商的名称与连接配置。
+ */
+export interface PlatformAIProviderInput {
+    "brand": AIProviderBrand;
+    "name": string;
+    "credentialType": AIProviderCredentialType;
+    "apiKey": string;
+    "apiUrl": string;
+}
+
+/**
+ * PlatformAIProviderList 定义平台供应商列表。
+ */
+export interface PlatformAIProviderList {
+    "providers": PlatformAIProviderSummary[] | null;
+}
+
+/**
+ * PlatformAIProviderSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数。
+ */
+export interface PlatformAIProviderSummary {
+    "id": string;
+    "brand": AIProviderBrand;
+    "name": string;
+    "apiUrl": string;
+    "modelCount": number;
+}
+
+/**
+ * PlatformAIProviderUpdateInput 定义修改平台供应商的字段，品牌沿用创建时的值。
+ */
+export interface PlatformAIProviderUpdateInput {
+    "name": string;
+    "credentialType": AIProviderCredentialType;
+    "apiKey": string;
+    "apiUrl": string;
+}
+
+/**
  * ProductDocPage 定义文档页面的标题、渲染后的正文 HTML 与完整文档中的访问路径。
  */
 export interface ProductDocPage {
@@ -5117,6 +5491,11 @@ export enum SessionState {
     SessionStateSetup = "setup",
     SessionStateConnect = "connect",
     SessionStateWorkspace = "workspace",
+
+    /**
+     * SessionStateUpgrade 表示原生端接口版本低于服务器接受的最低版本，需要升级客户端。
+     */
+    SessionStateUpgrade = "upgrade",
 };
 
 /**

@@ -76,13 +76,13 @@ const agentIdleCondition = `oi.type = ? AND ss.awaiting_reply_since IS NULL
 	)
 	AND NOT EXISTS (
 		SELECT 1 FROM agent_runs AS agr
-		WHERE agr.organization_id = ss.organization_id AND agr.scope_kind = ? AND agr.scope_id = ss.id AND agr.status IN (?, ?)
+		WHERE agr.organization_id = ss.organization_id AND agr.scope_kind = ? AND agr.scope_id = ss.id AND agr.status IN (?)
 	)`
 
 // agentIdleArgs 返回 agentIdleCondition 的参数。
 func agentIdleArgs() []any {
 	return []any{domain.OrganizationIdentityTypeAgent, domain.ChatSubjectKindOrganizationIdentity,
-		domain.AgentExecutionScopeServiceSession, domain.AgentRunStatusQueued, domain.AgentRunStatusRunning}
+		domain.AgentExecutionScopeServiceSession, bun.In(domain.AgentRunActiveStatuses)}
 }
 
 // Scan 跨正常状态的企业读取到达提醒、回收、AI 跟进或 AI 关单时长的开放周期，按周期投递单条处理任务；队列提醒只选取有可提醒客服的周期，同一周期在途时不重复投递。

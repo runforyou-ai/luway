@@ -12,6 +12,7 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
@@ -225,7 +226,7 @@ func settleHandoffLane(ctx context.Context, db bun.IDB, lane *servermodels.Agent
 }
 
 // completeCustomerHandoff 在同一事务内提交模型或 Runtime 给出的转人工决定：写入事件与通知、改派负责人、结算输入队列并结束运行，返回本次是否写入了完整结果。
-func (a *ExecuteAction) completeCustomerHandoff(ctx context.Context, execution executionContext, policy agentRunPolicy, result agentruntime.RunResult, usage []byte, blocks []servermodels.AgentRunBlock) (bool, error) {
+func (a *ExecuteAction) completeCustomerHandoff(ctx context.Context, execution executionContext, policy agentRunPolicy, result agentruntime.RunResult, usage []byte) (bool, error) {
 	suppressed, completed := false, false
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		resolved, err := resolveCustomerHandoffRoute(ctx, tx, execution.Run.OrganizationID, execution.Run.ConversationID, execution.Run.ScopeID, execution.Run.AgentIdentityID, result.Decision.CategoryID)
@@ -262,10 +263,8 @@ func (a *ExecuteAction) completeCustomerHandoff(ctx context.Context, execution e
 		if err != nil {
 			return err
 		}
-		if len(blocks) > 0 {
-			if _, err := tx.NewInsert().Model(&blocks).Exec(ctx); err != nil {
-				return fmt.Errorf("persist agent run blocks: %w", err)
-			}
+		if err := agentprocess.Sync(ctx, tx, run, result.Blocks, result.Calls); err != nil {
+			return err
 		}
 		settledSeq, err := settleHandoffLane(ctx, tx, lane)
 		if err != nil {
@@ -328,6 +327,11 @@ func (a *ExecuteAction) failCustomerRun(ctx context.Context, initial *servermode
 			}
 			return scheduleNextRun(ctx, tx, a.enqueuer, policy, policyContext, run.OrganizationID, domain.AgentExecutionScopeKind(run.ScopeKind), run.ScopeID)
 		}
+		// 挂起或已由其他任务执行的运行，失败收尾不改变它。
+		if run.Status == string(domain.AgentRunStatusWaiting) || ownedByOtherTask(ctx, run) {
+			terminal = true
+			return nil
+		}
 		if run.Status != string(domain.AgentRunStatusQueued) && run.Status != string(domain.AgentRunStatusRunning) {
 			return fmt.Errorf("cannot fail agent run in status %q", run.Status)
 		}
@@ -383,6 +387,9 @@ func (a *ExecuteAction) failCustomerRun(ctx context.Context, initial *servermode
 			Set("updated_at = now()").
 			WherePK().Exec(ctx); err != nil {
 			return fmt.Errorf("fail handed off agent run: %w", err)
+		}
+		if err := agentprocess.CancelUnsettled(ctx, tx, run.OrganizationID, run.ID); err != nil {
+			return err
 		}
 		return nil
 	})

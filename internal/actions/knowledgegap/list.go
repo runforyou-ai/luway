@@ -110,3 +110,11 @@ func scoped(query *bun.SelectQuery, organizationID string, scope Scope) *bun.Sel
 	}
 	return query
 }
+
+// WorkspacePendingSQL 返回按工作区统计全部待处理待补知识条数的查询与参数，结果另含 organization_id 为空的合计行；
+// organizations 为限定 kg.organization_id 的工作区条件，结果列为 organization_id 与 pending。
+func WorkspacePendingSQL(organizations string, organizationArgs []any) (string, []any) {
+	return `SELECT kg.organization_id, count(*) AS pending FROM knowledge_gaps AS kg
+WHERE ` + organizations + ` AND kg.status = ?
+GROUP BY GROUPING SETS ((kg.organization_id), ())`, append(slices.Clone(organizationArgs), domain.KnowledgeGapStatusPending)
+}

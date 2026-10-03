@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -69,9 +70,18 @@ const agentRunHasProcessCondition = `EXISTS (
 	WHERE arb.organization_id = agr.organization_id AND arb.agent_run_id = agr.id
 )`
 
+// runDuration 返回运行从开始到结束的时长，挂起等待的运行计到最近一次更新。
+func runDuration(run *servermodels.AgentRun) time.Duration {
+	end := run.UpdatedAt
+	if run.CompletedAt != nil {
+		end = *run.CompletedAt
+	}
+	return end.Sub(*run.StartedAt)
+}
+
 // conversationAgentProcess 按运行的起止时间、模型用量和结果构造过程引用。
 func conversationAgentProcess(run *servermodels.AgentRun) (*ConversationAgentProcess, error) {
-	process := &ConversationAgentProcess{ID: run.ID, DurationMilliseconds: run.CompletedAt.Sub(*run.StartedAt).Milliseconds(),
+	process := &ConversationAgentProcess{ID: run.ID, DurationMilliseconds: runDuration(run).Milliseconds(),
 		Outcome: (*domain.AgentRunOutcome)(run.Outcome), OutcomeReason: (*domain.AgentHandoffReason)(run.OutcomeReason)}
 	if err := json.Unmarshal(run.Usage, &process.Usage); err != nil {
 		return nil, fmt.Errorf("decode agent usage: %w", err)
@@ -102,7 +112,7 @@ func loadConversationAgentRuns(ctx context.Context, db bun.IDB, organizationID, 
 		Where("agr.organization_id = ? AND agr.conversation_id = ?", organizationID, conversationID).
 		Where("agr.response_message_id IS NULL").
 		Where("agr.status IN (?) OR (agr.status = ? AND (lm.created_at IS NULL OR agr.completed_at > lm.created_at))",
-			bun.In([]domain.AgentRunStatus{domain.AgentRunStatusQueued, domain.AgentRunStatusRunning}),
+			bun.In(domain.AgentRunActiveStatuses),
 			domain.AgentRunStatusCancelled).
 		OrderExpr("agr.created_at, agr.id").Scan(ctx, &rows); err != nil {
 		return fmt.Errorf("load conversation agent runs: %w", err)
@@ -112,7 +122,8 @@ func loadConversationAgentRuns(ctx context.Context, db bun.IDB, organizationID, 
 		run := ConversationAgentRun{ID: row.ID, AgentIdentityID: row.AgentIdentityID, AgentName: row.AgentName,
 			AgentPersonalResponsibleName: row.AgentPersonalResponsibleName, AgentAvatarFileID: row.AgentAvatarFileID, Status: domain.AgentRunStatus(row.Status),
 			ErrorCode: row.ErrorCode, LastError: row.LastError, ExecutionDeviceID: row.ExecutionDeviceID, ExecutionDeviceName: row.ExecutionDeviceName}
-		if row.HasProcess && row.StartedAt != nil && row.CompletedAt != nil {
+		// 已结束与挂起等待的运行给出已保存过程的引用。
+		if row.HasProcess && row.StartedAt != nil && (row.CompletedAt != nil || row.Status == string(domain.AgentRunStatusWaiting)) {
 			process, err := conversationAgentProcess(&row.AgentRun)
 			if err != nil {
 				return err
@@ -141,9 +152,9 @@ func loadConversationPendingAgents(ctx context.Context, db bun.IDB, organization
 		Where("al.desired_seq > al.processed_seq").
 		Where(`al.id IS DISTINCT FROM (
 			SELECT agr.lane_id FROM agent_runs AS agr
-			WHERE agr.organization_id = ? AND agr.scope_kind = ? AND agr.scope_id = ? AND agr.status IN (?, ?)
+			WHERE agr.organization_id = ? AND agr.scope_kind = ? AND agr.scope_id = ? AND agr.status IN (?)
 		)`, organizationID, domain.AgentExecutionScopeConversation, conversationID,
-			domain.AgentRunStatusQueued, domain.AgentRunStatusRunning).
+			bun.In(domain.AgentRunActiveStatuses)).
 		OrderExpr("msg.message_seq ASC, ai.source_ordinal ASC, al.id ASC").
 		Scan(ctx, &rows); err != nil {
 		return fmt.Errorf("load conversation pending agents: %w", err)

@@ -11,6 +11,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 
@@ -39,10 +40,12 @@ const (
 	ValidationStatisticsTimeZoneInvalid      common.FieldCode = "DEPLOYMENT_STATISTICS_TIME_ZONE_INVALID"
 	ValidationWorkspaceSortInvalid           common.FieldCode = "DEPLOYMENT_WORKSPACE_SORT_INVALID"
 	ValidationWorkspaceStatusInvalid         common.FieldCode = "DEPLOYMENT_WORKSPACE_STATUS_INVALID"
+	ValidationUsageSortInvalid               common.FieldCode = "DEPLOYMENT_USAGE_SORT_INVALID"
+	ValidationUsageDaysInvalid               common.FieldCode = "DEPLOYMENT_USAGE_DAYS_INVALID"
 )
 
-// Create 在首次安装事务内写入部署实例行，实例标识由数据库生成，注册仅限受邀邮箱，工作区仅部署管理员可创建，统计时区取部署管理员的时区。
-func Create(ctx context.Context, tx bun.Tx, statisticsTimeZone string) (*servermodels.Deployment, error) {
+// Create 在首次安装事务内写入部署实例行并投递与 control 的首次同步，实例标识与签名私钥由数据库生成，注册仅限受邀邮箱，工作区仅部署管理员可创建，统计时区取部署管理员的时区。
+func Create(ctx context.Context, tx bun.Tx, enqueuer servertask.TxEnqueuer, statisticsTimeZone string) (*servermodels.Deployment, error) {
 	deployment := &servermodels.Deployment{
 		RegistrationPolicy:      string(domain.RegistrationPolicyInvitationOnly),
 		WorkspaceCreationPolicy: string(domain.WorkspaceCreationPolicyDeploymentAdmin),
@@ -50,8 +53,11 @@ func Create(ctx context.Context, tx bun.Tx, statisticsTimeZone string) (*serverm
 	}
 	if _, err := tx.NewInsert().Model(deployment).
 		Column("registration_policy", "workspace_creation_policy", "statistics_time_zone").
-		Returning("instance_id, created_at, updated_at").
+		Returning("instance_id, created_at, updated_at, instance_private_key, telemetry_enabled").
 		Exec(ctx); err != nil {
+		return nil, err
+	}
+	if _, err := enqueuer.EnqueueIn(ctx, tx, SyncLicenseActionName, SyncLicenseInput{}, SyncLicenseEnqueueOptions); err != nil {
 		return nil, err
 	}
 	return deployment, nil
@@ -98,4 +104,18 @@ func lockActiveAdmins(ctx context.Context, tx bun.Tx, operator *servermodels.Acc
 		}
 	}
 	return ErrNotDeploymentAdmin
+}
+
+// LockAdmin 以 SHARE 锁定操作者账号并确认其仍是有效部署管理员，锁持有至事务结束。
+func LockAdmin(ctx context.Context, tx bun.Tx, operator *servermodels.AccountIdentity) error {
+	var admin bool
+	err := tx.NewSelect().Model((*servermodels.Account)(nil)).
+		ColumnExpr("acc.is_deployment_admin AND acc.status = ?", domain.AccountStatusActive).
+		Where("acc.id = ?", operator.Account.ID).
+		For("SHARE").
+		Scan(ctx, &admin)
+	if errors.Is(err, sql.ErrNoRows) || err == nil && !admin {
+		return ErrNotDeploymentAdmin
+	}
+	return err
 }

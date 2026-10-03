@@ -155,6 +155,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/deployment/settings", s.getDeploymentSettings)
 	router.PUT("/deployment/settings", s.updateDeploymentSettings)
 	router.PUT("/deployment/settings/statistics-time-zone", s.updateDeploymentStatisticsTimeZone)
+	router.PUT("/deployment/settings/telemetry", s.updateDeploymentTelemetry)
 	router.GET("/deployment/accounts", s.listDeploymentAccounts)
 	router.POST("/deployment/accounts/:accountID/deactivate", s.deactivateDeploymentAccount)
 	router.POST("/deployment/accounts/:accountID/reactivate", s.reactivateDeploymentAccount)
@@ -163,8 +164,27 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/deployment/workspaces", s.listDeploymentWorkspaces)
 	router.GET("/deployment/license", s.getInstanceLicense)
 	router.PUT("/deployment/license", s.activateInstanceLicense)
+	router.POST("/deployment/license/activations", s.activateInstanceLicenseOnline)
+	router.POST("/deployment/license/sync", s.syncInstanceLicense)
 	router.POST("/deployment/workspaces/:workspaceID/suspend", s.suspendDeploymentWorkspace)
 	router.POST("/deployment/workspaces/:workspaceID/resume", s.resumeDeploymentWorkspace)
+	router.GET("/deployment/usage", s.getDeploymentUsage)
+	router.GET("/deployment/usage/workspaces", s.listDeploymentWorkspaceUsage)
+	router.GET("/deployment/runtime", s.getDeploymentRuntimeStatus)
+	router.GET("/deployment/runtime/failed-tasks", s.listDeploymentFailedTasks)
+	router.GET("/deployment/platform-model-providers", s.listPlatformAIProviders)
+	router.GET("/deployment/platform-model-providers/:providerID", s.getPlatformAIProvider)
+	router.GET("/deployment/platform-model-providers/:providerID/models", s.listPlatformAIProviderModels)
+	router.POST("/deployment/platform-model-providers", s.createPlatformAIProvider)
+	router.PUT("/deployment/platform-model-providers/:providerID", s.updatePlatformAIProvider)
+	router.DELETE("/deployment/platform-model-providers/:providerID", s.deletePlatformAIProvider)
+	router.GET("/deployment/platform-models", s.listPlatformAIModels)
+	router.GET("/deployment/platform-models/:modelID", s.getPlatformAIModel)
+	router.POST("/deployment/platform-models", s.createPlatformAIModel)
+	router.PUT("/deployment/platform-models/:modelID", s.updatePlatformAIModel)
+	router.DELETE("/deployment/platform-models/:modelID", s.deletePlatformAIModel)
+	router.GET("/deployment/platform-model-calls", s.listPlatformAIModelCalls)
+	router.GET("/deployment/platform-model-calls/:callID", s.getPlatformAIModelCall)
 	router.PUT("/users/:userID", s.updateUser)
 	router.PATCH("/roles/assignments", s.updateRoleAssignments)
 	router.POST("/users/:userID/deactivate", s.deactivateUser)
@@ -281,7 +301,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.DELETE("/devices/:deviceID", s.revokeDevice)
 }
 
-// installationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
+// installationStatus 返回部署名称、首次安装状态、是否开放注册、产品品牌和接口版本。
 func (s *Service) installationStatus(c *gin.Context) {
 	output, err := s.application.InstallationStatus(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1386,13 +1406,13 @@ func (s *Service) acceptInvitation(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+// getDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
 func (s *Service) getDeploymentOverview(c *gin.Context) {
 	output, err := s.application.GetDeploymentOverview(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+// getDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 func (s *Service) getDeploymentSettings(c *gin.Context) {
 	output, err := s.application.GetDeploymentSettings(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1415,6 +1435,16 @@ func (s *Service) updateDeploymentStatisticsTimeZone(c *gin.Context) {
 		return
 	}
 	output, err := s.application.UpdateDeploymentStatisticsTimeZone(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// updateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+func (s *Service) updateDeploymentTelemetry(c *gin.Context) {
+	var input appservice.DeploymentTelemetryInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.UpdateDeploymentTelemetry(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -1462,19 +1492,35 @@ func (s *Service) listDeploymentWorkspaces(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getInstanceLicense 返回实例授权状态。
+// getInstanceLicense 返回实例标识与实例授权状态。
 func (s *Service) getInstanceLicense(c *gin.Context) {
 	output, err := s.application.GetInstanceLicense(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// activateInstanceLicense 用授权码激活或替换实例授权。
+// activateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
 func (s *Service) activateInstanceLicense(c *gin.Context) {
 	var input appservice.ActivateInstanceLicenseInput
 	if !bindJSON(c, &input) {
 		return
 	}
 	output, err := s.application.ActivateInstanceLicense(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// activateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+func (s *Service) activateInstanceLicenseOnline(c *gin.Context) {
+	var input appservice.ActivateInstanceLicenseOnlineInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.ActivateInstanceLicenseOnline(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// syncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+func (s *Service) syncInstanceLicense(c *gin.Context) {
+	output, err := s.application.SyncInstanceLicense(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -1487,6 +1533,138 @@ func (s *Service) suspendDeploymentWorkspace(c *gin.Context) {
 // resumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 func (s *Service) resumeDeploymentWorkspace(c *gin.Context) {
 	output, err := s.application.ResumeDeploymentWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+func (s *Service) getDeploymentUsage(c *gin.Context) {
+	input, ok := bindDeploymentUsageInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.GetDeploymentUsage(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (s *Service) listDeploymentWorkspaceUsage(c *gin.Context) {
+	input, ok := bindDeploymentWorkspaceUsageListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListDeploymentWorkspaceUsage(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (s *Service) getDeploymentRuntimeStatus(c *gin.Context) {
+	output, err := s.application.GetDeploymentRuntimeStatus(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (s *Service) listDeploymentFailedTasks(c *gin.Context) {
+	input, ok := bindDeploymentFailedTaskListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListDeploymentFailedTasks(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listPlatformAIProviders 返回部署的平台供应商。
+func (s *Service) listPlatformAIProviders(c *gin.Context) {
+	output, err := s.application.ListPlatformAIProviders(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getPlatformAIProvider 返回平台供应商详情。
+func (s *Service) getPlatformAIProvider(c *gin.Context) {
+	output, err := s.application.GetPlatformAIProvider(c.Request.Context(), requestMeta(c), c.Param("providerID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listPlatformAIProviderModels 返回平台供应商可提供的模型。
+func (s *Service) listPlatformAIProviderModels(c *gin.Context) {
+	output, err := s.application.ListPlatformAIProviderModels(c.Request.Context(), requestMeta(c), c.Param("providerID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// createPlatformAIProvider 创建平台供应商。
+func (s *Service) createPlatformAIProvider(c *gin.Context) {
+	var input appservice.PlatformAIProviderInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.CreatePlatformAIProvider(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusCreated, output, err)
+}
+
+// updatePlatformAIProvider 修改平台供应商。
+func (s *Service) updatePlatformAIProvider(c *gin.Context) {
+	var input appservice.PlatformAIProviderUpdateInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.UpdatePlatformAIProvider(c.Request.Context(), requestMeta(c), c.Param("providerID"), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// deletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
+func (s *Service) deletePlatformAIProvider(c *gin.Context) {
+	writeEmpty(c, s.application.DeletePlatformAIProvider(c.Request.Context(), requestMeta(c), c.Param("providerID")))
+}
+
+// listPlatformAIModels 返回部署的平台模型目录。
+func (s *Service) listPlatformAIModels(c *gin.Context) {
+	output, err := s.application.ListPlatformAIModels(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getPlatformAIModel 返回平台模型详情。
+func (s *Service) getPlatformAIModel(c *gin.Context) {
+	output, err := s.application.GetPlatformAIModel(c.Request.Context(), requestMeta(c), c.Param("modelID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// createPlatformAIModel 创建对全部工作区可用的平台模型。
+func (s *Service) createPlatformAIModel(c *gin.Context) {
+	var input appservice.PlatformAIModelInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.CreatePlatformAIModel(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusCreated, output, err)
+}
+
+// updatePlatformAIModel 修改平台模型的属性与来源。
+func (s *Service) updatePlatformAIModel(c *gin.Context) {
+	var input appservice.PlatformAIModelInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.UpdatePlatformAIModel(c.Request.Context(), requestMeta(c), c.Param("modelID"), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// deletePlatformAIModel 删除没有被工作区引用的平台模型。
+func (s *Service) deletePlatformAIModel(c *gin.Context) {
+	writeEmpty(c, s.application.DeletePlatformAIModel(c.Request.Context(), requestMeta(c), c.Param("modelID")))
+}
+
+// listPlatformAIModelCalls 返回平台模型调用记录。
+func (s *Service) listPlatformAIModelCalls(c *gin.Context) {
+	input, ok := bindPlatformAIModelCallListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListPlatformAIModelCalls(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getPlatformAIModelCall 返回平台模型调用及其上游尝试。
+func (s *Service) getPlatformAIModelCall(c *gin.Context) {
+	output, err := s.application.GetPlatformAIModelCall(c.Request.Context(), requestMeta(c), c.Param("callID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -2593,6 +2771,33 @@ func bindDeploymentAccountListInputQuery(c *gin.Context) (appservice.DeploymentA
 	}, true
 }
 
+// bindDeploymentFailedTaskListInputQuery 从查询参数解析 appservice.DeploymentFailedTaskListInput。
+func bindDeploymentFailedTaskListInputQuery(c *gin.Context) (appservice.DeploymentFailedTaskListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.DeploymentFailedTaskListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.DeploymentFailedTaskListInput{}, false
+	}
+	return appservice.DeploymentFailedTaskListInput{
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindDeploymentUsageInputQuery 从查询参数解析 appservice.DeploymentUsageInput。
+func bindDeploymentUsageInputQuery(c *gin.Context) (appservice.DeploymentUsageInput, bool) {
+	days, ok := positiveQueryInteger(c, "days", 30)
+	if !ok {
+		return appservice.DeploymentUsageInput{}, false
+	}
+	return appservice.DeploymentUsageInput{
+		Days: days,
+	}, true
+}
+
 // bindDeploymentWorkspaceListInputQuery 从查询参数解析 appservice.DeploymentWorkspaceListInput。
 func bindDeploymentWorkspaceListInputQuery(c *gin.Context) (appservice.DeploymentWorkspaceListInput, bool) {
 	page, ok := positiveQueryInteger(c, "page", 1)
@@ -2607,6 +2812,28 @@ func bindDeploymentWorkspaceListInputQuery(c *gin.Context) (appservice.Deploymen
 		Query:    c.Query("query"),
 		Status:   appservice.WorkspaceStatus(c.Query("status")),
 		Sort:     appservice.DeploymentWorkspaceSort(c.DefaultQuery("sort", "created_at")),
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindDeploymentWorkspaceUsageListInputQuery 从查询参数解析 appservice.DeploymentWorkspaceUsageListInput。
+func bindDeploymentWorkspaceUsageListInputQuery(c *gin.Context) (appservice.DeploymentWorkspaceUsageListInput, bool) {
+	days, ok := positiveQueryInteger(c, "days", 30)
+	if !ok {
+		return appservice.DeploymentWorkspaceUsageListInput{}, false
+	}
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.DeploymentWorkspaceUsageListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.DeploymentWorkspaceUsageListInput{}, false
+	}
+	return appservice.DeploymentWorkspaceUsageListInput{
+		Days:     days,
+		Sort:     appservice.DeploymentUsageSort(c.DefaultQuery("sort", "service_sessions")),
 		Page:     page,
 		PageSize: pageSize,
 	}, true
@@ -2742,6 +2969,25 @@ func bindMemberOptionListInputQuery(c *gin.Context) (appservice.MemberOptionList
 		return appservice.MemberOptionListInput{}, false
 	}
 	return appservice.MemberOptionListInput{
+		Query:    c.Query("query"),
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindPlatformAIModelCallListInputQuery 从查询参数解析 appservice.PlatformAIModelCallListInput。
+func bindPlatformAIModelCallListInputQuery(c *gin.Context) (appservice.PlatformAIModelCallListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.PlatformAIModelCallListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.PlatformAIModelCallListInput{}, false
+	}
+	return appservice.PlatformAIModelCallListInput{
+		ModelID:  c.Query("modelId"),
+		Status:   appservice.AIModelCallStatus(c.Query("status")),
 		Query:    c.Query("query"),
 		Page:     page,
 		PageSize: pageSize,

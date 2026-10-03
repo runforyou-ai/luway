@@ -31,12 +31,8 @@ func LanguageTag(locale string) string {
 // productPlaceholder 是正文中的产品名称占位符，输出时替换为当前部署的品牌名称。
 const productPlaceholder = "{{product}}"
 
-const (
-	// ConditionCommerce 表示部署已配对商业服务。
-	ConditionCommerce = "commerce"
-	// ConditionInstanceLicense 表示部署通过实例授权开放能力，官方与白标实例不成立。
-	ConditionInstanceLicense = "instanceLicense"
-)
+// ConditionCommerce 表示部署已配对商业服务。
+const ConditionCommerce = "commerce"
 
 // Conditions 是当前部署成立的显示条件，页面声明的条件全部成立时才可见。
 type Conditions map[string]bool

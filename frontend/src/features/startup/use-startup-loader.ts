@@ -19,7 +19,15 @@ export function markStartupReady() {
   }))
 }
 
-/** 启动时检测当前平台能否进入应用，检测失败后由 retry 重新检测。 */
+/** 使用中被要求升级客户端时把已缓存的启动检测结果改为需要升级，切换路由器后重新挂载的启动检测停在升级页。 */
+export function markStartupUpgrade() {
+  startupRequest = (startupRequest ?? loadStartup()).then((startup) => ({
+    ...startup,
+    state: SessionState.SessionStateUpgrade,
+  }))
+}
+
+/** 启动时检测当前平台能否进入应用，检测失败后由 retry 重新检测，reload 丢弃已缓存的结果后重新检测。 */
 export function useStartupLoader() {
   const [state, setState] = useState<StartupLoadState>({
     status: "loading",
@@ -29,6 +37,10 @@ export function useStartupLoader() {
     setState({ status: "loading" })
     setAttempt((current) => current + 1)
   }, [])
+  const reload = useCallback(() => {
+    startupRequest = null
+    retry()
+  }, [retry])
 
   useEffect(() => {
     let stale = false
@@ -53,5 +65,5 @@ export function useStartupLoader() {
     }
   }, [attempt])
 
-  return { ...state, retry }
+  return { ...state, retry, reload }
 }

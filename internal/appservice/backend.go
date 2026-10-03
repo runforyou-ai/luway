@@ -18,7 +18,7 @@ import "context"
 // 交给业务实现，业务实现不重复处理认证。只需要登录账号的方法标记 auth=account，
 // 只允许部署管理员调用的部署级管理方法标记 auth=admin，无需登录的方法标记 auth=public。
 type Backend interface {
-	// InstallationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
+	// InstallationStatus 返回部署名称、首次安装状态、是否开放注册、产品品牌和接口版本。
 	//appservice:route GET /installation/status auth=public manual=proxy
 	InstallationStatus(context.Context, RequestMeta) (InstallationStatus, error)
 	// GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
@@ -432,10 +432,10 @@ type Backend interface {
 	// AcceptInvitation 由当前账号接受邀请并加入工作区。
 	//appservice:route POST /invitation-acceptances auth=account
 	AcceptInvitation(context.Context, RequestMeta, InvitationTokenInput) (Workspace, error)
-	// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+	// GetDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
 	//appservice:route GET /deployment/overview auth=admin
 	GetDeploymentOverview(context.Context, RequestMeta) (DeploymentOverview, error)
-	// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+	// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 	//appservice:route GET /deployment/settings auth=admin
 	GetDeploymentSettings(context.Context, RequestMeta) (DeploymentSettings, error)
 	// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
@@ -444,6 +444,9 @@ type Backend interface {
 	// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
 	//appservice:route PUT /deployment/settings/statistics-time-zone auth=admin
 	UpdateDeploymentStatisticsTimeZone(context.Context, RequestMeta, DeploymentStatisticsTimeZoneInput) (DeploymentSettings, error)
+	// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+	//appservice:route PUT /deployment/settings/telemetry auth=admin
+	UpdateDeploymentTelemetry(context.Context, RequestMeta, DeploymentTelemetryInput) (DeploymentSettings, error)
 	// ListDeploymentAccounts 返回部署内的账号。
 	//appservice:route GET /deployment/accounts auth=admin
 	ListDeploymentAccounts(context.Context, RequestMeta, DeploymentAccountListInput) (DeploymentAccountList, error)
@@ -462,18 +465,75 @@ type Backend interface {
 	// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
 	//appservice:route GET /deployment/workspaces auth=admin
 	ListDeploymentWorkspaces(context.Context, RequestMeta, DeploymentWorkspaceListInput) (DeploymentWorkspaceList, error)
-	// GetInstanceLicense 返回实例授权状态。
+	// GetInstanceLicense 返回实例标识与实例授权状态。
 	//appservice:route GET /deployment/license auth=admin
 	GetInstanceLicense(context.Context, RequestMeta) (InstanceLicense, error)
-	// ActivateInstanceLicense 用授权码激活或替换实例授权。
+	// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
 	//appservice:route PUT /deployment/license auth=admin
 	ActivateInstanceLicense(context.Context, RequestMeta, ActivateInstanceLicenseInput) (InstanceLicense, error)
+	// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+	//appservice:route POST /deployment/license/activations auth=admin
+	ActivateInstanceLicenseOnline(context.Context, RequestMeta, ActivateInstanceLicenseOnlineInput) (InstanceLicense, error)
+	// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+	//appservice:route POST /deployment/license/sync auth=admin
+	SyncInstanceLicense(context.Context, RequestMeta) (InstanceLicense, error)
 	// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 	//appservice:route POST /deployment/workspaces/:workspaceID/suspend auth=admin
 	SuspendDeploymentWorkspace(context.Context, RequestMeta, string) (DeploymentWorkspace, error)
 	// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 	//appservice:route POST /deployment/workspaces/:workspaceID/resume auth=admin
 	ResumeDeploymentWorkspace(context.Context, RequestMeta, string) (DeploymentWorkspace, error)
+	// GetDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+	//appservice:route GET /deployment/usage auth=admin
+	GetDeploymentUsage(context.Context, RequestMeta, DeploymentUsageInput) (DeploymentUsageMetrics, error)
+	// ListDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+	//appservice:route GET /deployment/usage/workspaces auth=admin
+	ListDeploymentWorkspaceUsage(context.Context, RequestMeta, DeploymentWorkspaceUsageListInput) (DeploymentWorkspaceUsageList, error)
+	// GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+	//appservice:route GET /deployment/runtime auth=admin
+	GetDeploymentRuntimeStatus(context.Context, RequestMeta) (DeploymentRuntimeStatus, error)
+	// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+	//appservice:route GET /deployment/runtime/failed-tasks auth=admin
+	ListDeploymentFailedTasks(context.Context, RequestMeta, DeploymentFailedTaskListInput) (DeploymentFailedTaskList, error)
+	// ListPlatformAIProviders 返回部署的平台供应商。
+	//appservice:route GET /deployment/platform-model-providers auth=admin
+	ListPlatformAIProviders(context.Context, RequestMeta) (PlatformAIProviderList, error)
+	// GetPlatformAIProvider 返回平台供应商详情。
+	//appservice:route GET /deployment/platform-model-providers/:providerID auth=admin
+	GetPlatformAIProvider(context.Context, RequestMeta, string) (PlatformAIProvider, error)
+	// ListPlatformAIProviderModels 返回平台供应商可提供的模型。
+	//appservice:route GET /deployment/platform-model-providers/:providerID/models auth=admin
+	ListPlatformAIProviderModels(context.Context, RequestMeta, string) (AIProviderModelList, error)
+	// CreatePlatformAIProvider 创建平台供应商。
+	//appservice:route POST /deployment/platform-model-providers status=201 auth=admin
+	CreatePlatformAIProvider(context.Context, RequestMeta, PlatformAIProviderInput) (PlatformAIProvider, error)
+	// UpdatePlatformAIProvider 修改平台供应商。
+	//appservice:route PUT /deployment/platform-model-providers/:providerID auth=admin
+	UpdatePlatformAIProvider(context.Context, RequestMeta, string, PlatformAIProviderUpdateInput) (PlatformAIProvider, error)
+	// DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
+	//appservice:route DELETE /deployment/platform-model-providers/:providerID auth=admin
+	DeletePlatformAIProvider(context.Context, RequestMeta, string) error
+	// ListPlatformAIModels 返回部署的平台模型目录。
+	//appservice:route GET /deployment/platform-models auth=admin
+	ListPlatformAIModels(context.Context, RequestMeta) (PlatformAIModelList, error)
+	// GetPlatformAIModel 返回平台模型详情。
+	//appservice:route GET /deployment/platform-models/:modelID auth=admin
+	GetPlatformAIModel(context.Context, RequestMeta, string) (PlatformAIModel, error)
+	// CreatePlatformAIModel 创建对全部工作区可用的平台模型。
+	//appservice:route POST /deployment/platform-models status=201 auth=admin
+	CreatePlatformAIModel(context.Context, RequestMeta, PlatformAIModelInput) (PlatformAIModel, error)
+	// UpdatePlatformAIModel 修改平台模型的属性与来源。
+	//appservice:route PUT /deployment/platform-models/:modelID auth=admin
+	UpdatePlatformAIModel(context.Context, RequestMeta, string, PlatformAIModelInput) (PlatformAIModel, error)
+	// DeletePlatformAIModel 删除没有被工作区引用的平台模型。
+	//appservice:route DELETE /deployment/platform-models/:modelID auth=admin
+	DeletePlatformAIModel(context.Context, RequestMeta, string) error
+	// ListPlatformAIModelCalls 返回平台模型调用记录。
+	//appservice:route GET /deployment/platform-model-calls auth=admin
+	ListPlatformAIModelCalls(context.Context, RequestMeta, PlatformAIModelCallListInput) (PlatformAIModelCallList, error)
+	// GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
+	//appservice:route GET /deployment/platform-model-calls/:callID auth=admin
+	GetPlatformAIModelCall(context.Context, RequestMeta, string) (PlatformAIModelCallDetail, error)
 	// UpdateUser 修改企业成员头像、资料、角色和所属团队。
 	//appservice:route PUT /users/:userID
 	UpdateUser(context.Context, RequestMeta, string, UpdateUserInput) (User, error)

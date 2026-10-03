@@ -15,6 +15,7 @@ import (
 	"time"
 	"uuid"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
@@ -211,10 +212,14 @@ func (a *ExecuteAction) loadRunCapabilities(ctx context.Context, run *servermode
 	}, nil
 }
 
-// runAssigned 按执行指派运行 TurnLoop，运行时限到期时统一以超时原因返回。
+// runAssigned 按执行指派运行 TurnLoop，已保存恢复状态时从中继续，运行时限到期时统一以超时原因返回。
 func (a *ExecuteAction) runAssigned(assigned runAssignment) (agentruntime.RunResult, error) {
 	execution, running := assigned.Execution, assigned.Running
 	feed := &databaseInputFeed{db: a.db, enqueuer: a.enqueuer, execution: execution, policy: assigned.Policy, attachments: a.attachments}
+	resume, err := loadResume(assigned.RunCtx, a.db, &execution.Run)
+	if err != nil {
+		return agentruntime.RunResult{}, err
+	}
 	// 场景、依据策略、指令、模型参数与输入模态以有效配置为准，模型来源取当前配置。
 	result, err := a.runtime.Run(assigned.RunCtx, agentruntime.RunRequest{
 		RunID:                 execution.Run.ID,
@@ -236,6 +241,8 @@ func (a *ExecuteAction) runAssigned(assigned runAssignment) (agentruntime.RunRes
 				running.stream.Publish(delta)
 			}
 		},
+		Journal: &runJournal{db: a.db, run: &execution.Run},
+		Resume:  resume,
 	}, feed)
 	if err != nil && errors.Is(assigned.RunCtx.Err(), context.DeadlineExceeded) && !errors.Is(err, context.DeadlineExceeded) {
 		err = fmt.Errorf("%w: %w", err, context.DeadlineExceeded)
@@ -246,6 +253,13 @@ func (a *ExecuteAction) runAssigned(assigned runAssignment) (agentruntime.RunRes
 // settle 按运行结果收尾：抑制失效结果、原子写入回复或标记失败，并保留已产生的过程内容。
 func (a *ExecuteAction) settle(ctx context.Context, assigned runAssignment, result agentruntime.RunResult, runErr error) error {
 	execution := assigned.Execution
+	if runErr == nil && result.Suspended {
+		if err := a.suspend(ctx, &execution.Run); err != nil {
+			return err
+		}
+		slog.Info("Agent 运行挂起等待外部结果", "agent_run_id", execution.Run.ID)
+		return nil
+	}
 	if errors.Is(runErr, errAgentRunSuppressed) {
 		// 运行吸收后续输入时已失去资格，保留此前已产生的过程内容。
 		return a.persistPartialProcess(ctx, &execution.Run, result)
@@ -281,7 +295,8 @@ func (a *ExecuteAction) settle(ctx context.Context, assigned runAssignment, resu
 	return servertask.Permanent(fmt.Errorf("execute agent run: %w", runErr))
 }
 
-// begin 将待执行或崩溃恢复中的业务运行标记为运行中，读取配置并返回本次运行的运行策略；运行已进入终态时返回 true。
+// begin 将待执行或崩溃恢复中的业务运行标记为运行中并登记当前任务为执行方，读取配置并返回本次运行的运行策略；
+// 运行已进入终态、处于挂起或已由其他任务执行时返回 true，本次任务无需执行。
 func (a *ExecuteAction) begin(ctx context.Context, runID string) (executionContext, agentRunPolicy, bool, error) {
 	initial := &servermodels.AgentRun{}
 	if err := a.db.NewSelect().Model(initial).Where("agr.id = ?", runID).Scan(ctx); errors.Is(err, sql.ErrNoRows) {
@@ -296,6 +311,7 @@ func (a *ExecuteAction) begin(ctx context.Context, runID string) (executionConte
 	if err != nil {
 		return executionContext{}, nil, false, servertask.Permanent(err)
 	}
+	taskExecution, _ := servertask.CurrentExecution(ctx)
 	terminal := false
 	err = realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		locked, err := lockAgentRun(ctx, tx, policy, initial)
@@ -303,7 +319,8 @@ func (a *ExecuteAction) begin(ctx context.Context, runID string) (executionConte
 			return err
 		}
 		run := locked.Run
-		if agentRunStatusTerminal(run.Status) {
+		// 挂起的运行由恢复投递的任务继续；执行中的运行只由登记的任务在崩溃后继续。
+		if agentRunStatusTerminal(run.Status) || run.Status == string(domain.AgentRunStatusWaiting) || ownedByOtherTask(ctx, run) {
 			terminal = true
 			return nil
 		}
@@ -313,6 +330,7 @@ func (a *ExecuteAction) begin(ctx context.Context, runID string) (executionConte
 		queued := run.Status == string(domain.AgentRunStatusQueued)
 		if _, err := tx.NewUpdate().Model(run).
 			Set("status = ?", domain.AgentRunStatusRunning).
+			Set("task_run_id = NULLIF(?, '')::uuid", taskExecution.TaskRunID).
 			Set("started_at = COALESCE(started_at, now())").
 			Set("updated_at = now()").WherePK().Exec(ctx); err != nil {
 			return err
@@ -445,6 +463,13 @@ func joinAgentConfiguration(query *bun.SelectQuery, revisionIDColumn string, inc
 	return query.Where("ar.execution_mode = ? AND aim.id IS NOT NULL", domain.AgentExecutionModeManaged)
 }
 
+// ownedByOtherTask 判断排队或执行中的运行是否已登记由当前任务以外的任务执行。
+func ownedByOtherTask(ctx context.Context, run *servermodels.AgentRun) bool {
+	execution, _ := servertask.CurrentExecution(ctx)
+	return (run.Status == string(domain.AgentRunStatusQueued) || run.Status == string(domain.AgentRunStatusRunning)) &&
+		run.TaskRunID != nil && execution.TaskRunID != "" && *run.TaskRunID != execution.TaskRunID
+}
+
 // agentRunStatusTerminal 判断 Agent Run 是否已经进入不可覆盖的终态。
 func agentRunStatusTerminal(status string) bool {
 	return status == string(domain.AgentRunStatusSucceeded) ||
@@ -526,13 +551,8 @@ func (a *ExecuteAction) complete(ctx context.Context, execution executionContext
 		return false, err
 	}
 	messageID := uuid.NewV7().String()
-	// 在最终消息事务中写入成功运行的内容块。
-	blocks, err := runBlockModels(&execution.Run, result.Blocks)
-	if err != nil {
-		return false, err
-	}
 	if handoff {
-		return a.completeCustomerHandoff(ctx, execution, policy, result, usage, blocks)
+		return a.completeCustomerHandoff(ctx, execution, policy, result, usage)
 	}
 	suppressed := false
 	completed := false
@@ -573,10 +593,9 @@ func (a *ExecuteAction) complete(ctx context.Context, execution executionContext
 				return err
 			}
 		}
-		if len(blocks) > 0 {
-			if _, err := tx.NewInsert().Model(&blocks).Exec(ctx); err != nil {
-				return fmt.Errorf("persist agent run blocks: %w", err)
-			}
+		// 在最终消息事务中写入成功运行的完整过程。
+		if err := agentprocess.Sync(ctx, tx, run, result.Blocks, result.Calls); err != nil {
+			return err
 		}
 		if _, err := tx.NewUpdate().Model(run).
 			Set("status = ?", domain.AgentRunStatusSucceeded).
@@ -619,7 +638,7 @@ func (a *ExecuteAction) complete(ctx context.Context, execution executionContext
 	return completed, nil
 }
 
-// persistPartialProcess 在运行进入终态后保留已产生的过程内容、任务清单与用量，并推进会话版本让成员重读。运行仍可继续时不写入，成功收尾的完整过程因此不会撞上半成品。
+// persistPartialProcess 在运行以失败或取消结束后保留已产生的过程内容、任务清单与用量，并推进会话版本让成员重读。运行仍可继续或已成功收尾时不写入。
 func (a *ExecuteAction) persistPartialProcess(ctx context.Context, initial *servermodels.AgentRun, partial agentruntime.RunResult) error {
 	if len(partial.Blocks) == 0 {
 		return nil
@@ -632,10 +651,6 @@ func (a *ExecuteAction) persistPartialProcess(ctx context.Context, initial *serv
 	if err != nil {
 		return err
 	}
-	blocks, err := runBlockModels(initial, partial.Blocks)
-	if err != nil {
-		return err
-	}
 	return realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		conversation, err := chatstate.LockConversation(ctx, tx, initial.OrganizationID, initial.ConversationID)
 		if err != nil {
@@ -645,20 +660,15 @@ func (a *ExecuteAction) persistPartialProcess(ctx context.Context, initial *serv
 		if err := tx.NewSelect().Model(run).Where("agr.id = ?", initial.ID).For("UPDATE").Scan(ctx); err != nil {
 			return fmt.Errorf("lock agent run for partial process: %w", err)
 		}
-		if !agentRunStatusTerminal(run.Status) {
+		// 成功运行在结果事务中已写入完整过程。
+		if !agentRunStatusTerminal(run.Status) || run.Status == string(domain.AgentRunStatusSucceeded) {
 			return nil
 		}
-		// 成功运行在结果事务中写入完整过程；同一运行的重复执行尝试只保留最早写入的一份。
-		written, err := tx.NewSelect().Model((*servermodels.AgentRunBlock)(nil)).
-			Where("arb.organization_id = ? AND arb.agent_run_id = ?", initial.OrganizationID, initial.ID).Exists(ctx)
-		if err != nil {
-			return fmt.Errorf("check persisted agent run blocks: %w", err)
+		if err := agentprocess.Sync(ctx, tx, run, partial.Blocks, partial.Calls); err != nil {
+			return err
 		}
-		if written {
-			return nil
-		}
-		if _, err := tx.NewInsert().Model(&blocks).Exec(ctx); err != nil {
-			return fmt.Errorf("persist partial agent run blocks: %w", err)
+		if err := agentprocess.CancelUnsettled(ctx, tx, run.OrganizationID, run.ID); err != nil {
+			return err
 		}
 		if _, err := tx.NewUpdate().Model(run).
 			Set("usage = ?::jsonb", string(usage)).
@@ -669,22 +679,6 @@ func (a *ExecuteAction) persistPartialProcess(ctx context.Context, initial *serv
 		}
 		return chatstate.TouchConversation(ctx, tx, conversation, domain.ConversationChangeTimeline|domain.ConversationChangeService)
 	})
-}
-
-// runBlockModels 把运行产生的内容块转换为归属该运行的内容块记录。
-func runBlockModels(run *servermodels.AgentRun, blocks []agentruntime.Block) ([]servermodels.AgentRunBlock, error) {
-	models := make([]servermodels.AgentRunBlock, 0, len(blocks))
-	for _, block := range blocks {
-		payload, err := json.Marshal(block.Payload)
-		if err != nil {
-			return nil, fmt.Errorf("encode agent run block: %w", err)
-		}
-		models = append(models, servermodels.AgentRunBlock{
-			ID: block.ID, OrganizationID: run.OrganizationID, AgentRunID: run.ID,
-			Position: block.Position, ModelCallID: block.ModelCallID, Kind: string(block.Kind), Payload: payload,
-		})
-	}
-	return models, nil
 }
 
 // encodeRunPlan 编码运行的任务清单，没有任务时返回 nil 使字段保持为空。
@@ -730,7 +724,8 @@ func (a *ExecuteAction) fail(ctx context.Context, runID string, policy agentRunP
 	if err := a.db.NewSelect().Model(initial).Where("agr.id = ?", runID).Scan(ctx); err != nil {
 		return false, err
 	}
-	if agentRunStatusTerminal(initial.Status) {
+	// 挂起的运行没有执行中的任务，失败收尾不改变它。
+	if agentRunStatusTerminal(initial.Status) || initial.Status == string(domain.AgentRunStatusWaiting) {
 		return true, nil
 	}
 	if policy == nil {
@@ -769,6 +764,11 @@ func (a *ExecuteAction) fail(ctx context.Context, runID string, policy agentRunP
 			}
 			return scheduleNextRun(ctx, tx, a.enqueuer, policy, policyContext, run.OrganizationID, domain.AgentExecutionScopeKind(run.ScopeKind), run.ScopeID)
 		}
+		// 挂起或已由其他任务执行的运行，失败收尾不改变它。
+		if run.Status == string(domain.AgentRunStatusWaiting) || ownedByOtherTask(ctx, run) {
+			terminal = true
+			return nil
+		}
 		if run.Status != string(domain.AgentRunStatusQueued) && run.Status != string(domain.AgentRunStatusRunning) {
 			return fmt.Errorf("cannot fail agent run in status %q", run.Status)
 		}
@@ -800,6 +800,9 @@ func (a *ExecuteAction) fail(ctx context.Context, runID string, policy agentRunP
 			Set("updated_at = now()").
 			WherePK().
 			Exec(ctx); err != nil {
+			return err
+		}
+		if err := agentprocess.CancelUnsettled(ctx, tx, run.OrganizationID, run.ID); err != nil {
 			return err
 		}
 		if _, err := tx.NewUpdate().Model(lane).

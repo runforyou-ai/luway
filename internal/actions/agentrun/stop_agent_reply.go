@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"uuid"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -134,6 +135,9 @@ func (a *ExecuteAction) stopReply(ctx context.Context, identity *servermodels.Id
 			Set("response_message_id = ?", messageID).
 			Set("input_end_seq = ?", lane.DesiredSeq).
 			Set("completed_at = now()").Set("updated_at = now()").WherePK().Exec(ctx); err != nil {
+			return err
+		}
+		if err := agentprocess.CancelUnsettled(ctx, tx, run.OrganizationID, run.ID); err != nil {
 			return err
 		}
 		// 设备执行的运行推进设备工作水位，设备据此立即续租并得知停止。
