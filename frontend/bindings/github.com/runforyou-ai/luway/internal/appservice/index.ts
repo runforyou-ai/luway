@@ -315,6 +315,7 @@ export type {
     InboxWindow,
     InboxWindowInput,
     InstallWorkspaceInput,
+    InstallWorkspaceResult,
     InstallationStatus,
     Invitation,
     InvitationCreated,

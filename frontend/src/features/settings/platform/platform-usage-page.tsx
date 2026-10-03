@@ -16,6 +16,7 @@ import { ResourceListLayout } from "@/components/resource-list"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable } from "@/components/resource-table"
 import { StatusBadge } from "@/components/status-badge"
+import { WorkspaceAddress } from "@/components/workspace-address"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useListSearchParams } from "@/hooks/use-list-search-params"
 import { periodOptions, useReportFormat } from "@/hooks/use-report-format"
@@ -143,10 +144,15 @@ export function PlatformUsagePage() {
                       <StatusBadge variant="muted">{t("workspaces.statuses.suspended")}</StatusBadge>
                     ) : undefined
                   }
-                  description={t("usage.workspaceRates", {
-                    resolved: rate(item.metrics.aiResolved, item.metrics.aiClosed),
-                    handoff: rate(item.metrics.handedOff, item.metrics.aiClosed),
-                  })}
+                  description={
+                    <span className="grid min-w-0 gap-0.5">
+                      <WorkspaceAddress slug={item.slug} />
+                      <span className="truncate">{t("usage.workspaceRates", {
+                        resolved: rate(item.metrics.aiResolved, item.metrics.aiClosed),
+                        handoff: rate(item.metrics.handedOff, item.metrics.aiClosed),
+                      })}</span>
+                    </span>
+                  }
                 />
               ),
             },

@@ -87,7 +87,7 @@ func TestInvitationAcceptance(t *testing.T) {
 		t.Fatalf("invitation list = %#v, err = %v", list, err)
 	}
 	preview, err := f.backend.PreviewInvitation(ctx, appservice.RequestMeta{}, appservice.InvitationTokenInput{Token: token})
-	if err != nil || preview.WorkspaceName != "邀请测试" || preview.WorkspaceSlug != f.owner.Identity.Organization.Slug || preview.InviterName != "管理员" ||
+	if err != nil || preview.WorkspaceName != f.owner.Identity.Organization.Name || preview.WorkspaceSlug != f.owner.Identity.Organization.Slug || preview.InviterName != "管理员" ||
 		preview.MaskedEmail != email[:1]+"***@"+strings.Split(email, "@")[1] {
 		t.Fatalf("preview = %#v, err = %v", preview, err)
 	}

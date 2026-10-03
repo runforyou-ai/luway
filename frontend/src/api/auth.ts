@@ -76,19 +76,19 @@ export async function logout() {
   await invoke(Logout, meta)
 }
 
-/** 完成首次安装，创建平台管理员和第一个工作区并建立登录会话。 */
+/** 完成首次安装，建立平台管理员登录会话并返回创建的工作区。 */
 export async function install(
   input: Omit<InstallWorkspaceInput, "locale" | "timeZone">,
 ) {
-  return establishSession(
-    await invoke((meta) =>
-      InstallWorkspace(meta, {
-        ...input,
-        locale: resolveBrowserLanguage() as InstallWorkspaceInput["locale"],
-        timeZone: resolveBrowserTimeZone(),
-      }),
-    ),
+  const result = await invoke((meta) =>
+    InstallWorkspace(meta, {
+      ...input,
+      locale: resolveBrowserLanguage() as InstallWorkspaceInput["locale"],
+      timeZone: resolveBrowserTimeZone(),
+    }),
   )
+  establishSession(result.auth)
+  return result.workspace
 }
 
 /** 检测服务器并返回安装状态。 */

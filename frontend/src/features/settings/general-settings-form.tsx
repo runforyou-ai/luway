@@ -17,7 +17,7 @@ import { resolveServerURL } from "@/lib/server-url"
 import { webAppPath, workspaceHref } from "@/lib/workspace-route"
 import { zodResolver } from "@/lib/zod-resolver"
 
-/** 显示并修改当前工作区的名称，工作区标识与访问地址只读展示。 */
+/** 显示并修改当前工作区的名称，只读展示完整访问地址。 */
 export function GeneralSettingsForm({
   organization,
 }: {
@@ -84,10 +84,6 @@ export function GeneralSettingsForm({
             </Field>
           )}
         />
-        <Field>
-          <FieldLabel htmlFor="general-slug">{t("general.form.slug")}</FieldLabel>
-          <Input id="general-slug" value={organization.slug} readOnly className="text-muted-foreground" />
-        </Field>
         {/* 访问地址由部署地址和工作区标识组成，这里只读展示，可选中复制。 */}
         <Field>
           <FieldLabel htmlFor="general-address">

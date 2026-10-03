@@ -14,6 +14,7 @@ import {
   type PlatformWorkspace,
 } from "@/api"
 import { FormInputField } from "@/components/form/form-input-field"
+import { WorkspaceAddress } from "@/components/workspace-address"
 import { ResourceListFrame } from "@/components/resource-list"
 import { ResourceContent } from "@/components/resource-content"
 import { Button } from "@/components/ui/button"
@@ -40,7 +41,7 @@ export function PlatformWorkspaceCreditsSheet({
   workspace,
   onClose,
 }: {
-  workspace: Pick<PlatformWorkspace, "id" | "name"> | null
+  workspace: Pick<PlatformWorkspace, "id" | "name" | "slug"> | null
   onClose: () => void
 }) {
   const { t } = useTranslation("platform")
@@ -69,7 +70,10 @@ export function PlatformWorkspaceCreditsSheet({
       <SheetContent className="w-full gap-0 p-0 sm:max-w-xl">
         <SheetHeader className="border-b px-6 py-4 pr-12">
           <SheetTitle>{workspace?.name}</SheetTitle>
-          <SheetDescription>{t("workspaceCredits.description")}</SheetDescription>
+          <SheetDescription>
+            {workspace ? <WorkspaceAddress slug={workspace.slug} className="mb-1" /> : null}
+            {t("workspaceCredits.description")}
+          </SheetDescription>
         </SheetHeader>
         <ScrollArea className="min-h-0 flex-1">
           <div className="p-6">
@@ -102,7 +106,7 @@ function AdjustCreditsDialog({
   open,
   onOpenChange,
 }: {
-  workspace: Pick<PlatformWorkspace, "id" | "name">
+  workspace: Pick<PlatformWorkspace, "id" | "name" | "slug">
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
@@ -112,7 +116,10 @@ function AdjustCreditsDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{t("workspaceCredits.adjustTitle", { name: workspace.name })}</DialogTitle>
-          <DialogDescription>{t("workspaceCredits.adjustDescription")}</DialogDescription>
+          <DialogDescription>
+            <WorkspaceAddress slug={workspace.slug} className="mb-1" />
+            {t("workspaceCredits.adjustDescription")}
+          </DialogDescription>
         </DialogHeader>
         {open ? <AdjustCreditsForm workspaceId={workspace.id} onDone={() => onOpenChange(false)} /> : null}
       </DialogContent>

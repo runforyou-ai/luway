@@ -30,10 +30,11 @@ func TestCredits(t *testing.T) {
 	backend := direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL}, nil, serverfilecontent.S3Config{}, nil, nil, newTestTasks(db), nil, nil, nil)
 	service := appservice.New(backend)
 	ctx := context.Background()
-	admin, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
-		WorkspaceName: "积分", WorkspaceSlug: "credits", DisplayName: "管理员", Email: "admin@example.test",
+	installed, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
+		WorkspaceName: "积分", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	admin := installed.Auth
 	if err != nil {
 		t.Fatal(err)
 	}

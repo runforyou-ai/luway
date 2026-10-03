@@ -20,6 +20,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/common/license"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/integration/control"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
@@ -70,10 +71,11 @@ func TestLicenseActivation(t *testing.T) {
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
 
-	admin, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
-		WorkspaceName: "授权测试", WorkspaceSlug: "license-test", DisplayName: "管理员", Email: "admin@example.test",
+	installed, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
+		WorkspaceName: "授权测试", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	admin := installed.Auth
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,8 +124,54 @@ func TestLicenseActivation(t *testing.T) {
 	if err != nil || again.LicenseID != activated.LicenseID {
 		t.Fatalf("again = %#v, err = %v", again, err)
 	}
-	if _, err := backend.CreateWorkspace(ctx, adminMeta, appservice.WorkspaceInput{Name: "第二工作区", Slug: "license-second"}); err != nil {
-		t.Fatalf("create second workspace: %v", err)
+	// 创建和改名按去掉首尾空白后的名称检查部署内唯一性。
+	_, err = backend.CreateWorkspace(ctx, adminMeta, appservice.WorkspaceInput{Name: " " + installed.Workspace.Name + " "})
+	requireFieldError(t, err, "name", i18n.FieldOrganizationNameDuplicate)
+	second, err := backend.CreateWorkspace(ctx, adminMeta, appservice.WorkspaceInput{Name: " Team "})
+	if err != nil || second.Name != "Team" || second.ID == installed.Workspace.ID || second.Slug == installed.Workspace.Slug || !domain.WorkspaceSlugValid(second.Slug) {
+		t.Fatalf("second workspace = %#v, err = %v", second, err)
+	}
+	for _, name := range []string{"Team", "team", " TEAM "} {
+		_, err = backend.CreateWorkspace(ctx, adminMeta, appservice.WorkspaceInput{Name: name})
+		requireFieldError(t, err, "name", i18n.FieldOrganizationNameDuplicate)
+	}
+	secondMeta := adminMeta
+	secondMeta.WorkspaceID = second.ID
+	for _, name := range []string{"TEAM", "更名工作区"} {
+		renamed, err := backend.UpdateOrganization(ctx, secondMeta, appservice.OrganizationInput{Name: name})
+		if err != nil || renamed.Name != name || renamed.Slug != second.Slug {
+			t.Fatalf("renamed workspace = %#v, err = %v", renamed, err)
+		}
+	}
+	_, err = backend.UpdateOrganization(ctx, secondMeta, appservice.OrganizationInput{Name: " " + installed.Workspace.Name + " "})
+	requireFieldError(t, err, "name", i18n.FieldOrganizationNameDuplicate)
+	firstMeta := adminMeta
+	firstMeta.WorkspaceID = installed.Workspace.ID
+	// 两个工作区并发改为同一个名称时，只有一个写入成功。
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for _, meta := range []appservice.RequestMeta{firstMeta, secondMeta} {
+		go func() {
+			<-start
+			_, err := backend.UpdateOrganization(ctx, meta, appservice.OrganizationInput{Name: "并发重命名"})
+			results <- err
+		}()
+	}
+	close(start)
+	succeeded := 0
+	for range 2 {
+		if err := <-results; err == nil {
+			succeeded++
+		} else {
+			requireFieldError(t, err, "name", i18n.FieldOrganizationNameDuplicate)
+		}
+	}
+	if succeeded != 1 {
+		t.Fatalf("concurrent renames succeeded = %d", succeeded)
+	}
+	listed, err := backend.ListWorkspaces(ctx, adminMeta)
+	if err != nil || len(listed.Items) != 2 || listed.Items[0].Name == listed.Items[1].Name || listed.Items[0].Slug == listed.Items[1].Slug {
+		t.Fatalf("unique-name workspaces = %#v, err = %v", listed, err)
 	}
 
 	// 签发时间不晚于当前授权的授权码被拒绝，更晚的授权码替换当前授权。
@@ -138,7 +186,7 @@ func TestLicenseActivation(t *testing.T) {
 	if brand.OverrideActive() {
 		t.Fatal("新授权未授予自定义品牌时部署品牌配置不应生效")
 	}
-	_, err = backend.CreateWorkspace(ctx, adminMeta, appservice.WorkspaceInput{Name: "第三工作区", Slug: "license-third"})
+	_, err = backend.CreateWorkspace(ctx, adminMeta, appservice.WorkspaceInput{Name: "第三工作区"})
 	requireErrorKind(t, err, appservice.ErrorKindConflict)
 
 	// 授权到期后保留授权记录，平台按免费取值运行。
@@ -246,10 +294,11 @@ func TestLicenseOnline(t *testing.T) {
 	if err := telemetry.Refresh(ctx); err != nil || telemetry.Enabled() {
 		t.Fatalf("refresh before install = %v, enabled = %v", err, telemetry.Enabled())
 	}
-	admin, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
-		WorkspaceName: "在线授权", WorkspaceSlug: "online-license", DisplayName: "管理员", Email: "admin@example.test",
+	installed, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
+		WorkspaceName: "在线授权", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	admin := installed.Auth
 	if err != nil {
 		t.Fatal(err)
 	}

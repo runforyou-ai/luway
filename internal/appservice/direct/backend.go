@@ -143,8 +143,8 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 	return &Backend{ops: ops}
 }
 
-// InstallWorkspace 完成首次安装并返回平台管理员的登录会话。
-func (b *Backend) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (_ appservice.Auth, err error) {
+// InstallWorkspace 完成首次安装并返回创建的工作区和平台管理员登录会话。
+func (b *Backend) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (_ appservice.InstallWorkspaceResult, err error) {
 	defer settle(ctx, "InstallWorkspace", &err, internalError(meta))
 	return b.ops.InstallWorkspace(ctx, meta, input)
 }

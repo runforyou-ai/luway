@@ -3106,12 +3106,19 @@ export interface InboxWindowInput {
  */
 export interface InstallWorkspaceInput {
     "workspaceName": string;
-    "workspaceSlug": string;
     "displayName": string;
     "email": string;
     "password": string;
     "locale": Locale;
     "timeZone": string;
+}
+
+/**
+ * InstallWorkspaceResult 包含首次安装创建的工作区和平台管理员登录会话。
+ */
+export interface InstallWorkspaceResult {
+    "auth": Auth;
+    "workspace": Workspace;
 }
 
 /**
@@ -6539,11 +6546,10 @@ export enum WorkspaceCreationPolicy {
 };
 
 /**
- * WorkspaceInput 定义新建工作区的名称和标识。
+ * WorkspaceInput 定义新建工作区的名称。
  */
 export interface WorkspaceInput {
     "name": string;
-    "slug": string;
 }
 
 /**

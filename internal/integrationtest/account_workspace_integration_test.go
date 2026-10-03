@@ -101,28 +101,32 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	requireSessionState(t, err, appservice.SessionStateSetup)
 
 	install := appservice.InstallWorkspaceInput{
-		WorkspaceName: "演示公司", WorkspaceSlug: " Demo-Team ", DisplayName: "管理员", Email: "Admin@Example.test",
+		WorkspaceName: " 演示公司 ", DisplayName: "管理员", Email: "Admin@Example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	}
-	admin, err := service.InstallWorkspace(ctx, meta, install)
+	installed, err := service.InstallWorkspace(ctx, meta, install)
+	admin := installed.Auth
 	if err != nil || admin.Token == "" || !admin.Account.IsPlatformAdmin || admin.Account.Email != "admin@example.test" {
 		t.Fatalf("install auth = %#v, err = %v", admin, err)
 	}
-	install.Email, install.WorkspaceSlug = "second@example.test", "second"
+	if installed.Workspace.ID == "" || installed.Workspace.Name != "演示公司" || !domain.WorkspaceSlugValid(installed.Workspace.Slug) || installed.Workspace.Status != appservice.WorkspaceStatusActive {
+		t.Fatalf("installed workspace = %#v", installed.Workspace)
+	}
+	install.Email = "second@example.test"
 	_, err = service.InstallWorkspace(ctx, meta, install)
 	requireSessionState(t, err, appservice.SessionStateLogin)
 
 	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: appservice.LocaleChineseSimplified}
 	// 免费版本只有首个工作区，平台管理员也不能再创建。
 	workspaces, err := backend.ListWorkspaces(ctx, adminMeta)
-	if err != nil || len(workspaces.Items) != 1 || workspaces.Items[0].Slug != "demo-team" || workspaces.CanCreate {
+	if err != nil || len(workspaces.Items) != 1 || workspaces.Items[0] != installed.Workspace || workspaces.CanCreate {
 		t.Fatalf("workspaces = %#v, err = %v", workspaces, err)
 	}
-	_, err = backend.CreateWorkspace(ctx, adminMeta, appservice.WorkspaceInput{Name: "第二工作区", Slug: "second-team"})
+	_, err = backend.CreateWorkspace(ctx, adminMeta, appservice.WorkspaceInput{Name: "第二工作区"})
 	requireErrorKind(t, err, appservice.ErrorKindConflict)
 	adminMeta.WorkspaceID = workspaces.Items[0].ID
 	identity, err := backend.LoadIdentity(ctx, adminMeta)
-	if err != nil || identity.Organization.Slug != "demo-team" || identity.User.Email != "admin@example.test" || identity.User.DisplayName != "管理员" {
+	if err != nil || identity.Organization.Slug != installed.Workspace.Slug || identity.User.Email != "admin@example.test" || identity.User.DisplayName != "管理员" {
 		t.Fatalf("identity = %#v, err = %v", identity, err)
 	}
 
@@ -154,7 +158,7 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	if err != nil || len(workspaces.Items) != 0 || workspaces.CanCreate {
 		t.Fatalf("member workspaces = %#v, err = %v", workspaces, err)
 	}
-	_, err = backend.CreateWorkspace(ctx, memberMeta, appservice.WorkspaceInput{Name: "成员工作区", Slug: "member-team"})
+	_, err = backend.CreateWorkspace(ctx, memberMeta, appservice.WorkspaceInput{Name: "成员工作区"})
 	requireErrorKind(t, err, appservice.ErrorKindForbidden)
 	// 所有账号可创建时，普通账号同样受平台工作区上限约束。
 	if _, err := backend.UpdatePlatformSettings(ctx, adminMeta, appservice.PlatformPoliciesInput{
@@ -162,7 +166,7 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	_, err = backend.CreateWorkspace(ctx, memberMeta, appservice.WorkspaceInput{Name: "成员工作区", Slug: "member-team"})
+	_, err = backend.CreateWorkspace(ctx, memberMeta, appservice.WorkspaceInput{Name: "成员工作区"})
 	requireErrorKind(t, err, appservice.ErrorKindConflict)
 	memberMeta.WorkspaceID = adminMeta.WorkspaceID
 	_, err = backend.LoadIdentity(ctx, memberMeta)
@@ -178,10 +182,11 @@ func TestPlatformAdministration(t *testing.T) {
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
 
-	admin, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
-		WorkspaceName: "平台管理", WorkspaceSlug: "platform-admin", DisplayName: "管理员", Email: "admin@example.test",
+	installed, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
+		WorkspaceName: "平台管理", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	admin := installed.Auth
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +228,7 @@ func TestPlatformAdministration(t *testing.T) {
 		t.Fatalf("searched accounts = %#v, err = %v", accounts, err)
 	}
 	workspaces, err := backend.ListPlatformWorkspaces(ctx, adminMeta, appservice.PlatformWorkspaceListInput{})
-	if err != nil || len(workspaces.Workspaces) != 1 || workspaces.Workspaces[0].Slug != "platform-admin" || workspaces.Workspaces[0].MemberCount != 1 {
+	if err != nil || len(workspaces.Workspaces) != 1 || workspaces.Workspaces[0].Slug != installed.Workspace.Slug || workspaces.Workspaces[0].MemberCount != 1 {
 		t.Fatalf("workspaces = %#v, err = %v", workspaces, err)
 	}
 
@@ -380,8 +385,8 @@ func TestAccountWorkspacesAreIsolated(t *testing.T) {
 	if identity, err := backend.LoadIdentity(ctx, secondMeta); err != nil || identity.User.DisplayName != "改名后的负责人" {
 		t.Fatalf("second workspace identity = %#v, err = %v", identity.User, err)
 	}
-	_, err = backend.CreateWorkspace(ctx, ownerMeta, appservice.WorkspaceInput{Name: "非法标识", Slug: "-bad"})
-	requireFieldError(t, err, "slug", i18n.FieldWorkspaceSlugInvalid)
+	_, err = backend.CreateWorkspace(ctx, ownerMeta, appservice.WorkspaceInput{Name: ""})
+	requireFieldError(t, err, "name", i18n.FieldOrganizationNameRequired)
 
 	workspaces, err := backend.ListWorkspaces(ctx, ownerMeta)
 	if err != nil || len(workspaces.Items) != 2 {

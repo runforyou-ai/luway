@@ -38,7 +38,6 @@ type InstallWorkspaceAction struct {
 // InstallWorkspaceInput 定义首次安装输入。
 type InstallWorkspaceInput struct {
 	WorkspaceName string
-	WorkspaceSlug string
 	DisplayName   string
 	Email         string
 	Password      string
@@ -67,7 +66,7 @@ func (a *InstallWorkspaceAction) Execute(ctx context.Context, input InstallWorks
 		TimeZone:    input.TimeZone,
 	}
 	fields := accountaction.ValidateNewAccount(account)
-	workspace, workspaceFields := organizationaction.NormalizeWorkspaceInput(organizationaction.WorkspaceInput{Name: input.WorkspaceName, Slug: input.WorkspaceSlug})
+	workspace, workspaceFields := organizationaction.NormalizeWorkspaceInput(organizationaction.WorkspaceInput{Name: input.WorkspaceName})
 	// 工作区字段在安装表单中带 workspace 前缀。
 	for field, code := range workspaceFields {
 		fields["workspace"+strings.ToUpper(field[:1])+field[1:]] = code
@@ -104,7 +103,7 @@ func (a *InstallWorkspaceAction) Execute(ctx context.Context, input InstallWorks
 			return err
 		}
 		identity, err := organizationaction.Create(ctx, tx, organizationaction.CreateInput{
-			Name: workspace.Name, Slug: workspace.Slug, Account: admin, AdminDisplayName: account.DisplayName,
+			Name: workspace.Name, Account: admin, AdminDisplayName: account.DisplayName,
 		})
 		if err != nil {
 			return err

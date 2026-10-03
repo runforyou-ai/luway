@@ -10,14 +10,14 @@ import { EntryLayout } from "@/components/entry-layout"
 import { PageLoading } from "@/components/page-loading"
 import { PageLoadError } from "@/components/page-load-error"
 import { StatusBadge } from "@/components/status-badge"
+import { WorkspaceAddress } from "@/components/workspace-address"
 import { resourceStatus } from "@/components/resource-content"
 import { Button } from "@/components/ui/button"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { updateNotificationUnreadIndicator } from "@/platform/notifications"
 import { useWorkspaceActivityConnection, useWorkspaceAttention } from "@/hooks/use-workspace-attention"
 import { useResource } from "@/hooks/use-resource"
-import { resolveServerURL } from "@/lib/server-url"
-import { enterWorkspace, navigateToHashPath, returnToPath, webAppPath, workspaceHref } from "@/lib/workspace-route"
+import { enterWorkspace, navigateToHashPath, returnToPath } from "@/lib/workspace-route"
 
 /** 展示工作区列表；没有工作区时在允许创建时引导创建。 */
 export function WorkspaceListPage() {
@@ -52,8 +52,6 @@ export function WorkspaceListPage() {
     },
     [],
   )
-  const serverURL = useResource(resourceKeys.serverURL(), () => resolveServerURL())
-  const host = serverURL.data ? new URL(serverURL.data).host : ""
   const [loggingOut, setLoggingOut] = useState(false)
 
   /** 退出登录后回到登录页。 */
@@ -160,9 +158,7 @@ export function WorkspaceListPage() {
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{workspace.name}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {host ? `${host}${webAppPath}#${workspaceHref(workspace.slug, "/")}` : workspace.slug}
-                  </span>
+                  <WorkspaceAddress slug={workspace.slug} />
                 </span>
                 {suspended ? (
                   <StatusBadge variant="muted">{t("workspaceSuspended")}</StatusBadge>

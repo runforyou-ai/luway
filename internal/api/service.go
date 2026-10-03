@@ -94,17 +94,17 @@ func NewService(application *appservice.Service, options ...ServiceOption) *Serv
 	if service.computers != nil {
 		service.registerGeneratedComputerRoutes(router)
 	}
-	// 创建企业管理员并返回登录令牌。
+	// 创建平台管理员和第一个工作区，返回工作区和登录会话。
 	router.POST("/install", func(c *gin.Context) {
 		var input appservice.InstallWorkspaceInput
 		if !bindJSON(c, &input) {
 			return
 		}
-		auth, err := service.application.InstallWorkspace(c.Request.Context(), requestMeta(c), input)
+		result, err := service.application.InstallWorkspace(c.Request.Context(), requestMeta(c), input)
 		if writeApplicationError(c, err) {
 			return
 		}
-		c.JSON(http.StatusCreated, auth)
+		c.JSON(http.StatusCreated, result)
 	})
 	service.registerWebsiteVisitorRoutes(router)
 	// 注册通过渠道密钥认证的 Telegram 回调。

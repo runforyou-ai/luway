@@ -111,7 +111,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 		Locale:      domain.LocaleEnglishUnitedStates,
 		TimeZone:    "America/New_York",
 	})
-	if installed.Identity.User.RoleID == "" || installed.Identity.Organization.Name != "演示测试公司" || installed.Identity.Account.Locale != "en-US" || installed.Identity.Account.TimeZone != "America/New_York" || !installed.Identity.User.MessageNotificationsEnabled || installed.Identity.OrganizationIdentity.WorkStatus != string(domain.WorkStatusWorking) {
+	if installed.Identity.User.RoleID == "" || !strings.HasPrefix(installed.Identity.Organization.Name, "演示测试公司-") || installed.Identity.Account.Locale != "en-US" || installed.Identity.Account.TimeZone != "America/New_York" || !installed.Identity.User.MessageNotificationsEnabled || installed.Identity.OrganizationIdentity.WorkStatus != string(domain.WorkStatusWorking) {
 		t.Fatalf("unexpected identity: %#v", installed.Identity)
 	}
 	if installed.Identity.Organization.Slug == "" || installed.Identity.User.AccountID != installed.Identity.Account.ID {

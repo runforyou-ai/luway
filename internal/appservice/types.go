@@ -147,12 +147,17 @@ type ProductDocPage struct {
 // InstallWorkspaceInput 定义首次安装输入：平台管理员账号和第一个工作区。
 type InstallWorkspaceInput struct {
 	WorkspaceName string `json:"workspaceName"`
-	WorkspaceSlug string `json:"workspaceSlug"`
 	DisplayName   string `json:"displayName"`
 	Email         string `json:"email"`
 	Password      string `json:"password"`
 	Locale        Locale `json:"locale"`
 	TimeZone      string `json:"timeZone"`
+}
+
+// InstallWorkspaceResult 包含首次安装创建的工作区和平台管理员登录会话。
+type InstallWorkspaceResult struct {
+	Auth      Auth      `json:"auth"`
+	Workspace Workspace `json:"workspace"`
 }
 
 // RegisterInput 定义注册本地账号的输入；InvitationToken 非空时按邀请注册，平台未开放注册也可注册受邀邮箱。
@@ -223,10 +228,9 @@ type WorkspaceList struct {
 	CanCreate bool        `json:"canCreate"`
 }
 
-// WorkspaceInput 定义新建工作区的名称和标识。
+// WorkspaceInput 定义新建工作区的名称。
 type WorkspaceInput struct {
 	Name string `json:"name"`
-	Slug string `json:"slug"`
 }
 
 // Identity 定义当前成员及其所在工作区。

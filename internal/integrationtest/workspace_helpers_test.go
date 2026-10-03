@@ -25,7 +25,7 @@ import (
 // testPublicURL 是集成测试使用的部署地址，服务端生成的对外链接以它为根地址。
 const testPublicURL = "https://app.example.test"
 
-// workspaceSpec 定义测试工作区与首位管理员账号；Email 在同一测试库内必须唯一，语言和时区为空时取中文与上海时区。
+// workspaceSpec 定义测试工作区名称前缀与首位管理员账号；Email 在同一测试库内必须唯一，语言和时区为空时取中文与上海时区。
 type workspaceSpec struct {
 	Name        string
 	DisplayName string
@@ -41,10 +41,11 @@ type installedWorkspace struct {
 	Token    string
 }
 
-// installWorkspace 创建管理员账号和标识随机的工作区并签发登录会话；首次安装在每个平台只能执行一次，测试统一用它建立独立工作区。
+// installWorkspace 创建名称和标识独立的工作区及管理员账号并签发登录会话。
 func installWorkspace(t testing.TB, db *bun.DB, spec workspaceSpec) installedWorkspace {
 	t.Helper()
 	ctx := context.Background()
+	spec.Name = uniqueWorkspaceName(spec.Name)
 	ensureTestPlatform(t, db)
 	if spec.Locale == "" {
 		spec.Locale = domain.LocaleChineseSimplified
@@ -66,7 +67,7 @@ func installWorkspace(t testing.TB, db *bun.DB, spec workspaceSpec) installedWor
 			return err
 		}
 		created, err := organizationaction.Create(ctx, tx, organizationaction.CreateInput{
-			Name: spec.Name, Slug: "ws-" + strings.ReplaceAll(uuid.NewV7().String(), "-", ""), Account: account, AdminDisplayName: spec.DisplayName,
+			Name: spec.Name, Account: account, AdminDisplayName: spec.DisplayName,
 		})
 		if err != nil {
 			return err
@@ -93,7 +94,13 @@ func ensureTestPlatform(t testing.TB, db *bun.DB) {
 	}
 }
 
-// addAccountWorkspace 为登录令牌所属账号直接创建一个标识随机的工作区，账号成为首位管理员成员；不经过平台创建策略与工作区上限。
+// uniqueWorkspaceName 为共享测试库中的工作区名称添加随机后缀。
+func uniqueWorkspaceName(prefix string) string {
+	name := []rune(prefix)
+	return string(name[:min(len(name), domain.OrganizationNameMaxLength-13)]) + "-" + strings.ReplaceAll(uuid.NewV7().String(), "-", "")[20:]
+}
+
+// addAccountWorkspace 为登录令牌所属账号创建名称和标识独立的工作区，账号成为首位管理员成员。
 func addAccountWorkspace(t testing.TB, db *bun.DB, token, name string) *servermodels.Identity {
 	t.Helper()
 	ctx := context.Background()
@@ -104,7 +111,7 @@ func addAccountWorkspace(t testing.TB, db *bun.DB, token, name string) *servermo
 	var created *servermodels.Identity
 	err = db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		created, err = organizationaction.Create(ctx, tx, organizationaction.CreateInput{
-			Name: name, Slug: "ws-" + strings.ReplaceAll(uuid.NewV7().String(), "-", ""), Account: &account.Account, AdminDisplayName: account.Account.DisplayName,
+			Name: uniqueWorkspaceName(name), Account: &account.Account, AdminDisplayName: account.Account.DisplayName,
 		})
 		return err
 	})

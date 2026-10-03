@@ -1,5 +1,5 @@
 /** 首次安装表单。 */
-import { useEffect, useMemo, useState } from "react"
+import { useMemo } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -11,7 +11,6 @@ import { recoverSession } from "@/lib/session-navigation"
 import { FormInputField } from "@/components/form/form-input-field"
 import { Button } from "@/components/ui/button"
 import { FieldGroup } from "@/components/ui/field"
-import { randomWorkspaceSlug, suggestWorkspaceSlug } from "@/lib/workspace-schema"
 import {
   createSetupSchema,
   type SetupFormValues,
@@ -32,29 +31,18 @@ export function SetupForm() {
     shouldUseNativeValidation: true,
     defaultValues: {
       workspaceName: "",
-      workspaceSlug: "",
       displayName: "",
       email: "",
       password: "",
     },
   })
 
-  // 工作区标识未手动修改时按名称自动建议，名称无法转成标识时使用本页生成的随机标识。
-  const [fallbackSlug] = useState(randomWorkspaceSlug)
-  const { getFieldState, setValue, watch } = form
-  const workspaceName = watch("workspaceName")
-  useEffect(() => {
-    if (!getFieldState("workspaceSlug").isDirty) {
-      setValue("workspaceSlug", suggestWorkspaceSlug(workspaceName, fallbackSlug))
-    }
-  }, [fallbackSlug, getFieldState, setValue, workspaceName])
-
   /** 提交首次安装并进入新建的工作区。 */
   async function submitSetup(values: SetupFormValues) {
     try {
-      await install(values)
+      const workspace = await install(values)
       completeStartup()
-      enterWorkspace(values.workspaceSlug, "/inbox", { replace: true })
+      enterWorkspace(workspace.slug, "/inbox", { replace: true })
     } catch (error) {
       // 平台已由他人完成安装时回到登录页。
       if (isApiError(error) && error.state === SessionState.SessionStateLogin) {
@@ -68,7 +56,6 @@ export function SetupForm() {
       toast.error(
         requestErrorMessage(error, [
           "workspaceName",
-          "workspaceSlug",
           "displayName",
           "email",
           "password",
@@ -87,13 +74,6 @@ export function SetupForm() {
           control={form.control}
           label={t("workspaceNameLabel")}
           autoFocus
-        />
-        <FormInputField
-          name="workspaceSlug"
-          control={form.control}
-          label={t("workspaceSlugLabel")}
-          autoCapitalize="none"
-          autoCorrect="off"
         />
         <FormInputField
           name="displayName"

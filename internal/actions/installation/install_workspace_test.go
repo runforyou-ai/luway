@@ -17,7 +17,6 @@ import (
 func validInput() InstallWorkspaceInput {
 	return InstallWorkspaceInput{
 		WorkspaceName: "演示测试公司",
-		WorkspaceSlug: "demo-test",
 		DisplayName:   "管理员",
 		Email:         "admin@example.com",
 		Password:      "password123",
@@ -56,12 +55,12 @@ func TestInstallRejectsInvalidLocaleAndTimeZone(t *testing.T) {
 	}
 }
 
-// TestInstallRejectsInvalidWorkspace 验证首次安装校验工作区名称长度和标识格式。
+// TestInstallRejectsInvalidWorkspace 验证首次安装校验工作区名称长度。
 func TestInstallRejectsInvalidWorkspace(t *testing.T) {
 	input := validInput()
-	input.WorkspaceName, input.WorkspaceSlug = strings.Repeat("名", domain.OrganizationNameMaxLength+1), "Bad_Slug"
+	input.WorkspaceName = strings.Repeat("名", domain.OrganizationNameMaxLength+1)
 	fields := installValidationFields(t, input)
-	if fields["workspaceName"] != organizationaction.ValidationNameTooLong || fields["workspaceSlug"] != organizationaction.ValidationSlugInvalid {
+	if fields["workspaceName"] != organizationaction.ValidationNameTooLong {
 		t.Fatalf("fields = %#v", fields)
 	}
 }
