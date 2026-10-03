@@ -2,6 +2,7 @@ package agentruntime
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -152,13 +153,15 @@ type delegatedActivity struct {
 	callID   string
 }
 
-// toolStarted 把子 Agent 开始调用的工具记为委派调用的当前活动。
-func (a delegatedActivity) toolStarted(input *compose.ToolInput, _ time.Time) error {
-	a.recorder.setActivity(a.callID, input.Name)
-	return nil
+// toolStarted 登记子 Agent 开始的工具调用，并把它记为委派调用的当前活动。
+func (a delegatedActivity) toolStarted(ctx context.Context, input *compose.ToolInput, at time.Time) error {
+	return a.recorder.childStarted(ctx, a.callID, input, at)
 }
 
-// toolFinished 不改变委派调用的活动，下一次工具调用开始时更新。
-func (a delegatedActivity) toolFinished(*compose.ToolInput, time.Time, string, error) error {
-	return nil
+// toolFinished 记录子 Agent 工具调用的结果，委派调用的活动在下一次工具调用开始时更新；子 Agent 不挂起，等待外部结果按失败处理。
+func (a delegatedActivity) toolFinished(ctx context.Context, input *compose.ToolInput, at time.Time, result string, err error) error {
+	if errors.Is(err, ErrAwaitExternal) {
+		err = errors.New("tool calls awaiting external results are unavailable to delegated agents")
+	}
+	return a.recorder.childFinished(ctx, a.callID, input, at, result, err)
 }

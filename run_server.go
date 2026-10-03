@@ -83,7 +83,7 @@ func run(arguments []string) error {
 		slog.Warn("授权未授予自定义品牌或授权已到期，部署品牌配置暂不生效")
 	}
 
-	services, realtimeMiddleware, err := applicationServices(appStorage, config)
+	services, middleware, err := applicationServices(appStorage, config)
 	if err != nil {
 		return fmt.Errorf("initialize application services: %w", err)
 	}
@@ -112,8 +112,8 @@ func run(arguments []string) error {
 		DisableDefaultSignalHandler: true,
 		Assets: application.AssetOptions{
 			Handler: assetServer,
-			// 实时事件流在 Wails 资源服务之前处理。
-			Middleware: realtimeMiddleware,
+			// 接口版本检查与实时事件流在 Wails 资源服务之前处理。
+			Middleware: middleware,
 		},
 		Server: application.ServerOptions{
 			Host: config.Server.Host,

@@ -62,6 +62,8 @@ type MCPServer struct {
 	Name   string
 	Config mcp.Config
 	Tools  []string // 限定挂载的工具名称，nil 表示挂载目录中的全部工具。
+	// QueryTools 是管理员标记为只读查询的工具名称，这些工具可重新执行且没有外部副作用，其余工具按有副作用处理。
+	QueryTools []string
 	// HandshakeTimeout 是建立会话和读取工具目录的时限，零值使用默认时限。
 	HandshakeTimeout time.Duration
 	// Connect 非空时替代按 Config 直连，用于经企业服务端代理调用的服务。
@@ -165,7 +167,7 @@ func openMCPTools(ctx context.Context, runID string, servers []MCPServer, regist
 			}
 			registered[info.Name] = struct{}{}
 			accepted++
-			tools = append(tools, &mcpTool{connection: connection, server: server.Name, name: item.Name, info: info})
+			tools = append(tools, &mcpTool{connection: connection, server: server.Name, name: item.Name, info: info, query: slices.Contains(server.QueryTools, item.Name)})
 		}
 		slog.Info("MCP 服务工具目录已读取", "agent_run_id", runID, "mcp_source", server.Source, "mcp_server", server.Name,
 			"tool_count", len(catalog), "registered_tool_count", accepted)
@@ -255,6 +257,7 @@ type mcpTool struct {
 	server     string
 	name       string
 	info       *schema.ToolInfo
+	query      bool // 管理员标记为只读查询。
 }
 
 // Info 返回模型可见的名称、描述和参数定义。

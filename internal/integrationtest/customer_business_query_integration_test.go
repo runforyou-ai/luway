@@ -202,12 +202,15 @@ func TestServiceBusinessQueries(t *testing.T) {
 				}
 				blocks := []agentruntime.Block{
 					{ID: uuid.NewV7().String(), Position: 1, ModelCallID: uuid.NewV7().String(), Kind: domain.AgentRunBlockToolCall, Payload: agentruntime.BlockPayload{ToolCall: &agentruntime.ToolCall{
+						ID: uuid.NewV7().String(), ModelCallID: uuid.NewV7().String(), Source: domain.AgentToolSourceMCP,
 						CallID: "c1", Name: "search_products", Arguments: `{"q":"1001"}`, Error: &failure, Status: domain.AgentToolCallFailed, StartedAt: &startedAt, MCPServer: publicService.Name,
 					}}},
 					{ID: uuid.NewV7().String(), Position: 2, ModelCallID: uuid.NewV7().String(), Kind: domain.AgentRunBlockToolCall, Payload: agentruntime.BlockPayload{ToolCall: &agentruntime.ToolCall{
+						ID: uuid.NewV7().String(), ModelCallID: uuid.NewV7().String(), Source: domain.AgentToolSourceBuiltin, Replayable: true,
 						CallID: "c2", Name: agentruntime.KnowledgeToolName, Arguments: `{}`, Result: &result, Status: domain.AgentToolCallSucceeded, StartedAt: &startedAt, Evidence: true,
 					}}},
 					{ID: uuid.NewV7().String(), Position: 3, ModelCallID: uuid.NewV7().String(), Kind: domain.AgentRunBlockToolCall, Payload: agentruntime.BlockPayload{ToolCall: &agentruntime.ToolCall{
+						ID: uuid.NewV7().String(), ModelCallID: uuid.NewV7().String(), Source: domain.AgentToolSourceMCP, Replayable: true,
 						CallID: "c3", Name: "get_order", Arguments: `{"orderId":"1001"}`, Result: &result, Status: domain.AgentToolCallSucceeded, StartedAt: &startedAt, MCPServer: customerService.Name, Evidence: true,
 					}}},
 				}

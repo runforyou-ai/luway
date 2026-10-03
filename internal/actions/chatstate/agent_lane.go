@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -77,11 +78,14 @@ func cancelLaneRuns(ctx context.Context, db bun.IDB, organizationID string, lane
 		UPDATE agent_runs
 		SET status = ?, error_code = ?, completed_at = now(), updated_at = now()
 		WHERE lane_id IN (?)
-			AND status IN (?, ?)
+			AND status IN (?)
 		RETURNING id
-	`, domain.AgentRunStatusCancelled, reason, bun.In(laneIDs), domain.AgentRunStatusQueued, domain.AgentRunStatusRunning).
+	`, domain.AgentRunStatusCancelled, reason, bun.In(laneIDs), bun.In(domain.AgentRunActiveStatuses)).
 		Scan(ctx, &runIDs); err != nil {
 		return nil, fmt.Errorf("cancel agent lane runs: %w", err)
+	}
+	if err := agentprocess.CancelUnsettled(ctx, db, organizationID, runIDs...); err != nil {
+		return nil, err
 	}
 	if _, err := db.NewUpdate().Model((*servermodels.AgentLane)(nil)).
 		Set("processed_seq = desired_seq").

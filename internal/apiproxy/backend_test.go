@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -148,10 +149,11 @@ func TestBackendConnectsAndUsesBearerToken(t *testing.T) {
 				http.Error(writer, "installation status must not use login state", http.StatusBadRequest)
 				return
 			}
-			writeTestJSON(writer, http.StatusOK, map[string]any{"installed": true, "registrationOpen": true})
+			writeTestJSON(writer, http.StatusOK, map[string]any{"installed": true, "registrationOpen": true, "apiVersion": appservice.APIVersion})
 		case "/api/auth/identity":
-			if request.Header.Get("Authorization") != "Bearer test-token" || request.Header.Get(appservice.WorkspaceHeader) != "organization-1" {
-				http.Error(writer, "identity requires token and workspace", http.StatusBadRequest)
+			if request.Header.Get("Authorization") != "Bearer test-token" || request.Header.Get(appservice.WorkspaceHeader) != "organization-1" ||
+				request.Header.Get(appservice.ClientAPIVersionHeader) != strconv.Itoa(appservice.APIVersion) {
+				http.Error(writer, "identity requires token, workspace and client API version", http.StatusBadRequest)
 				return
 			}
 			writeTestJSON(writer, http.StatusOK, map[string]any{
@@ -325,7 +327,7 @@ func TestBackendClearsCredentialWhenChangingServer(t *testing.T) {
 			http.NotFound(writer, request)
 			return
 		}
-		writeTestJSON(writer, http.StatusOK, map[string]any{"installed": true})
+		writeTestJSON(writer, http.StatusOK, map[string]any{"installed": true, "apiVersion": appservice.APIVersion})
 	}))
 	defer remote.Close()
 
@@ -373,6 +375,37 @@ func TestBackendRejectsUninitializedServer(t *testing.T) {
 	}
 	if store.serverURL != "" {
 		t.Fatalf("server URL = %q, want empty", store.serverURL)
+	}
+}
+
+// TestBackendChecksServerAPIVersion 验证服务器接口版本过旧时拒绝连接且不保存地址，服务器要求升级客户端时保存地址并返回需要升级的会话错误。
+func TestBackendChecksServerAPIVersion(t *testing.T) {
+	status := map[string]any{"installed": true, "apiVersion": appservice.MinServerAPIVersion - 1}
+	remote := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/api/installation/status" {
+			http.NotFound(writer, request)
+			return
+		}
+		writeTestJSON(writer, http.StatusOK, status)
+	}))
+	defer remote.Close()
+
+	store := &memoryStore{}
+	backend, err := newTestBackend(store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta := appservice.RequestMeta{Locale: "zh-CN"}
+	err = backend.ConnectServer(context.Background(), meta, remote.URL)
+	var apiError *appservice.Error
+	if !errors.As(err, &apiError) || apiError.Kind != appservice.ErrorKindInvalid || store.serverURL != "" {
+		t.Fatalf("outdated server error = %#v, server URL = %q", err, store.serverURL)
+	}
+
+	status = map[string]any{"installed": true, "apiVersion": appservice.APIVersion, "minClientApiVersion": appservice.APIVersion + 1}
+	err = backend.ConnectServer(context.Background(), meta, remote.URL)
+	if !errors.As(err, &apiError) || apiError.State != appservice.SessionStateUpgrade || store.serverURL != remote.URL {
+		t.Fatalf("outdated client error = %#v, server URL = %q", err, store.serverURL)
 	}
 }
 

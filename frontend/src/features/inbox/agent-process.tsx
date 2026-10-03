@@ -104,19 +104,24 @@ function AgentOrb({ state, paused }: { state: OrbState; paused?: boolean }) {
   )
 }
 
-/** 思考标题与过程内容在气泡内靠左排列，首次展开时按运行编号读取过程内容。onPrimary 表示内容位于主色气泡内，决定配色；inBubble 表示位于消息气泡内；onToggle 在展开或收起时暂停消息视口自动贴底。 */
-export function AgentProcess({ process, onPrimary, inBubble, onToggle }: { process: ConversationAgentProcessData; onPrimary: boolean; inBubble?: boolean; onToggle: () => void }) {
+/** 思考标题与过程内容在气泡内靠左排列，首次展开时按运行编号读取过程内容。onPrimary 表示内容位于主色气泡内，决定配色；inBubble 表示位于消息气泡内；waiting 表示运行挂起中，过程仍会变化；onToggle 在展开或收起时暂停消息视口自动贴底。 */
+export function AgentProcess({ process, onPrimary, inBubble, waiting, onToggle }: { process: ConversationAgentProcessData; onPrimary: boolean; inBubble?: boolean; waiting?: boolean; onToggle: () => void }) {
   const { t } = useTranslation(["inbox", "common"])
   const [opened, setOpened] = useState(false)
   const seconds = Math.max(0, Math.round(process.durationMilliseconds / 1000))
-  // 已完成运行的过程内容不可变，首次展开后按运行编号读取并长期复用缓存。
+  // 已完成运行的过程内容不可变，首次展开后按运行编号读取并长期复用缓存；挂起中的运行每次展开重新读取，使用独立的缓存。
   const detail = useResource(
-    resourceKeys.agentRunProcess(process.id),
+    waiting ? resourceKeys.agentRunWaitingProcess(process.id) : resourceKeys.agentRunProcess(process.id),
     (signal) => getAgentRunProcess(process.id, signal),
-    { enabled: opened, staleTime: Infinity },
+    { enabled: opened, staleTime: waiting ? 0 : Infinity },
   )
   return (
-    <Collapsible className="mb-3 min-w-0" onOpenChange={(open) => { onToggle(); if (open) setOpened(true) }}>
+    <Collapsible className="mb-3 min-w-0" onOpenChange={(open) => {
+      onToggle()
+      if (!open) return
+      setOpened(true)
+      if (waiting && opened) void detail.refresh()
+    }}>
       <CollapsibleTrigger className={cn(
         "group flex max-w-full min-w-0 cursor-pointer items-center justify-start gap-1.5 rounded-sm py-0.5 text-left text-xs focus-visible:outline focus-visible:outline-ring",
         onPrimary ? "text-accent-foreground/75" : "text-muted-foreground",
@@ -124,7 +129,7 @@ export function AgentProcess({ process, onPrimary, inBubble, onToggle }: { proce
         "touch:py-2",
       )}>
         <AgentOrb state="working" paused />
-        <span className="truncate">{t("agentThoughtCompleted", { seconds })}</span>
+        <span className="truncate">{waiting ? t("agentProcessSoFar") : t("agentThoughtCompleted", { seconds })}</span>
         <ChevronDownIcon aria-hidden className="size-3.5 shrink-0 transition-transform group-data-[state=open]:rotate-180" />
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(
@@ -174,7 +179,7 @@ function AgentStreamTool({ call }: { call: RunStreamToolCall }) {
       </span>
       <span className={cn(
         "shrink-0 text-muted-foreground",
-        call.status === AgentToolCallStatus.AgentToolCallFailed && "text-destructive",
+        (call.status === AgentToolCallStatus.AgentToolCallFailed || call.status === AgentToolCallStatus.AgentToolCallNeedsReview) && "text-destructive",
       )}>
         {statusLabel(call.status)}
       </span>
@@ -259,7 +264,9 @@ export function AgentRunState({ run, incoming, conversationID, group, copilot, o
         : t("agentThoughtRunning")
     : cancelled
       ? t("agentRunCancelled")
-      : toolchain?.state === LocalToolchainState.LocalToolchainStatePreparing
+      : run.status === AgentRunStatus.AgentRunStatusWaiting
+        ? t("agentRunAwaitingResult")
+        : toolchain?.state === LocalToolchainState.LocalToolchainStatePreparing
         ? t("agentRunPreparingToolchain")
         : toolchain?.state === LocalToolchainState.LocalToolchainStateFailed
           ? toolchain.failure === LocalToolchainFailure.LocalToolchainFailureDownload
@@ -341,7 +348,7 @@ export function AgentRunState({ run, incoming, conversationID, group, copilot, o
           </Collapsible>
         ) : (
           <>
-            {run.process ? <AgentProcess process={run.process} onPrimary={false} onToggle={onToggle} /> : null}
+            {run.process ? <AgentProcess process={run.process} onPrimary={false} waiting={run.status === AgentRunStatus.AgentRunStatusWaiting} onToggle={onToggle} /> : null}
             <div className="flex items-center gap-1.5">
               {cancelled ? <BrainIcon aria-hidden className="size-4" /> : toolchain?.state === LocalToolchainState.LocalToolchainStateFailed ? null : <AgentOrb state="breathing" />}
               <span>{label}</span>

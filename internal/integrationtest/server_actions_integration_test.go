@@ -1970,7 +1970,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 		if err := db.NewSelect().Model(&savedBlocks).Where("arb.agent_run_id = ?", run.ID).Order("position ASC").Scan(context.Background()); err != nil {
 			t.Fatal(err)
 		}
-		if len(savedBlocks) != 1 || savedBlocks[0].ID != successfulBlocks[0].ID || savedBlocks[0].OrganizationID != run.OrganizationID || !strings.Contains(string(savedBlocks[0].Payload), "计算过程") {
+		if len(savedBlocks) != 1 || savedBlocks[0].ID != successfulBlocks[0].ID || savedBlocks[0].OrganizationID != run.OrganizationID || savedBlocks[0].Content == nil || *savedBlocks[0].Content != "计算过程" {
 			t.Fatalf("saved blocks = %#v", savedBlocks)
 		}
 		if len(executionStreams) != 2 || executionStreams[0] == "" || executionStreams[0] == executionStreams[1] {

@@ -60,7 +60,7 @@ func authFromSession(output authaction.SessionOutput) appservice.Auth {
 	return appservice.Auth{Account: accountFromModel(*output.Account), Token: output.Token, ExpiresAt: output.ExpiresAt}
 }
 
-// InstallationStatus 返回部署名称、首次安装状态、注册策略是否开放注册和产品品牌。
+// InstallationStatus 返回部署名称、首次安装状态、注册策略是否开放注册、产品品牌和接口版本。
 func (o *directOperations) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
 	settings, err := o.platformSettings.Execute(ctx)
 	installed := !errors.Is(err, platformaction.ErrNotInstalled)
@@ -74,7 +74,8 @@ func (o *directOperations) InstallationStatus(ctx context.Context, meta appservi
 	current := brand.Current()
 	return appservice.InstallationStatus{
 		DeploymentName: o.deploymentName, Installed: installed, RegistrationOpen: settings.RegistrationPolicy == domain.RegistrationPolicyOpen,
-		Brand: appservice.Brand{Names: current.Names, SDKName: current.SDKName, LinkScheme: current.Slug},
+		Brand:      appservice.Brand{Names: current.Names, SDKName: current.SDKName, LinkScheme: current.Slug},
+		APIVersion: appservice.APIVersion, MinClientAPIVersion: appservice.MinClientAPIVersion,
 	}, nil
 }
 

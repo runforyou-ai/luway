@@ -14,6 +14,7 @@ import (
 
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/components/model"
+	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
@@ -36,8 +37,14 @@ type BlockPayload struct {
 
 // ToolCall 保存一次模型指定的工具调用，包括可供模型修正的失败。
 type ToolCall struct {
+	ID          string                     `json:"id"`                 // 调用编号。
+	ParentID    string                     `json:"parentId,omitempty"` // 子 Agent 的调用所属的委派调用编号。
+	ModelCallID string                     `json:"modelCallId"`        // 发起调用的模型调用编号，子 Agent 的调用取所属委派调用的模型调用编号。
 	CallID      string                     `json:"callId"`
 	Name        string                     `json:"name"`
+	Source      domain.AgentToolSource     `json:"source"`
+	Replayable  bool                       `json:"replayable"`
+	SideEffects bool                       `json:"sideEffects"`
 	Arguments   string                     `json:"arguments"`
 	Result      *string                    `json:"result"`
 	Error       *string                    `json:"error"`
@@ -67,17 +74,31 @@ func (b Block) streamView() *runstream.Block {
 	return view
 }
 
-// processRecorder 在内存中维护一次执行尝试的完整过程，并把展示变化交给运行流发布。
+// processRecorder 在内存中维护一次执行尝试的完整过程，把展示变化交给运行流发布，并在安全点交给日志持久化。
 type processRecorder struct {
 	adk.TypedBaseChatModelAgentMiddleware[*schema.AgenticMessage]
-	mu            sync.Mutex
-	process       []Block
-	candidate     string
-	toolPositions map[string]int
-	mcpTools      map[string]mcpToolRef // 本次运行挂载的 MCP 工具按模型可见名称索引，运行开始前写入。
-	plan          []runstream.PlanTask  // 本次运行的任务清单，按任务编号排列。
-	call          *modelCallStream
-	publisher     *streamPublisher
+	mu             sync.Mutex
+	process        []Block
+	children       []ToolCall // 子 Agent 发起的工具调用，按开始顺序排列。
+	childPositions map[string]int
+	candidate      string
+	toolPositions  map[string]int
+	mcpTools       map[string]mcpToolRef // 本次运行挂载的 MCP 工具按模型可见名称索引，运行开始前写入。
+	traits         map[string]toolTraits // 本次运行注册的工具按模型可见名称索引，运行开始前写入。
+	plan           []runstream.PlanTask  // 本次运行的任务清单，按任务编号排列。
+	call           *modelCallStream
+	publisher      *streamPublisher
+	journal        Journal
+	usage          Usage                                                 // 对话模型输出的累计用量，模型输出定稿时累计。
+	onStep         func(context.Context, []*schema.AgenticMessage) error // 模型输出定稿后保存安全点，运行开始前写入。
+	onToolFinished func(context.Context) error                           // 主 Agent 的工具调用结束后保存执行期状态，运行开始前写入。
+}
+
+// toolTraits 是工具的来源、中断后能否重新执行与是否产生外部副作用。
+type toolTraits struct {
+	source      domain.AgentToolSource
+	replayable  bool
+	sideEffects bool
 }
 
 // modelCallStream 记录一次尚未定稿的模型调用中流式分片序号与内容块位置的对应关系。
@@ -104,8 +125,9 @@ func newProcessRecorder(request RunRequest) *processRecorder {
 		streamID = uuid.NewV7().String()
 	}
 	return &processRecorder{
-		toolPositions: make(map[string]int),
-		publisher:     &streamPublisher{header: runstream.Delta{RunID: request.RunID, StreamID: streamID, Attempt: request.Attempt}, sink: request.OnStream},
+		toolPositions: make(map[string]int), childPositions: make(map[string]int), traits: make(map[string]toolTraits),
+		publisher: &streamPublisher{header: runstream.Delta{RunID: request.RunID, StreamID: streamID, Attempt: request.Attempt}, sink: request.OnStream},
+		journal:   request.Journal,
 	}
 }
 
@@ -120,14 +142,15 @@ func (r *processRecorder) WrapModel(_ context.Context, m model.BaseModel[*schema
 	return &streamingModel{BaseModel: m, recorder: r}, nil
 }
 
-// Stream 开始记录一次模型调用，分片经过时同步累积并登记增量。
+// Stream 为模型调用分配编号并开始记录，分片经过时同步累积并登记增量。
 func (m *streamingModel) Stream(ctx context.Context, input []*schema.AgenticMessage, opts ...model.Option) (*schema.StreamReader[*schema.AgenticMessage], error) {
-	reader, err := m.BaseModel.Stream(ctx, input, opts...)
+	callID := uuid.NewV7().String()
+	reader, err := m.BaseModel.Stream(context.WithValue(ctx, modelCallIDContextKey{}, callID), input, opts...)
 	if err != nil {
 		return nil, err
 	}
 	m.recorder.mu.Lock()
-	m.recorder.beginCallLocked()
+	m.recorder.beginCallLocked(callID)
 	m.recorder.mu.Unlock()
 	return schema.StreamReaderWithConvert(reader, func(chunk *schema.AgenticMessage) (*schema.AgenticMessage, error) {
 		if chunk != nil {
@@ -137,8 +160,8 @@ func (m *streamingModel) Stream(ctx context.Context, input []*schema.AgenticMess
 	}), nil
 }
 
-// beginCallLocked 开始一次模型调用并清空上一调用的候选正文；上一调用未定稿即被重试时移除其内容块。调用方持有缓冲锁。
-func (r *processRecorder) beginCallLocked() *modelCallStream {
+// beginCallLocked 以给定编号开始一次模型调用并清空上一调用的候选正文，编号为空时新分配；上一调用未定稿即被重试时移除其内容块。调用方持有缓冲锁。
+func (r *processRecorder) beginCallLocked(id string) *modelCallStream {
 	if r.call != nil && len(r.process) > r.call.start {
 		removed := make([]string, 0, len(r.process)-r.call.start)
 		for _, block := range r.process[r.call.start:] {
@@ -147,7 +170,7 @@ func (r *processRecorder) beginCallLocked() *modelCallStream {
 		r.process = r.process[:r.call.start]
 		r.publisher.add(runstream.Operation{Kind: runstream.OperationRemoveBlocks, BlockIDs: removed})
 	}
-	r.call = &modelCallStream{id: uuid.NewV7().String(), start: len(r.process), positions: make(map[int]int)}
+	r.call = &modelCallStream{id: cmp.Or(id, uuid.NewV7().String()), start: len(r.process), positions: make(map[int]int)}
 	if r.candidate != "" {
 		r.candidate = ""
 		r.publisher.add(runstream.Operation{Kind: runstream.OperationClearCandidate})
@@ -219,17 +242,16 @@ func (r *processRecorder) receive(chunk *schema.AgenticMessage) {
 			}
 			chunkCall := block.FunctionToolCall
 			if !exists {
-				r.addBlockLocked(index, domain.AgentRunBlockToolCall, BlockPayload{ToolCall: r.queuedToolCall(chunkCall)})
+				r.addBlockLocked(index, domain.AgentRunBlockToolCall, BlockPayload{ToolCall: r.queuedToolCall(chunkCall, call.id)})
 				continue
 			}
 			recorded := r.process[position].Payload.ToolCall
 			recorded.Arguments += chunkCall.Arguments
 			// 调用编号和工具名称在后续分片中才出现时补齐并发布。
 			if (recorded.CallID == "" && chunkCall.CallID != "") || (recorded.Name == "" && chunkCall.Name != "") {
-				named := r.queuedToolCall(chunkCall)
 				recorded.CallID = cmp.Or(recorded.CallID, chunkCall.CallID)
 				if recorded.Name == "" {
-					recorded.Name, recorded.MCPServer = named.Name, named.MCPServer
+					r.nameToolCall(recorded, chunkCall.Name)
 				}
 				r.publisher.add(runstream.Operation{Kind: runstream.OperationUpsertBlock, Block: r.process[position].streamView()})
 			}
@@ -243,13 +265,24 @@ type mcpToolRef struct {
 	name   string
 }
 
-// queuedToolCall 按模型指定的调用创建排队中的工具调用，MCP 工具记录原工具名与所属服务。
-func (r *processRecorder) queuedToolCall(call *schema.FunctionToolCall) *ToolCall {
-	recorded := &ToolCall{CallID: call.CallID, Name: call.Name, Arguments: call.Arguments, Status: domain.AgentToolCallQueued}
-	if ref, ok := r.mcpTools[call.Name]; ok {
-		recorded.Name, recorded.MCPServer = ref.name, ref.server
-	}
+// queuedToolCall 按模型指定的调用创建排队中的工具调用并分配调用编号，MCP 工具记录原工具名与所属服务。
+func (r *processRecorder) queuedToolCall(call *schema.FunctionToolCall, modelCallID string) *ToolCall {
+	recorded := &ToolCall{ID: uuid.NewV7().String(), ModelCallID: modelCallID, CallID: call.CallID, Arguments: call.Arguments, Status: domain.AgentToolCallQueued}
+	r.nameToolCall(recorded, call.Name)
 	return recorded
+}
+
+// nameToolCall 按模型可见名称填写调用的工具名、所属 MCP 服务与工具特性；未登记的工具按不可重新执行且有副作用处理。
+func (r *processRecorder) nameToolCall(call *ToolCall, name string) {
+	call.Name = name
+	traits, ok := r.traits[name]
+	if !ok {
+		traits = toolTraits{source: domain.AgentToolSourceBuiltin, sideEffects: true}
+	}
+	call.Source, call.Replayable, call.SideEffects = traits.source, traits.replayable, traits.sideEffects
+	if ref, ok := r.mcpTools[name]; ok {
+		call.Name, call.MCPServer = ref.name, ref.server
+	}
 }
 
 // addBlockLocked 为当前模型调用追加内容块并登记分片序号，调用方持有缓冲锁。
@@ -266,14 +299,25 @@ func (r *processRecorder) appendTextLocked(position int, text string) {
 	r.publisher.add(runstream.Operation{Kind: runstream.OperationAppendBlockText, BlockID: r.process[position].ID, Text: text})
 }
 
-// AfterModelRewriteState 在工具执行前按完整模型输出定稿本次调用的内容块，沿用流式阶段分配的块编号。
+// AfterModelRewriteState 在工具执行前按完整模型输出定稿本次调用的内容块，沿用流式阶段分配的块与调用编号，随后保存安全点。
 func (r *processRecorder) AfterModelRewriteState(ctx context.Context, state *adk.TypedChatModelAgentState[*schema.AgenticMessage], _ *adk.TypedModelContext[*schema.AgenticMessage]) (context.Context, *adk.TypedChatModelAgentState[*schema.AgenticMessage], error) {
+	r.finalizeCall(state.Messages[len(state.Messages)-1])
+	if r.onStep != nil {
+		if err := r.onStep(ctx, state.Messages); err != nil {
+			return ctx, state, err
+		}
+	}
+	return ctx, state, nil
+}
+
+// finalizeCall 按完整模型输出定稿当前模型调用的内容块并累计用量。
+func (r *processRecorder) finalizeCall(message *schema.AgenticMessage) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	message := state.Messages[len(state.Messages)-1]
+	r.usage.add(message.ResponseMeta)
 	call := r.call
 	if call == nil {
-		call = r.beginCallLocked()
+		call = r.beginCallLocked("")
 	}
 	r.call = nil
 	// 完整输出的第 i 个内容块由第 i 小的分片序号拼接而成，数量一致时才能沿用流式块编号。
@@ -290,7 +334,7 @@ func (r *processRecorder) AfterModelRewriteState(ctx context.Context, state *adk
 		case block.Type == schema.ContentBlockTypeAssistantGenText && withCalls && block.AssistantGenText.Text != "":
 			kind, payload = domain.AgentRunBlockContent, BlockPayload{Text: block.AssistantGenText.Text}
 		case block.Type == schema.ContentBlockTypeFunctionToolCall:
-			kind, payload = domain.AgentRunBlockToolCall, BlockPayload{ToolCall: r.queuedToolCall(block.FunctionToolCall)}
+			kind, payload = domain.AgentRunBlockToolCall, BlockPayload{ToolCall: r.queuedToolCall(block.FunctionToolCall, call.id)}
 		default:
 			continue
 		}
@@ -298,6 +342,9 @@ func (r *processRecorder) AfterModelRewriteState(ctx context.Context, state *adk
 		if keyed {
 			if position, ok := call.positions[indices[i]]; ok && r.process[position].Kind == kind {
 				id = r.process[position].ID
+				if streamed := r.process[position].Payload.ToolCall; streamed != nil {
+					payload.ToolCall.ID = streamed.ID
+				}
 			}
 		}
 		final = append(final, Block{ID: id, ModelCallID: call.id, Kind: kind, Payload: payload})
@@ -339,33 +386,89 @@ func (r *processRecorder) AfterModelRewriteState(ctx context.Context, state *adk
 		}
 	}
 	r.publisher.add(operations...)
-	return ctx, state, nil
 }
 
-// updateTool 更新原位置上的工具状态，允许并行工具乱序完成。
-func (r *processRecorder) updateTool(callID string, update func(*ToolCall)) error {
+// updateTool 更新原位置上的工具状态并写入日志，允许并行工具乱序完成。
+func (r *processRecorder) updateTool(ctx context.Context, callID string, update func(*ToolCall)) error {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	position, ok := r.toolPositions[callID]
 	if !ok {
+		r.mu.Unlock()
 		return fmt.Errorf("agent tool call %q has no model output", callID)
 	}
-	update(r.process[position].Payload.ToolCall)
+	call := r.process[position].Payload.ToolCall
+	update(call)
+	saved := *call
 	r.publisher.add(runstream.Operation{Kind: runstream.OperationUpsertBlock, Block: r.process[position].streamView()})
-	return nil
+	r.mu.Unlock()
+	return r.saveToolCall(ctx, saved)
 }
 
-// setActivity 记录委派调用中子 Agent 正在调用的工具，委派调用已结束时忽略。
-func (r *processRecorder) setActivity(callID, name string) {
+// saveToolCall 把工具调用的当前状态写入日志，没有日志时忽略。
+func (r *processRecorder) saveToolCall(ctx context.Context, call ToolCall) error {
+	if r.journal == nil {
+		return nil
+	}
+	return r.journal.SaveToolCall(ctx, call)
+}
+
+// childStarted 登记子 Agent 开始执行的工具调用，归属所在的委派调用，并把它记为委派调用的当前活动。
+func (r *processRecorder) childStarted(ctx context.Context, parentCallID string, input *compose.ToolInput, at time.Time) error {
+	r.mu.Lock()
+	position, ok := r.toolPositions[parentCallID]
+	if !ok {
+		r.mu.Unlock()
+		return nil
+	}
+	parent := r.process[position].Payload.ToolCall
+	call := ToolCall{ID: uuid.NewV7().String(), ParentID: parent.ID, ModelCallID: parent.ModelCallID, CallID: input.CallID,
+		Arguments: input.Arguments, Status: domain.AgentToolCallRunning, StartedAt: &at}
+	r.nameToolCall(&call, input.Name)
+	r.childPositions[parent.ID+"/"+input.CallID] = len(r.children)
+	r.children = append(r.children, call)
+	r.setActivityLocked(position, call.Name)
+	r.mu.Unlock()
+	return r.saveToolCall(ctx, call)
+}
+
+// childFinished 记录子 Agent 工具调用的结果或错误。
+func (r *processRecorder) childFinished(ctx context.Context, parentCallID string, input *compose.ToolInput, at time.Time, result string, err error) error {
+	r.mu.Lock()
+	position, ok := r.toolPositions[parentCallID]
+	if !ok {
+		r.mu.Unlock()
+		return nil
+	}
+	index, ok := r.childPositions[r.process[position].Payload.ToolCall.ID+"/"+input.CallID]
+	if !ok {
+		r.mu.Unlock()
+		return nil
+	}
+	call := &r.children[index]
+	settleToolCall(call, at, result, err)
+	saved := *call
+	r.mu.Unlock()
+	return r.saveToolCall(ctx, saved)
+}
+
+// childCalls 返回子 Agent 发起的工具调用副本。
+func (r *processRecorder) childCalls() []ToolCall {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	position, ok := r.toolPositions[callID]
-	if !ok {
-		return
-	}
-	if ref, ok := r.mcpTools[name]; ok {
-		name = ref.name
-	}
+	return slices.Clone(r.children)
+}
+
+// waiting 判断是否有工具调用正在等待外部结果。
+func (r *processRecorder) waiting() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.ContainsFunc(r.process, func(block Block) bool {
+		return block.Payload.ToolCall != nil && block.Payload.ToolCall.Status == domain.AgentToolCallWaiting
+	})
+}
+
+// setActivityLocked 记录委派调用中子 Agent 正在调用的工具，委派调用已结束时忽略。调用方持有缓冲锁。
+func (r *processRecorder) setActivityLocked(position int, name string) {
 	call := r.process[position].Payload.ToolCall
 	if call.Status != domain.AgentToolCallRunning || call.Activity == name {
 		return
@@ -432,14 +535,26 @@ func (r *processRecorder) resetCandidate() {
 func (r *processRecorder) blocks() []Block {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return slices.Clone(r.process)
+	return cloneBlocks(r.process)
+}
+
+// cloneBlocks 复制内容块及其工具调用，副本不随之后的工具状态变化。
+func cloneBlocks(blocks []Block) []Block {
+	cloned := slices.Clone(blocks)
+	for index := range cloned {
+		if call := cloned[index].Payload.ToolCall; call != nil {
+			copied := *call
+			cloned[index].Payload.ToolCall = &copied
+		}
+	}
+	return cloned
 }
 
 // partialBlocks 返回运行中断时应持久化的内容，尚未定稿的回复正文补在末尾，否则断流时已输出的正文无处可读。
 func (r *processRecorder) partialBlocks() []Block {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	blocks := slices.Clone(r.process)
+	blocks := cloneBlocks(r.process)
 	if r.candidate == "" {
 		return blocks
 	}
@@ -455,4 +570,36 @@ func (r *processRecorder) partialBlocks() []Block {
 	}
 	return append(blocks, Block{ID: uuid.NewV7().String(), Position: int64(len(blocks) + 1),
 		ModelCallID: modelCallID, Kind: domain.AgentRunBlockContent, Payload: BlockPayload{Text: r.candidate}})
+}
+
+// restore 以已保存的内容块与子 Agent 调用作为本次执行的起点，并整体发布到运行流。
+func (r *processRecorder) restore(blocks []Block, children []ToolCall, plan []runstream.PlanTask) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.process = slices.Clone(blocks)
+	for position, block := range r.process {
+		if call := block.Payload.ToolCall; call != nil {
+			r.toolPositions[call.CallID] = position
+		}
+	}
+	r.children = slices.Clone(children)
+	for index, call := range r.children {
+		r.childPositions[call.ParentID+"/"+call.CallID] = index
+	}
+	r.plan = slices.Clone(plan)
+	operations := make([]runstream.Operation, 0, len(r.process)+1)
+	for _, block := range r.process {
+		operations = append(operations, runstream.Operation{Kind: runstream.OperationUpsertBlock, Block: block.streamView()})
+	}
+	if len(plan) > 0 {
+		operations = append(operations, runstream.Operation{Kind: runstream.OperationSetPlan, Plan: slices.Clone(plan)})
+	}
+	r.publisher.add(operations...)
+}
+
+// modelUsage 返回对话模型输出的累计用量。
+func (r *processRecorder) modelUsage() Usage {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.usage
 }

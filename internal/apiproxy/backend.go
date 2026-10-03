@@ -138,11 +138,11 @@ func (b *Backend) ProbeServer(ctx context.Context, meta appservice.RequestMeta, 
 	return status, nil
 }
 
-// ConnectServer 验证并保存服务器地址。
+// ConnectServer 验证并保存服务器地址；服务器要求升级客户端时保存地址后返回需要升级的会话错误。
 func (b *Backend) ConnectServer(ctx context.Context, meta appservice.RequestMeta, serverURL string) error {
 	b.sessionMu.Lock()
 	defer b.sessionMu.Unlock()
-	state, _, err := b.inspectServer(ctx, meta, serverURL)
+	state, status, err := b.inspectServer(ctx, meta, serverURL)
 	if err != nil {
 		return err
 	}
@@ -166,10 +166,14 @@ func (b *Backend) ConnectServer(ctx context.Context, meta appservice.RequestMeta
 	b.connection.state = state
 	b.connection.mu.Unlock()
 	slog.Info("服务器连接成功", "server_url", state.baseURL.String(), "changed", changed)
+	if status.ClientOutdated() {
+		slog.Info("服务器要求升级客户端", "server_url", state.baseURL.String(), "min_client_api_version", status.MinClientAPIVersion)
+		return appservice.ClientUpgradeError(meta)
+	}
 	return nil
 }
 
-// inspectServer 校验地址并读取远程安装状态。
+// inspectServer 校验地址、读取远程安装状态并确认服务器接口版本不低于本端要求。
 func (b *Backend) inspectServer(ctx context.Context, meta appservice.RequestMeta, serverURL string) (*remoteState, appservice.InstallationStatus, error) {
 	parsed, err := parseServerURL(serverURL)
 	if err != nil {
@@ -191,6 +195,10 @@ func (b *Backend) inspectServer(ctx context.Context, meta appservice.RequestMeta
 	if !status.Installed {
 		slog.Info("服务器尚未完成首次安装", "server_url", parsed.String())
 		return nil, appservice.InstallationStatus{}, appservice.InvalidError(meta, i18n.ErrorServerInitializationRequired, nil)
+	}
+	if status.ServerOutdated() {
+		slog.Info("服务器接口版本过旧", "server_url", parsed.String(), "server_api_version", status.APIVersion)
+		return nil, appservice.InstallationStatus{}, appservice.InvalidError(meta, i18n.ErrorServerOutdated, nil)
 	}
 	return state, status, nil
 }
@@ -251,6 +259,7 @@ func (b *Backend) sendVia(ctx context.Context, meta appservice.RequestMeta, cont
 	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Accept-Language", string(meta.Locale))
+	request.Header.Set(appservice.ClientAPIVersionHeader, strconv.Itoa(appservice.APIVersion))
 	if input != nil {
 		request.Header.Set("Content-Type", "application/json")
 	}

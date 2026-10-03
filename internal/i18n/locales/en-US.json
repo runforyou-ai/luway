@@ -427,6 +427,8 @@
   "error.server_connection_save_failed": "Could not save the server address.",
   "error.server_connection_required": "Connect to your server first.",
   "error.server_initialization_required": "The server hasn't completed first-time setup. Complete setup in a web browser first.",
+  "error.server_outdated": "The server version is too old for this app. Ask your administrator to update the server.",
+  "error.client_upgrade_required": "This app version is no longer supported by the server. Update to the latest version.",
   "error.remote_request_create_failed": "Could not create the server request.",
   "error.server_connection_failed": "The server connection failed.",
   "error.inbox_cursor_invalid": "The conversation list position is invalid. Refresh the list.",

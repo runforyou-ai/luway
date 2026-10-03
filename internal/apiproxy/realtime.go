@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -232,6 +233,7 @@ func (b *Backend) openEventStream(ctx context.Context, meta appservice.RequestMe
 	}
 	request.Header.Set("Accept", "text/event-stream")
 	request.Header.Set("Accept-Language", string(meta.Locale))
+	request.Header.Set(appservice.ClientAPIVersionHeader, strconv.Itoa(appservice.APIVersion))
 	request.Header.Set("Authorization", "Bearer "+credential.Token)
 	if meta.WorkspaceID != "" {
 		request.Header.Set(appservice.WorkspaceHeader, meta.WorkspaceID)

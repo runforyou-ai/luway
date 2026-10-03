@@ -43,6 +43,7 @@ export function UnsavedChangesGuard({
         SessionState.SessionStateSetup,
         SessionState.SessionStateConnect,
         SessionState.SessionStateWorkspace,
+        SessionState.SessionStateUpgrade,
       ].some((state) => sessionPath(state) === nextLocation.pathname)
     )
       return false

@@ -10,7 +10,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
-// InstallationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
+// InstallationStatus 返回部署名称、首次安装状态、是否开放注册、产品品牌和接口版本。
 func (b *Backend) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
 	return b.ops.InstallationStatus(ctx, meta)
 }

@@ -42,6 +42,7 @@ type Media struct {
 type Trigger struct {
 	Seq        int64
 	Correction bool // 为 true 表示 Runtime 发起的依据纠正重新执行，不认领持久输入。
+	Resume     bool // 为 true 表示从恢复状态继续当前轮次，不认领持久输入。
 }
 
 // ClaimedInput 定义一次 GenInput 已持久化认领的模型输入。
@@ -192,6 +193,8 @@ type RunRequest struct {
 	StreamID              string
 	Attempt               int
 	OnStream              func(runstream.Delta) // 串行接收合并后的运行流增量，实现不得阻塞。
+	Journal               Journal               // 在安全点持久化过程与恢复状态，为空时运行只在结束时交回结果。
+	Resume                *Resume               // 非空时从上次保存的恢复状态继续执行。
 }
 
 // modelConfig 合并有效配置中的模型参数与执行侧注入的模型组件工厂。
@@ -228,14 +231,16 @@ func (u *Usage) merge(other Usage) {
 	u.TotalTokens += other.TotalTokens
 }
 
-// RunResult 定义稳定 Agent 结果及其输入边界；运行出错时 Content、Decision 与 EndSeq 为零值，Usage、Blocks 和 Plan 仍给出已产生的部分。
+// RunResult 定义稳定 Agent 结果及其输入边界；运行出错或挂起时 Content、Decision 与 EndSeq 为零值，Usage、Blocks、Calls 和 Plan 仍给出已产生的部分。
 type RunResult struct {
-	Content  string           // 发给对方的正文：回答、追问内容或转人工说明；Runtime 构造的转人工为空。
-	Decision TerminalDecision // 结束方式，Kind 为空表示直接输出正文作为回答。
-	EndSeq   int64
-	Usage    Usage
-	Blocks   []Block
-	Plan     []runstream.PlanTask // 运行结束时的任务清单，没有建立清单时为空。
+	Content   string           // 发给对方的正文：回答、追问内容或转人工说明；Runtime 构造的转人工为空。
+	Decision  TerminalDecision // 结束方式，Kind 为空表示直接输出正文作为回答。
+	EndSeq    int64
+	Usage     Usage
+	Blocks    []Block
+	Calls     []ToolCall           // 子 Agent 发起的工具调用，主 Agent 的调用在 Blocks 中。
+	Plan      []runstream.PlanTask // 运行结束时的任务清单，没有建立清单时为空。
+	Suspended bool                 // 运行已保存恢复状态并挂起，等待外部结果后继续。
 }
 
 // Runtime 执行一次可吸收后续输入的 Agent Run；返回错误时一并给出已产生的用量和内容块。

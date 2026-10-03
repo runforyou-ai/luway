@@ -15,6 +15,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
@@ -63,9 +64,12 @@ func (p groupMentionRunPolicy) prepareLocked(ctx context.Context, db bun.IDB, po
 		Set("completed_at = now()").
 		Set("updated_at = now()").
 		WherePK().
-		Where("status IN (?, ?)", domain.AgentRunStatusQueued, domain.AgentRunStatusRunning).
+		Where("status IN (?)", bun.In(domain.AgentRunActiveStatuses)).
 		Exec(ctx); err != nil {
 		return false, fmt.Errorf("suppress group agent run: %w", err)
+	}
+	if err := agentprocess.CancelUnsettled(ctx, db, run.OrganizationID, run.ID); err != nil {
+		return false, err
 	}
 	slog.Warn("群内 AI 员工失去执行资格，运行已收敛",
 		"organization_id", run.OrganizationID, "conversation_id", run.ConversationID,

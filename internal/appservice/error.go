@@ -52,6 +52,8 @@ func (e *Error) HTTPStatus() int {
 		return http.StatusPreconditionRequired
 	case SessionStateWorkspace:
 		return http.StatusForbidden
+	case SessionStateUpgrade:
+		return http.StatusPreconditionFailed
 	}
 	switch e.Kind {
 	case ErrorKindInvalid:
