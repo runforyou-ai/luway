@@ -510,6 +510,9 @@ type Backend interface {
 	// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 	//appservice:route GET /platform/runtime/failed-tasks auth=admin
 	ListPlatformFailedTasks(context.Context, RequestMeta, PlatformFailedTaskListInput) (PlatformFailedTaskList, error)
+	// ListPlatformServerErrors 返回近 7 天的服务端错误记录。
+	//appservice:route GET /platform/runtime/server-errors auth=admin
+	ListPlatformServerErrors(context.Context, RequestMeta, PlatformServerErrorListInput) (PlatformServerErrorList, error)
 	// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
 	//appservice:route GET /platform/diagnostics auth=admin
 	GetPlatformDiagnostics(context.Context, RequestMeta) (PlatformDiagnostics, error)

@@ -1,8 +1,8 @@
-/** 平台设置的运行状态页：各服务端进程的版本与心跳，对象存储与授权服务的状态，后台任务各队列的等待、执行、挂起与失败情况，以及等待重试与近 7 天失败的任务；点击任务或异常的依赖在侧栏查看完整错误，页头导出诊断信息。 */
+/** 平台设置的运行状态页：各服务端进程的版本与心跳，对象存储与授权服务的状态，后台任务各队列的等待、执行、挂起与失败情况，以及近期错误中等待重试与近 7 天失败的任务和近 7 天的服务端错误；点击任务、服务端错误或异常的依赖在侧栏查看完整错误，页头导出诊断信息。 */
 import { CircleAlertIcon, CloudIcon, KeyRoundIcon, ServerIcon, type LucideIcon } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router"
+import { useLocation, useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import {
@@ -10,9 +10,11 @@ import {
   getPlatformRuntimeStatus,
   isApiError,
   listPlatformFailedTasks,
+  listPlatformServerErrors,
   type PlatformFailedTask,
   type PlatformRuntimeStatus,
   type PlatformServer,
+  type PlatformServerError,
   type PlatformTaskQueue,
 } from "@/api"
 import { PageHeader } from "@/components/page-header"
@@ -23,6 +25,7 @@ import { ResourceTable } from "@/components/resource-table"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useReportFormat } from "@/hooks/use-report-format"
@@ -35,13 +38,17 @@ import { saveTextFile } from "@/platform/save-file"
 /** 运行状态的自动刷新间隔。 */
 const refreshInterval = 15_000
 
-/** 侧栏展示的错误详情；mono 表示标题是任务名等标识，用等宽字体显示。 */
+/** 侧栏展示的错误详情；mono 表示标题是任务名等标识，用等宽字体显示；fields 是错误信息之前列出的名称与取值。 */
 type ErrorDetail = {
   title: string
   mono?: boolean
   summary: string
+  fields?: [string, string][]
   error: string
 }
+
+/** 近期错误的页签，与地址参数 errors 同步。 */
+const errorTabs = ["tasks", "server"] as const
 
 /** 外部依赖列表的一行。 */
 type DependencyRow = {
@@ -60,6 +67,12 @@ export function PlatformRuntimePage() {
   const { formatDateTime } = useDateTime()
   const navigate = useNavigate()
   const [selected, setSelected] = useState<ErrorDetail | null>(null)
+  const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const errorTab = errorTabs.find((value) => value === searchParams.get("errors")) ?? errorTabs[0]
+  // 滚动位置不随近期错误的页签变化，切换页签时保持当前浏览位置。
+  const scrollParams = new URLSearchParams(searchParams)
+  scrollParams.delete("errors")
   const [exporting, setExporting] = useState(false)
   const trigger = useRef<HTMLElement | null>(null)
   const status = useResource(resourceKeys.platformRuntime(), (signal) => getPlatformRuntimeStatus(signal), {
@@ -70,6 +83,11 @@ export function PlatformRuntimePage() {
     resourceKeys.platformFailedTasks({ pageSize: 50 }),
     (page, signal) => listPlatformFailedTasks({ page, pageSize: 50 }, signal),
     { select: (data) => ({ items: data.tasks, page: data.page }), itemKey: (item) => item.id, staleTime: 0, refetchInterval: () => refreshInterval },
+  )
+  const serverErrors = usePagedResource(
+    resourceKeys.platformServerErrors({ pageSize: 50 }),
+    (page, signal) => listPlatformServerErrors({ page, pageSize: 50 }, signal),
+    { select: (data) => ({ items: data.errors, page: data.page }), itemKey: (item) => item.id, staleTime: 0, refetchInterval: () => refreshInterval },
   )
   const queues = status.data?.queues ?? []
   const waiting = queues.reduce((sum, queue) => sum + queue.waiting, 0)
@@ -142,7 +160,12 @@ export function PlatformRuntimePage() {
         </Button>
       </PageHeader>
 
-      <ResourceListLayout resources={[status, failed]} errorMessage={t("runtime.loadError")} more={failed.more}>
+      <ResourceListLayout
+        resources={[status, failed, serverErrors]}
+        errorMessage={t("runtime.loadError")}
+        more={errorTab === "tasks" ? failed.more : serverErrors.more}
+        scrollKey={`${location.pathname}?${scrollParams.toString()}`}
+      >
         {status.data ? (
           <div className="mb-9 space-y-9">
             <div className="mx-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -211,53 +234,71 @@ export function PlatformRuntimePage() {
           </div>
         ) : null}
 
-        <ReportSection title={t("runtime.failedTasksTitle")} titleClassName="px-3">
-          <ResourceTable<PlatformFailedTask>
-            columns={[
-              {
-                key: "task",
-                header: t("runtime.taskColumn"),
-                cellClassName: "min-w-0",
-                cell: (task) => (
-                  <ResourceRowIdentity
-                    icon={CircleAlertIcon}
-                    name={task.action}
-                    secondary={task.workspaceName ?? t("runtime.platformTask")}
-                    badge={task.retrying ? <StatusBadge variant="muted">{t("runtime.retrying")}</StatusBadge> : undefined}
-                    description={task.error}
-                  />
-                ),
-              },
-              {
-                key: "attempts",
-                header: t("runtime.attemptsColumn"),
-                cellClassName: "hidden w-px whitespace-nowrap text-right text-muted-foreground tabular-nums sm:table-cell",
-                cell: (task) => t("runtime.attempts", { attempt: task.attempt, max: task.maxAttempts }),
-              },
-              {
-                key: "failedAt",
-                header: t("runtime.failedAtColumn"),
-                cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground",
-                cell: (task) => t("runtime.failedAt", { time: formatDateTime(task.failedAt) }),
-              },
-            ]}
-            rows={failed.data?.items ?? []}
-            rowKey={(task) => task.id}
-            empty={t("runtime.noFailedTasks")}
-            onRowActivate={(task) =>
-              openDetail({
-                title: task.action,
-                mono: true,
-                summary: t("runtime.taskSummary", {
-                  workspace: task.workspaceName ?? t("runtime.platformTask"),
-                  queue: task.queue,
-                  attempts: t("runtime.attempts", { attempt: task.attempt, max: task.maxAttempts }),
-                  failedAt: t("runtime.failedAt", { time: formatDateTime(task.failedAt) }),
-                }),
-                error: task.error,
-              })
-            }
-          />
+        <ReportSection title={t("runtime.recentErrorsTitle")} titleClassName="px-3">
+          <Tabs
+            value={errorTab}
+            onValueChange={(value) => {
+              const next = new URLSearchParams(searchParams)
+              next.set("errors", value)
+              setSearchParams(next, { replace: true })
+            }}
+          >
+            <TabsList className="mx-3">
+              <TabsTrigger value="tasks">{t("runtime.failedTasksTitle")}</TabsTrigger>
+              <TabsTrigger value="server">{t("runtime.serverErrorsTitle")}</TabsTrigger>
+            </TabsList>
+            <TabsContent value="tasks">
+            <ResourceTable<PlatformFailedTask>
+              columns={[
+                {
+                  key: "task",
+                  header: t("runtime.taskColumn"),
+                  cellClassName: "min-w-0",
+                  cell: (task) => (
+                    <ResourceRowIdentity
+                      icon={CircleAlertIcon}
+                      name={task.action}
+                      secondary={task.workspaceName ?? t("runtime.platformTask")}
+                      badge={task.retrying ? <StatusBadge variant="muted">{t("runtime.retrying")}</StatusBadge> : undefined}
+                      description={task.error}
+                    />
+                  ),
+                },
+                {
+                  key: "attempts",
+                  header: t("runtime.attemptsColumn"),
+                  cellClassName: "hidden w-px whitespace-nowrap text-right text-muted-foreground tabular-nums sm:table-cell",
+                  cell: (task) => t("runtime.attempts", { attempt: task.attempt, max: task.maxAttempts }),
+                },
+                {
+                  key: "failedAt",
+                  header: t("runtime.failedAtColumn"),
+                  cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground",
+                  cell: (task) => t("runtime.failedAt", { time: formatDateTime(task.failedAt) }),
+                },
+              ]}
+              rows={failed.data?.items ?? []}
+              rowKey={(task) => task.id}
+              empty={t("runtime.noFailedTasks")}
+              onRowActivate={(task) =>
+                openDetail({
+                  title: task.action,
+                  mono: true,
+                  summary: t("runtime.taskSummary", {
+                    workspace: task.workspaceName ?? t("runtime.platformTask"),
+                    queue: task.queue,
+                    attempts: t("runtime.attempts", { attempt: task.attempt, max: task.maxAttempts }),
+                    failedAt: t("runtime.failedAt", { time: formatDateTime(task.failedAt) }),
+                  }),
+                  error: task.error,
+                })
+              }
+            />
+            </TabsContent>
+            <TabsContent value="server">
+              <ServerErrorTable errors={serverErrors.data?.items ?? []} onOpenDetail={openDetail} />
+            </TabsContent>
+          </Tabs>
         </ReportSection>
       </ResourceListLayout>
 
@@ -276,15 +317,89 @@ export function PlatformRuntimePage() {
                 <SheetTitle className={cn("text-base break-all", selected.mono && "font-mono")}>{selected.title}</SheetTitle>
                 <SheetDescription>{selected.summary}</SheetDescription>
               </SheetHeader>
-              <div className="min-h-0 flex-1 overflow-y-auto p-6">
-                <h3 className="mb-2 text-sm font-medium">{t("runtime.errorTitle")}</h3>
-                <pre className="font-mono text-sm break-all whitespace-pre-wrap text-muted-foreground select-text">{selected.error}</pre>
+              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-6">
+                {selected.fields?.length ? (
+                  <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+                    {selected.fields.map(([name, value]) => (
+                      <div key={name} className="contents">
+                        <dt className="text-muted-foreground">{name}</dt>
+                        <dd className="font-mono break-all select-text">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+                {selected.error ? (
+                  <div>
+                    <h3 className="mb-2 text-sm font-medium">{t("runtime.errorTitle")}</h3>
+                    <pre className="font-mono text-sm break-all whitespace-pre-wrap text-muted-foreground select-text">{selected.error}</pre>
+                  </div>
+                ) : null}
               </div>
             </>
           ) : null}
         </SheetContent>
       </Sheet>
     </div>
+  )
+}
+
+/** 服务端错误列表：出错的业务入口方法或任务、日志消息与主机，第二行为错误信息首行，点击在侧栏查看完整错误与日志属性；没有方法或任务名时以日志消息为标题。 */
+function ServerErrorTable({ errors, onOpenDetail }: { errors: PlatformServerError[]; onOpenDetail: (detail: ErrorDetail) => void }) {
+  const { t } = useTranslation("platform")
+  const { formatDateTime } = useDateTime()
+
+  return (
+    <ResourceTable<PlatformServerError>
+      columns={[
+        {
+          key: "error",
+          header: t("runtime.serverErrorColumn"),
+          cellClassName: "min-w-0",
+          cell: (record) => (
+            <ResourceRowIdentity
+              icon={CircleAlertIcon}
+              name={record.operation ?? record.action ?? record.message}
+              secondary={
+                record.operation ?? record.action
+                  ? t("runtime.serverErrorIdentity", { message: record.message, hostname: record.hostname })
+                  : record.hostname
+              }
+              description={record.error?.split("\n")[0]}
+            />
+          ),
+        },
+        {
+          key: "occurredAt",
+          header: t("runtime.occurredAtColumn"),
+          cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground",
+          cell: (record) => t("runtime.occurredAt", { time: formatDateTime(record.occurredAt) }),
+        },
+      ]}
+      rows={errors}
+      rowKey={(record) => record.id}
+      empty={t("runtime.noServerErrors")}
+      onRowActivate={(record) =>
+        onOpenDetail({
+          title: record.operation ?? record.action ?? record.message,
+          mono: Boolean(record.operation ?? record.action),
+          summary:
+            record.operation ?? record.action
+              ? t("runtime.serverErrorSummary", { message: record.message, time: formatDateTime(record.occurredAt) })
+              : t("runtime.occurredAt", { time: formatDateTime(record.occurredAt) }),
+          fields: (
+            [
+              [t("runtime.hostnameField"), record.hostname],
+              [t("runtime.instanceField"), record.instanceId.slice(0, 8)],
+              [t("runtime.versionField"), record.version],
+              [t("runtime.queueColumn"), record.queue],
+              [t("runtime.eventIdField"), record.eventId],
+              ...Object.entries(record.attributes ?? {}).sort(([a], [b]) => a.localeCompare(b)),
+            ] as [string, string | null | undefined][]
+          ).filter((field): field is [string, string] => Boolean(field[1])),
+          error: record.error ?? "",
+        })
+      }
+    />
   )
 }
 

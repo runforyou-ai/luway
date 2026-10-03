@@ -18,6 +18,15 @@ var errorTagKeys = []string{"operation", "action", "queue"}
 // errorGroupKeys 是参与错误归组的事件标签：同一入口方法或任务中类型链与数据库错误码相同的错误归为一组。
 var errorGroupKeys = []string{"operation", "action", "sqlstate"}
 
+// eventIDKey 是 context 中上报事件编号的键。
+type eventIDKey struct{}
+
+// EventID 返回上报处理器为当前日志记录生成的错误事件编号，未上报时为空。
+func EventID(ctx context.Context) string {
+	id, _ := ctx.Value(eventIDKey{}).(string)
+	return id
+}
+
 // ErrorReporter 把 Error 级别日志作为错误事件经 Sentry 协议上报给 control，上报开关关闭时丢弃。
 type ErrorReporter struct {
 	client  *sentry.Client
@@ -50,7 +59,7 @@ func (c *Client) NewErrorReporter(enabled func() bool) (*ErrorReporter, error) {
 	return &ErrorReporter{client: client, enabled: enabled}, nil
 }
 
-// Handler 返回 slog 处理器：日志交给 next 输出，Error 级别的日志同时上报，本地日志附带事件编号。
+// Handler 返回 slog 处理器：日志交给 next 输出，Error 级别的日志同时上报，本地日志附带事件编号，事件编号经 context 交给 next，可由 EventID 读取。
 func (r *ErrorReporter) Handler(next slog.Handler) slog.Handler {
 	return &errorHandler{next: next, reporter: r}
 }
@@ -143,6 +152,7 @@ func (h *errorHandler) Handle(ctx context.Context, record slog.Record) error {
 		if id := h.reporter.capture(record, values); id != nil {
 			record = record.Clone()
 			record.AddAttrs(slog.String("event_id", string(*id)))
+			ctx = context.WithValue(ctx, eventIDKey{}, string(*id))
 		}
 	}
 	if !h.next.Enabled(ctx, record.Level) {

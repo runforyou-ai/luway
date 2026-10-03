@@ -804,6 +804,11 @@ func (s *Service) ListPlatformFailedTasks(ctx context.Context, meta RequestMeta,
 	return WithNormalizedSlices(s.backend.ListPlatformFailedTasks(ctx, meta, input))
 }
 
+// ListPlatformServerErrors 返回近 7 天的服务端错误记录。
+func (s *Service) ListPlatformServerErrors(ctx context.Context, meta RequestMeta, input PlatformServerErrorListInput) (PlatformServerErrorList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformServerErrors(ctx, meta, input))
+}
+
 // GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
 func (s *Service) GetPlatformDiagnostics(ctx context.Context, meta RequestMeta) (PlatformDiagnostics, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformDiagnostics(ctx, meta))

@@ -12,6 +12,7 @@ import {
   GrantPlatformAdmin,
   ListPlatformAccounts,
   ListPlatformFailedTasks,
+  ListPlatformServerErrors,
   ListPlatformWorkspaceUsage,
   ListPlatformWorkspaces,
   ReactivatePlatformAccount,
@@ -30,6 +31,7 @@ import {
   WorkspaceStatus,
   type PlatformAccountListInput,
   type PlatformFailedTaskListInput,
+  type PlatformServerErrorListInput,
   type PlatformWorkspaceUsageListInput,
   type PlatformWorkspaceListInput,
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
@@ -39,6 +41,7 @@ const listPlatformAccountsBound = bind(ListPlatformAccounts)
 const listPlatformWorkspacesBound = bind(ListPlatformWorkspaces)
 const listPlatformWorkspaceUsageBound = bind(ListPlatformWorkspaceUsage)
 const listPlatformFailedTasksBound = bind(ListPlatformFailedTasks)
+const listPlatformServerErrorsBound = bind(ListPlatformServerErrors)
 
 /** 读取服务器标识、规模、活跃趋势、授权状态和平台能力。 */
 export const getPlatformOverview = bind(GetPlatformOverview)
@@ -137,4 +140,9 @@ export const getPlatformDiagnostics = bind(GetPlatformDiagnostics)
 /** 读取近 7 天内失败与等待重试的后台任务。 */
 export function listPlatformFailedTasks(query: Partial<PlatformFailedTaskListInput>, signal?: AbortSignal) {
   return listPlatformFailedTasksBound({ page: query.page ?? 1, pageSize: query.pageSize ?? 50 }, signal)
+}
+
+/** 读取近 7 天的服务端错误记录。 */
+export function listPlatformServerErrors(query: Partial<PlatformServerErrorListInput>, signal?: AbortSignal) {
+  return listPlatformServerErrorsBound({ page: query.page ?? 1, pageSize: query.pageSize ?? 50 }, signal)
 }

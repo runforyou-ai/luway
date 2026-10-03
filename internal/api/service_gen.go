@@ -177,6 +177,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/platform/usage/workspaces", s.listPlatformWorkspaceUsage)
 	router.GET("/platform/runtime", s.getPlatformRuntimeStatus)
 	router.GET("/platform/runtime/failed-tasks", s.listPlatformFailedTasks)
+	router.GET("/platform/runtime/server-errors", s.listPlatformServerErrors)
 	router.GET("/platform/diagnostics", s.getPlatformDiagnostics)
 	router.GET("/platform/workspaces/:workspaceID/credits", s.getPlatformWorkspaceCredits)
 	router.GET("/platform/workspaces/:workspaceID/credits/entries", s.listPlatformWorkspaceCreditEntries)
@@ -1620,6 +1621,16 @@ func (s *Service) listPlatformFailedTasks(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
+// listPlatformServerErrors 返回近 7 天的服务端错误记录。
+func (s *Service) listPlatformServerErrors(c *gin.Context) {
+	input, ok := bindPlatformServerErrorListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListPlatformServerErrors(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
 // getPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
 func (s *Service) getPlatformDiagnostics(c *gin.Context) {
 	output, err := s.application.GetPlatformDiagnostics(c.Request.Context(), requestMeta(c))
@@ -3049,6 +3060,22 @@ func bindPlatformFailedTaskListInputQuery(c *gin.Context) (appservice.PlatformFa
 		return appservice.PlatformFailedTaskListInput{}, false
 	}
 	return appservice.PlatformFailedTaskListInput{
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindPlatformServerErrorListInputQuery 从查询参数解析 appservice.PlatformServerErrorListInput。
+func bindPlatformServerErrorListInputQuery(c *gin.Context) (appservice.PlatformServerErrorListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.PlatformServerErrorListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.PlatformServerErrorListInput{}, false
+	}
+	return appservice.PlatformServerErrorListInput{
 		Page:     page,
 		PageSize: pageSize,
 	}, true

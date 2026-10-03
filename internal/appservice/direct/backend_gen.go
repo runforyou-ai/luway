@@ -1769,6 +1769,17 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 	return b.ops.ListPlatformFailedTasks(ctx, meta, account, input)
 }
 
+// ListPlatformServerErrors 返回近 7 天的服务端错误记录。
+func (b *Backend) ListPlatformServerErrors(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformServerErrorListInput) (_ appservice.PlatformServerErrorList, err error) {
+	defer settle(ctx, "ListPlatformServerErrors", &err, internalError(meta))
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformServerErrorList
+		return zero, err
+	}
+	return b.ops.ListPlatformServerErrors(ctx, meta, account, input)
+}
+
 // GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
 func (b *Backend) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformDiagnostics, err error) {
 	defer settle(ctx, "GetPlatformDiagnostics", &err, internalError(meta))

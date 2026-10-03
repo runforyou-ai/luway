@@ -91,23 +91,25 @@ function ResourceListMoreStatus({ more }: { more: PagedResourceMore }) {
   return null
 }
 
-/** 列表页主体：补齐上次已加载的页后恢复滚动位置，按加载状态渲染表格容器与滚动续载。 */
+/** 列表页主体：补齐上次已加载的页后恢复滚动位置，按加载状态渲染表格容器与滚动续载；scrollKey 是记录滚动位置的键，默认为当前路径与查询参数。 */
 export function ResourceListLayout({
   resources,
   errorMessage,
   more,
   frameClassName,
+  scrollKey,
   children,
 }: {
   resources: ResourceState | readonly ResourceState[]
   errorMessage: string
   more?: PagedResourceMore
   frameClassName?: string
+  scrollKey?: string
   children: ReactNode
 }) {
   const location = useLocation()
   const scroll = useListScrollRestore(
-    location.pathname + location.search,
+    scrollKey ?? location.pathname + location.search,
     resourceStatus(resources).status === "ready" && !more?.restoring,
   )
 

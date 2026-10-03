@@ -4771,6 +4771,40 @@ export interface PlatformServerDatabaseConfig {
 }
 
 /**
+ * PlatformServerError 定义一条服务端错误记录：InstanceID 为写入日志的服务端进程实例编号，Operation 为出错的业务入口方法，Action 与 Queue 为出错的后台任务及其队列，EventID 为上报 control 的错误事件编号，Attributes 为日志的其他属性。
+ */
+export interface PlatformServerError {
+    "id": string;
+    "occurredAt": string;
+    "instanceId": string;
+    "hostname": string;
+    "version": string;
+    "message": string;
+    "operation": string | null;
+    "action": string | null;
+    "queue": string | null;
+    "error": string | null;
+    "eventId": string | null;
+    "attributes": { [_ in string]?: string } | null;
+}
+
+/**
+ * PlatformServerErrorList 定义服务端错误分页结果。
+ */
+export interface PlatformServerErrorList {
+    "errors": PlatformServerError[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * PlatformServerErrorListInput 定义服务端错误列表的分页。
+ */
+export interface PlatformServerErrorListInput {
+    "page": number;
+    "pageSize": number;
+}
+
+/**
  * PlatformServerNATSConfig 定义去掉凭据的 NATS 地址与命名空间。
  */
 export interface PlatformServerNATSConfig {

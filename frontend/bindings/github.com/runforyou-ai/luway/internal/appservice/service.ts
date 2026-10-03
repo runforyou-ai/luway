@@ -1221,6 +1221,13 @@ export function ListPlatformFailedTasks(meta: $models.RequestMeta, input: $model
 }
 
 /**
+ * ListPlatformServerErrors 返回近 7 天的服务端错误记录。
+ */
+export function ListPlatformServerErrors(meta: $models.RequestMeta, input: $models.PlatformServerErrorListInput): $CancellablePromise<$models.PlatformServerErrorList> {
+    return $Call.ByID(3734181318, meta, input);
+}
+
+/**
  * ListPlatformWorkspaceCreditEntries 返回工作区的积分流水。
  */
 export function ListPlatformWorkspaceCreditEntries(meta: $models.RequestMeta, workspaceID: string, input: $models.CreditEntryListInput): $CancellablePromise<$models.CreditEntryList> {
