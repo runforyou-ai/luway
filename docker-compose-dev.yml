@@ -3,7 +3,6 @@ name: runforyou
 volumes:
   luway-postgres-data:
   luway-nats-data:
-  rustfs-data:
 
 services:
   postgres:
@@ -30,16 +29,3 @@ services:
       - "8222:8222"
     volumes:
       - luway-nats-data:/data/jetstream
-
-  rustfs:
-    container_name: runforyou-rustfs
-    image: rustfs/rustfs:1.0.0
-    environment:
-      RUSTFS_ACCESS_KEY: runforyou
-      RUSTFS_SECRET_KEY: runforyou
-      RUSTFS_CONSOLE_ENABLE: "true"
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - rustfs-data:/data
