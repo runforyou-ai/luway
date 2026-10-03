@@ -6,6 +6,7 @@ package native
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -51,10 +52,26 @@ func (s *Store) Close() error {
 	return s.db.Close()
 }
 
-// openSQLite 创建数据目录、打开 SQLite 连接并收紧数据库文件权限。
+// openSQLite 以 Unix 权限 0700 创建数据目录、0600 创建数据库文件，再打开 SQLite 连接；Windows 沿用数据目录的访问控制。
 func openSQLite(ctx context.Context, databasePath string) (*bun.DB, error) {
-	if err := os.MkdirAll(filepath.Dir(databasePath), 0o700); err != nil {
+	directory := filepath.Dir(databasePath)
+	if err := os.MkdirAll(directory, 0o700); err != nil {
 		return nil, fmt.Errorf("create SQLite data directory: %w", err)
+	}
+	if err := os.Chmod(directory, 0o700); err != nil {
+		return nil, fmt.Errorf("protect SQLite data directory: %w", err)
+	}
+	// 预先以 0600 创建数据库文件，SQLite 创建的 WAL 与共享内存文件沿用数据库文件权限。
+	file, err := os.OpenFile(databasePath, os.O_RDWR|os.O_CREATE, 0o600)
+	if err != nil {
+		return nil, fmt.Errorf("create SQLite database file: %w", err)
+	}
+	_ = file.Close()
+	// 已存在的数据库、WAL 与共享内存文件统一设为 0600。
+	for _, suffix := range []string{"", "-wal", "-shm"} {
+		if err := os.Chmod(databasePath+suffix, 0o600); err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return nil, fmt.Errorf("protect SQLite database file: %w", err)
+		}
 	}
 
 	// 拼接带连接参数的 SQLite 数据源地址。
@@ -73,10 +90,6 @@ func openSQLite(ctx context.Context, databasePath string) (*bun.DB, error) {
 	if err := db.PingContext(ctx); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("connect to SQLite: %w", err)
-	}
-	if err := os.Chmod(databasePath, 0o600); err != nil {
-		_ = db.Close()
-		return nil, fmt.Errorf("protect SQLite database file: %w", err)
 	}
 	return db, nil
 }
