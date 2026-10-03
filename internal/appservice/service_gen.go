@@ -674,19 +674,24 @@ func (s *Service) AcceptInvitation(ctx context.Context, meta RequestMeta, input 
 	return WithNormalizedSlices(s.backend.AcceptInvitation(ctx, meta, input))
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
 func (s *Service) GetDeploymentOverview(ctx context.Context, meta RequestMeta) (DeploymentOverview, error) {
 	return WithNormalizedSlices(s.backend.GetDeploymentOverview(ctx, meta))
 }
 
-// GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
 func (s *Service) GetDeploymentSettings(ctx context.Context, meta RequestMeta) (DeploymentSettings, error) {
 	return WithNormalizedSlices(s.backend.GetDeploymentSettings(ctx, meta))
 }
 
 // UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
-func (s *Service) UpdateDeploymentSettings(ctx context.Context, meta RequestMeta, input DeploymentSettings) (DeploymentSettings, error) {
+func (s *Service) UpdateDeploymentSettings(ctx context.Context, meta RequestMeta, input DeploymentPoliciesInput) (DeploymentSettings, error) {
 	return WithNormalizedSlices(s.backend.UpdateDeploymentSettings(ctx, meta, input))
+}
+
+// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (s *Service) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta RequestMeta, input DeploymentStatisticsTimeZoneInput) (DeploymentSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdateDeploymentStatisticsTimeZone(ctx, meta, input))
 }
 
 // ListDeploymentAccounts 返回部署内的账号。
@@ -714,9 +719,19 @@ func (s *Service) RevokeDeploymentAdmin(ctx context.Context, meta RequestMeta, a
 	return WithNormalizedSlices(s.backend.RevokeDeploymentAdmin(ctx, meta, accountID))
 }
 
-// ListDeploymentWorkspaces 返回部署内的全部工作区。
+// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
 func (s *Service) ListDeploymentWorkspaces(ctx context.Context, meta RequestMeta, input DeploymentWorkspaceListInput) (DeploymentWorkspaceList, error) {
 	return WithNormalizedSlices(s.backend.ListDeploymentWorkspaces(ctx, meta, input))
+}
+
+// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+func (s *Service) SuspendDeploymentWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (DeploymentWorkspace, error) {
+	return WithNormalizedSlices(s.backend.SuspendDeploymentWorkspace(ctx, meta, workspaceID))
+}
+
+// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+func (s *Service) ResumeDeploymentWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (DeploymentWorkspace, error) {
+	return WithNormalizedSlices(s.backend.ResumeDeploymentWorkspace(ctx, meta, workspaceID))
 }
 
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。

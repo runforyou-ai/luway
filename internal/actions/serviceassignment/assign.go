@@ -60,7 +60,7 @@ func EnqueueAssign(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueu
 	}
 	requests := make([]servertask.EnqueueRequest, len(inputs))
 	for index, input := range inputs {
-		requests[index] = servertask.EnqueueRequest{ActionName: AssignActionName, Payload: input, Options: servertask.EnqueueOptions{MaxAttempts: taskMaxAttempts}}
+		requests[index] = servertask.EnqueueRequest{ActionName: AssignActionName, Payload: input, Options: servertask.EnqueueOptions{OrganizationID: input.OrganizationID, MaxAttempts: taskMaxAttempts}}
 	}
 	if _, err := enqueuer.EnqueueManyIn(ctx, db, requests); err != nil {
 		return fmt.Errorf("enqueue service session assignment: %w", err)
@@ -70,7 +70,7 @@ func EnqueueAssign(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueu
 
 // EnqueueBackfill 在调用方事务中投递成员的补分配任务。
 func EnqueueBackfill(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, input BackfillInput) error {
-	if _, err := enqueuer.EnqueueIn(ctx, db, BackfillActionName, input, servertask.EnqueueOptions{MaxAttempts: taskMaxAttempts}); err != nil {
+	if _, err := enqueuer.EnqueueIn(ctx, db, BackfillActionName, input, servertask.EnqueueOptions{OrganizationID: input.OrganizationID, MaxAttempts: taskMaxAttempts}); err != nil {
 		return fmt.Errorf("enqueue service session backfill: %w", err)
 	}
 	return nil

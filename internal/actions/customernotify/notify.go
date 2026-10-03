@@ -15,6 +15,7 @@ import (
 	"uuid"
 
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -76,12 +77,13 @@ func NewWorker(db *bun.DB, enqueuer servertask.Enqueuer, sender Sender, publicUR
 	return &Worker{db: db, enqueuer: enqueuer, sender: sender, publicURL: strings.TrimRight(publicURL, "/")}
 }
 
-// Scan 为到达检查时间的客户会话投递通知任务，同一会话同时只有一个活动任务。
+// Scan 为正常状态工作区中到达检查时间的客户会话投递通知任务，同一会话同时只有一个活动任务。
 func (w *Worker) Scan(ctx context.Context, _ struct{}) error {
 	var rows []NotifyInput
 	if err := w.db.NewSelect().Model((*servermodels.ChannelConversation)(nil)).
 		Column("cc.organization_id", "cc.conversation_id").
 		Where("cc.contact_notify_due_at <= now()").
+		Where(identityaction.ActiveWorkspaceCondition("cc.organization_id")).
 		OrderExpr("cc.contact_notify_due_at ASC").
 		Limit(scanLimit).
 		Scan(ctx, &rows); err != nil {
@@ -89,7 +91,7 @@ func (w *Worker) Scan(ctx context.Context, _ struct{}) error {
 	}
 	for _, row := range rows {
 		if _, err := w.enqueuer.Enqueue(ctx, NotifyActionName, row, servertask.EnqueueOptions{
-			MaxAttempts: notifyMaxAttempts, IdempotencyKey: "customer-email-notify:" + row.ConversationID,
+			OrganizationID: row.OrganizationID, MaxAttempts: notifyMaxAttempts, IdempotencyKey: "customer-email-notify:" + row.ConversationID,
 		}); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()

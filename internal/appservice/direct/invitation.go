@@ -130,7 +130,7 @@ func (o *directOperations) AcceptInvitation(ctx context.Context, meta appservice
 		return appservice.Workspace{}, appservice.FailedError(meta, i18n.ErrorInvitationAcceptFailed)
 	}
 	slog.Info("账号已接受邀请", "account_id", account.Account.ID, "organization_id", workspace.ID)
-	return appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug}, nil
+	return appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug, Status: appservice.WorkspaceStatus(workspace.Status)}, nil
 }
 
 // invitationError 把邀请管理的 Action 错误转成本地化业务错误。

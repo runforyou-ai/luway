@@ -23,8 +23,9 @@ const (
 	QueueEvaluation = "evaluation"
 )
 
-// EnqueueOptions 定义一次服务端异步 Action 投递参数。
+// EnqueueOptions 定义一次服务端异步 Action 投递参数；OrganizationID 是任务所属工作区，部署级任务为空，工作区暂停期间所属任务挂起。
 type EnqueueOptions struct {
+	OrganizationID string
 	Queue          string
 	MaxAttempts    int
 	IdempotencyKey string

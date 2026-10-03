@@ -1,14 +1,15 @@
-/** 工作区选择页：列出账号已加入的工作区，进入其中之一或在允许时前往创建工作区；带返回地址进入时可返回原工作区页面。 */
+/** 工作区选择页：列出账号已加入的工作区，进入其中之一或在允许时前往创建工作区，已暂停的工作区只展示不可进入；带返回地址进入时可返回原工作区页面。 */
 import { useEffect, useState } from "react"
 import { ArrowLeftIcon, ChevronRightIcon, LayoutGridIcon, PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useSearchParams } from "react-router"
 
-import { listWorkspaces, loadAccount, logout } from "@/api"
+import { WorkspaceStatus, listWorkspaces, loadAccount, logout } from "@/api"
 import { CountBadge } from "@/components/count-badge"
 import { EntryLayout } from "@/components/entry-layout"
 import { PageLoading } from "@/components/page-loading"
 import { PageLoadError } from "@/components/page-load-error"
+import { StatusBadge } from "@/components/status-badge"
 import { resourceStatus } from "@/components/resource-content"
 import { Button } from "@/components/ui/button"
 import { resourceKeys } from "@/hooks/resource-keys"
@@ -144,32 +145,42 @@ export function WorkspaceListPage() {
       }
     >
       <ul className="divide-y overflow-hidden rounded-xl border bg-card">
-        {workspaces.data.items.map((workspace) => (
-          <li key={workspace.id}>
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors outline-none hover:bg-muted/60 focus-visible:bg-muted/60"
-              onClick={() => enterWorkspace(workspace.slug)}
-            >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
-                {workspace.name.slice(0, 1).toUpperCase()}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium">{workspace.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {host ? `${host}/#/w/${workspace.slug}` : workspace.slug}
+        {workspaces.data.items.map((workspace) => {
+          const suspended = workspace.status === WorkspaceStatus.WorkspaceStatusSuspended
+          return (
+            <li key={workspace.id}>
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors outline-none hover:bg-muted/60 focus-visible:bg-muted/60 disabled:pointer-events-none disabled:opacity-60"
+                disabled={suspended}
+                onClick={() => enterWorkspace(workspace.slug)}
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-sm font-semibold text-primary">
+                  {workspace.name.slice(0, 1).toUpperCase()}
                 </span>
-              </span>
-              {(unreadByWorkspace.get(workspace.id) ?? 0) > 0 ? (
-                <CountBadge
-                  count={unreadByWorkspace.get(workspace.id) ?? 0}
-                  label={t("workspaceUnread", { count: unreadByWorkspace.get(workspace.id) ?? 0 })}
-                />
-              ) : null}
-              <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
-            </button>
-          </li>
-        ))}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium">{workspace.name}</span>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    {host ? `${host}/#/w/${workspace.slug}` : workspace.slug}
+                  </span>
+                </span>
+                {suspended ? (
+                  <StatusBadge variant="muted">{t("workspaceSuspended")}</StatusBadge>
+                ) : (
+                  <>
+                    {(unreadByWorkspace.get(workspace.id) ?? 0) > 0 ? (
+                      <CountBadge
+                        count={unreadByWorkspace.get(workspace.id) ?? 0}
+                        label={t("workspaceUnread", { count: unreadByWorkspace.get(workspace.id) ?? 0 })}
+                      />
+                    ) : null}
+                    <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground" />
+                  </>
+                )}
+              </button>
+            </li>
+          )
+        })}
         {canCreate ? (
           <li>
             <button

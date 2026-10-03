@@ -1,9 +1,9 @@
-/** 工作区入口：按地址中的工作区标识确定请求目标工作区，账号不在该工作区时回到工作区列表。 */
+/** 工作区入口：按地址中的工作区标识确定请求目标工作区，账号不在该工作区或工作区已暂停时回到工作区列表。 */
 import { useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { useLocation } from "react-router"
 
-import { listWorkspaces } from "@/api"
+import { WorkspaceStatus, listWorkspaces } from "@/api"
 import { setRequestWorkspace } from "@/api/client"
 import { PageLoading } from "@/components/page-loading"
 import { PageLoadError } from "@/components/page-load-error"
@@ -16,11 +16,13 @@ import { navigateToHashPath, rememberWorkspacePath, rememberWorkspaceSlug } from
 export function WorkspaceGate({ slug, children }: { slug: string; children: ReactNode }) {
   const { t } = useTranslation(["account", "common"])
   const { data, error, retrying, refresh } = useResource(resourceKeys.workspaces(), (signal) => listWorkspaces(signal))
-  const workspace = data?.items.find((item) => item.slug === slug)
+  // 已暂停的工作区不能进入，也不出现在工作区切换中。
+  const enterable = useMemo(() => data?.items.filter((item) => item.status === WorkspaceStatus.WorkspaceStatusActive), [data])
+  const workspace = enterable?.find((item) => item.slug === slug)
   const [readyID, setReadyID] = useState("")
   const scope = useMemo(
-    () => (workspace && data ? { current: workspace, workspaces: data.items, canCreate: data.canCreate } : null),
-    [workspace, data],
+    () => (workspace && data && enterable ? { current: workspace, workspaces: enterable, canCreate: data.canCreate } : null),
+    [workspace, data, enterable],
   )
 
   // 工作区确定后先设置请求目标，再渲染发起请求的页面。

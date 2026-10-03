@@ -109,7 +109,7 @@ func (m *Manager) Resolve(ctx context.Context, identity *models.Identity, conver
 			return err
 		}
 		if resolution == domain.CustomerDeliveryRetry && m.enqueuer != nil {
-			if _, err := m.enqueuer.EnqueueIn(ctx, tx, SendActionName, Input{DeliveryID: delivery.ID}, servertask.EnqueueOptions{Queue: servertask.QueueDelivery, IdempotencyKey: "cdeliv-item:" + delivery.ID}); err != nil {
+			if _, err := m.enqueuer.EnqueueIn(ctx, tx, SendActionName, Input{DeliveryID: delivery.ID}, servertask.EnqueueOptions{OrganizationID: delivery.OrganizationID, Queue: servertask.QueueDelivery, IdempotencyKey: "cdeliv-item:" + delivery.ID}); err != nil {
 				return err
 			}
 		}

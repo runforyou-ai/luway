@@ -11,6 +11,7 @@ import (
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/customerdelivery"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	"github.com/runforyou-ai/luway/internal/actions/filemaintenance"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
@@ -118,6 +119,15 @@ func registerServerTasks(deps serverTaskDeps) error {
 	partitions := maintenanceSchedule(messagepartition.ScheduleKey, messagepartition.EnsureActionName, "@daily")
 	partitions.Payload, partitions.MaxAttempts = messagepartition.EnsureInput{}, 5
 	deps.tasks.RegisterSchedule(partitions)
+
+	// 运营数据每 10 分钟按部署统计时区重算昨天与今天的账号活跃明细和工作区按日指标。
+	aggregateStats := deploymentaction.NewAggregateStatsAction(db)
+	if err := registry.RegisterJSON(deploymentaction.AggregateStatsActionName, aggregateStats.Execute); err != nil {
+		return err
+	}
+	stats := maintenanceSchedule(deploymentaction.StatsScheduleKey, deploymentaction.AggregateStatsActionName, "@every 10m")
+	stats.Payload = deploymentaction.AggregateStatsInput{}
+	deps.tasks.RegisterSchedule(stats)
 
 	cleanup := maintenanceSchedule(filemaintenance.CleanupScheduleKey, filemaintenance.ScanExpiredActionName, "@hourly")
 	cleanup.Payload, cleanup.MaxAttempts = filemaintenance.ScanExpiredInput{}, 5

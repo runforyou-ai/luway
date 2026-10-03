@@ -14,6 +14,7 @@ type TaskRun struct {
 	bun.BaseModel `bun:"table:task_runs,alias:tr"`
 
 	ID             string          `bun:"id,pk"`
+	OrganizationID *string         `bun:"organization_id"`
 	ActionName     string          `bun:"action_name"`
 	QueueName      string          `bun:"queue_name"`
 	Payload        json.RawMessage `bun:"payload,type:jsonb"`

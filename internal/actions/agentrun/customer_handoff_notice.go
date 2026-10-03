@@ -41,7 +41,7 @@ type ReturnedHandoffInput struct {
 
 // enqueueReturnedHandoff 在调用方事务中投递转人工承接任务。
 func enqueueReturnedHandoff(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, input ReturnedHandoffInput) error {
-	if _, err := enqueuer.EnqueueIn(ctx, db, ReturnedHandoffActionName, input, servertask.EnqueueOptions{MaxAttempts: returnedHandoffMaxAttempts}); err != nil {
+	if _, err := enqueuer.EnqueueIn(ctx, db, ReturnedHandoffActionName, input, servertask.EnqueueOptions{OrganizationID: input.OrganizationID, MaxAttempts: returnedHandoffMaxAttempts}); err != nil {
 		return fmt.Errorf("enqueue returned service session handoff: %w", err)
 	}
 	return nil

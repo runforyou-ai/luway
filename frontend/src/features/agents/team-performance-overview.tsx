@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 import { ServiceIssueType, type ServiceIssueTypeId, type TeamPerformanceReport } from "@/api"
 
 import { useReportFormat } from "./report-format"
-import { EmptyNote, MeterList, ReportSection, StatTile } from "./report-parts"
+import { EmptyNote, MeterList, ReportSection, StatTile } from "@/components/report-parts"
 
 /** 显示概览指标，点击不满意与质检行进入对应类型的问题会话。 */
 export function TeamPerformanceOverview({

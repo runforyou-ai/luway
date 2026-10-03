@@ -57,14 +57,14 @@ func MarkClosed(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer,
 		return err
 	}
 	if settings.DecisionModelID != nil || settings.SummaryModelID != nil {
-		if err := enqueue(ctx, db, enqueuer, ExtractContactProfileActionName, ExtractContactProfileInput{
+		if err := enqueue(ctx, db, enqueuer, session.OrganizationID, ExtractContactProfileActionName, ExtractContactProfileInput{
 			OrganizationID: session.OrganizationID, ServiceSessionID: session.ID, ClosedAt: *session.ClosedAt,
 		}); err != nil {
 			return err
 		}
 	}
 	if settings.DecisionModelID != nil {
-		if err := enqueue(ctx, db, enqueuer, ReviewActionName, ReviewInput{
+		if err := enqueue(ctx, db, enqueuer, session.OrganizationID, ReviewActionName, ReviewInput{
 			OrganizationID: session.OrganizationID, ServiceSessionID: session.ID, ClosedAt: *session.ClosedAt,
 		}); err != nil {
 			return err
@@ -93,7 +93,7 @@ func MarkClosed(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer,
 	if status == nil {
 		return nil
 	}
-	return enqueue(ctx, db, enqueuer, SummarizeActionName, SummarizeInput{
+	return enqueue(ctx, db, enqueuer, session.OrganizationID, SummarizeActionName, SummarizeInput{
 		OrganizationID: session.OrganizationID, ServiceSessionID: session.ID, ClosedAt: *session.ClosedAt,
 	})
 }

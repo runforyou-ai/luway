@@ -28,7 +28,7 @@ func NewAuthorizeWebsiteVisitorQuery(db *bun.DB) *AuthorizeWebsiteVisitorQuery {
 	return &AuthorizeWebsiteVisitorQuery{db: db}
 }
 
-// Execute 返回当前访客的渠道身份受众；渠道停用或不存在返回 ErrChannelNotFound，尚未建立身份返回 ErrConversationNotFound，读操作不创建联系人。
+// Execute 返回当前访客的渠道身份受众；渠道停用、所属工作区已暂停或渠道不存在返回 ErrChannelNotFound，尚未建立身份返回 ErrConversationNotFound，读操作不创建联系人。
 func (q *AuthorizeWebsiteVisitorQuery) Execute(ctx context.Context, channelID, externalID string) (WebsiteVisitorAudience, error) {
 	fields := map[string]conversationaction.ValidationCode{}
 	if !common.ValidUUID(channelID) {

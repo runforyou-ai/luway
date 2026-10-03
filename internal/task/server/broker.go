@@ -275,6 +275,22 @@ func (r *Runtime) processMessage(ctx context.Context, workerID string, message j
 		return
 	}
 	if run == nil {
+		// 所属工作区暂停时挂起任务并确认消息，工作区恢复时重新投递。
+		paused, pauseErr := r.repository.pauseRun(ctx, envelope.RunID)
+		if pauseErr != nil {
+			if ctx.Err() == nil {
+				slog.Warn("挂起异步任务失败", "run_id", envelope.RunID, "error", pauseErr)
+				_ = message.NakWithDelay(taskNakRetryDelay)
+			}
+			return
+		}
+		if paused {
+			slog.Info("所属工作区已暂停，挂起异步任务", "run_id", envelope.RunID)
+			ackCtx, cancel := context.WithTimeout(context.Background(), taskBrokerOperationTimeout)
+			_ = message.DoubleAck(ackCtx)
+			cancel()
+			return
+		}
 		r.handleUnclaimedMessage(ctx, envelope.RunID, message)
 		return
 	}
@@ -473,7 +489,7 @@ func (r *Runtime) handleUnclaimedMessage(ctx context.Context, runID string, mess
 		}
 	}
 	switch run.Status {
-	case statusSucceeded, statusFailed:
+	case statusSucceeded, statusFailed, statusPaused:
 		ackCtx, cancel := context.WithTimeout(context.Background(), taskBrokerOperationTimeout)
 		_ = message.DoubleAck(ackCtx)
 		cancel()

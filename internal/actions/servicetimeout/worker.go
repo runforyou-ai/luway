@@ -85,7 +85,7 @@ func agentIdleArgs() []any {
 		domain.AgentExecutionScopeServiceSession, domain.AgentRunStatusQueued, domain.AgentRunStatusRunning}
 }
 
-// Scan 跨企业读取到达提醒、回收、AI 跟进或 AI 关单时长的开放周期，按周期投递单条处理任务；队列提醒只选取有可提醒客服的周期，同一周期在途时不重复投递。
+// Scan 跨正常状态的企业读取到达提醒、回收、AI 跟进或 AI 关单时长的开放周期，按周期投递单条处理任务；队列提醒只选取有可提醒客服的周期，同一周期在途时不重复投递。
 func (w *Worker) Scan(ctx context.Context, _ struct{}) error {
 	start := "GREATEST(ss.awaiting_reply_since, ss.assignee_assigned_at)"
 	var rows []ProcessInput
@@ -117,6 +117,7 @@ func (w *Worker) Scan(ctx context.Context, _ struct{}) error {
 						})
 				})
 		}).
+		Where(identityaction.ActiveWorkspaceCondition("ss.organization_id")).
 		OrderExpr("COALESCE(ss.awaiting_reply_since, ss.last_message_at) ASC, ss.id ASC").
 		Limit(scanLimit).
 		Scan(ctx, &rows)
@@ -124,7 +125,7 @@ func (w *Worker) Scan(ctx context.Context, _ struct{}) error {
 		return fmt.Errorf("scan service session timeouts: %w", err)
 	}
 	for _, row := range rows {
-		if _, err := w.enqueuer.Enqueue(ctx, ProcessActionName, row, servertask.EnqueueOptions{MaxAttempts: 3, IdempotencyKey: "service-timeout:" + row.ServiceSessionID}); err != nil {
+		if _, err := w.enqueuer.Enqueue(ctx, ProcessActionName, row, servertask.EnqueueOptions{OrganizationID: row.OrganizationID, MaxAttempts: 3, IdempotencyKey: "service-timeout:" + row.ServiceSessionID}); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}

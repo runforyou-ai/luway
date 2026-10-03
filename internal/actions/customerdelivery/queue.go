@@ -85,7 +85,7 @@ func Enqueue(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, ro
 		return err
 	}
 	if enqueuer != nil {
-		_, err := enqueuer.EnqueueIn(ctx, db, SendActionName, Input{DeliveryID: delivery.ID}, servertask.EnqueueOptions{Queue: servertask.QueueDelivery, IdempotencyKey: "cdeliv-item:" + delivery.ID})
+		_, err := enqueuer.EnqueueIn(ctx, db, SendActionName, Input{DeliveryID: delivery.ID}, servertask.EnqueueOptions{OrganizationID: delivery.OrganizationID, Queue: servertask.QueueDelivery, IdempotencyKey: "cdeliv-item:" + delivery.ID})
 		return err
 	}
 	return nil

@@ -44,7 +44,7 @@ func MarkHandedOff(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueu
 	if settings.SummaryModelID == nil {
 		return nil
 	}
-	return enqueue(ctx, db, enqueuer, HandoffSummaryActionName, HandoffSummaryInput{
+	return enqueue(ctx, db, enqueuer, session.OrganizationID, HandoffSummaryActionName, HandoffSummaryInput{
 		OrganizationID: session.OrganizationID, ServiceSessionID: session.ID, MessageID: messageID,
 	})
 }
