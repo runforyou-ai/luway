@@ -40,7 +40,9 @@ const deployment = {
     notAllowed: "不允许",
     licenseId: "授权编号",
     licenseCode: "授权码",
-    newLicenseCode: "新授权码",
+    replace: "更换授权码",
+    replaceTitle: "更换授权码",
+    replaceDescription: "续期或变更授权后，粘贴新签发的授权码替换当前授权。",
     licenseCodeHelp: "粘贴为本部署实例标识签发的授权码。",
     validation: {
       licenseCodeRequired: "请输入授权码",

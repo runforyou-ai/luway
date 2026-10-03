@@ -40,7 +40,9 @@ const deployment = {
     notAllowed: "Not allowed",
     licenseId: "License ID",
     licenseCode: "License code",
-    newLicenseCode: "New license code",
+    replace: "Replace license code",
+    replaceTitle: "Replace license code",
+    replaceDescription: "After a renewal or change, paste the newly issued license code to replace the current license.",
     licenseCodeHelp: "Paste the license code issued for this deployment's instance ID.",
     validation: {
       licenseCodeRequired: "Enter a license code",
