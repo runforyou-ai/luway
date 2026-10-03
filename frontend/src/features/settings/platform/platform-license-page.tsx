@@ -31,6 +31,7 @@ import {
   type LicenseActivationFormValues,
   type OnlineActivationFormValues,
 } from "@/features/settings/platform/platform-license-schema"
+import { licenseRemainingDays, renewalReminderDays } from "@/features/settings/platform/license-reminder"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useCopyFeedback } from "@/hooks/use-copy-feedback"
 import { useDateTime } from "@/hooks/use-date-time"
@@ -40,9 +41,6 @@ import { applyBrand } from "@/lib/brand"
 import { apiErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
 import { zodResolver } from "@/lib/zod-resolver"
-
-/** 授权到期前开始提醒续期的天数。 */
-const renewalReminderDays = 30
 
 /** 浏览器定时器允许的最大延迟毫秒数。 */
 const maxTimerDelay = 2_147_483_647
@@ -97,7 +95,7 @@ function useStatusHelp(license: License) {
     return t("license.statusHelp.none", { count: license.capabilities.workspaceLimit })
   }
   if (license.status === LicenseStatus.LicenseStatusExpired) return t("license.statusHelp.expired")
-  const remainingDays = Math.max(1, Math.ceil((new Date(license.expiresAt ?? 0).getTime() - Date.now()) / 86_400_000))
+  const remainingDays = licenseRemainingDays(license)
   return remainingDays <= renewalReminderDays ? t("license.statusHelp.expiring", { count: remainingDays }) : null
 }
 
@@ -135,12 +133,13 @@ function LicenseDetails({ license }: { license: License }) {
     if (!licensed) setReplacing(false)
   }, [licensed])
 
-  /** 向授权服务同步授权，按签发时间是否变化提示已更新或已是最新。 */
+  /** 向授权服务同步授权：授权服务中查不到本服务器授权时提示联系服务商，其余按签发时间是否变化提示已更新或已是最新。 */
   async function sync() {
     setSyncing(true)
     try {
       const synced = await syncLicense()
-      toast.success(synced.issuedAt === license.issuedAt ? t("license.syncUnchanged") : t("license.syncUpdated"))
+      if (synced.controlMissingAt) toast.warning(t("license.controlMissing"))
+      else toast.success(synced.issuedAt === license.issuedAt ? t("license.syncUnchanged") : t("license.syncUpdated"))
       licenseChanged()
     } catch (error) {
       if (recoverSession(error, navigate)) return
@@ -158,6 +157,9 @@ function LicenseDetails({ license }: { license: License }) {
           <FieldLabel htmlFor="license-status">{t("license.status")}</FieldLabel>
           <Input id="license-status" value={statusLabels[license.status] ?? ""} readOnly className="text-muted-foreground" />
           {statusHelp ? <FieldDescription>{statusHelp}</FieldDescription> : null}
+          {licensed && license.controlMissingAt ? (
+            <FieldDescription className="text-destructive">{t("license.controlMissing")}</FieldDescription>
+          ) : null}
         </Field>
         {licensed ? (
           <>

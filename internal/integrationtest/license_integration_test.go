@@ -305,8 +305,8 @@ func TestLicenseOnline(t *testing.T) {
 	}
 	fake.mu.Unlock()
 
-	// control 不再有授权或只返回已到期的授权码时，手动同步保留本地有效授权。
-	for _, code := range []string{"", signTestLicense(t, privateKey, serverID, now.AddDate(-2, 0, 0), now.Add(-time.Hour), map[string]any{})} {
+	// control 不再有授权或只返回已到期的授权码时，手动同步保留本地有效授权；查不到授权时记录起始时间，再次查到授权码时清空。
+	for _, code := range []string{"", "", signTestLicense(t, privateKey, serverID, now.AddDate(-2, 0, 0), now.Add(-time.Hour), map[string]any{})} {
 		fake.mu.Lock()
 		fake.licenseCode = code
 		fake.mu.Unlock()
@@ -314,6 +314,57 @@ func TestLicenseOnline(t *testing.T) {
 		if err != nil || local.Status != appservice.LicenseStatusActive || !local.ExpiresAt.Equal(*synced.ExpiresAt) {
 			t.Fatalf("local = %#v, err = %v", local, err)
 		}
+		if (code == "") != (local.ControlMissingAt != nil) {
+			t.Fatalf("control missing at = %v for code %q", local.ControlMissingAt, code)
+		}
+	}
+
+	// 后台同步查不到授权时保留首次查不到的时间。
+	fake.mu.Lock()
+	fake.licenseCode = ""
+	fake.mu.Unlock()
+	if err := online.SyncTask(ctx, platformaction.SyncLicenseInput{}); err != nil {
+		t.Fatalf("sync missing: %v", err)
+	}
+	missing, err := service.GetLicense(ctx, adminMeta)
+	if err != nil || missing.ControlMissingAt == nil {
+		t.Fatalf("missing = %#v, err = %v", missing, err)
+	}
+	if err := online.SyncTask(ctx, platformaction.SyncLicenseInput{}); err != nil {
+		t.Fatalf("sync missing again: %v", err)
+	}
+	stillMissing, err := service.GetLicense(ctx, adminMeta)
+	if err != nil || stillMissing.ControlMissingAt == nil || !stillMissing.ControlMissingAt.Equal(*missing.ControlMissingAt) {
+		t.Fatalf("still missing = %#v, err = %v", stillMissing, err)
+	}
+
+	// 离线替换授权码时清空查不到授权的记录。
+	replaced, err := service.ActivateLicense(ctx, adminMeta, appservice.ActivateLicenseInput{
+		LicenseCode: signTestLicense(t, privateKey, serverID, now.Add(time.Minute), now.AddDate(2, 0, 0), map[string]any{license.CapabilityWorkspaceLimit: 0}),
+	})
+	if err != nil || replaced.ControlMissingAt != nil {
+		t.Fatalf("replaced = %#v, err = %v", replaced, err)
+	}
+
+	// 在线激活取得不晚于当前授权的授权码时同样清空查不到授权的记录。
+	if err := online.SyncTask(ctx, platformaction.SyncLicenseInput{}); err != nil {
+		t.Fatalf("sync missing before activation: %v", err)
+	}
+	reactivated, err := service.ActivateLicenseOnline(ctx, adminMeta, appservice.ActivateLicenseOnlineInput{ActivationCode: "GOOD-GOOD-GOOD-GOOD"})
+	if err != nil || reactivated.ControlMissingAt != nil || !reactivated.ExpiresAt.Equal(*replaced.ExpiresAt) {
+		t.Fatalf("reactivated = %#v, err = %v", reactivated, err)
+	}
+
+	// 本地授权已到期且 control 查不到授权时，手动同步返回本地授权并带上查不到授权的记录。
+	if _, err := db.NewUpdate().Table("licenses").Set("expires_at = now() - interval '1 hour'").Where("server_id = ?", serverID).Exec(ctx); err != nil {
+		t.Fatal(err)
+	}
+	fake.mu.Lock()
+	fake.licenseCode = ""
+	fake.mu.Unlock()
+	expiredMissing, err := service.SyncLicense(ctx, adminMeta)
+	if err != nil || expiredMissing.Status != appservice.LicenseStatusExpired || expiredMissing.ControlMissingAt == nil {
+		t.Fatalf("expired missing = %#v, err = %v", expiredMissing, err)
 	}
 
 	// 关闭上报后不再采集运行指标。
