@@ -61,7 +61,7 @@ func newPlatformModelOps(db *bun.DB, registry *modelprovider.Registry) platformM
 func (o *directOperations) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformAIProviderList, error) {
 	providers, err := o.listPlatformAIProviders.Execute(ctx)
 	if err != nil {
-		return appservice.PlatformAIProviderList{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIProviderListFailed, account)
+		return appservice.PlatformAIProviderList{}, platformModelError(meta, err, i18n.ErrorPlatformAIProviderListFailed)
 	}
 	output := make([]appservice.PlatformAIProviderSummary, 0, len(providers))
 	for _, provider := range providers {
@@ -78,7 +78,7 @@ func (o *directOperations) ListPlatformAIProviders(ctx context.Context, meta app
 func (o *directOperations) GetPlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, providerID string) (appservice.PlatformAIProvider, error) {
 	provider, err := o.getPlatformAIProvider.Execute(ctx, providerID)
 	if err != nil {
-		return appservice.PlatformAIProvider{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIProviderReadFailed, account, "provider_id", providerID)
+		return appservice.PlatformAIProvider{}, platformModelError(meta, err, i18n.ErrorPlatformAIProviderReadFailed)
 	}
 	return platformAIProviderFromAction(*provider), nil
 }
@@ -90,7 +90,7 @@ func (o *directOperations) ListPlatformAIProviderModels(ctx context.Context, met
 		return appservice.AIProviderModelList{}, appservice.NotFoundError(meta, i18n.ErrorAIProviderNotFound)
 	}
 	if err != nil {
-		return appservice.AIProviderModelList{}, o.aiProviderConnectionError(ctx, meta, err, "")
+		return appservice.AIProviderModelList{}, o.aiProviderConnectionError(meta, err, "")
 	}
 	return appservice.AIProviderModelList{Models: aiProviderModelsFromAction(models)}, nil
 }
@@ -102,7 +102,7 @@ func (o *directOperations) CreatePlatformAIProvider(ctx context.Context, meta ap
 		APIKey: input.APIKey, APIURL: input.APIURL,
 	})
 	if err != nil {
-		return appservice.PlatformAIProvider{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIProviderCreateFailed, account)
+		return appservice.PlatformAIProvider{}, platformModelError(meta, err, i18n.ErrorPlatformAIProviderCreateFailed)
 	}
 	slog.Info("平台供应商创建成功", "account_id", account.Account.ID, "provider_id", provider.ID, "brand", provider.Brand)
 	return platformAIProviderFromAction(*provider), nil
@@ -114,7 +114,7 @@ func (o *directOperations) UpdatePlatformAIProvider(ctx context.Context, meta ap
 		Name: input.Name, CredentialType: domain.AIProviderCredentialType(input.CredentialType), APIKey: input.APIKey, APIURL: input.APIURL,
 	})
 	if err != nil {
-		return appservice.PlatformAIProvider{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIProviderUpdateFailed, account, "provider_id", providerID)
+		return appservice.PlatformAIProvider{}, platformModelError(meta, err, i18n.ErrorPlatformAIProviderUpdateFailed)
 	}
 	slog.Info("平台供应商保存成功", "account_id", account.Account.ID, "provider_id", provider.ID)
 	return platformAIProviderFromAction(*provider), nil
@@ -123,7 +123,7 @@ func (o *directOperations) UpdatePlatformAIProvider(ctx context.Context, meta ap
 // DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
 func (o *directOperations) DeletePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, providerID string) error {
 	if err := o.deletePlatformAIProvider.Execute(ctx, account, providerID); err != nil {
-		return platformModelError(ctx, meta, err, i18n.ErrorPlatformAIProviderDeleteFailed, account, "provider_id", providerID)
+		return platformModelError(meta, err, i18n.ErrorPlatformAIProviderDeleteFailed)
 	}
 	slog.Info("平台供应商删除成功", "account_id", account.Account.ID, "provider_id", providerID)
 	return nil
@@ -133,7 +133,7 @@ func (o *directOperations) DeletePlatformAIProvider(ctx context.Context, meta ap
 func (o *directOperations) ListPlatformAIModels(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformAIModelList, error) {
 	models, err := o.listPlatformAIModels.Execute(ctx)
 	if err != nil {
-		return appservice.PlatformAIModelList{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIModelListFailed, account)
+		return appservice.PlatformAIModelList{}, platformModelError(meta, err, i18n.ErrorPlatformAIModelListFailed)
 	}
 	output := make([]appservice.PlatformAIModel, 0, len(models))
 	for _, model := range models {
@@ -146,7 +146,7 @@ func (o *directOperations) ListPlatformAIModels(ctx context.Context, meta appser
 func (o *directOperations) GetPlatformAIModel(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, modelID string) (appservice.PlatformAIModel, error) {
 	model, err := o.getPlatformAIModel.Execute(ctx, modelID)
 	if err != nil {
-		return appservice.PlatformAIModel{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIModelReadFailed, account, "model_id", modelID)
+		return appservice.PlatformAIModel{}, platformModelError(meta, err, i18n.ErrorPlatformAIModelReadFailed)
 	}
 	return platformAIModelFromAction(*model), nil
 }
@@ -155,7 +155,7 @@ func (o *directOperations) GetPlatformAIModel(ctx context.Context, meta appservi
 func (o *directOperations) CreatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
 	model, err := o.createPlatformAIModel.Execute(ctx, account, platformAIModelInput(input))
 	if err != nil {
-		return appservice.PlatformAIModel{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIModelCreateFailed, account)
+		return appservice.PlatformAIModel{}, platformModelError(meta, err, i18n.ErrorPlatformAIModelCreateFailed)
 	}
 	slog.Info("平台模型创建成功", "account_id", account.Account.ID, "model_id", model.ID, "route_count", len(model.Routes))
 	return platformAIModelFromAction(*model), nil
@@ -165,7 +165,7 @@ func (o *directOperations) CreatePlatformAIModel(ctx context.Context, meta appse
 func (o *directOperations) UpdatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, modelID string, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
 	model, err := o.updatePlatformAIModel.Execute(ctx, account, modelID, platformAIModelInput(input))
 	if err != nil {
-		return appservice.PlatformAIModel{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIModelUpdateFailed, account, "model_id", modelID)
+		return appservice.PlatformAIModel{}, platformModelError(meta, err, i18n.ErrorPlatformAIModelUpdateFailed)
 	}
 	slog.Info("平台模型保存成功", "account_id", account.Account.ID, "model_id", model.ID, "route_count", len(model.Routes))
 	return platformAIModelFromAction(*model), nil
@@ -174,7 +174,7 @@ func (o *directOperations) UpdatePlatformAIModel(ctx context.Context, meta appse
 // DeletePlatformAIModel 删除没有被工作区引用的平台模型。
 func (o *directOperations) DeletePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, modelID string) error {
 	if err := o.deletePlatformAIModel.Execute(ctx, account, modelID); err != nil {
-		return platformModelError(ctx, meta, err, i18n.ErrorPlatformAIModelDeleteFailed, account, "model_id", modelID)
+		return platformModelError(meta, err, i18n.ErrorPlatformAIModelDeleteFailed)
 	}
 	slog.Info("平台模型删除成功", "account_id", account.Account.ID, "model_id", modelID)
 	return nil
@@ -186,7 +186,7 @@ func (o *directOperations) ListPlatformAIModelCalls(ctx context.Context, meta ap
 		ModelID: input.ModelID, Status: domain.AIModelCallStatus(input.Status), Query: input.Query, Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
-		return appservice.PlatformAIModelCallList{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIModelCallListFailed, account)
+		return appservice.PlatformAIModelCallList{}, platformModelError(meta, err, i18n.ErrorPlatformAIModelCallListFailed)
 	}
 	calls := make([]appservice.PlatformAIModelCall, 0, len(list.Calls))
 	for _, call := range list.Calls {
@@ -202,7 +202,7 @@ func (o *directOperations) GetPlatformAIModelCall(ctx context.Context, meta apps
 		return appservice.PlatformAIModelCallDetail{}, appservice.NotFoundError(meta, i18n.ErrorPlatformAIModelCallNotFound)
 	}
 	if err != nil {
-		return appservice.PlatformAIModelCallDetail{}, platformModelError(ctx, meta, err, i18n.ErrorPlatformAIModelCallReadFailed, account, "call_id", callID)
+		return appservice.PlatformAIModelCallDetail{}, platformModelError(meta, err, i18n.ErrorPlatformAIModelCallReadFailed)
 	}
 	attempts := make([]appservice.PlatformAIModelCallAttempt, 0, len(detail.Attempts))
 	for _, attempt := range detail.Attempts {
@@ -236,8 +236,8 @@ var platformModelFieldCodes = func() map[common.FieldCode]i18n.Key {
 }()
 
 // platformModelError 转换平台模型服务操作错误。
-func platformModelError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, account *servermodels.AccountIdentity, attributes ...any) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func platformModelError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
@@ -255,9 +255,7 @@ func platformModelError(ctx context.Context, meta appservice.RequestMeta, err er
 	case errors.Is(err, platformmodelaction.ErrInUse):
 		return appservice.InvalidError(meta, i18n.ErrorPlatformAIModelInUse, nil)
 	}
-	logAttributes := []any{"account_id", account.Account.ID, "failure", failureKey, "error", err}
-	slog.Warn("平台模型服务操作失败", append(logAttributes, attributes...)...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // platformAIProviderFromAction 转换平台供应商详情。

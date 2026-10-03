@@ -1418,7 +1418,7 @@ func (s *Service) getPlatformOverview(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// getPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (s *Service) getPlatformSettings(c *gin.Context) {
 	output, err := s.application.GetPlatformSettings(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1454,7 +1454,7 @@ func (s *Service) updatePlatformDailyCreditGrant(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// updatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (s *Service) updatePlatformTelemetry(c *gin.Context) {
 	var input appservice.PlatformTelemetryInput
 	if !bindJSON(c, &input) {

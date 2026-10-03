@@ -435,7 +435,7 @@ type Backend interface {
 	// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 	//appservice:route GET /platform/overview auth=admin
 	GetPlatformOverview(context.Context, RequestMeta) (PlatformOverview, error)
-	// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+	// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 	//appservice:route GET /platform/settings auth=admin
 	GetPlatformSettings(context.Context, RequestMeta) (PlatformSettings, error)
 	// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
@@ -447,7 +447,7 @@ type Backend interface {
 	// UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
 	//appservice:route PUT /platform/settings/daily-credit-grant auth=admin
 	UpdatePlatformDailyCreditGrant(context.Context, RequestMeta, PlatformDailyCreditGrantInput) (PlatformSettings, error)
-	// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+	// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 	//appservice:route PUT /platform/settings/telemetry auth=admin
 	UpdatePlatformTelemetry(context.Context, RequestMeta, PlatformTelemetryInput) (PlatformSettings, error)
 	// ListPlatformAccounts 返回平台内的账号。

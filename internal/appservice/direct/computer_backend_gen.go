@@ -11,7 +11,8 @@ import (
 )
 
 // ReportComputerCapabilities 上报本电脑的执行能力、执行器版本与同时执行的操作上限。
-func (b *Backend) ReportComputerCapabilities(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerCapabilitiesInput) error {
+func (b *Backend) ReportComputerCapabilities(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerCapabilitiesInput) (err error) {
+	defer settle(ctx, "ReportComputerCapabilities", &err, internalError(meta))
 	computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
 		return err
@@ -20,7 +21,8 @@ func (b *Backend) ReportComputerCapabilities(ctx context.Context, meta appservic
 }
 
 // ClaimComputerOperations 领取派发给本电脑的待执行操作。
-func (b *Backend) ClaimComputerOperations(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerClaimInput) (appservice.ComputerOperationList, error) {
+func (b *Backend) ClaimComputerOperations(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerClaimInput) (_ appservice.ComputerOperationList, err error) {
+	defer settle(ctx, "ClaimComputerOperations", &err, internalError(meta))
 	computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
 		var zero appservice.ComputerOperationList
@@ -30,7 +32,8 @@ func (b *Backend) ClaimComputerOperations(ctx context.Context, meta appservice.R
 }
 
 // CompleteComputerOperation 上报本电脑执行一次操作的结果。
-func (b *Backend) CompleteComputerOperation(ctx context.Context, meta appservice.RequestMeta, operationID string, input appservice.ComputerOutcomeInput) error {
+func (b *Backend) CompleteComputerOperation(ctx context.Context, meta appservice.RequestMeta, operationID string, input appservice.ComputerOutcomeInput) (err error) {
+	defer settle(ctx, "CompleteComputerOperation", &err, internalError(meta))
 	computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
 		return err

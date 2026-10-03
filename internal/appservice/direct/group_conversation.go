@@ -8,7 +8,6 @@ import (
 	"errors"
 
 	"log/slog"
-	"net/http"
 
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
@@ -25,7 +24,7 @@ func (o *directOperations) CreateGroupConversation(ctx context.Context, meta app
 		MemberIdentityIDs: input.MemberIdentityIDs,
 	})
 	if err != nil {
-		return appservice.InboxConversation{}, groupConversationError(ctx, meta, err, identity.Organization.ID, "", "create")
+		return appservice.InboxConversation{}, groupConversationError(meta, err, "create")
 	}
 	slog.Info("企业内部群聊已创建",
 		"organization_id", identity.Organization.ID,
@@ -54,12 +53,11 @@ func (o *directOperations) CreateGroupConversation(ctx context.Context, meta app
 func (o *directOperations) GetGroupConversation(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.GroupConversation, error) {
 	record, err := o.getGroupConversation.Execute(ctx, identity, conversationID)
 	if err != nil {
-		return appservice.GroupConversation{}, groupConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "get")
+		return appservice.GroupConversation{}, groupConversationError(meta, err, "get")
 	}
 	result, err := o.groupConversationFromAction(ctx, identity, record)
 	if err != nil {
-		slog.Warn("读取群聊图片或成员头像失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "error", err)
-		return appservice.GroupConversation{}, appservice.FailedError(meta, i18n.ErrorGroupConversationReadFailed)
+		return appservice.GroupConversation{}, appservice.FailedError(meta, i18n.ErrorGroupConversationReadFailed, err)
 	}
 	return result, nil
 }
@@ -70,47 +68,47 @@ func (o *directOperations) UpdateGroupConversation(ctx context.Context, meta app
 		ConversationID: conversationID, Title: input.Title, Description: input.Description, ImageFileID: input.ImageFileID,
 	})
 	if err != nil {
-		return appservice.GroupConversation{}, groupConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "update")
+		return appservice.GroupConversation{}, groupConversationError(meta, err, "update")
 	}
 	slog.Info("企业群聊资料已修改", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "operator_identity_id", identity.OrganizationIdentity.ID)
-	return o.groupConversationMutationResult(ctx, meta, identity, record, conversationID)
+	return o.groupConversationMutationResult(ctx, meta, identity, record)
 }
 
 // AddGroupConversationMembers 批量增加群聊成员。
 func (o *directOperations) AddGroupConversationMembers(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string, input appservice.GroupConversationMembersInput) (appservice.GroupConversation, error) {
 	record, err := o.addGroupConversationMembers.Execute(ctx, identity, groupchataction.GroupConversationMembersInput{ConversationID: conversationID, MemberIdentityIDs: input.MemberIdentityIDs})
 	if err != nil {
-		return appservice.GroupConversation{}, groupConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "add_members")
+		return appservice.GroupConversation{}, groupConversationError(meta, err, "add_members")
 	}
 	slog.Info("企业群聊成员已增加", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "operator_identity_id", identity.OrganizationIdentity.ID, "added_count", len(input.MemberIdentityIDs))
-	return o.groupConversationMutationResult(ctx, meta, identity, record, conversationID)
+	return o.groupConversationMutationResult(ctx, meta, identity, record)
 }
 
 // RemoveGroupConversationMember 移除单个群聊成员。
 func (o *directOperations) RemoveGroupConversationMember(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string, input appservice.GroupConversationMemberInput) (appservice.GroupConversation, error) {
 	record, err := o.removeGroupConversationMember.Execute(ctx, identity, groupchataction.GroupConversationMemberInput{ConversationID: conversationID, MemberIdentityID: input.MemberIdentityID})
 	if err != nil {
-		return appservice.GroupConversation{}, groupConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "remove_member")
+		return appservice.GroupConversation{}, groupConversationError(meta, err, "remove_member")
 	}
 	slog.Info("企业群聊成员已移除", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "operator_identity_id", identity.OrganizationIdentity.ID, "member_identity_id", input.MemberIdentityID)
-	return o.groupConversationMutationResult(ctx, meta, identity, record, conversationID)
+	return o.groupConversationMutationResult(ctx, meta, identity, record)
 }
 
 // TransferGroupConversationOwner 转让群主。
 func (o *directOperations) TransferGroupConversationOwner(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string, input appservice.GroupConversationOwnerInput) (appservice.GroupConversation, error) {
 	record, err := o.transferGroupConversationOwner.Execute(ctx, identity, groupchataction.GroupConversationOwnerInput{ConversationID: conversationID, OwnerIdentityID: input.OwnerIdentityID})
 	if err != nil {
-		return appservice.GroupConversation{}, groupConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "transfer_owner")
+		return appservice.GroupConversation{}, groupConversationError(meta, err, "transfer_owner")
 	}
 	slog.Info("企业群聊群主已转让", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "operator_identity_id", identity.OrganizationIdentity.ID, "owner_identity_id", input.OwnerIdentityID)
-	return o.groupConversationMutationResult(ctx, meta, identity, record, conversationID)
+	return o.groupConversationMutationResult(ctx, meta, identity, record)
 }
 
 // LeaveGroupConversation 退出普通成员参与的群聊。
 func (o *directOperations) LeaveGroupConversation(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) error {
 	err := o.leaveGroupConversation.Execute(ctx, identity, conversationID)
 	if err != nil {
-		return groupConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "leave")
+		return groupConversationError(meta, err, "leave")
 	}
 	slog.Info("企业群聊退出操作已完成", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "operator_identity_id", identity.OrganizationIdentity.ID)
 	return nil
@@ -120,18 +118,17 @@ func (o *directOperations) LeaveGroupConversation(ctx context.Context, meta apps
 func (o *directOperations) DissolveGroupConversation(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.GroupConversation, error) {
 	record, err := o.dissolveGroupConversation.Execute(ctx, identity, conversationID)
 	if err != nil {
-		return appservice.GroupConversation{}, groupConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "dissolve")
+		return appservice.GroupConversation{}, groupConversationError(meta, err, "dissolve")
 	}
 	slog.Info("企业群聊解散操作已完成", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "operator_identity_id", identity.OrganizationIdentity.ID)
-	return o.groupConversationMutationResult(ctx, meta, identity, record, conversationID)
+	return o.groupConversationMutationResult(ctx, meta, identity, record)
 }
 
 // groupConversationMutationResult 转换群聊管理命令结果。
-func (o *directOperations) groupConversationMutationResult(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, record groupchataction.GroupConversation, conversationID string) (appservice.GroupConversation, error) {
+func (o *directOperations) groupConversationMutationResult(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, record groupchataction.GroupConversation) (appservice.GroupConversation, error) {
 	result, err := o.groupConversationFromAction(ctx, identity, record)
 	if err != nil {
-		slog.Warn("读取群聊管理结果图片失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "error", err)
-		return appservice.GroupConversation{}, appservice.FailedError(meta, i18n.ErrorGroupConversationReadFailed)
+		return appservice.GroupConversation{}, appservice.FailedError(meta, i18n.ErrorGroupConversationReadFailed, err)
 	}
 	return result, nil
 }
@@ -174,7 +171,7 @@ func (o *directOperations) SendGroupTextMessage(ctx context.Context, meta appser
 		ReplyToMessageID: input.ReplyToMessageID, MentionSubjectIDs: input.MentionSubjectIDs, MentionAll: input.MentionAll,
 	})
 	if err != nil {
-		return appservice.ConversationMessage{}, groupConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "send")
+		return appservice.ConversationMessage{}, groupConversationError(meta, err, "send")
 	}
 	slog.Info("企业内部群聊文本消息已保存",
 		"organization_id", identity.Organization.ID,
@@ -186,8 +183,8 @@ func (o *directOperations) SendGroupTextMessage(ctx context.Context, meta appser
 }
 
 // groupConversationError 转换企业群聊命令错误。
-func groupConversationError(ctx context.Context, meta appservice.RequestMeta, err error, organizationID, conversationID, operation string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func groupConversationError(meta appservice.RequestMeta, err error, operation string) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, conversationaction.ErrGroupMemberNotFound) {
@@ -197,7 +194,7 @@ func groupConversationError(ctx context.Context, meta appservice.RequestMeta, er
 		return appservice.NotFoundError(meta, i18n.ErrorFileNotFound)
 	}
 	if errors.Is(err, conversationaction.ErrGroupOwnerRequired) {
-		return appservice.FailedError(meta, i18n.ErrorGroupOwnerRequired).WithStatus(http.StatusForbidden)
+		return appservice.ForbiddenError(meta, i18n.ErrorGroupOwnerRequired)
 	}
 	if errors.Is(err, conversationaction.ErrConversationNotFound) {
 		return appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
@@ -226,17 +223,16 @@ func groupConversationError(ctx context.Context, meta appservice.RequestMeta, er
 		}
 		return appservice.ConflictError(meta, messageKey, conflictError.Reason)
 	}
-	slog.Warn("企业群聊命令失败", "organization_id", organizationID, "conversation_id", conversationID, "operation", operation, "error", err)
 	switch operation {
 	case "create":
-		return appservice.FailedError(meta, i18n.ErrorGroupConversationCreateFailed)
+		return appservice.FailedError(meta, i18n.ErrorGroupConversationCreateFailed, err)
 	case "get":
-		return appservice.FailedError(meta, i18n.ErrorGroupConversationReadFailed)
+		return appservice.FailedError(meta, i18n.ErrorGroupConversationReadFailed, err)
 	case "leave":
-		return appservice.FailedError(meta, i18n.ErrorGroupConversationLeaveFailed)
+		return appservice.FailedError(meta, i18n.ErrorGroupConversationLeaveFailed, err)
 	case "send":
-		return appservice.FailedError(meta, i18n.ErrorGroupMessageSendFailed)
+		return appservice.FailedError(meta, i18n.ErrorGroupMessageSendFailed, err)
 	default:
-		return appservice.FailedError(meta, i18n.ErrorGroupConversationUpdateFailed)
+		return appservice.FailedError(meta, i18n.ErrorGroupConversationUpdateFailed, err)
 	}
 }

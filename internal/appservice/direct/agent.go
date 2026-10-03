@@ -58,16 +58,7 @@ func (o *directOperations) CreateAgent(ctx context.Context, meta appservice.Requ
 		Execution: agentExecutionInput(input.Execution),
 	})
 	if err != nil {
-		return appservice.Agent{}, o.agentError(ctx, meta, err, i18n.ErrorAgentCreateFailed, identity.Organization.ID, "", map[common.FieldCode]i18n.Key{
-			agentaction.ValidationDisplayNameRequired:      i18n.FieldAgentNameRequired,
-			agentaction.ValidationDisplayNameInvalid:       i18n.FieldDisplayNameInvalid,
-			agentaction.ValidationTeamInvalid:              i18n.FieldTeamInvalid,
-			agentaction.ValidationServiceAudienceInvalid:   i18n.FieldServiceAudienceInvalid,
-			agentaction.ValidationExecutionInvalid:         i18n.FieldAgentExecutionInvalid,
-			agentaction.ValidationKnowledgeBaseInvalid:     i18n.FieldAgentKnowledgeBaseInvalid,
-			agentaction.ValidationModelInvalid:             i18n.FieldChatModelInvalid,
-			agentaction.ValidationSystemInstructionTooLong: i18n.FieldAgentSystemInstructionTooLong,
-		})
+		return appservice.Agent{}, o.agentError(meta, err, i18n.ErrorAgentCreateFailed, map[common.FieldCode]i18n.Key{agentaction.ValidationDisplayNameRequired: i18n.FieldAgentNameRequired, agentaction.ValidationDisplayNameInvalid: i18n.FieldDisplayNameInvalid, agentaction.ValidationTeamInvalid: i18n.FieldTeamInvalid, agentaction.ValidationServiceAudienceInvalid: i18n.FieldServiceAudienceInvalid, agentaction.ValidationExecutionInvalid: i18n.FieldAgentExecutionInvalid, agentaction.ValidationKnowledgeBaseInvalid: i18n.FieldAgentKnowledgeBaseInvalid, agentaction.ValidationModelInvalid: i18n.FieldChatModelInvalid, agentaction.ValidationSystemInstructionTooLong: i18n.FieldAgentSystemInstructionTooLong})
 	}
 	slog.Info("AI 员工创建成功",
 		"organization_id", identity.Organization.ID,
@@ -85,7 +76,7 @@ func (o *directOperations) CreateAgent(ctx context.Context, meta appservice.Requ
 func (o *directOperations) ListAgentMCPServerOptions(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.AgentMCPServerOptionList, error) {
 	options, err := o.listAgentMCPServerOptions.Execute(ctx, identity)
 	if err != nil {
-		return appservice.AgentMCPServerOptionList{}, o.agentError(ctx, meta, err, i18n.ErrorMCPServerListFailed, identity.Organization.ID, "", nil)
+		return appservice.AgentMCPServerOptionList{}, o.agentError(meta, err, i18n.ErrorMCPServerListFailed, nil)
 	}
 	output := make([]appservice.AgentMCPServerOption, 0, len(options))
 	for _, option := range options {
@@ -103,7 +94,7 @@ func (o *directOperations) ListAgents(ctx context.Context, meta appservice.Reque
 		return appservice.AgentList{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 	}
 	if err != nil {
-		return appservice.AgentList{}, o.agentError(ctx, meta, err, i18n.ErrorAgentListFailed, identity.Organization.ID, "", nil)
+		return appservice.AgentList{}, o.agentError(meta, err, i18n.ErrorAgentListFailed, nil)
 	}
 	avatarFileIDs := make([]*string, 0, len(output.Agents))
 	for _, agent := range output.Agents {
@@ -111,7 +102,7 @@ func (o *directOperations) ListAgents(ctx context.Context, meta appservice.Reque
 	}
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, avatarFileIDs...)
 	if err != nil {
-		return appservice.AgentList{}, o.agentError(ctx, meta, err, i18n.ErrorAgentListFailed, identity.Organization.ID, "", nil)
+		return appservice.AgentList{}, o.agentError(meta, err, i18n.ErrorAgentListFailed, nil)
 	}
 	now := time.Now()
 	agents := make([]appservice.AgentListItem, 0, len(output.Agents))
@@ -145,7 +136,7 @@ func (o *directOperations) ListAgents(ctx context.Context, meta appservice.Reque
 func (o *directOperations) GetAgent(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string) (appservice.Agent, error) {
 	agent, err := o.getAgent.Execute(ctx, identity, agentID)
 	if err != nil {
-		return appservice.Agent{}, o.agentError(ctx, meta, err, i18n.ErrorAgentReadFailed, identity.Organization.ID, agentID, nil)
+		return appservice.Agent{}, o.agentError(meta, err, i18n.ErrorAgentReadFailed, nil)
 	}
 	return o.agentWithAvatar(ctx, meta, identity, *agent, i18n.ErrorAgentReadFailed)
 }
@@ -158,16 +149,7 @@ func (o *directOperations) UpdateAgent(ctx context.Context, meta appservice.Requ
 		WorkStatus: domain.WorkStatus(input.WorkStatus), AvatarFileID: input.AvatarFileID,
 	})
 	if err != nil {
-		return appservice.Agent{}, o.agentError(ctx, meta, err, i18n.ErrorAgentUpdateFailed, identity.Organization.ID, agentID, map[common.FieldCode]i18n.Key{
-			agentaction.ValidationDisplayNameRequired:    i18n.FieldAgentNameRequired,
-			agentaction.ValidationDisplayNameInvalid:     i18n.FieldDisplayNameInvalid,
-			agentaction.ValidationTeamInvalid:            i18n.FieldTeamInvalid,
-			agentaction.ValidationServiceAudienceInvalid: i18n.FieldServiceAudienceInvalid,
-			agentaction.ValidationHandoffTeamInvalid:     i18n.FieldTeamInvalid,
-			agentaction.ValidationResponsibleInvalid:     i18n.FieldAgentResponsibleInvalid,
-			agentaction.ValidationWorkStatusInvalid:      i18n.FieldWorkStatusInvalid,
-			agentaction.ValidationWorkStatusUnavailable:  i18n.FieldAgentWorkStatusUnavailable,
-		})
+		return appservice.Agent{}, o.agentError(meta, err, i18n.ErrorAgentUpdateFailed, map[common.FieldCode]i18n.Key{agentaction.ValidationDisplayNameRequired: i18n.FieldAgentNameRequired, agentaction.ValidationDisplayNameInvalid: i18n.FieldDisplayNameInvalid, agentaction.ValidationTeamInvalid: i18n.FieldTeamInvalid, agentaction.ValidationServiceAudienceInvalid: i18n.FieldServiceAudienceInvalid, agentaction.ValidationHandoffTeamInvalid: i18n.FieldTeamInvalid, agentaction.ValidationResponsibleInvalid: i18n.FieldAgentResponsibleInvalid, agentaction.ValidationWorkStatusInvalid: i18n.FieldWorkStatusInvalid, agentaction.ValidationWorkStatusUnavailable: i18n.FieldAgentWorkStatusUnavailable})
 	}
 	slog.Info("AI 员工已保存", "organization_id", identity.Organization.ID, "identity_id", agent.IdentityID, "agent_id", agentID, "work_status", agent.WorkStatus)
 	return o.agentWithAvatar(ctx, meta, identity, *agent, i18n.ErrorAgentUpdateFailed)
@@ -180,13 +162,7 @@ func (o *directOperations) UpdateAgentExecution(ctx context.Context, meta appser
 		MCPServerIDs:   input.MCPServerIDs,
 	})
 	if err != nil {
-		return appservice.Agent{}, o.agentError(ctx, meta, err, i18n.ErrorAgentExecutionUpdateFailed, identity.Organization.ID, agentID, map[common.FieldCode]i18n.Key{
-			agentaction.ValidationMCPServerInvalid:         i18n.FieldAgentMCPServerInvalid,
-			agentaction.ValidationExecutionInvalid:         i18n.FieldAgentExecutionInvalid,
-			agentaction.ValidationKnowledgeBaseInvalid:     i18n.FieldAgentKnowledgeBaseInvalid,
-			agentaction.ValidationModelInvalid:             i18n.FieldChatModelInvalid,
-			agentaction.ValidationSystemInstructionTooLong: i18n.FieldAgentSystemInstructionTooLong,
-		})
+		return appservice.Agent{}, o.agentError(meta, err, i18n.ErrorAgentExecutionUpdateFailed, map[common.FieldCode]i18n.Key{agentaction.ValidationMCPServerInvalid: i18n.FieldAgentMCPServerInvalid, agentaction.ValidationExecutionInvalid: i18n.FieldAgentExecutionInvalid, agentaction.ValidationKnowledgeBaseInvalid: i18n.FieldAgentKnowledgeBaseInvalid, agentaction.ValidationModelInvalid: i18n.FieldChatModelInvalid, agentaction.ValidationSystemInstructionTooLong: i18n.FieldAgentSystemInstructionTooLong})
 	}
 	slog.Info("AI 员工执行配置已保存",
 		"organization_id", identity.Organization.ID,
@@ -215,9 +191,7 @@ func (o *directOperations) ReactivateAgent(ctx context.Context, meta appservice.
 func (o *directOperations) changeAgentStatus(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string, status domain.IdentityStatus) (appservice.Agent, error) {
 	agent, err := o.updateAgentStatus.Execute(ctx, identity, agentID, status)
 	if err != nil {
-		return appservice.Agent{}, o.agentError(ctx, meta, err, i18n.ErrorAgentStatusUpdateFailed, identity.Organization.ID, agentID, map[common.FieldCode]i18n.Key{
-			agentaction.ValidationStatusInvalid: i18n.FieldUserStatusInvalid,
-		})
+		return appservice.Agent{}, o.agentError(meta, err, i18n.ErrorAgentStatusUpdateFailed, map[common.FieldCode]i18n.Key{agentaction.ValidationStatusInvalid: i18n.FieldUserStatusInvalid})
 	}
 	slog.Info("AI 员工账号状态已修改", "organization_id", identity.Organization.ID, "identity_id", agent.IdentityID, "agent_id", agentID, "status", status)
 	return o.agentWithAvatar(ctx, meta, identity, *agent, i18n.ErrorAgentStatusUpdateFailed)
@@ -227,7 +201,7 @@ func (o *directOperations) changeAgentStatus(ctx context.Context, meta appservic
 func (o *directOperations) agentWithAvatar(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agent agentaction.Agent, failureKey i18n.Key) (appservice.Agent, error) {
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, agent.AvatarFileID)
 	if err != nil {
-		return appservice.Agent{}, o.agentError(ctx, meta, err, failureKey, identity.Organization.ID, agent.ID, nil)
+		return appservice.Agent{}, o.agentError(meta, err, failureKey, nil)
 	}
 	output := agentFromAction(agent, identity.Organization.Name)
 	output.AvatarURL = optionalFileURL(avatarURLs, agent.AvatarFileID)
@@ -288,9 +262,9 @@ func agentExecutionInput(input appservice.AgentExecutionInput) agentaction.Execu
 	return agentaction.ExecutionInput{Mode: domain.AgentExecutionMode(input.Mode), Managed: managed}
 }
 
-// agentError 转换 AI 员工领域错误并记录未处理故障。
-func (o *directOperations) agentError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID, agentID string, fieldKeys map[common.FieldCode]i18n.Key) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+// agentError 转换 AI 员工领域错误。
+func (o *directOperations) agentError(meta appservice.RequestMeta, err error, failureKey i18n.Key, fieldKeys map[common.FieldCode]i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
@@ -302,10 +276,5 @@ func (o *directOperations) agentError(ctx context.Context, meta appservice.Reque
 	if errors.Is(err, fileaction.ErrLinkedImageNotFound) {
 		return appservice.NotFoundError(meta, i18n.ErrorFileNotFound)
 	}
-	attributes := []any{"organization_id", organizationID, "failure", failureKey, "error", err}
-	if agentID != "" {
-		attributes = append(attributes, "agent_id", agentID)
-	}
-	slog.Warn("AI 员工操作失败", attributes...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }

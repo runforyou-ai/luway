@@ -100,7 +100,7 @@ type PlatformDailyActivity struct {
 	NewWorkspaces    int    `json:"newWorkspaces"`
 }
 
-// PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 type PlatformSettings struct {
 	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy"`
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
@@ -115,7 +115,7 @@ type PlatformPoliciesInput struct {
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
 }
 
-// PlatformTelemetryInput 定义运行指标上报开关的修改值。
+// PlatformTelemetryInput 定义运行指标与错误上报开关的修改值。
 type PlatformTelemetryInput struct {
 	TelemetryEnabled bool `json:"telemetryEnabled"`
 }

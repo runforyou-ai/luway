@@ -673,29 +673,29 @@ func productData(acceptLanguage string, data map[string]any) map[string]any {
 	return merged
 }
 
-// Localize 根据语言偏好返回本地化文案和最终匹配的语言；词条缺失或本地化失败时记录错误并回退返回键本身。
+// Localize 根据语言偏好返回本地化文案和最终匹配的语言；词条缺失或本地化失败时记录警告并回退返回键本身。
 func Localize(acceptLanguage string, key Key) (string, string) {
 	localizer := goi18n.NewLocalizer(bundle, acceptLanguage)
 	message, tag, err := localizer.LocalizeWithTag(&goi18n.LocalizeConfig{MessageID: string(key), TemplateData: productData(acceptLanguage, nil)})
 	if err != nil {
-		slog.Error("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
+		slog.Warn("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
 		return string(key), tag.String()
 	}
 	return message, tag.String()
 }
 
-// LocalizeTemplate 根据语言偏好用模板数据渲染本地化文案；词条缺失或本地化失败时记录错误并回退返回键本身。
+// LocalizeTemplate 根据语言偏好用模板数据渲染本地化文案；词条缺失或本地化失败时记录警告并回退返回键本身。
 func LocalizeTemplate(acceptLanguage string, key Key, data map[string]any) string {
 	localizer := goi18n.NewLocalizer(bundle, acceptLanguage)
 	message, err := localizer.Localize(&goi18n.LocalizeConfig{MessageID: string(key), TemplateData: productData(acceptLanguage, data)})
 	if err != nil {
-		slog.Error("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
+		slog.Warn("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
 		return string(key)
 	}
 	return message
 }
 
-// LocalizeMap 将一组文案键翻译为对应文案；词条缺失或本地化失败时记录错误并回退返回键本身。
+// LocalizeMap 将一组文案键翻译为对应文案；词条缺失或本地化失败时记录警告并回退返回键本身。
 func LocalizeMap[K comparable](acceptLanguage string, keys map[K]Key) map[K]string {
 	if len(keys) == 0 {
 		return nil
@@ -706,7 +706,7 @@ func LocalizeMap[K comparable](acceptLanguage string, keys map[K]Key) map[K]stri
 	for name, key := range keys {
 		message, err := localizer.Localize(&goi18n.LocalizeConfig{MessageID: string(key), TemplateData: data})
 		if err != nil {
-			slog.Error("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
+			slog.Warn("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
 			message = string(key)
 		}
 		messages[name] = message

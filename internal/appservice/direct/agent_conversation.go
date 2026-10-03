@@ -21,17 +21,13 @@ func (o *directOperations) StopAgentReply(ctx context.Context, meta appservice.R
 	if err == nil {
 		return appservice.AgentRunStatus(status), nil
 	}
-	if ctx.Err() != nil {
-		return "", ctx.Err()
-	}
 	if errors.Is(err, identityaction.ErrInvalid) {
 		return "", appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
 	if errors.Is(err, conversationaction.ErrConversationNotFound) {
 		return "", appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
 	}
-	slog.Warn("停止 AI 回复失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "agent_run_id", runID, "error", err)
-	return "", appservice.FailedError(meta, i18n.ErrorAgentReplyStopFailed)
+	return "", appservice.FailedError(meta, i18n.ErrorAgentReplyStopFailed, err)
 }
 
 // StopGroupAgentReply 停止群聊中指定 AI 员工的回复。
@@ -40,24 +36,20 @@ func (o *directOperations) StopGroupAgentReply(ctx context.Context, meta appserv
 	if err == nil {
 		return appservice.AgentRunStatus(status), nil
 	}
-	if ctx.Err() != nil {
-		return "", ctx.Err()
-	}
 	if errors.Is(err, identityaction.ErrInvalid) {
 		return "", appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
 	if errors.Is(err, conversationaction.ErrConversationNotFound) {
 		return "", appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
 	}
-	slog.Warn("停止群内 AI 回复失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "agent_run_id", runID, "error", err)
-	return "", appservice.FailedError(meta, i18n.ErrorAgentReplyStopFailed)
+	return "", appservice.FailedError(meta, i18n.ErrorAgentReplyStopFailed, err)
 }
 
 // SendFirstAgentTextMessage 保存 AI 聊天首条消息并确认草稿对应的会话。
 func (o *directOperations) SendFirstAgentTextMessage(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.FirstAgentTextMessageInput) (appservice.FirstAgentTextMessageResult, error) {
 	result, err := o.sendFirstAgentTextMessage.Execute(ctx, identity, directchataction.FirstAgentTextMessageInput{ConversationID: input.ConversationID, AgentIdentityID: input.AgentIdentityID, ClientMessageID: input.ClientMessageID, Body: input.Body})
 	if err != nil {
-		return appservice.FirstAgentTextMessageResult{}, individualConversationError(ctx, meta, err, identity.Organization.ID, input.ConversationID, "start_agent")
+		return appservice.FirstAgentTextMessageResult{}, individualConversationError(meta, err, "start_agent")
 	}
 	slog.Info("AI 聊天首条消息已保存", "organization_id", identity.Organization.ID, "conversation_id", result.Conversation.ID, "message_id", result.Message.ID, "agent_identity_id", input.AgentIdentityID)
 	avatarURLs, err := o.conversationAvatarURLs(ctx, identity, []conversationaction.ConversationMessage{result.Message}, result.Conversation.Agent.AgentAvatarFileID)
@@ -75,7 +67,7 @@ func (o *directOperations) SendFirstAgentTextMessage(ctx context.Context, meta a
 func (o *directOperations) SendAgentTextMessage(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string, input appservice.AgentTextMessageInput) (appservice.ConversationMessage, error) {
 	message, err := o.sendAgentTextMessage.Execute(ctx, identity, directchataction.InternalTextMessageInput{ConversationID: conversationID, ClientMessageID: input.ClientMessageID, Body: input.Body, ReplyToMessageID: input.ReplyToMessageID})
 	if err != nil {
-		return appservice.ConversationMessage{}, individualConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "send_agent")
+		return appservice.ConversationMessage{}, individualConversationError(meta, err, "send_agent")
 	}
 	slog.Info("AI 聊天成员消息已保存", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "message_id", message.ID)
 	return o.conversationMessageWithAvatar(ctx, identity, message), nil

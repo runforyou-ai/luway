@@ -701,6 +701,7 @@
   "visitor_error.send_failed": "消息发送失败，请重试。",
   "visitor_error.upload_failed": "文件上传失败，请重试。",
   "visitor_error.rate_failed": "评价提交失败，请重试。",
+  "visitor_error.internal": "服务暂时不可用，请稍后重试。",
   "invitation_email.subject": "{{.Inviter}} 邀请你加入 {{.Workspace}}",
   "invitation_email.body": "{{.Inviter}} 邀请你加入{{.Product}}工作区「{{.Workspace}}」。点击下方按钮，登录或注册后即可加入。",
   "invitation_email.action": "接受邀请",

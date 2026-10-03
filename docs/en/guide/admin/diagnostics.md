@@ -47,6 +47,13 @@ This section is being written.
 
 ## Reporting settings
 
-By default, the server reports runtime metrics to the licensing service every minute: the number of accounts, workspaces, and members, and active accounts and active workspaces in the last 7 days. Only these counts are sent. Messages, customer data, and other business content are never included.
+The **Report runtime metrics and errors** switch on the **Platform overview** page controls whether this platform reports runtime data to the licensing service. It is on by default. A change takes effect immediately on the current server instance and within a minute on other instances.
 
-Platform administrators can turn off **Report runtime metrics** on the **Platform overview** page. The server still syncs its license with the licensing service once a day.
+When it is on, the following is reported:
+
+- Runtime metrics: every minute, the number of accounts, workspaces, and members, plus active accounts and active workspaces over the last 7 days;
+- Errors: when the server fails to handle a request, hits an unexpected exception, or a background task still fails on its last retry, the name of the failed operation or task, the error types, the database error code, the stack trace for exceptions, the server version, and the runtime environment.
+
+The original error message is written only to the server's local log and is never reported. The `event_id` on that log line matches the reported error event, so you can use it to find the full error message in the log. Message content, customer data, file content, access tokens, passwords, keys, and the server host name are never included.
+
+When reporting is off, the server still syncs its license with the licensing service once a day.

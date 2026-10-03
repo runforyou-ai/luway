@@ -115,7 +115,7 @@ func (d *Desktop) UpdateLocalToolchain(ctx context.Context, meta appservice.Requ
 		toolchain.FailureVerify:   i18n.ErrorLocalToolchainVerify,
 		toolchain.FailureInstall:  i18n.ErrorLocalToolchainInstall,
 	}[toolchain.FailureOf(err)]
-	return appservice.LocalToolchainUpdate{}, appservice.FailedError(meta, key)
+	return appservice.LocalToolchainUpdate{}, appservice.FailedError(meta, key, err)
 }
 
 // UninstallLocalToolchain 删除运行环境的全部文件与下载缓存，重新安装前不再自动安装。
@@ -128,7 +128,7 @@ func (d *Desktop) UninstallLocalToolchain(_ context.Context, meta appservice.Req
 		return appservice.ConflictError(meta, i18n.ErrorLocalToolchainBusy, "toolchain_busy")
 	}
 	slog.Warn("卸载运行环境失败", "error", err)
-	return appservice.FailedError(meta, i18n.ErrorLocalToolchainUninstall)
+	return appservice.FailedError(meta, i18n.ErrorLocalToolchainUninstall, err)
 }
 
 // InstallLocalToolchain 清除卸载记录并在后台重新安装运行环境。
@@ -160,7 +160,7 @@ func (d *Desktop) AddLocalMCPServer(ctx context.Context, meta appservice.Request
 	}
 	// 试启动失败时在本地化说明后附上原因与服务的错误输出。
 	if err := executor.ProbeMCPServer(ctx, server, environment, d.folderRoot); err != nil {
-		failure := appservice.FailedError(meta, i18n.ErrorLocalMCPServerStartFailed)
+		failure := appservice.FailedError(meta, i18n.ErrorLocalMCPServerStartFailed, err)
 		failure.Message += "\n" + err.Error()
 		return failure
 	}
@@ -183,7 +183,7 @@ func (d *Desktop) RemoveLocalMCPServer(_ context.Context, meta appservice.Reques
 func (d *Desktop) InstallLocalSkill(ctx context.Context, meta appservice.RequestMeta, input appservice.LocalSkillInstallInput) error {
 	// 安装失败时在本地化说明后附上原因。
 	if _, err := d.skills.Install(ctx, strings.TrimSpace(input.Source), strings.TrimSpace(input.Name)); err != nil {
-		failure := appservice.FailedError(meta, i18n.ErrorLocalSkillInstallFailed)
+		failure := appservice.FailedError(meta, i18n.ErrorLocalSkillInstallFailed, err)
 		failure.Message += "\n" + err.Error()
 		return failure
 	}
