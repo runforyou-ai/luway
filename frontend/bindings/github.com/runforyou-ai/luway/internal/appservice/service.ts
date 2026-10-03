@@ -269,6 +269,20 @@ export function CreatePersonalAgent(meta: $models.RequestMeta, input: $models.Cr
 }
 
 /**
+ * CreatePlatformAIModel 创建对全部工作区可用的平台模型。
+ */
+export function CreatePlatformAIModel(meta: $models.RequestMeta, input: $models.PlatformAIModelInput): $CancellablePromise<$models.PlatformAIModel> {
+    return $Call.ByID(2461638809, meta, input);
+}
+
+/**
+ * CreatePlatformAIProvider 创建平台供应商。
+ */
+export function CreatePlatformAIProvider(meta: $models.RequestMeta, input: $models.PlatformAIProviderInput): $CancellablePromise<$models.PlatformAIProvider> {
+    return $Call.ByID(2551674969, meta, input);
+}
+
+/**
  * CreateRole 创建自定义角色。
  */
 export function CreateRole(meta: $models.RequestMeta, input: $models.RoleInput): $CancellablePromise<$models.Role> {
@@ -406,6 +420,20 @@ export function DeleteKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseI
  */
 export function DeleteMCPServer(meta: $models.RequestMeta, mcpServerID: string): $CancellablePromise<void> {
     return $Call.ByID(4252262845, meta, mcpServerID);
+}
+
+/**
+ * DeletePlatformAIModel 删除没有被工作区引用的平台模型。
+ */
+export function DeletePlatformAIModel(meta: $models.RequestMeta, modelID: string): $CancellablePromise<void> {
+    return $Call.ByID(3286523956, meta, modelID);
+}
+
+/**
+ * DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
+ */
+export function DeletePlatformAIProvider(meta: $models.RequestMeta, providerID: string): $CancellablePromise<void> {
+    return $Call.ByID(746247814, meta, providerID);
 }
 
 /**
@@ -679,6 +707,27 @@ export function GetMessageChannel(meta: $models.RequestMeta, channelID: string):
  */
 export function GetPersonalAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.PersonalAgentDetail> {
     return $Call.ByID(2947776232, meta, agentID);
+}
+
+/**
+ * GetPlatformAIModel 返回平台模型详情。
+ */
+export function GetPlatformAIModel(meta: $models.RequestMeta, modelID: string): $CancellablePromise<$models.PlatformAIModel> {
+    return $Call.ByID(2188595423, meta, modelID);
+}
+
+/**
+ * GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
+ */
+export function GetPlatformAIModelCall(meta: $models.RequestMeta, callID: string): $CancellablePromise<$models.PlatformAIModelCallDetail> {
+    return $Call.ByID(250192015, meta, callID);
+}
+
+/**
+ * GetPlatformAIProvider 返回平台供应商详情。
+ */
+export function GetPlatformAIProvider(meta: $models.RequestMeta, providerID: string): $CancellablePromise<$models.PlatformAIProvider> {
+    return $Call.ByID(2894097023, meta, providerID);
 }
 
 /**
@@ -1050,6 +1099,34 @@ export function ListPendingConversationMentions(meta: $models.RequestMeta, conve
  */
 export function ListPersonalAgents(meta: $models.RequestMeta): $CancellablePromise<$models.PersonalAgentList> {
     return $Call.ByID(2069829351, meta);
+}
+
+/**
+ * ListPlatformAIModelCalls 返回平台模型调用记录。
+ */
+export function ListPlatformAIModelCalls(meta: $models.RequestMeta, input: $models.PlatformAIModelCallListInput): $CancellablePromise<$models.PlatformAIModelCallList> {
+    return $Call.ByID(2710196006, meta, input);
+}
+
+/**
+ * ListPlatformAIModels 返回部署的平台模型目录。
+ */
+export function ListPlatformAIModels(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformAIModelList> {
+    return $Call.ByID(227332154, meta);
+}
+
+/**
+ * ListPlatformAIProviderModels 返回平台供应商可提供的模型。
+ */
+export function ListPlatformAIProviderModels(meta: $models.RequestMeta, providerID: string): $CancellablePromise<$models.AIProviderModelList> {
+    return $Call.ByID(1028669523, meta, providerID);
+}
+
+/**
+ * ListPlatformAIProviders 返回部署的平台供应商。
+ */
+export function ListPlatformAIProviders(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformAIProviderList> {
+    return $Call.ByID(2564705962, meta);
 }
 
 /**
@@ -1925,6 +2002,20 @@ export function UpdateOrganization(meta: $models.RequestMeta, input: $models.Org
  */
 export function UpdatePersonalAgent(meta: $models.RequestMeta, agentID: string, input: $models.PersonalAgentInput): $CancellablePromise<$models.PersonalAgent> {
     return $Call.ByID(2283001353, meta, agentID, input);
+}
+
+/**
+ * UpdatePlatformAIModel 修改平台模型的属性与来源。
+ */
+export function UpdatePlatformAIModel(meta: $models.RequestMeta, modelID: string, input: $models.PlatformAIModelInput): $CancellablePromise<$models.PlatformAIModel> {
+    return $Call.ByID(2016586242, meta, modelID, input);
+}
+
+/**
+ * UpdatePlatformAIProvider 修改平台供应商。
+ */
+export function UpdatePlatformAIProvider(meta: $models.RequestMeta, providerID: string, input: $models.PlatformAIProviderUpdateInput): $CancellablePromise<$models.PlatformAIProvider> {
+    return $Call.ByID(3142742500, meta, providerID, input);
 }
 
 /**

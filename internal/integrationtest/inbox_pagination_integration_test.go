@@ -55,7 +55,7 @@ func newInboxPaginationFixture(t *testing.T) inboxPaginationFixture {
 	t.Helper()
 	f := inboxPaginationFixture{customerReadFixture: newCustomerReadFixture(t), customerIDs: make(map[string][]string)}
 	ctx := context.Background()
-	provider := &servermodels.AIProvider{OrganizationID: f.owner.Organization.ID, Brand: "openai", Name: "分页模型", CredentialType: string(domain.AIProviderCredentialTypeAPIKey), APIKey: "test", APIURL: "https://example.com/v1"}
+	provider := &servermodels.AIProvider{OrganizationID: &f.owner.Organization.ID, Brand: "openai", Name: "分页模型", CredentialType: string(domain.AIProviderCredentialTypeAPIKey), APIKey: "test", APIURL: "https://example.com/v1"}
 	if _, err := f.db.NewInsert().Model(provider).Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}

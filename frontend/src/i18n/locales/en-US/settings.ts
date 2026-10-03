@@ -26,6 +26,9 @@ const settings = {
     deploymentAccounts: "All accounts",
     deploymentWorkspaces: "All workspaces",
     deploymentRegistration: "Sign-up & creation",
+    deploymentPlatformModels: "Platform models",
+    deploymentPlatformProviders: "Platform providers",
+    deploymentPlatformCalls: "Model calls",
   },
   profile: {
     title: "Profile",

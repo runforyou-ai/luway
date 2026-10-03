@@ -8,12 +8,12 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// AIProvider 表示 PostgreSQL 中的模型服务供应商。
+// AIProvider 表示 PostgreSQL 中的模型服务供应商，OrganizationID 为空表示平台供应商。
 type AIProvider struct {
 	bun.BaseModel `bun:"table:ai_providers,alias:aip"`
 
 	ID             string    `bun:"id,pk"`
-	OrganizationID string    `bun:"organization_id"`
+	OrganizationID *string   `bun:"organization_id"`
 	Brand          string    `bun:"brand"`
 	Name           string    `bun:"name"`
 	CredentialType string    `bun:"credential_type"`

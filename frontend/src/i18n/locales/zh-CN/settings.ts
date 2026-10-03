@@ -26,6 +26,9 @@ const settings = {
     deploymentAccounts: "全部账号",
     deploymentWorkspaces: "全部工作区",
     deploymentRegistration: "注册与创建",
+    deploymentPlatformModels: "平台模型",
+    deploymentPlatformProviders: "平台供应商",
+    deploymentPlatformCalls: "模型调用",
   },
   profile: {
     title: "个人资料",

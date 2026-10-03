@@ -34,7 +34,7 @@ func (a *CreateAIProviderAction) Execute(ctx context.Context, identity *servermo
 			return err
 		}
 		provider = servermodels.AIProvider{
-			OrganizationID: identity.Organization.ID, Brand: string(input.Brand), Name: input.Name,
+			OrganizationID: &identity.Organization.ID, Brand: string(input.Brand), Name: input.Name,
 			CredentialType: string(input.CredentialType), APIKey: input.APIKey, APIURL: input.APIURL,
 		}
 		if _, err := tx.NewInsert().

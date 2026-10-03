@@ -104,3 +104,17 @@ func lockActiveAdmins(ctx context.Context, tx bun.Tx, operator *servermodels.Acc
 	}
 	return ErrNotDeploymentAdmin
 }
+
+// LockAdmin 以 SHARE 锁定操作者账号并确认其仍是有效部署管理员，锁持有至事务结束。
+func LockAdmin(ctx context.Context, tx bun.Tx, operator *servermodels.AccountIdentity) error {
+	var admin bool
+	err := tx.NewSelect().Model((*servermodels.Account)(nil)).
+		ColumnExpr("acc.is_deployment_admin AND acc.status = ?", domain.AccountStatusActive).
+		Where("acc.id = ?", operator.Account.ID).
+		For("SHARE").
+		Scan(ctx, &admin)
+	if errors.Is(err, sql.ErrNoRows) || err == nil && !admin {
+		return ErrNotDeploymentAdmin
+	}
+	return err
+}

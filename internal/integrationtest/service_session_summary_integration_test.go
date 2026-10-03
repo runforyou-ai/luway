@@ -284,7 +284,7 @@ func seedSummaryModels(t *testing.T, db *bun.DB, identity *servermodels.Identity
 	t.Helper()
 	ctx := context.Background()
 	provider := &servermodels.AIProvider{
-		OrganizationID: identity.Organization.ID, Brand: string(domain.AIProviderBrandOpenAI), Name: "小结测试模型服务 " + uuid.NewV7().String(),
+		OrganizationID: &identity.Organization.ID, Brand: string(domain.AIProviderBrandOpenAI), Name: "小结测试模型服务 " + uuid.NewV7().String(),
 		CredentialType: string(domain.AIProviderCredentialTypeAPIKey), APIKey: "test-key", APIURL: "https://example.com/v1",
 	}
 	if _, err := db.NewInsert().Model(provider).Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {
