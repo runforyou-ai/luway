@@ -85,7 +85,7 @@ const updatePlatformAIModelBound = bind(UpdatePlatformAIModel)
 const listPlatformAIModelCallsBound = bind(ListPlatformAIModelCalls)
 const getPlatformAIModelCallBound = bind(GetPlatformAIModelCall)
 
-/** 读取平台供应商。 */
+/** 读取平台供应商及其近 24 小时上游尝试的结果。 */
 export function listPlatformAIProviders(signal?: AbortSignal) {
   return listPlatformAIProvidersBound(signal).then(
     (output) => output.providers as PlatformAIProviderSummaryData[],

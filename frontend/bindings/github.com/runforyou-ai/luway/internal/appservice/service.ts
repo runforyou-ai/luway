@@ -738,14 +738,14 @@ export function GetPlatformAIProvider(meta: $models.RequestMeta, providerID: str
 }
 
 /**
- * GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+ * GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
  */
 export function GetPlatformOverview(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformOverview> {
     return $Call.ByID(2438992039, meta);
 }
 
 /**
- * GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+ * GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
  */
 export function GetPlatformRuntimeStatus(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformRuntimeStatus> {
     return $Call.ByID(1435911514, meta);
@@ -759,7 +759,7 @@ export function GetPlatformSettings(meta: $models.RequestMeta): $CancellableProm
 }
 
 /**
- * GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+ * GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
  */
 export function GetPlatformUsage(meta: $models.RequestMeta, input: $models.PlatformUsageInput): $CancellablePromise<$models.PlatformUsageMetrics> {
     return $Call.ByID(1535144459, meta, input);
@@ -1144,7 +1144,7 @@ export function ListPlatformAIProviderModels(meta: $models.RequestMeta, provider
 }
 
 /**
- * ListPlatformAIProviders 返回平台供应商。
+ * ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
  */
 export function ListPlatformAIProviders(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformAIProviderList> {
     return $Call.ByID(2564705962, meta);
@@ -1165,7 +1165,7 @@ export function ListPlatformFailedTasks(meta: $models.RequestMeta, input: $model
 }
 
 /**
- * ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+ * ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
  */
 export function ListPlatformWorkspaceUsage(meta: $models.RequestMeta, input: $models.PlatformWorkspaceUsageListInput): $CancellablePromise<$models.PlatformWorkspaceUsageList> {
     return $Call.ByID(4092791250, meta, input);

@@ -674,7 +674,7 @@ func (s *Service) AcceptInvitation(ctx context.Context, meta RequestMeta, input 
 	return WithNormalizedSlices(s.backend.AcceptInvitation(ctx, meta, input))
 }
 
-// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 func (s *Service) GetPlatformOverview(ctx context.Context, meta RequestMeta) (PlatformOverview, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformOverview(ctx, meta))
 }
@@ -759,17 +759,17 @@ func (s *Service) ResumePlatformWorkspace(ctx context.Context, meta RequestMeta,
 	return WithNormalizedSlices(s.backend.ResumePlatformWorkspace(ctx, meta, workspaceID))
 }
 
-// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 func (s *Service) GetPlatformUsage(ctx context.Context, meta RequestMeta, input PlatformUsageInput) (PlatformUsageMetrics, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformUsage(ctx, meta, input))
 }
 
-// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 func (s *Service) ListPlatformWorkspaceUsage(ctx context.Context, meta RequestMeta, input PlatformWorkspaceUsageListInput) (PlatformWorkspaceUsageList, error) {
 	return WithNormalizedSlices(s.backend.ListPlatformWorkspaceUsage(ctx, meta, input))
 }
 
-// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+// GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 func (s *Service) GetPlatformRuntimeStatus(ctx context.Context, meta RequestMeta) (PlatformRuntimeStatus, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformRuntimeStatus(ctx, meta))
 }
@@ -779,7 +779,7 @@ func (s *Service) ListPlatformFailedTasks(ctx context.Context, meta RequestMeta,
 	return WithNormalizedSlices(s.backend.ListPlatformFailedTasks(ctx, meta, input))
 }
 
-// ListPlatformAIProviders 返回平台供应商。
+// ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 func (s *Service) ListPlatformAIProviders(ctx context.Context, meta RequestMeta) (PlatformAIProviderList, error) {
 	return WithNormalizedSlices(s.backend.ListPlatformAIProviders(ctx, meta))
 }

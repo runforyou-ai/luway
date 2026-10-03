@@ -1,10 +1,11 @@
-/* 产品首页样式：首屏、能力区块、多端与自托管说明和结尾行动区。 */
+/* 产品站样式：首页的首屏、能力区块、多端与自托管说明和结尾行动区，以及客户端下载页。 */
 
 body.site-body {
   font-size: 0.9375rem;
   background:
     radial-gradient(60rem 28rem at 85% -6rem, color-mix(in oklab, var(--primary) 12%, transparent), transparent 70%),
     var(--background);
+  background-repeat: no-repeat;
 }
 
 .site-nav + .site-languages {
@@ -317,7 +318,141 @@ body.site-body {
   font-size: 0.8125rem;
 }
 
+.download {
+  padding-top: 4.5rem;
+  padding-bottom: 5rem;
+}
+
+.download h1 {
+  margin: 0;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.download-version {
+  margin: 0.75rem 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+}
+
+.download-platforms {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+
+.download-platform {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) * 1.6);
+  background: var(--card);
+}
+
+.download-platform[data-current] {
+  order: -1;
+  border-color: color-mix(in oklab, var(--primary) 45%, var(--border));
+}
+
+.download-platform[aria-disabled="true"] {
+  background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.download-platform[aria-disabled="true"] .home-feature-icon {
+  background: var(--background);
+  color: var(--muted-foreground);
+}
+
+.download-platform > header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.download-platform h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.download-current {
+  display: none;
+  margin-left: auto;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.download-platform[data-current] .download-current {
+  display: inline-block;
+}
+
+.download-status {
+  margin: 1.25rem 0 0;
+}
+
+.download-files {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.download-files a {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.download-files a:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.download-size {
+  margin-left: auto;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.download-web {
+  margin: 2.5rem 0 0;
+  color: var(--muted-foreground);
+}
+
+.download-web a {
+  color: var(--primary);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.download-web a:hover {
+  text-decoration: underline;
+}
+
 @media (max-width: 960px) {
+  .download-platforms {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .home-hero {
     grid-template-columns: minmax(0, 1fr);
     gap: 3rem;
@@ -336,8 +471,14 @@ body.site-body {
   }
 
   .home-features,
-  .home-split {
+  .home-split,
+  .download-platforms {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .download {
+    padding-top: 3rem;
+    padding-bottom: 3.5rem;
   }
 
   .home-section {
@@ -366,4 +507,20 @@ body.site-body {
 
 .site-body .site-brand img {
   flex-shrink: 0;
+}
+
+/* 极窄屏页头换行，导航独占第二行。 */
+@media (max-width: 480px) {
+  .site-body .site-header {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+    height: auto;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+
+  .site-body .site-nav {
+    order: 1;
+    flex-basis: 100%;
+  }
 }

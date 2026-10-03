@@ -915,7 +915,7 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return output, err
 }
 
-// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformOverview, error) {
 	var output appservice.PlatformOverview
 	err := b.do(ctx, meta, http.MethodGet, "/platform/overview", nil, nil, &output)
@@ -1034,21 +1034,21 @@ func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.R
 	return output, err
 }
 
-// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标与平台模型用量。
 func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
 	var output appservice.PlatformUsageMetrics
 	err := b.do(ctx, meta, http.MethodGet, "/platform/usage", encodePlatformUsageInputQuery(input), nil, &output)
 	return output, err
 }
 
-// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标与平台模型用量。
 func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceUsageListInput) (appservice.PlatformWorkspaceUsageList, error) {
 	var output appservice.PlatformWorkspaceUsageList
 	err := b.do(ctx, meta, http.MethodGet, "/platform/usage/workspaces", encodePlatformWorkspaceUsageListInputQuery(input), nil, &output)
 	return output, err
 }
 
-// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+// GetPlatformRuntimeStatus 返回服务端进程、外部依赖与后台任务各队列的运行状态。
 func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformRuntimeStatus, error) {
 	var output appservice.PlatformRuntimeStatus
 	err := b.do(ctx, meta, http.MethodGet, "/platform/runtime", nil, nil, &output)
@@ -1062,7 +1062,7 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 	return output, err
 }
 
-// ListPlatformAIProviders 返回平台供应商。
+// ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIProviderList, error) {
 	var output appservice.PlatformAIProviderList
 	err := b.do(ctx, meta, http.MethodGet, "/platform/model-providers", nil, nil, &output)

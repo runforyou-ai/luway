@@ -24,7 +24,7 @@ import (
 	"uuid"
 )
 
-// TestPlatformUsage 验证平台业务使用按工作区汇总客服周期，工作区指标与该工作区的 AI 表现、团队表现报表一致，平台合计在全部周期上计算，没有周期的工作区指标为零，并按所选方式排序。
+// TestPlatformUsage 验证平台业务使用按工作区汇总客服周期与平台模型调用，客服指标与该工作区的 AI 表现、团队表现报表一致，平台合计在全部周期上计算，没有周期的工作区客服指标为零，并按所选方式排序。
 func TestPlatformUsage(t *testing.T) {
 	t.Parallel()
 	db := openEmptyDatabase(t)
@@ -67,6 +67,34 @@ func TestPlatformUsage(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// 统计期间的平台模型调用计入，工作区模型调用与期间之前的调用不计入；失败率的分母不含进行中与已取消的调用。
+	for _, call := range []struct {
+		organizationID string
+		scope          domain.AIModelScope
+		status         domain.AIModelCallStatus
+		daysAgo        int
+		input, cached  int64
+		output         int64
+	}{
+		{identity.Organization.ID, domain.AIModelScopePlatform, domain.AIModelCallStatusSucceeded, 1, 100, 20, 30},
+		{identity.Organization.ID, domain.AIModelScopePlatform, domain.AIModelCallStatusFailed, 1, 0, 0, 0},
+		{identity.Organization.ID, domain.AIModelScopePlatform, domain.AIModelCallStatusTimedOut, 1, 0, 0, 0},
+		{identity.Organization.ID, domain.AIModelScopePlatform, domain.AIModelCallStatusCanceled, 1, 0, 0, 0},
+		{identity.Organization.ID, domain.AIModelScopePlatform, domain.AIModelCallStatusRunning, 0, 0, 0, 0},
+		{identity.Organization.ID, domain.AIModelScopeWorkspace, domain.AIModelCallStatusSucceeded, 1, 5000, 0, 5000},
+		{identity.Organization.ID, domain.AIModelScopePlatform, domain.AIModelCallStatusSucceeded, 10, 5000, 0, 5000},
+		{idle.Organization.ID, domain.AIModelScopePlatform, domain.AIModelCallStatusSucceeded, 2, 1000, 0, 0},
+	} {
+		if _, err := db.NewRaw(`INSERT INTO ai_model_calls
+			(created_at, organization_id, model_id, model_name, model_usage, actor_type, source_type, status, input_tokens, cached_input_tokens, output_tokens, model_scope)
+			VALUES (now() - make_interval(days => ?), ?, ?, '平台模型', ?, ?, ?, ?, ?, ?, ?, ?)`,
+			call.daysAgo, call.organizationID, uuid.NewV7().String(), domain.AIModelUsageAgent, domain.AIModelCallActorSystem, domain.AIModelCallSourceAgentRun,
+			call.status, call.input, call.cached, call.output, call.scope).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+	}
+	idleMetrics := platformaction.UsageMetrics{ModelCalls: 1, ModelCallsConcluded: 1, InputTokens: 1000}
+
 	ai, err := aiperformanceaction.NewOverviewQuery(db).Execute(ctx, identity, aiperformanceaction.Input{Days: 7})
 	if err != nil {
 		t.Fatal(err)
@@ -78,6 +106,7 @@ func TestPlatformUsage(t *testing.T) {
 	expected := platformaction.UsageMetrics{
 		ServiceSessions: team.Closed, Conversations: 2, AIClosed: ai.Summary.Closed, AIResolved: ai.Summary.AIResolved, HandedOff: ai.Summary.HandedOff,
 		FirstResponseMedian: team.FirstResponseMedian, FirstResponseP90: team.FirstResponseP90, KnowledgeGaps: ai.KnowledgeGapTotal,
+		ModelCalls: 5, ModelCallsConcluded: 3, ModelCallsFailed: 2, InputTokens: 100, CachedInputTokens: 20, OutputTokens: 30,
 	}
 	if expected.ServiceSessions != 2 || expected.AIClosed != 2 || expected.AIResolved != 1 || expected.HandedOff != 1 ||
 		expected.FirstResponseMedian == nil || expected.KnowledgeGaps != 1 {
@@ -85,8 +114,10 @@ func TestPlatformUsage(t *testing.T) {
 	}
 
 	query := platformaction.NewUsageQuery(db)
+	expectedTotal := expected
+	expectedTotal.ModelCalls, expectedTotal.ModelCallsConcluded, expectedTotal.InputTokens = 6, 4, 1100
 	total, err := query.Summary(ctx, 7)
-	if err != nil || !reflect.DeepEqual(total, expected) {
+	if err != nil || !reflect.DeepEqual(total, expectedTotal) {
 		t.Fatalf("usage total = %+v, err = %v", total, err)
 	}
 	usage, err := query.ListWorkspaces(ctx, platformaction.UsageListInput{Days: 7})
@@ -95,7 +126,7 @@ func TestPlatformUsage(t *testing.T) {
 	}
 	if usage.Page.Total != 2 || len(usage.Workspaces) != 2 ||
 		usage.Workspaces[0].ID != identity.Organization.ID || !reflect.DeepEqual(usage.Workspaces[0].UsageMetrics, expected) ||
-		usage.Workspaces[1].ID != idle.Organization.ID || !reflect.DeepEqual(usage.Workspaces[1].UsageMetrics, platformaction.UsageMetrics{}) {
+		usage.Workspaces[1].ID != idle.Organization.ID || !reflect.DeepEqual(usage.Workspaces[1].UsageMetrics, idleMetrics) {
 		t.Fatalf("workspace usage = %+v", usage)
 	}
 	// 按首响排序时没有样本的工作区排在最后，第二页从第二个工作区开始。
@@ -103,11 +134,16 @@ func TestPlatformUsage(t *testing.T) {
 	if err != nil || sorted.Page.Total != 2 || len(sorted.Workspaces) != 1 || sorted.Workspaces[0].ID != idle.Organization.ID {
 		t.Fatalf("sorted usage = %+v, err = %v", sorted, err)
 	}
-	// 有周期的工作区删除后只剩空闲工作区，合计为零，首响为空。
+	// 按模型 Token 排序时输入与输出合计更多的空闲工作区在前。
+	byTokens, err := query.ListWorkspaces(ctx, platformaction.UsageListInput{Days: 7, Sort: platformaction.UsageSortModelTokens})
+	if err != nil || len(byTokens.Workspaces) != 2 || byTokens.Workspaces[0].ID != idle.Organization.ID {
+		t.Fatalf("usage sorted by model tokens = %+v, err = %v", byTokens, err)
+	}
+	// 有周期的工作区删除后只剩空闲工作区，客服指标为零，首响为空。
 	if _, err := db.NewUpdate().Table("organizations").Set("lifecycle_status = ?", domain.OrganizationLifecycleDeleted).Where("id = ?", identity.Organization.ID).Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if empty, err := query.Summary(ctx, 7); err != nil || !reflect.DeepEqual(empty, platformaction.UsageMetrics{}) {
+	if empty, err := query.Summary(ctx, 7); err != nil || !reflect.DeepEqual(empty, idleMetrics) {
 		t.Fatalf("empty usage total = %+v, err = %v", empty, err)
 	}
 

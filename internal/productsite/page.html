@@ -3,8 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-{{if .NotFound}}<title>{{.Text.notFoundTitle}} · {{.Product}}</title>
+{{if eq .Page "notFound"}}<title>{{.Text.notFoundTitle}} · {{.Product}}</title>
 <meta name="robots" content="noindex">
+{{else if eq .Page "download"}}<title>{{.Text.downloadTitle}} · {{.Product}}</title>
 {{else}}<title>{{.Product}}</title>
 <meta name="description" content="{{.Text.description}}">
 {{end}}<link rel="icon" href="/favicon.png">
@@ -15,19 +16,49 @@
 {{define "icon"}}<svg class="site-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{.}}</svg>{{end}}
 <header class="site-header">
   <a class="site-brand" href="{{.HomePath}}"><img src="/favicon.png" alt="" width="24" height="24">{{.Product}}</a>
-  <nav class="site-nav"><a href="{{.DocsPath}}">{{.Text.docs}}</a></nav>
+  <nav class="site-nav"><a href="{{.DocsPath}}">{{.Text.docs}}</a><a href="{{.DownloadPath}}"{{if eq .Page "download"}} aria-current="page"{{end}}>{{.Text.download}}</a></nav>
   <select class="site-languages" aria-label="{{.Text.language}}" onchange="location.href = this.value">
     {{range .Languages}}<option value="{{.Path}}" lang="{{.Lang}}"{{if .Current}} selected{{end}}>{{.Label}}</option>{{end}}
   </select>
   <a class="site-action" href="{{.AppPath}}" data-account-link="{{.Text.openApp}}">{{.Text.signIn}}</a>
 </header>
 <script>{{.Script}}</script>
-{{if .NotFound}}
+{{if eq .Page "notFound"}}
 <main class="home-not-found">
   <h1>{{.Text.notFoundTitle}}</h1>
   <p>{{.Text.notFoundBody}}</p>
   <a class="home-button" href="{{.HomePath}}">{{.Text.backHome}}</a>
 </main>
+{{else if eq .Page "download"}}
+<main class="download home-container">
+  <h1>{{.Text.downloadTitle}}</h1>
+  <p class="home-lead">{{.Text.downloadBody}}</p>
+  {{with .ClientVersion}}<p class="download-version">{{.}}</p>{{end}}
+  <div class="download-platforms">
+    {{range .Platforms}}
+    <section class="download-platform" data-platform="{{.ID}}"{{if .Status}} aria-disabled="true"{{end}}>
+      <header>
+        <span class="home-feature-icon">{{template "icon" index $.Icons .Icon}}</span>
+        <h2>{{.Name}}</h2>
+        <span class="download-current">{{$.Text.downloadCurrent}}</span>
+      </header>
+      {{if .Status}}<p class="download-status">{{.Status}}</p>
+      {{else}}<ul class="download-files">
+        {{range .Downloads}}<li><a href="{{.URL}}" download>{{template "icon" index $.Icons "download"}}<span>{{.Label}}</span><span class="download-size">{{.Size}}</span></a></li>{{end}}
+      </ul>{{end}}
+    </section>
+    {{end}}
+  </div>
+  <p class="download-web">{{.Text.downloadWeb}} <a href="{{.AppPath}}">{{.Text.openApp}}</a></p>
+</main>
+<script>(() => {
+  // 标出访问者当前设备对应的平台并排在最前。
+  const agent = navigator.userAgent
+  const touchMac = /Macintosh/.test(agent) && navigator.maxTouchPoints > 1
+  const platform = /iPhone|iPad|iPod/.test(agent) || touchMac ? "ios" : /Android/.test(agent) ? "android" : /Windows/.test(agent) ? "windows" : /Macintosh/.test(agent) ? "macos" : /Linux|X11/.test(agent) ? "linux" : ""
+  const card = platform && document.querySelector('[data-platform="' + platform + '"]')
+  if (card) card.dataset.current = ""
+})()</script>
 {{else}}
 <main>
   <section class="home-hero home-container">
@@ -77,6 +108,7 @@
         <li>{{template "icon" index .Icons "desktop"}}{{.Text.platformDesktop}}</li>
         <li>{{template "icon" index .Icons "mobile"}}{{.Text.platformMobile}}</li>
       </ul>
+      <a class="home-link" href="{{.DownloadPath}}">{{template "icon" index .Icons "download"}}{{.Text.downloadTitle}}</a>
     </div>
     <div class="home-panel">
       <h2>{{.Text.selfHostTitle}}</h2>

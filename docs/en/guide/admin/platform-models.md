@@ -13,6 +13,8 @@ Platform providers are the model providers that actually serve platform models, 
 2. Enter a name, API key, and API URL. You can click **Test connection** first to confirm the configuration works.
 3. After saving, the provider can be used as a source of platform models.
 
+Each provider in the list shows its upstream failure rate for the last 24 hours on the right. When requests failed, the most recent reason appears below the provider. Failure rate = (failed + timed out) ÷ finished requests. A provider with no requests in that time shows **No calls in 24 hours**.
+
 Only platform admins can see a platform provider's key and URL. Workspace members can't. A provider that is still a source of a platform model can't be deleted. Remove that source from the platform model first.
 
 ## Model catalog

@@ -3,7 +3,7 @@ title: Platform overview
 order: 1
 ---
 
-Platform administrators review the platform's scale, activity, and customer service usage.
+Platform administrators review the platform's scale, activity, customer service usage, and platform model usage.
 
 ## Open platform administration
 
@@ -17,13 +17,16 @@ The **Platform overview** page shows:
 - The total number of workspaces and the total members across all workspaces;
 - Active accounts and active workspaces in the last 7 and 30 days;
 - Daily active accounts for the last 30 days. Hover over a bar to see that day's active workspaces and new accounts;
+- The license status, with the customer and expiration date when the license is active;
 - The server ID, installation time, and workspace limit.
+
+When the license expires within 30 days or has expired, a renewal reminder appears below the license status. Click **Manage license** to open the license page. See [License](/docs/en/guide/admin/license/).
 
 The workspace total includes active and suspended workspaces. For each workspace's scale, storage, and last activity, see [Accounts and workspaces](/docs/en/guide/admin/accounts-workspaces/).
 
 ## Business usage
 
-The **Business usage** page summarizes customer service data for the whole platform and for each workspace over the selected period (last 7, 30, or 90 days):
+The **Business usage** page summarizes customer service data and platform model usage for the whole platform and for each workspace over the selected period (last 7, 30, or 90 days):
 
 | Metric | Description |
 | --- | --- |
@@ -32,12 +35,20 @@ The **Business usage** page summarizes customer service data for the whole platf
 | Handoff rate | Among sessions handled by AI employees, the share handed off to teammates |
 | Teammate first response | Median time from needing a teammate to the teammate's first reply, counted within business hours only. For the whole platform, the page also shows how long 90% of sessions waited |
 | Knowledge gaps | All pending knowledge gaps, regardless of the period |
+| Platform model calls | Platform model calls started in the period, and their failure rate |
+| Model tokens | Input and output tokens used by platform model calls, with the cached share of input shown separately |
 
-The AI resolution rate, handoff rate, teammate first response, and knowledge gaps are counted the same way as the **AI performance** and **Team performance** reports inside a workspace, so workspace administrators see the same numbers in their reports without filters. The workspace list can be sorted by service sessions, conversations, teammate first response, or knowledge gaps.
+The AI resolution rate, handoff rate, teammate first response, and knowledge gaps are counted the same way as the **AI performance** and **Team performance** reports inside a workspace, so workspace administrators see the same numbers in their reports without filters. The workspace list can be sorted by service sessions, conversations, teammate first response, knowledge gaps, or model tokens.
 
 ## AI and resources
 
-This section is being written.
+**Platform model calls** and **Model tokens** on the Business usage page count platform models only: the models platform administrators set up in [Platform model service](/docs/en/guide/admin/platform-models/) for every workspace to use. Models that a workspace connects on its own are managed by that workspace and aren't counted here.
+
+- Failure rate = (failed + timed out) ÷ finished calls. Finished calls are calls that succeeded, failed, or timed out. Calls still running or canceled aren't counted.
+- A call that tried several sources counts once, by its final status. See the **Platform providers** list for failures by provider, and **Model calls** for the details of each call.
+- Model tokens are input plus output tokens. Cached input tokens are included in input.
+
+For the storage each workspace uses, see [Accounts and workspaces](/docs/en/guide/admin/accounts-workspaces/).
 
 ## How metrics are counted
 
@@ -45,5 +56,5 @@ This section is being written.
 - Active workspace: a workspace with an active member, or with customer messages or AI employee replies that day.
 - Activity and new records are split into days by the **statistics time zone**. You change it on the Platform overview page. After a change, all history is recounted in the new time zone, and the page shows that it is recounting until it finishes.
 - Activity is summarized every 10 minutes, so recent actions may appear a little later.
-- Business usage counts service sessions by the time they ended, across active and suspended workspaces.
+- Business usage counts service sessions by the time they ended and platform model calls by the time they started, across active and suspended workspaces.
 - Usage data contains only counts, durations, and statuses. It never includes message content, customer profiles, or credentials.
