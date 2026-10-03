@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -98,11 +99,14 @@ func TestHostCommandAndSkill(t *testing.T) {
 	}
 }
 
-// fakeServer 模拟服务端的执行器接口：事件流发送一次连接确认，领取接口返回一次预设操作，记录上报的结果与执行能力。
+// fakeServer 模拟服务端的执行器接口：事件流发送一次连接确认，之后每次 work 有信号时发送待执行操作通知；领取接口返回一次预设操作，
+// 执行器持有 abort 中的操作时要求中止；记录上报的结果与执行能力。
 type fakeServer struct {
 	mu           sync.Mutex
 	credential   string
 	pending      []appservice.ComputerOperationItem
+	abort        []string
+	work         chan struct{}
 	outcomes     map[string]domain.ComputerOutcome
 	capabilities []appservice.ComputerCapabilitiesInput
 }
@@ -122,15 +126,32 @@ func (s *fakeServer) ServeHTTP(writer http.ResponseWriter, request *http.Request
 		_, _ = writer.Write(append(append([]byte("data: "), data...), '\n', '\n'))
 		writer.(http.Flusher).Flush()
 		s.mu.Unlock()
-		<-request.Context().Done()
-		s.mu.Lock()
+		for {
+			select {
+			case <-request.Context().Done():
+				s.mu.Lock()
+				return
+			case <-s.work:
+				data, _ := protocol.Encode(protocol.ComputerWork{})
+				_, _ = writer.Write(append(append([]byte("data: "), data...), '\n', '\n'))
+				writer.(http.Flusher).Flush()
+			}
+		}
 	case request.URL.Path == "/api/computer/capabilities":
 		var input appservice.ComputerCapabilitiesInput
 		_ = json.NewDecoder(request.Body).Decode(&input)
 		s.capabilities = append(s.capabilities, input)
 		writer.WriteHeader(http.StatusNoContent)
 	case request.URL.Path == "/api/computer/operations/claim":
-		_ = json.NewEncoder(writer).Encode(appservice.ComputerOperationList{Operations: s.pending})
+		var input appservice.ComputerClaimInput
+		_ = json.NewDecoder(request.Body).Decode(&input)
+		abort := make([]string, 0)
+		for _, id := range input.Running {
+			if slices.Contains(s.abort, id) {
+				abort = append(abort, id)
+			}
+		}
+		_ = json.NewEncoder(writer).Encode(appservice.ComputerOperationList{Operations: s.pending, Abort: abort})
 		s.pending = nil
 	case strings.HasPrefix(request.URL.Path, "/api/computer/operations/"):
 		id := strings.TrimSuffix(strings.TrimPrefix(request.URL.Path, "/api/computer/operations/"), "/result")
@@ -190,4 +211,48 @@ func TestLinkClaimsExecutesAndReports(t *testing.T) {
 		t.Fatal("credential invalid not reported")
 	}
 	revoked.Stop()
+}
+
+// TestLinkAbortsOperation 验证执行器领取时收到中止要求后结束正在执行的命令，并把结果上报为已中止。
+func TestLinkAbortsOperation(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("命令语法按 Unix shell 编写")
+	}
+	host, _ := newTestHost(t)
+	server := &fakeServer{credential: "secret", outcomes: map[string]domain.ComputerOutcome{}, abort: []string{"op-slow"},
+		work: make(chan struct{}, 1), pending: []appservice.ComputerOperationItem{
+			{ID: "op-slow", Operation: domain.ComputerOperation{Kind: domain.ComputerOperationCommand, Folder: "conv", Command: "sleep 30"}},
+		}}
+	httpServer := httptest.NewServer(server)
+	defer httpServer.Close()
+	link, err := StartLink(LinkOptions{ServerURL: httpServer.URL, Credential: "secret", Host: host})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer link.Stop()
+	started := time.Now()
+	deadline := started.Add(10 * time.Second)
+	for {
+		// 命令开始后发送待执行操作通知，执行器随即领取并收到中止要求。
+		select {
+		case server.work <- struct{}{}:
+		default:
+		}
+		server.mu.Lock()
+		outcome, done := server.outcomes["op-slow"]
+		server.mu.Unlock()
+		if done {
+			if !outcome.Aborted {
+				t.Fatalf("outcome=%+v", outcome)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("aborted outcome not reported")
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	if elapsed := time.Since(started); elapsed > 10*time.Second {
+		t.Fatalf("abort took %v", elapsed)
+	}
 }

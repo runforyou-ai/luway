@@ -62,9 +62,10 @@ type ComputerOperationItem struct {
 	Operation domain.ComputerOperation `json:"operation"`
 }
 
-// ComputerOperationList 定义执行器领取到的操作，按派发顺序排列。
+// ComputerOperationList 定义执行器领取到的操作，按派发顺序排列；Abort 是执行器正在执行而应当中止的操作编号。
 type ComputerOperationList struct {
 	Operations []ComputerOperationItem `json:"operations"`
+	Abort      []string                `json:"abort"`
 }
 
 // ComputerOutcomeInput 定义执行器上报的操作结果。

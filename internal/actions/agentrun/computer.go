@@ -32,7 +32,7 @@ type runComputer struct {
 	folder string
 }
 
-// Execute 在电脑在线时把当前工具调用改为派发到电脑并通知执行器，随后等待结果；电脑离线时直接返回失败原因。
+// Execute 在电脑在线时把当前工具调用改为派发到电脑、等待领取并通知执行器，随后等待结果；电脑离线时直接返回失败原因。
 func (c *runComputer) Execute(ctx context.Context, operation domain.ComputerOperation, suspend bool) (domain.ComputerOutcome, error) {
 	callID := agentruntime.ToolCallID(ctx)
 	if callID == "" {
@@ -54,7 +54,8 @@ func (c *runComputer) Execute(ctx context.Context, operation domain.ComputerOper
 		result, err := tx.NewUpdate().Model((*servermodels.AgentToolCall)(nil)).
 			Set("computer_id = ?", c.computerID).
 			Set("operation = ?", domain.ComputerCall{Operation: operation}).
-			Set("status = ?", domain.AgentToolCallWaiting).
+			Set("status = ?", domain.AgentToolCallQueued).
+			Set("started_at = NULL").
 			Set("updated_at = now()").
 			Where("id = ? AND organization_id = ? AND status = ?", callID, c.organizationID, domain.AgentToolCallRunning).
 			Exec(ctx)

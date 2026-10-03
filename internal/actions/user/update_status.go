@@ -21,8 +21,7 @@ import (
 
 // PersonalAgentRetirer 在停用成员的事务中停用其负责的个人 AI 员工并移出所有群聊。
 type PersonalAgentRetirer interface {
-	RetirePersonalAgents(ctx context.Context, tx bun.Tx, actor *servermodels.Identity, responsibleUserID string) ([]string, error)
-	CancelRunContexts([]string)
+	RetirePersonalAgents(ctx context.Context, tx bun.Tx, actor *servermodels.Identity, responsibleUserID string) error
 }
 
 // UpdateStatusAction 修改用户账号状态。
@@ -46,7 +45,6 @@ func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels
 		return nil, &ValidationError{Fields: map[string]ValidationCode{"status": ValidationStatusInvalid}}
 	}
 	var output *User
-	var cancelledRunIDs, retiredRunIDs []string
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUserAccounts(ctx, tx, identity, []string{userID}); err != nil {
 			return err
@@ -104,11 +102,10 @@ func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels
 			if err := chatstate.ResetChannelRoutingTarget(ctx, tx, identity.Organization.ID, domain.ChannelRoutingTargetTypeMember, updatedUser.IdentityID); err != nil {
 				return err
 			}
-			cancelledRunIDs, err = a.returner.ReturnServiceSessionsToQueue(ctx, tx, identity.Organization.ID, updatedUser.IdentityID, uuid.NewV7().String(), nil)
-			if err != nil {
+			if err := a.returner.ReturnServiceSessionsToQueue(ctx, tx, identity.Organization.ID, updatedUser.IdentityID, uuid.NewV7().String(), nil); err != nil {
 				return err
 			}
-			if retiredRunIDs, err = a.retirer.RetirePersonalAgents(ctx, tx, identity, userID); err != nil {
+			if err := a.retirer.RetirePersonalAgents(ctx, tx, identity, userID); err != nil {
 				return err
 			}
 			// 提交后通知 Gateway 关闭该用户的全部实时连接。
@@ -129,7 +126,5 @@ func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels
 	if err != nil {
 		return nil, fmt.Errorf("update user status: %w", err)
 	}
-	a.returner.CancelRunContexts(cancelledRunIDs)
-	a.retirer.CancelRunContexts(retiredRunIDs)
 	return output, nil
 }

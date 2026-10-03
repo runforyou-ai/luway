@@ -52,6 +52,12 @@ type Operation struct {
 	Operation domain.ComputerOperation
 }
 
+// ClaimResult 定义一次领取的结果：新领取的操作，以及执行器正在执行而应当中止的操作编号。
+type ClaimResult struct {
+	Operations []Operation
+	Abort      []string
+}
+
 // recordFromModel 转换电脑存储模型。
 func recordFromModel(input servermodels.Computer, now time.Time) Record {
 	return Record{

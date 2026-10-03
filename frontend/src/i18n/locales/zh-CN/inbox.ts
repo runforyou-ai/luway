@@ -280,6 +280,7 @@ const inbox = {
   agentToolCancelled: "已取消",
   agentToolInterrupted: "已中断",
   agentToolNeedsReview: "待核对",
+  agentToolAborting: "正在中止",
   agentToolArguments: "参数",
   agentToolResult: "结果",
   agentToolError: "错误",

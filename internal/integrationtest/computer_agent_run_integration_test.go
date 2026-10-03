@@ -233,8 +233,8 @@ func testPersonalAgentComputer(t *testing.T, db *bun.DB, identity *servermodels.
 		fixture.model.use("read_file", `{"file_path":"notes.txt"}`)
 		fixture.run(run.ID)
 		fixture.assertStatus(run.ID, domain.AgentRunStatusWaiting)
-		if call := fixture.computerCall(run.ID); call.Status != string(domain.AgentToolCallWaiting) {
-			t.Fatalf("waiting call=%+v", call)
+		if call := fixture.computerCall(run.ID); call.Status != string(domain.AgentToolCallQueued) || call.StartedAt != nil {
+			t.Fatalf("dispatched call=%+v", call)
 		}
 		fixture.offline()
 		if err := computeraction.NewSweepAction(db, tasks).Execute(ctx, struct{}{}); err != nil {
@@ -305,6 +305,86 @@ func testPersonalAgentComputer(t *testing.T, db *bun.DB, identity *servermodels.
 		fixture.run(run.ID)
 		fixture.assertStatus(run.ID, domain.AgentRunStatusSucceeded)
 		fixture.assertReply(run.ID, "已交由人工核对")
+	})
+
+	t.Run("停止回复时中止电脑上执行中的调用", func(t *testing.T) {
+		operations := computeraction.NewOperationsAction(db, tasks)
+		for _, finished := range []bool{false, true} {
+			fixture.online()
+			conversationID := fixture.personalAgentChat()
+			run := fixture.sendAndLoadRun(conversationID, "跑一下构建")
+			fixture.model.use("execute", `{"command":"make build"}`)
+			done := fixture.simulateExecutor(func(computeraction.Operation) *domain.ComputerOutcome { return nil })
+			fixture.run(run.ID)
+			<-done
+			fixture.assertStatus(run.ID, domain.AgentRunStatusWaiting)
+			call := fixture.computerCall(run.ID)
+			if call.Status != string(domain.AgentToolCallRunning) || call.StartedAt == nil {
+				t.Fatalf("claimed call=%+v", call)
+			}
+			if _, err := fixture.stopper.StopAgentReply(ctx, identity, conversationID, run.ID); err != nil {
+				t.Fatal(err)
+			}
+			fixture.assertStatus(run.ID, domain.AgentRunStatusCancelled)
+			// 运行结束后电脑上的调用仍在执行，执行器下次领取时收到中止要求。
+			if call := fixture.computerCall(run.ID); call.Status != string(domain.AgentToolCallRunning) {
+				t.Fatalf("stopping call=%+v", call)
+			}
+			claimed, err := operations.Claim(ctx, fixture.computerIdentity(), 4, []string{call.ID})
+			if err != nil || len(claimed.Abort) != 1 || claimed.Abort[0] != call.ID {
+				t.Fatalf("claim=%+v err=%v", claimed, err)
+			}
+			outcome, want := domain.ComputerOutcome{Aborted: true}, domain.AgentToolCallNeedsReview
+			if finished {
+				// 收到中止前已经执行完的命令如实记录结果。
+				outcome, want = domain.ComputerOutcome{Output: "built"}, domain.AgentToolCallSucceeded
+			}
+			if err := operations.Complete(ctx, fixture.computerIdentity(), call.ID, outcome); err != nil {
+				t.Fatal(err)
+			}
+			if call := fixture.computerCall(run.ID); call.Status != string(want) || call.CompletedAt == nil {
+				t.Fatalf("settled call=%+v want %s", call, want)
+			}
+			fixture.assertStatus(run.ID, domain.AgentRunStatusCancelled)
+		}
+	})
+
+	t.Run("停止回复时取消未开始的调用并中断进程内调用", func(t *testing.T) {
+		fixture.online()
+		conversationID := fixture.personalAgentChat()
+		run := fixture.sendAndLoadRun(conversationID, "读一下会议纪要")
+		fixture.model.use("read_file", `{"file_path":"notes.txt"}`)
+		fixture.run(run.ID)
+		fixture.assertStatus(run.ID, domain.AgentRunStatusWaiting)
+		// 补两条服务端进程内执行中的调用：一条可重新执行，一条有外部副作用。
+		inProcess := map[bool]string{}
+		for _, sideEffects := range []bool{false, true} {
+			row := &servermodels.AgentToolCall{
+				ID: uuid.NewV7().String(), OrganizationID: identity.Organization.ID, AgentRunID: run.ID, ModelCallID: uuid.NewV7().String(),
+				ProviderCallID: uuid.NewV7().String(), Name: "remote", Source: string(domain.AgentToolSourceMCP), Arguments: "{}",
+				Replayable: !sideEffects, SideEffects: sideEffects, Status: string(domain.AgentToolCallRunning),
+			}
+			if _, err := db.NewInsert().Model(row).Exec(ctx); err != nil {
+				t.Fatal(err)
+			}
+			inProcess[sideEffects] = row.ID
+		}
+		if _, err := fixture.stopper.StopAgentReply(ctx, identity, conversationID, run.ID); err != nil {
+			t.Fatal(err)
+		}
+		if call := fixture.computerCall(run.ID); call.Status != string(domain.AgentToolCallCancelled) {
+			t.Fatalf("pending call=%+v", call)
+		}
+		for sideEffects, want := range map[bool]domain.AgentToolCallStatus{false: domain.AgentToolCallInterrupted, true: domain.AgentToolCallNeedsReview} {
+			call := &servermodels.AgentToolCall{}
+			if err := db.NewSelect().Model(call).Where("atc.id = ?", inProcess[sideEffects]).Scan(ctx); err != nil || call.Status != string(want) || call.Result == nil {
+				t.Fatalf("in-process call=%+v err=%v want %s", call, err, want)
+			}
+		}
+		claimed, err := computeraction.NewOperationsAction(db, tasks).Claim(ctx, fixture.computerIdentity(), 4, nil)
+		if err != nil || len(claimed.Operations) != 0 {
+			t.Fatalf("claim after stop=%+v err=%v", claimed, err)
+		}
 	})
 
 	t.Run("暂停与恢复", func(t *testing.T) {
@@ -421,12 +501,12 @@ func (f *personalAgentFixture) simulateExecutor(outcome func(computeraction.Oper
 				f.t.Errorf("claim=%v", err)
 				return
 			}
-			if len(claimed) == 0 {
+			if len(claimed.Operations) == 0 {
 				time.Sleep(50 * time.Millisecond)
 				continue
 			}
-			if result := outcome(claimed[0]); result != nil {
-				if err := operations.Complete(f.ctx, f.computerIdentity(), claimed[0].ID, *result); err != nil {
+			if result := outcome(claimed.Operations[0]); result != nil {
+				if err := operations.Complete(f.ctx, f.computerIdentity(), claimed.Operations[0].ID, *result); err != nil {
 					f.t.Errorf("complete=%v", err)
 				}
 			}

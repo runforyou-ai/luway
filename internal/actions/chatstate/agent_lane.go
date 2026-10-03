@@ -84,7 +84,7 @@ func cancelLaneRuns(ctx context.Context, db bun.IDB, organizationID string, lane
 		Scan(ctx, &runIDs); err != nil {
 		return nil, fmt.Errorf("cancel agent lane runs: %w", err)
 	}
-	if err := agentprocess.CancelUnsettled(ctx, db, organizationID, runIDs...); err != nil {
+	if err := agentprocess.SettleEndedRuns(ctx, db, organizationID, runIDs...); err != nil {
 		return nil, err
 	}
 	if _, err := db.NewUpdate().Model((*servermodels.AgentLane)(nil)).

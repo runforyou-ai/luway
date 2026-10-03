@@ -128,6 +128,8 @@ type ComputerOutcome struct {
 	Hash string `json:"hash,omitempty"`
 	// Files 是技能文件夹中附带的文件，相对技能文件夹。
 	Files []string `json:"files,omitempty"`
+	// Aborted 表示操作按服务端的中止要求提前结束，实际结果未知。
+	Aborted bool `json:"aborted,omitempty"`
 }
 
 // ComputerCall 是记录在工具调用上的电脑操作与电脑上报的结果。

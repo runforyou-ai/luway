@@ -5,6 +5,7 @@ package realtime
 
 import (
 	"context"
+	"sync/atomic"
 
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/uptrace/bun"
@@ -21,6 +22,8 @@ const (
 	AudienceCustomerIdentity AudienceKind = "customer_identity"
 	AudienceWebsiteVisitors  AudienceKind = "website_visitors"
 	AudienceComputer         AudienceKind = "computer"
+	// AudienceAgentRun 是正在执行某次 Agent 运行的服务端实例，受众 ID 为运行编号。
+	AudienceAgentRun AudienceKind = "agent_run"
 )
 
 // Kind 定义通知种类。
@@ -46,6 +49,7 @@ const (
 	KindKnowledgeGapsChanged     Kind = "knowledge_gaps_changed"
 	KindServiceReportsChanged    Kind = "service_reports_changed"
 	KindAgentMemoryChanged       Kind = "agent_memory_changed"
+	KindAgentRunEnded            Kind = "agent_run_ended"
 )
 
 // Notification 表示发往单个受众的变更通知、输入状态、客服提醒或撤销控制，载荷含通知种类、会话 ID、会话类型、版本、会话变化类别、登录会话 ID、输入状态、客服提醒原因与 AI 员工 ID，零值字段省略。
@@ -141,6 +145,11 @@ func ComputerRevoked(organizationID, computerID string) Notification {
 	return Notification{OrganizationID: organizationID, AudienceKind: AudienceComputer, AudienceID: computerID, Kind: KindComputerRevoked}
 }
 
+// AgentRunEnded 构造运行已结束的控制通知，正在执行该运行的服务端实例据此中断模型调用与进程内工具。
+func AgentRunEnded(organizationID, runID string) Notification {
+	return Notification{OrganizationID: organizationID, AudienceKind: AudienceAgentRun, AudienceID: runID, Kind: KindAgentRunEnded}
+}
+
 // WebsiteChannelDisabled 构造网站渠道停用撤销控制，Gateway 据此结束该渠道全部访客事件流；受众 ID 为渠道 ID。
 func WebsiteChannelDisabled(organizationID, channelID string) Notification {
 	return Notification{OrganizationID: organizationID, AudienceKind: AudienceWebsiteChannel, AudienceID: channelID, Kind: KindChannelDisabled}
@@ -197,11 +206,28 @@ type batch struct {
 	items map[mergeKey]Notification
 }
 
-// RunInTx 在 *bun.DB 或 bun.Conn 上执行写事务，事务内通过 Notify 登记的通知在提交成功后交给发布器，回滚则丢弃。
+// localAgentRunEnded 是本进程处理运行结束通知的函数，未登记时为空。
+var localAgentRunEnded atomic.Pointer[func(runID string)]
+
+// HandleAgentRunEnded 登记本进程处理运行结束通知的函数：本进程提交的运行结束通知在提交后直接交给它，不经 NATS；返回取消登记的函数。
+func HandleAgentRunEnded(handle func(runID string)) func() {
+	localAgentRunEnded.Store(&handle)
+	return func() { localAgentRunEnded.CompareAndSwap(&handle, nil) }
+}
+
+// RunInTx 在 *bun.DB 或 bun.Conn 上执行写事务，事务内通过 Notify 登记的通知在提交成功后交给发布器，回滚则丢弃；
+// 运行结束通知同时直接交给本进程登记的处理函数。
 func RunInTx(ctx context.Context, db bun.IDB, fn func(context.Context, bun.Tx) error) error {
 	pending := &batch{items: map[mergeKey]Notification{}}
 	if err := db.RunInTx(context.WithValue(ctx, batchKey{}, pending), nil, fn); err != nil {
 		return err
+	}
+	if handle := localAgentRunEnded.Load(); handle != nil {
+		for _, key := range pending.order {
+			if key.kind == KindAgentRunEnded {
+				(*handle)(key.audienceID)
+			}
+		}
 	}
 	if publisher := active.Load(); publisher != nil && len(pending.order) > 0 {
 		notifications := make([]Notification, 0, len(pending.order))

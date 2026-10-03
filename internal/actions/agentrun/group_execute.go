@@ -68,7 +68,7 @@ func (p groupMentionRunPolicy) prepareLocked(ctx context.Context, db bun.IDB, po
 		Exec(ctx); err != nil {
 		return false, fmt.Errorf("suppress group agent run: %w", err)
 	}
-	if err := agentprocess.CancelUnsettled(ctx, db, run.OrganizationID, run.ID); err != nil {
+	if err := agentprocess.SettleEndedRuns(ctx, db, run.OrganizationID, run.ID); err != nil {
 		return false, err
 	}
 	slog.Warn("群内 AI 员工失去执行资格，运行已收敛",

@@ -45,15 +45,11 @@ func (s *Scheduler) ScheduleGroupMentions(ctx context.Context, db bun.IDB, organ
 }
 
 // CancelForGroupAgent 在成员变化事务内取消群内指定 Agent 的在途运行、结算其输入队列并轮转到下一位。
-func (a *ExecuteAction) CancelForGroupAgent(ctx context.Context, db bun.IDB, organizationID, conversationID, agentIdentityID string) ([]string, error) {
-	runIDs, err := cancelGroupAgentRuns(ctx, db, organizationID, conversationID, agentIdentityID)
-	if err != nil {
-		return nil, err
+func (a *ExecuteAction) CancelForGroupAgent(ctx context.Context, db bun.IDB, organizationID, conversationID, agentIdentityID string) error {
+	if err := cancelGroupAgentRuns(ctx, db, organizationID, conversationID, agentIdentityID); err != nil {
+		return err
 	}
-	if err := a.rotateGroupScope(ctx, db, organizationID, conversationID); err != nil {
-		return nil, err
-	}
-	return runIDs, nil
+	return a.rotateGroupScope(ctx, db, organizationID, conversationID)
 }
 
 // rotateGroupScope 在群会话事务内为让出的活动运行名额安排下一位 AI 员工。
@@ -68,7 +64,7 @@ func (a *ExecuteAction) rotateGroupScope(ctx context.Context, db bun.IDB, organi
 }
 
 // CancelForGroupConversation 在群解散事务内取消群内全部 Agent 的在途运行。
-func (a *ExecuteAction) CancelForGroupConversation(ctx context.Context, db bun.IDB, organizationID, conversationID string) ([]string, error) {
+func (a *ExecuteAction) CancelForGroupConversation(ctx context.Context, db bun.IDB, organizationID, conversationID string) error {
 	agentIdentityIDs := make([]string, 0)
 	if err := db.NewSelect().Model((*servermodels.AgentLane)(nil)).
 		ColumnExpr("al.agent_identity_id").
@@ -76,21 +72,18 @@ func (a *ExecuteAction) CancelForGroupConversation(ctx context.Context, db bun.I
 		Where("al.scope_kind = ? AND al.scope_id = ?", domain.AgentExecutionScopeConversation, conversationID).
 		OrderExpr("al.agent_identity_id ASC").
 		Scan(ctx, &agentIdentityIDs); err != nil {
-		return nil, fmt.Errorf("load group agent lanes: %w", err)
+		return fmt.Errorf("load group agent lanes: %w", err)
 	}
-	runIDs := make([]string, 0)
 	for _, agentIdentityID := range agentIdentityIDs {
-		cancelled, err := cancelGroupAgentRuns(ctx, db, organizationID, conversationID, agentIdentityID)
-		if err != nil {
-			return nil, err
+		if err := cancelGroupAgentRuns(ctx, db, organizationID, conversationID, agentIdentityID); err != nil {
+			return err
 		}
-		runIDs = append(runIDs, cancelled...)
 	}
-	return runIDs, nil
+	return nil
 }
 
 // cancelGroupAgentRuns 取消一条群内 Agent 队列上的在途运行并结算其输入。
-func cancelGroupAgentRuns(ctx context.Context, db bun.IDB, organizationID, conversationID, agentIdentityID string) ([]string, error) {
+func cancelGroupAgentRuns(ctx context.Context, db bun.IDB, organizationID, conversationID, agentIdentityID string) error {
 	lane := &servermodels.AgentLane{}
 	err := db.NewSelect().Model(lane).
 		Where("al.organization_id = ?", organizationID).
@@ -99,10 +92,10 @@ func cancelGroupAgentRuns(ctx context.Context, db bun.IDB, organizationID, conve
 		For("UPDATE").
 		Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
+		return nil
 	}
 	if err != nil {
-		return nil, fmt.Errorf("lock group agent lane: %w", err)
+		return fmt.Errorf("lock group agent lane: %w", err)
 	}
 	runIDs := make([]string, 0)
 	if err := db.NewRaw(`
@@ -114,16 +107,16 @@ func cancelGroupAgentRuns(ctx context.Context, db bun.IDB, organizationID, conve
 	`, domain.AgentRunStatusCancelled, domain.AgentRunErrorCodeAgentRemoved, lane.ID,
 		bun.In(domain.AgentRunActiveStatuses)).
 		Scan(ctx, &runIDs); err != nil {
-		return nil, fmt.Errorf("cancel group agent runs: %w", err)
+		return fmt.Errorf("cancel group agent runs: %w", err)
 	}
-	if err := agentprocess.CancelUnsettled(ctx, db, lane.OrganizationID, runIDs...); err != nil {
-		return nil, err
+	if err := agentprocess.SettleEndedRuns(ctx, db, lane.OrganizationID, runIDs...); err != nil {
+		return err
 	}
 	if _, err := db.NewUpdate().Model(lane).
 		Set("processed_seq = desired_seq").
 		Set("updated_at = now()").
 		WherePK().Exec(ctx); err != nil {
-		return nil, fmt.Errorf("advance cancelled group agent lane: %w", err)
+		return fmt.Errorf("advance cancelled group agent lane: %w", err)
 	}
-	return runIDs, nil
+	return nil
 }

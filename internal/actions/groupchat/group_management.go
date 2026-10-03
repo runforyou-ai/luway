@@ -53,9 +53,8 @@ type DissolveGroupConversationAction struct {
 
 // GroupAgentRunCoordinator 在群成员变化事务内收敛受影响 AI 员工的执行。
 type GroupAgentRunCoordinator interface {
-	CancelForGroupAgent(context.Context, bun.IDB, string, string, string) ([]string, error)
-	CancelForGroupConversation(context.Context, bun.IDB, string, string) ([]string, error)
-	CancelRunContexts([]string)
+	CancelForGroupAgent(context.Context, bun.IDB, string, string, string) error
+	CancelForGroupConversation(context.Context, bun.IDB, string, string) error
 }
 
 type activeGroupParticipantRow struct {
@@ -270,7 +269,6 @@ func (a *RemoveGroupConversationMemberAction) Execute(ctx context.Context, ident
 		return GroupConversation{}, &conversationaction.ValidationError{Fields: fields}
 	}
 	var result GroupConversation
-	var cancelledRunIDs []string
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
@@ -305,18 +303,16 @@ func (a *RemoveGroupConversationMemberAction) Execute(ctx context.Context, ident
 				return err
 			}
 		}
-		cancelledRunIDs, err = a.coordinator.CancelForGroupAgent(ctx, tx, identity.Organization.ID, conversationID, memberID)
-		if err != nil {
+		if err := a.coordinator.CancelForGroupAgent(ctx, tx, identity.Organization.ID, conversationID, memberID); err != nil {
 			return err
 		}
 		targets := []conversationaction.ConversationSystemEventParticipant{groupParticipantSnapshot(target)}
 		for _, userID := range removedUserIDs {
-			removed, runIDs, err := removeGroupPersonalAgents(ctx, tx, a.coordinator, identity.Organization.ID, conversationID, userID)
+			removed, err := removeGroupPersonalAgents(ctx, tx, a.coordinator, identity.Organization.ID, conversationID, userID)
 			if err != nil {
 				return err
 			}
 			targets = append(targets, removed...)
-			cancelledRunIDs = append(cancelledRunIDs, runIDs...)
 		}
 		if _, err := createGroupSystemEvent(ctx, tx, identity, group.Conversation, conversationaction.ConversationSystemEvent{
 			Type: domain.ConversationSystemEventGroupMemberRemoved, Actor: groupActorSnapshot(identity), Targets: targets,
@@ -328,9 +324,6 @@ func (a *RemoveGroupConversationMemberAction) Execute(ctx context.Context, ident
 	})
 	if err != nil {
 		return GroupConversation{}, fmt.Errorf("remove group conversation member: %w", err)
-	}
-	if len(cancelledRunIDs) > 0 {
-		a.coordinator.CancelRunContexts(cancelledRunIDs)
 	}
 	return result, nil
 }
@@ -381,7 +374,6 @@ func (a *LeaveGroupConversationAction) Execute(ctx context.Context, identity *se
 	if !valid {
 		return &conversationaction.ValidationError{Fields: map[string]conversationaction.ValidationCode{"conversationId": conversationaction.ValidationConversationIDInvalid}}
 	}
-	var cancelledRunIDs []string
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
@@ -405,11 +397,10 @@ func (a *LeaveGroupConversationAction) Execute(ctx context.Context, identity *se
 		}); err != nil {
 			return err
 		}
-		removed, runIDs, err := removeGroupPersonalAgents(ctx, tx, a.coordinator, identity.Organization.ID, conversationID, identity.User.ID)
+		removed, err := removeGroupPersonalAgents(ctx, tx, a.coordinator, identity.Organization.ID, conversationID, identity.User.ID)
 		if err != nil || len(removed) == 0 {
 			return err
 		}
-		cancelledRunIDs = runIDs
 		_, err = appendGroupSystemEvent(ctx, tx, group.Conversation, conversationaction.ConversationSystemEvent{
 			Type: domain.ConversationSystemEventGroupMemberRemoved, Actor: groupActorSnapshot(identity), Targets: removed,
 		})
@@ -417,9 +408,6 @@ func (a *LeaveGroupConversationAction) Execute(ctx context.Context, identity *se
 	})
 	if err != nil {
 		return fmt.Errorf("leave group conversation: %w", err)
-	}
-	if len(cancelledRunIDs) > 0 {
-		a.coordinator.CancelRunContexts(cancelledRunIDs)
 	}
 	return nil
 }
@@ -431,7 +419,6 @@ func (a *DissolveGroupConversationAction) Execute(ctx context.Context, identity 
 		return GroupConversation{}, &conversationaction.ValidationError{Fields: map[string]conversationaction.ValidationCode{"conversationId": conversationaction.ValidationConversationIDInvalid}}
 	}
 	var result GroupConversation
-	var cancelledRunIDs []string
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
@@ -445,8 +432,7 @@ func (a *DissolveGroupConversationAction) Execute(ctx context.Context, identity 
 			return chatstate.ErrGroupOwnerRequired
 		}
 		if group.Conversation.Status == string(domain.ConversationStatusActive) {
-			cancelledRunIDs, err = a.coordinator.CancelForGroupConversation(ctx, tx, identity.Organization.ID, conversationID)
-			if err != nil {
+			if err := a.coordinator.CancelForGroupConversation(ctx, tx, identity.Organization.ID, conversationID); err != nil {
 				return err
 			}
 			if _, err := createGroupSystemEvent(ctx, tx, identity, group.Conversation, conversationaction.ConversationSystemEvent{
@@ -465,9 +451,6 @@ func (a *DissolveGroupConversationAction) Execute(ctx context.Context, identity 
 	})
 	if err != nil {
 		return GroupConversation{}, fmt.Errorf("dissolve group conversation: %w", err)
-	}
-	if len(cancelledRunIDs) > 0 {
-		a.coordinator.CancelRunContexts(cancelledRunIDs)
 	}
 	return result, nil
 }

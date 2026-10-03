@@ -150,7 +150,7 @@ func testStopWaitingAgentRun(t *testing.T, db *bun.DB, identity *servermodels.Id
 	}
 }
 
-// testFailedAgentRunCancelsToolCalls 验证运行失败时已写入但尚未结束的工具调用记为已取消。
+// testFailedAgentRunCancelsToolCalls 验证运行失败时已写入但尚未结束的工具调用按是否已开始结算：未开始的取消，已开始的中断。
 func testFailedAgentRunCancelsToolCalls(t *testing.T, db *bun.DB, identity *servermodels.Identity, agentIdentityID string, tasks *servertask.Runtime) {
 	ctx := context.Background()
 	_, run := createAgentLockChat(t, ctx, db, identity, agentIdentityID, tasks)
@@ -159,7 +159,14 @@ func testFailedAgentRunCancelsToolCalls(t *testing.T, db *bun.DB, identity *serv
 		ID: uuid.NewV7().String(), ModelCallID: modelCallID, CallID: "r1", Name: "echo", Source: domain.AgentToolSourceBuiltin,
 		Replayable: true, Arguments: `{}`, Status: domain.AgentToolCallRunning,
 	}
-	blocks := []agentruntime.Block{{ID: uuid.NewV7().String(), Position: 1, ModelCallID: modelCallID, Kind: domain.AgentRunBlockToolCall, Payload: agentruntime.BlockPayload{ToolCall: &running}}}
+	queued := agentruntime.ToolCall{
+		ID: uuid.NewV7().String(), ModelCallID: modelCallID, CallID: "q1", Name: "echo", Source: domain.AgentToolSourceBuiltin,
+		Replayable: true, Arguments: `{}`, Status: domain.AgentToolCallQueued,
+	}
+	blocks := []agentruntime.Block{
+		{ID: uuid.NewV7().String(), Position: 1, ModelCallID: modelCallID, Kind: domain.AgentRunBlockToolCall, Payload: agentruntime.BlockPayload{ToolCall: &running}},
+		{ID: uuid.NewV7().String(), Position: 2, ModelCallID: modelCallID, Kind: domain.AgentRunBlockToolCall, Payload: agentruntime.BlockPayload{ToolCall: &queued}},
+	}
 	failing := testAgentRuntime{run: func(ctx context.Context, request agentruntime.RunRequest, feed agentruntime.InputFeed) (agentruntime.RunResult, error) {
 		if _, err := feed.Claim(ctx, 1); err != nil {
 			return agentruntime.RunResult{}, err
@@ -171,9 +178,11 @@ func testFailedAgentRunCancelsToolCalls(t *testing.T, db *bun.DB, identity *serv
 	}}
 	_ = agentrunaction.NewExecuteAction(db, tasks, failing, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID})
 	assertAgentRunStatus(t, ctx, db, run.ID, domain.AgentRunStatusFailed)
-	var saved servermodels.AgentToolCall
-	if err := db.NewSelect().Model(&saved).Where("atc.id = ?", running.ID).Scan(ctx); err != nil || saved.Status != string(domain.AgentToolCallCancelled) {
-		t.Fatalf("tool call after failure = %+v, err = %v", saved, err)
+	for id, want := range map[string]domain.AgentToolCallStatus{running.ID: domain.AgentToolCallInterrupted, queued.ID: domain.AgentToolCallCancelled} {
+		var saved servermodels.AgentToolCall
+		if err := db.NewSelect().Model(&saved).Where("atc.id = ?", id).Scan(ctx); err != nil || saved.Status != string(want) {
+			t.Fatalf("tool call after failure = %+v, err = %v, want %s", saved, err, want)
+		}
 	}
 }
 

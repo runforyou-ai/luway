@@ -121,14 +121,14 @@ func (o *directOperations) ReportComputerCapabilities(ctx context.Context, meta 
 	return nil
 }
 
-// ClaimComputerOperations 领取派发给本电脑的待执行操作。
+// ClaimComputerOperations 领取派发给本电脑的待执行操作，并返回应当中止的操作。
 func (o *directOperations) ClaimComputerOperations(ctx context.Context, meta appservice.RequestMeta, computer computeraction.Identity, input appservice.ComputerClaimInput) (appservice.ComputerOperationList, error) {
-	operations, err := o.computerOperations.Claim(ctx, computer, input.Limit, input.Running)
+	claimed, err := o.computerOperations.Claim(ctx, computer, input.Limit, input.Running)
 	if err != nil {
 		return appservice.ComputerOperationList{}, o.computerRequestError(meta, err)
 	}
-	output := appservice.ComputerOperationList{Operations: make([]appservice.ComputerOperationItem, 0, len(operations))}
-	for _, operation := range operations {
+	output := appservice.ComputerOperationList{Operations: make([]appservice.ComputerOperationItem, 0, len(claimed.Operations)), Abort: claimed.Abort}
+	for _, operation := range claimed.Operations {
 		output.Operations = append(output.Operations, appservice.ComputerOperationItem{ID: operation.ID, Operation: operation.Operation})
 	}
 	return output, nil

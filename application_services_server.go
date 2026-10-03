@@ -152,7 +152,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewService(&telemetryLifecycle{telemetry: telemetry, control: controlClient}),
 		application.NewServiceWithOptions(api.NewLiveness(), application.ServiceOptions{Route: "/healthz"}),
 		application.NewServiceWithOptions(api.NewReadiness(db), application.ServiceOptions{Route: "/readyz"}),
-		application.NewService(&realtimeLifecycle{publisher: realtimePublisher, gateway: realtimeGateway}),
+		application.NewService(&realtimeLifecycle{publisher: realtimePublisher, gateway: realtimeGateway, agentRunEnded: executeAgentRun.CancelRunContext}),
 		application.NewService(&httpsLifecycle{service: httpsEntry}),
 		application.NewServiceWithOptions(boundService, application.ServiceOptions{MarshalError: appservice.MarshalError}),
 		application.NewServiceWithOptions(httpAPI, application.ServiceOptions{Route: "/api"}),

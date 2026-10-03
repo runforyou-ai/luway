@@ -58,8 +58,8 @@ type Link struct {
 	unsubscribe func()
 	// mu 保护 running。
 	mu sync.Mutex
-	// running 是本机正在执行或尚未上报结果的操作编号。
-	running map[string]struct{}
+	// running 是本机正在执行或尚未上报结果的操作，值为中止该操作的取消函数。
+	running map[string]context.CancelFunc
 }
 
 // StartLink 建立执行器连接并开始事件流、领取与能力上报循环；服务器地址无效时返回错误。
@@ -72,7 +72,7 @@ func StartLink(options LinkOptions) (*Link, error) {
 	link := &Link{
 		options: options, client: client, ctx: ctx, cancel: cancel,
 		wake: make(chan struct{}, 1), report: make(chan struct{}, 1), slots: make(chan struct{}, defaultConcurrency),
-		running: map[string]struct{}{},
+		running: map[string]context.CancelFunc{},
 	}
 	link.unsubscribe = options.Host.Subscribe(func() { signal(link.report) })
 	signal(link.report)
@@ -172,7 +172,7 @@ func (l *Link) stream() bool {
 	return true
 }
 
-// work 在通知与定时器上领取操作，按空闲槽位数领取并并发执行，直到连接结束。
+// work 在通知与定时器上领取操作，按空闲槽位数领取并并发执行，并中止服务端要求中止的操作，直到连接结束。
 func (l *Link) work() {
 	var running sync.WaitGroup
 	defer running.Wait()
@@ -183,12 +183,8 @@ func (l *Link) work() {
 		case <-l.wake:
 		case <-time.After(pollInterval):
 		}
-		free := cap(l.slots) - len(l.slots)
-		if free == 0 {
-			continue
-		}
-		// 每次领取都带上本机仍持有的操作，服务端据此结算已无人执行的调用，定时领取同时起到核对作用。
-		operations, err := l.client.claim(l.ctx, free, l.heldOperations())
+		// 每次领取都带上本机仍持有的操作，服务端据此结算已无人执行的调用并给出要中止的操作；槽位占满时只核对不领取。
+		claimed, err := l.client.claim(l.ctx, cap(l.slots)-len(l.slots), l.heldOperations())
 		if errors.Is(err, ErrCredentialInvalid) {
 			l.credentialInvalid()
 			return
@@ -199,13 +195,27 @@ func (l *Link) work() {
 			}
 			continue
 		}
-		for _, operation := range operations {
+		l.mu.Lock()
+		aborts := make([]context.CancelFunc, 0, len(claimed.Abort))
+		for _, id := range claimed.Abort {
+			if abort := l.running[id]; abort != nil {
+				slog.Info("按服务端要求中止电脑操作", "operation_id", id)
+				aborts = append(aborts, abort)
+			}
+		}
+		l.mu.Unlock()
+		for _, abort := range aborts {
+			abort()
+		}
+		for _, operation := range claimed.Operations {
 			l.slots <- struct{}{}
+			ctx, abort := context.WithCancel(l.ctx)
 			l.mu.Lock()
-			l.running[operation.ID] = struct{}{}
+			l.running[operation.ID] = abort
 			l.mu.Unlock()
 			running.Go(func() {
 				defer func() {
+					abort()
 					l.mu.Lock()
 					delete(l.running, operation.ID)
 					l.mu.Unlock()
@@ -213,24 +223,25 @@ func (l *Link) work() {
 					// 释放槽位后再领取一次，排队的操作尽快开始。
 					signal(l.wake)
 				}()
-				l.execute(operation)
+				l.execute(ctx, operation)
 			})
 		}
 	}
 }
 
-// execute 执行一次操作并上报结果，上报失败时按退避重试到成功或连接结束。
-func (l *Link) execute(operation appservice.ComputerOperationItem) {
+// execute 在操作的 ctx 内执行一次操作并上报结果，操作被中止且没有成功完成时上报为已中止；上报失败时按退避重试到成功或连接结束。
+func (l *Link) execute(ctx context.Context, operation appservice.ComputerOperationItem) {
 	slog.Info("开始执行电脑操作", "operation_id", operation.ID, "kind", operation.Operation.Kind)
-	outcome := l.options.Host.Execute(l.ctx, operation.Operation)
+	outcome := l.options.Host.Execute(ctx, operation.Operation)
 	if l.ctx.Err() != nil {
 		return
 	}
+	outcome.Aborted = ctx.Err() != nil && outcome.Error != ""
 	backoff := retryInterval
 	for {
 		err := l.client.complete(l.ctx, operation.ID, appservice.ComputerOutcomeInput{Outcome: outcome})
 		if err == nil {
-			slog.Info("电脑操作已完成", "operation_id", operation.ID, "failed", outcome.Error != "")
+			slog.Info("电脑操作已完成", "operation_id", operation.ID, "failed", outcome.Error != "", "aborted", outcome.Aborted)
 			return
 		}
 		if errors.Is(err, ErrCredentialInvalid) {

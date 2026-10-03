@@ -186,10 +186,13 @@ func (f *realtimeFeed) visitorTyping(channelIdentityID, conversationID string, a
 	}
 }
 
-// next 读取并解析下一条实时通知。
+// next 读取并解析下一条实时通知，跳过只在服务端实例之间传递的运行结束通知。
 func (f *realtimeFeed) next(t *testing.T) (receivedNotification, error) {
 	t.Helper()
 	message, err := f.subscription.NextMsg(5 * time.Second)
+	for err == nil && strings.Contains(message.Subject, "."+string(realtime.AudienceAgentRun)+".") {
+		message, err = f.subscription.NextMsg(5 * time.Second)
+	}
 	if err != nil {
 		return receivedNotification{}, err
 	}

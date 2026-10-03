@@ -388,7 +388,7 @@ func (a *ExecuteAction) failCustomerRun(ctx context.Context, initial *servermode
 			WherePK().Exec(ctx); err != nil {
 			return fmt.Errorf("fail handed off agent run: %w", err)
 		}
-		if err := agentprocess.CancelUnsettled(ctx, tx, run.OrganizationID, run.ID); err != nil {
+		if err := agentprocess.SettleEndedRuns(ctx, tx, run.OrganizationID, run.ID); err != nil {
 			return err
 		}
 		return nil
@@ -397,14 +397,14 @@ func (a *ExecuteAction) failCustomerRun(ctx context.Context, initial *servermode
 }
 
 // ReturnServiceSessionsToQueue 在管理操作事务中把失去接待资格的身份负责的开放服务周期退回队列：取消在途运行并结算输入队列，写入退回事件；原负责人是 AI 员工时投递转人工承接任务。
-// sources 限定退回的服务会话来源，为空表示全部来源。调用方已对该身份取 FOR UPDATE；返回被取消的运行编号，调用方在提交后中断本进程中的模型调用。
-func (a *ExecuteAction) ReturnServiceSessionsToQueue(ctx context.Context, db bun.IDB, organizationID, identityID, operationID string, sources []domain.ServiceSource) ([]string, error) {
+// sources 限定退回的服务会话来源，为空表示全部来源。调用方已对该身份取 FOR UPDATE。
+func (a *ExecuteAction) ReturnServiceSessionsToQueue(ctx context.Context, db bun.IDB, organizationID, identityID, operationID string, sources []domain.ServiceSource) error {
 	assignee := &servermodels.OrganizationIdentity{}
 	if err := db.NewSelect().Model(assignee).
 		Column("oi.id", "oi.type", "oi.display_name").
 		Where("oi.organization_id = ? AND oi.id = ?", organizationID, identityID).
 		Scan(ctx); err != nil {
-		return nil, fmt.Errorf("load unavailable service session assignee: %w", err)
+		return fmt.Errorf("load unavailable service session assignee: %w", err)
 	}
 	var sessions []struct {
 		ID             string `bun:"id"`
@@ -418,20 +418,17 @@ func (a *ExecuteAction) ReturnServiceSessionsToQueue(ctx context.Context, db bun
 			Where("svc.source IN (?)", bun.In(sources))
 	}
 	if err := query.OrderExpr("ss.conversation_id").Scan(ctx, &sessions); err != nil {
-		return nil, fmt.Errorf("load assignee open service sessions: %w", err)
+		return fmt.Errorf("load assignee open service sessions: %w", err)
 	}
-	cancelled := make([]string, 0)
 	for _, row := range sessions {
-		runIDs, err := returnUnavailableAssigneeSession(ctx, db, a.enqueuer, organizationID, row.ConversationID, row.ID, assignee, "returned:"+row.ID+":"+operationID)
-		if err != nil {
-			return nil, err
+		if _, err := returnUnavailableAssigneeSession(ctx, db, a.enqueuer, organizationID, row.ConversationID, row.ID, assignee, "returned:"+row.ID+":"+operationID); err != nil {
+			return err
 		}
-		cancelled = append(cancelled, runIDs...)
 	}
-	return cancelled, nil
+	return nil
 }
 
-// returnUnavailableAssigneeSession 把失去接待资格的负责人所负责的指定周期退回队列，周期已变化时跳过；调用方可以已在本事务中持有会话锁。
+// returnUnavailableAssigneeSession 把失去接待资格的负责人所负责的指定周期退回队列并返回被取消的运行编号，周期已变化时跳过；调用方可以已在本事务中持有会话锁。
 func returnUnavailableAssigneeSession(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, organizationID, conversationID, serviceSessionID string, assignee *servermodels.OrganizationIdentity, key string) ([]string, error) {
 	locked, err := chatstate.LockServiceSession(ctx, db, organizationID, conversationID)
 	if err != nil {

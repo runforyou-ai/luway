@@ -68,7 +68,6 @@ func (a *UpdateAgentAction) Execute(ctx context.Context, identity *servermodels.
 		responsibleUserID = &input.ResponsibleUserID
 	}
 	var output *Agent
-	var cancelledRunIDs []string
 	err = realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
@@ -190,8 +189,7 @@ func (a *UpdateAgentAction) Execute(ctx context.Context, identity *servermodels.
 			removed = append(removed, domain.ServiceSourceDirect)
 		}
 		if len(removed) > 0 {
-			cancelledRunIDs, err = a.returner.ReturnServiceSessionsToQueue(ctx, tx, identity.Organization.ID, storedAgent.IdentityID, uuid.NewV7().String(), removed)
-			if err != nil {
+			if err := a.returner.ReturnServiceSessionsToQueue(ctx, tx, identity.Organization.ID, storedAgent.IdentityID, uuid.NewV7().String(), removed); err != nil {
 				return err
 			}
 		}
@@ -207,6 +205,5 @@ func (a *UpdateAgentAction) Execute(ctx context.Context, identity *servermodels.
 	if err != nil {
 		return nil, fmt.Errorf("update agent: %w", err)
 	}
-	a.returner.CancelRunContexts(cancelledRunIDs)
 	return output, nil
 }

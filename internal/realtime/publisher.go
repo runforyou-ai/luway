@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync/atomic"
 
 	"github.com/nats-io/nats.go"
@@ -57,6 +58,17 @@ func (p *Publisher) Connection() *nats.Conn {
 // Subject 生成受众通知的 NATS Subject。
 func Subject(namespace, organizationID string, audienceKind AudienceKind, audienceID string) string {
 	return namespace + ".realtime." + organizationID + "." + string(audienceKind) + "." + audienceID
+}
+
+// SubscribeAgentRunEnded 订阅全部工作区的运行结束通知，收到后以运行编号调用 handle；返回取消订阅函数。须在 Start 之后调用。
+func (p *Publisher) SubscribeAgentRunEnded(handle func(runID string)) (func(), error) {
+	subscription, err := p.connection.Subscribe(Subject(p.config.Namespace, "*", AudienceAgentRun, "*"), func(message *nats.Msg) {
+		handle(message.Subject[strings.LastIndexByte(message.Subject, '.')+1:])
+	})
+	if err != nil {
+		return nil, fmt.Errorf("subscribe agent run ended: %w", err)
+	}
+	return func() { _ = subscription.Unsubscribe() }, nil
 }
 
 // Start 建立 NATS 连接并开始接收已提交通知；NATS 暂不可用时后台重连，不阻塞启动。

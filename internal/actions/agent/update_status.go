@@ -18,10 +18,9 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ServiceSessionReturner 在管理操作事务中把失去接待资格的身份负责的开放客服周期退回原队列，并在提交后中断被取消的模型调用。
+// ServiceSessionReturner 在管理操作事务中把失去接待资格的身份负责的开放客服周期退回原队列。
 type ServiceSessionReturner interface {
-	ReturnServiceSessionsToQueue(ctx context.Context, db bun.IDB, organizationID, identityID, operationID string, sources []domain.ServiceSource) ([]string, error)
-	CancelRunContexts([]string)
+	ReturnServiceSessionsToQueue(ctx context.Context, db bun.IDB, organizationID, identityID, operationID string, sources []domain.ServiceSource) error
 }
 
 // UpdateStatusAction 修改 AI 员工状态。
@@ -44,7 +43,6 @@ func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels
 		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"status": ValidationStatusInvalid}}
 	}
 	var output *Agent
-	var cancelledRunIDs []string
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
@@ -85,8 +83,7 @@ func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels
 			if err := chatstate.ResetChannelRoutingTarget(ctx, tx, identity.Organization.ID, domain.ChannelRoutingTargetTypeMember, updatedAgent.IdentityID); err != nil {
 				return err
 			}
-			cancelledRunIDs, err = a.returner.ReturnServiceSessionsToQueue(ctx, tx, identity.Organization.ID, updatedAgent.IdentityID, uuid.NewV7().String(), nil)
-			if err != nil {
+			if err := a.returner.ReturnServiceSessionsToQueue(ctx, tx, identity.Organization.ID, updatedAgent.IdentityID, uuid.NewV7().String(), nil); err != nil {
 				return err
 			}
 		}
@@ -104,7 +101,6 @@ func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels
 	if err != nil {
 		return nil, fmt.Errorf("update agent status: %w", err)
 	}
-	a.returner.CancelRunContexts(cancelledRunIDs)
 	return output, nil
 }
 
