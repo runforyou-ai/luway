@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/clientrelease"
@@ -24,6 +25,9 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/updater"
 	"github.com/wailsapp/wails/v3/pkg/updater/providers/endpoint"
 )
+
+// prepareTimeout 是一次检查并下载新版本的最长时间。
+const prepareTimeout = 10 * time.Minute
 
 // selfUpdater 是 Wails 更新器中检查、下载与重启的部分。
 type selfUpdater interface {
@@ -63,10 +67,12 @@ func updaterConfig(version string, publicKey ed25519.PublicKey, serverURL func(c
 	}
 }
 
-// PrepareClientUpdate 检查当前服务器提供的客户端版本，较新时下载更新包并校验签名，同一版本只下载一次。
+// PrepareClientUpdate 检查当前服务器提供的客户端版本，较新时下载更新包并校验签名，同一版本只下载一次；超过 prepareTimeout 按失败返回。
 func (u *clientUpdater) PrepareClientUpdate(ctx context.Context, meta appservice.RequestMeta) (appservice.ClientUpdate, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	ctx, cancel := context.WithTimeout(ctx, prepareTimeout)
+	defer cancel()
 	release, err := u.updater.Check(ctx)
 	if err != nil {
 		slog.Warn("检查客户端更新失败", "error", err)
@@ -127,8 +133,11 @@ func (p *serverProvider) Check(ctx context.Context, request updater.CheckRequest
 	if serverURL == "" {
 		return nil, nil
 	}
-	// 下载时长随更新包大小和网络变化，由调用方的 context 结束。
-	provider, err := endpoint.New(endpoint.Config{URL: strings.TrimRight(serverURL, "/") + clientrelease.UpdatePath, HTTPClient: &http.Client{}})
+	// 下载总时长由 PrepareClientUpdate 的截止时间限制，服务器迟迟不返回响应头时直接失败。
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.ResponseHeaderTimeout = 30 * time.Second
+	client := &http.Client{Transport: transport}
+	provider, err := endpoint.New(endpoint.Config{URL: strings.TrimRight(serverURL, "/") + clientrelease.UpdatePath, HTTPClient: client})
 	if err != nil {
 		return nil, err
 	}
