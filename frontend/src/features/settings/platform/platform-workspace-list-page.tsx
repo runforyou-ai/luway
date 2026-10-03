@@ -1,4 +1,5 @@
-/** 平台设置的全部工作区页：按状态筛选、排序和搜索平台内的全部工作区，查看规模与最近活跃，暂停或恢复工作区。 */
+/** 平台设置的全部工作区页：按状态筛选、排序和搜索平台内的全部工作区，查看规模与最近活跃，查看与调整积分，暂停或恢复工作区。 */
+import { useState } from "react"
 import { LayoutGridIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -18,6 +19,7 @@ import { ResourceListLayout } from "@/components/resource-list"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable, type ResourceRowAction } from "@/components/resource-table"
 import { StatusBadge } from "@/components/status-badge"
+import { PlatformWorkspaceCreditsSheet } from "@/features/settings/platform/platform-workspace-credits-sheet"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 import { useListSearchParams } from "@/hooks/use-list-search-params"
@@ -48,24 +50,25 @@ const sortOptions = [
   [PlatformWorkspaceSort.PlatformWorkspaceSortStorage, "workspaces.sorts.storage"],
 ] as const
 
-/** 返回统计日期距统计时区今天的天数，日期为 YYYY-MM-DD。 */
+/** 返回统计日期距平台时区今天的天数，日期为 YYYY-MM-DD。 */
 function daysSince(date: string, timeZone: string) {
   const today = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date())
   return Math.max(0, Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${date}T00:00:00Z`)) / 86_400_000))
 }
 
-/** 列出平台工作区；暂停与恢复经确认后执行，已暂停的工作区在名称旁标记。 */
+/** 列出平台工作区；点击行或「积分」打开积分侧栏，暂停与恢复经确认后执行，已暂停的工作区在名称旁标记。 */
 export function PlatformWorkspaceListPage() {
   const { t } = useTranslation("platform")
   const { searchParams, setParameters, query, search, setSearch } = useListSearchParams()
   const status = optionalWailsEnum(WorkspaceStatus, searchParams.get("status")) ?? WorkspaceStatus.$zero
+  const [creditsWorkspace, setCreditsWorkspace] = useState<PlatformWorkspace | null>(null)
   const sort = optionalWailsEnum(PlatformWorkspaceSort, searchParams.get("sort")) ?? PlatformWorkspaceSort.PlatformWorkspaceSortCreatedAt
   const list = usePagedResource(
     resourceKeys.platformWorkspaces({ query, status, sort, pageSize: 50 }),
     (page, signal) => listPlatformWorkspaces({ query, status, sort, page, pageSize: 50 }, signal),
     { select: (data) => ({ items: data.workspaces, page: data.page }), itemKey: (item) => item.id },
   )
-  // 最近活跃日期按统计时区划分，相对天数同样按统计时区的今天计算。
+  // 最近活跃日期按平台时区划分，相对天数同样按平台时区的今天计算。
   const settings = useResource(resourceKeys.platformSettings(), (signal) => getPlatformSettings(signal))
   const pending = useConfirmedAction<PendingWorkspaceChange>({
     action: ({ workspace, change }) => workspaceChangeRequests[change](workspace.id),
@@ -84,7 +87,13 @@ export function PlatformWorkspaceListPage() {
     const change: WorkspaceChange = item.status === WorkspaceStatus.WorkspaceStatusSuspended ? "resume" : "suspend"
     return [
       {
+        key: "credits",
+        label: t("workspaces.credits"),
+        onSelect: () => setCreditsWorkspace(item),
+      },
+      {
         key: change,
+        separatorBefore: true,
         label: change === "suspend" && item.hasPlatformAdmin ? t("workspaces.suspendUnavailable") : t(`workspaces.${change}`),
         onSelect: () => pending.select({ workspace: item, change }),
         disabled: change === "suspend" && item.hasPlatformAdmin,
@@ -93,10 +102,10 @@ export function PlatformWorkspaceListPage() {
     ]
   }
 
-  /** 返回最近活跃的说明，从未活跃时说明尚无活跃；统计时区读取前按 UTC 计算。 */
+  /** 返回最近活跃的说明，从未活跃时说明尚无活跃；平台时区读取前按 UTC 计算。 */
   function lastActive(item: PlatformWorkspace) {
     if (!item.lastActiveOn) return t("workspaces.neverActive")
-    const days = daysSince(item.lastActiveOn, settings.data?.statisticsTimeZone ?? "UTC")
+    const days = daysSince(item.lastActiveOn, settings.data?.timeZone ?? "UTC")
     return days === 0 ? t("workspaces.activeToday") : t("workspaces.activeDaysAgo", { count: days })
   }
 
@@ -166,9 +175,12 @@ export function PlatformWorkspaceListPage() {
           rows={list.data?.items ?? []}
           rowKey={(item) => item.id}
           empty={t("workspaces.empty")}
+          onRowActivate={setCreditsWorkspace}
           rowActions={rowActions}
         />
       </ResourceListLayout>
+
+      <PlatformWorkspaceCreditsSheet workspace={creditsWorkspace} onClose={() => setCreditsWorkspace(null)} />
 
       <ConfirmationDialog
         {...pending.dialog}

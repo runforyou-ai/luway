@@ -156,7 +156,7 @@ type AIModelOptionProvider struct {
 	Brand AIProviderBrand `json:"brand"`
 }
 
-// AIModelOption 定义模型选择器中的模型；工作区模型带所属供应商，平台模型的 Provider 为空。
+// AIModelOption 定义模型选择器中的模型；工作区模型带所属供应商，平台模型带积分价格，另一项为空。
 type AIModelOption struct {
 	ID              string                 `json:"id"`
 	Scope           AIModelScope           `json:"scope"`
@@ -164,6 +164,7 @@ type AIModelOption struct {
 	Type            AIModelType            `json:"type"`
 	InputModalities []AIModelInputModality `json:"inputModalities"`
 	Provider        *AIModelOptionProvider `json:"provider"`
+	Price           *CreditPrice           `json:"price"`
 }
 
 // AIModelOptionList 定义满足某一用途的模型选项。

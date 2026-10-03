@@ -228,6 +228,7 @@ var platformModelFieldCodes = func() map[common.FieldCode]i18n.Key {
 		platformmodelaction.ValidationRoutesInvalid:          i18n.FieldPlatformAIModelRoutesInvalid,
 		platformmodelaction.ValidationRouteDuplicate:         i18n.FieldPlatformAIModelRouteDuplicate,
 		platformmodelaction.ValidationUsageConflict:          i18n.FieldPlatformAIModelUsageConflict,
+		platformmodelaction.ValidationPriceInvalid:           i18n.FieldPlatformAIModelPriceInvalid,
 		platformmodelaction.ValidationCallQueryInvalid:       i18n.FieldPlatformAIModelCallQueryInvalid,
 	}
 	maps.Copy(codes, aiProviderFieldCodes)
@@ -282,6 +283,7 @@ func platformAIModelInput(input appservice.PlatformAIModelInput) platformmodelac
 			Name: input.Name, Type: domain.AIModelType(input.Type), InputModalities: inputModalities,
 			ContextWindow: input.ContextWindow, MaxOutputTokens: input.MaxOutputTokens,
 		},
+		Price:  (*domain.CreditPrice)(input.Price),
 		Routes: routes,
 	}
 }
@@ -301,7 +303,7 @@ func platformAIModelFromAction(model platformmodelaction.Record) appservice.Plat
 	}
 	return appservice.PlatformAIModel{
 		ID: model.ID, Name: model.Name, Type: appservice.AIModelType(model.Type), InputModalities: inputModalities,
-		ContextWindow: model.ContextWindow, MaxOutputTokens: model.MaxOutputTokens, Routes: routes,
+		ContextWindow: model.ContextWindow, MaxOutputTokens: model.MaxOutputTokens, Price: creditPriceFromDomain(model.Price), Routes: routes,
 	}
 }
 
@@ -312,6 +314,6 @@ func platformAIModelCallFromAction(call platformmodelaction.Call) appservice.Pla
 		Usage: appservice.AIModelUsage(call.Usage), WorkspaceID: call.WorkspaceID, WorkspaceName: call.WorkspaceName,
 		Actor: appservice.AIModelCallActor(call.Actor), Status: appservice.AIModelCallStatus(call.Status),
 		InputTokens: call.InputTokens, CachedInputTokens: call.CachedInputTokens, OutputTokens: call.OutputTokens,
-		ErrorMessage: call.ErrorMessage, AttemptCount: call.AttemptCount,
+		ErrorMessage: call.ErrorMessage, AttemptCount: call.AttemptCount, Credits: call.Credits, CreditShortfall: call.CreditShortfall,
 	}
 }

@@ -30,7 +30,24 @@ Calls start with the first enabled source and try the next one when a source fai
 > [!IMPORTANT]
 > All sources of a platform model must serve the same model. This matters most for embedding models: knowledge base indexes aren't rebuilt when sources change, so switching to a different model breaks retrieval.
 
-A saved platform model is available to every workspace right away. A platform model that is used by AI employees, knowledge bases, or customer service settings in any workspace can't be deleted, and its type or input types can't be changed to ones those uses don't support.
+A priced platform model is available to every workspace right away. A platform model that is used by AI employees, knowledge bases, or customer service settings in any workspace can't be deleted, and its type or input types can't be changed to ones those uses don't support.
+
+## Prices
+
+Workspaces pay for platform models with credits at the model's price. In the platform model's **Price** section, turn on **Charge workspaces** and fill in the prices for the model type:
+
+| Model type | Prices |
+| --- | --- |
+| Chat | Credits per 1M input tokens, credits per 1M output tokens, credits per call |
+| Embedding, rerank | Credits per 1M input tokens, credits per call |
+| Decision | Credits per call |
+
+A call costs the per-call price plus the token price, with the token part rounded up. Cached input tokens are priced as regular input. A price of 0 means free.
+
+> [!IMPORTANT]
+> A platform model without a price doesn't appear when workspaces choose a model, and features already using it pause until it has a price again.
+
+Price changes apply from the next call. Calls in progress are settled at the price from when they started. For the daily grant and workspace credits, see [Credits](/docs/en/guide/admin/credits/).
 
 ## How workspaces use them
 
@@ -41,7 +58,7 @@ Wherever workspaces choose a model (AI employees, knowledge bases, conversation 
 **Model calls** lists platform model calls from all workspaces. You can filter by model, status, and workspace. Open a record to see:
 
 - the workspace, usage, and who started the call;
-- duration and token usage;
+- duration, token usage, and credits charged, plus any credits that couldn't be charged because the balance ran out;
 - the provider, model identifier, status, and failure reason of each upstream attempt.
 
 When a call tried several sources, the earlier sources failed and a later one completed the call or it failed in the end. Failures that keep happening on the same source usually mean you should check that provider's key, balance, or model identifier.

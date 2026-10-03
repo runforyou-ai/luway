@@ -31,6 +31,7 @@ const (
 	ValidationRoutesInvalid          ValidationCode = "PLATFORM_AI_MODEL_ROUTES_INVALID"
 	ValidationRouteDuplicate         ValidationCode = "PLATFORM_AI_MODEL_ROUTE_DUPLICATE"
 	ValidationUsageConflict          ValidationCode = "PLATFORM_AI_MODEL_USAGE_CONFLICT"
+	ValidationPriceInvalid           ValidationCode = "PLATFORM_AI_MODEL_PRICE_INVALID"
 	ValidationCallQueryInvalid       ValidationCode = "PLATFORM_AI_MODEL_CALL_QUERY_INVALID"
 )
 
@@ -42,9 +43,10 @@ type RouteInput struct {
 	Enabled    bool
 }
 
-// Input 定义平台模型的属性与按尝试顺序排列的来源。
+// Input 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价，工作区不可使用。
 type Input struct {
 	aimodel.Spec
+	Price  *domain.CreditPrice
 	Routes []RouteInput
 }
 
@@ -59,9 +61,10 @@ type Route struct {
 	Enabled       bool                   `bun:"enabled"`
 }
 
-// Record 定义平台模型的属性与按尝试顺序排列的来源。
+// Record 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价。
 type Record struct {
 	ID string
 	aimodel.Spec
+	Price  *domain.CreditPrice
 	Routes []Route
 }

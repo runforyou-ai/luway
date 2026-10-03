@@ -435,15 +435,18 @@ type Backend interface {
 	// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 	//appservice:route GET /platform/overview auth=admin
 	GetPlatformOverview(context.Context, RequestMeta) (PlatformOverview, error)
-	// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+	// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
 	//appservice:route GET /platform/settings auth=admin
 	GetPlatformSettings(context.Context, RequestMeta) (PlatformSettings, error)
 	// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
 	//appservice:route PUT /platform/settings auth=admin
 	UpdatePlatformSettings(context.Context, RequestMeta, PlatformPoliciesInput) (PlatformSettings, error)
-	// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-	//appservice:route PUT /platform/settings/statistics-time-zone auth=admin
-	UpdatePlatformStatisticsTimeZone(context.Context, RequestMeta, PlatformStatisticsTimeZoneInput) (PlatformSettings, error)
+	// UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+	//appservice:route PUT /platform/settings/time-zone auth=admin
+	UpdatePlatformTimeZone(context.Context, RequestMeta, PlatformTimeZoneInput) (PlatformSettings, error)
+	// UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
+	//appservice:route PUT /platform/settings/daily-credit-grant auth=admin
+	UpdatePlatformDailyCreditGrant(context.Context, RequestMeta, PlatformDailyCreditGrantInput) (PlatformSettings, error)
 	// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
 	//appservice:route PUT /platform/settings/telemetry auth=admin
 	UpdatePlatformTelemetry(context.Context, RequestMeta, PlatformTelemetryInput) (PlatformSettings, error)
@@ -495,6 +498,15 @@ type Backend interface {
 	// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 	//appservice:route GET /platform/runtime/failed-tasks auth=admin
 	ListPlatformFailedTasks(context.Context, RequestMeta, PlatformFailedTaskListInput) (PlatformFailedTaskList, error)
+	// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
+	//appservice:route GET /platform/workspaces/:workspaceID/credits auth=admin
+	GetPlatformWorkspaceCredits(context.Context, RequestMeta, string) (CreditBalance, error)
+	// ListPlatformWorkspaceCreditEntries 返回工作区的积分流水。
+	//appservice:route GET /platform/workspaces/:workspaceID/credits/entries auth=admin
+	ListPlatformWorkspaceCreditEntries(context.Context, RequestMeta, string, CreditEntryListInput) (CreditEntryList, error)
+	// AdjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
+	//appservice:route POST /platform/workspaces/:workspaceID/credits/adjustments status=201 auth=admin
+	AdjustPlatformWorkspaceCredits(context.Context, RequestMeta, string, PlatformCreditAdjustmentInput) (PlatformCreditAdjustment, error)
 	// ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 	//appservice:route GET /platform/model-providers auth=admin
 	ListPlatformAIProviders(context.Context, RequestMeta) (PlatformAIProviderList, error)
@@ -697,6 +709,12 @@ type Backend interface {
 	// ListAIModelOptions 返回当前工作区满足指定用途的模型。
 	//appservice:route GET /ai-models query=usage
 	ListAIModelOptions(context.Context, RequestMeta, AIModelUsage) (AIModelOptionList, error)
+	// GetCreditBalance 返回当前工作区的可用积分与今天的每日赠送。
+	//appservice:route GET /credits
+	GetCreditBalance(context.Context, RequestMeta) (CreditBalance, error)
+	// ListCreditEntries 返回当前工作区的积分流水。
+	//appservice:route GET /credits/entries
+	ListCreditEntries(context.Context, RequestMeta, CreditEntryListInput) (CreditEntryList, error)
 	// ListAIProviders 返回当前企业的模型服务供应商列表。
 	//appservice:route GET /settings/model-services
 	ListAIProviders(context.Context, RequestMeta) (AIProviderList, error)

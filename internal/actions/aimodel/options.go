@@ -23,7 +23,7 @@ func NewListOptionsQuery(db *bun.DB) *ListOptionsQuery {
 	return &ListOptionsQuery{db: db}
 }
 
-// Execute 返回满足用途要求且有可用来源的模型：平台模型在前并按名称排序，工作区模型按供应商名称、模型名称排序。
+// Execute 返回满足用途要求、可计费且有可用来源的模型：平台模型在前并按名称排序，工作区模型按供应商名称、模型名称排序。
 func (q *ListOptionsQuery) Execute(ctx context.Context, identity *servermodels.Identity, usage domain.AIModelUsage) ([]Option, error) {
 	if _, ok := usage.Requirement(); !ok {
 		return nil, ErrUsageInvalid
@@ -31,6 +31,7 @@ func (q *ListOptionsQuery) Execute(ctx context.Context, identity *servermodels.I
 	options := make([]Option, 0)
 	if err := optionQuery(q.db, identity.Organization.ID, usage).
 		Where("EXISTS (SELECT 1 FROM ai_model_routes AS amr WHERE amr.model_id = aim.id AND amr.enabled)").
+		Where(pricedCondition).
 		OrderExpr("aim.organization_id IS NULL DESC, lower(COALESCE(aip.name, '')) ASC, lower(aim.name) ASC, aim.id ASC").
 		Scan(ctx, &options); err != nil {
 		return nil, fmt.Errorf("list AI model options: %w", err)

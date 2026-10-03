@@ -80,6 +80,7 @@ type directOperations struct {
 	invitationOps
 	platformOps
 	platformModelOps
+	creditOps
 	productDocsOps
 }
 
@@ -128,6 +129,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
 		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control, s3),
 		platformModelOps:   newPlatformModelOps(db, modelProviderRegistry),
+		creditOps:          newCreditOps(db),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}
 	return &Backend{ops: ops}

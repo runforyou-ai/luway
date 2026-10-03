@@ -45,7 +45,7 @@ type WorkspaceListInput struct {
 	PageSize int
 }
 
-// WorkspaceRecord 定义平台工作区列表中的一个工作区及其当前规模；HasAdmin 表示有有效平台管理员成员，LastActiveOn 是按统计时区最近有活跃的日期，从未活跃时为空。
+// WorkspaceRecord 定义平台工作区列表中的一个工作区及其当前规模；HasAdmin 表示有有效平台管理员成员，LastActiveOn 是按平台时区最近有活跃的日期，从未活跃时为空。
 type WorkspaceRecord struct {
 	ID              string     `bun:"id"`
 	Name            string     `bun:"name"`

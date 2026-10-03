@@ -1360,7 +1360,7 @@ func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.Reque
 	return b.ops.GetPlatformOverview(ctx, meta, account)
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
 func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1380,14 +1380,24 @@ func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.Re
 	return b.ops.UpdatePlatformSettings(ctx, meta, account, input)
 }
 
-// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStatisticsTimeZoneInput) (appservice.PlatformSettings, error) {
+// UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+func (b *Backend) UpdatePlatformTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTimeZoneInput) (appservice.PlatformSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformSettings
 		return zero, err
 	}
-	return b.ops.UpdatePlatformStatisticsTimeZone(ctx, meta, account, input)
+	return b.ops.UpdatePlatformTimeZone(ctx, meta, account, input)
+}
+
+// UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
+func (b *Backend) UpdatePlatformDailyCreditGrant(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformDailyCreditGrantInput) (appservice.PlatformSettings, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformSettings
+		return zero, err
+	}
+	return b.ops.UpdatePlatformDailyCreditGrant(ctx, meta, account, input)
 }
 
 // UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
@@ -1558,6 +1568,36 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 		return zero, err
 	}
 	return b.ops.ListPlatformFailedTasks(ctx, meta, account, input)
+}
+
+// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
+func (b *Backend) GetPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.CreditBalance, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.CreditBalance
+		return zero, err
+	}
+	return b.ops.GetPlatformWorkspaceCredits(ctx, meta, account, workspaceID)
+}
+
+// ListPlatformWorkspaceCreditEntries 返回工作区的积分流水。
+func (b *Backend) ListPlatformWorkspaceCreditEntries(ctx context.Context, meta appservice.RequestMeta, workspaceID string, input appservice.CreditEntryListInput) (appservice.CreditEntryList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.CreditEntryList
+		return zero, err
+	}
+	return b.ops.ListPlatformWorkspaceCreditEntries(ctx, meta, account, workspaceID, input)
+}
+
+// AdjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
+func (b *Backend) AdjustPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string, input appservice.PlatformCreditAdjustmentInput) (appservice.PlatformCreditAdjustment, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformCreditAdjustment
+		return zero, err
+	}
+	return b.ops.AdjustPlatformWorkspaceCredits(ctx, meta, account, workspaceID, input)
 }
 
 // ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
@@ -2213,6 +2253,26 @@ func (b *Backend) ListAIModelOptions(ctx context.Context, meta appservice.Reques
 		return zero, err
 	}
 	return b.ops.ListAIModelOptions(ctx, meta, identity, usage)
+}
+
+// GetCreditBalance 返回当前工作区的可用积分与今天的每日赠送。
+func (b *Backend) GetCreditBalance(ctx context.Context, meta appservice.RequestMeta) (appservice.CreditBalance, error) {
+	identity, err := b.ops.authenticate(ctx, meta)
+	if err != nil {
+		var zero appservice.CreditBalance
+		return zero, err
+	}
+	return b.ops.GetCreditBalance(ctx, meta, identity)
+}
+
+// ListCreditEntries 返回当前工作区的积分流水。
+func (b *Backend) ListCreditEntries(ctx context.Context, meta appservice.RequestMeta, input appservice.CreditEntryListInput) (appservice.CreditEntryList, error) {
+	identity, err := b.ops.authenticate(ctx, meta)
+	if err != nil {
+		var zero appservice.CreditEntryList
+		return zero, err
+	}
+	return b.ops.ListCreditEntries(ctx, meta, identity, input)
 }
 
 // ListAIProviders 返回当前企业的模型服务供应商列表。

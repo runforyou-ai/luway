@@ -19,6 +19,12 @@ import (
 	"github.com/uptrace/bun"
 )
 
+// modelColumns 是平台模型创建与修改写入的列。
+var modelColumns = []string{
+	"name", "model_type", "input_modalities", "context_window", "max_output_tokens",
+	"input_credit_price", "output_credit_price", "request_credit_price",
+}
+
 // specFieldCodes 是模型属性字段对应的校验结果。
 var specFieldCodes = map[string]ValidationCode{
 	"name":            ValidationNameInvalid,
@@ -87,12 +93,12 @@ func (a *CreateAction) Execute(ctx context.Context, operator *servermodels.Accou
 		if err := platformaction.LockAdmin(ctx, tx, operator); err != nil {
 			return err
 		}
-		record, err := modelRecord(input.Spec)
+		record, err := modelRecord(input)
 		if err != nil {
 			return err
 		}
 		if _, err := tx.NewInsert().Model(&record).
-			Column("name", "model_type", "input_modalities", "context_window", "max_output_tokens").
+			Column(modelColumns...).
 			Returning("id").
 			Exec(ctx); err != nil {
 			return err
@@ -139,13 +145,13 @@ func (a *UpdateAction) Execute(ctx context.Context, operator *servermodels.Accou
 				return &common.FieldError{Fields: map[string]ValidationCode{"type": ValidationUsageConflict}}
 			}
 		}
-		record, err := modelRecord(input.Spec)
+		record, err := modelRecord(input)
 		if err != nil {
 			return err
 		}
 		record.ID = modelID
 		if _, err := tx.NewUpdate().Model(&record).
-			Column("name", "model_type", "input_modalities", "context_window", "max_output_tokens").
+			Column(modelColumns...).
 			Set("updated_at = now()").
 			Where("organization_id IS NULL").
 			WherePK().
@@ -199,11 +205,25 @@ func (a *DeleteAction) Execute(ctx context.Context, operator *servermodels.Accou
 	return nil
 }
 
-// normalizeInput 规范化并校验平台模型属性与来源：来源至少一个，同一供应商的上游模型标识不重复。
+// normalizeInput 规范化并校验平台模型属性、价格与来源：价格各项不为负且不超过上限，模型类型用不到的价格项置零；来源至少一个，同一供应商的上游模型标识不重复。
 func normalizeInput(input Input) (Input, map[string]ValidationCode) {
 	fields := make(map[string]ValidationCode)
 	if field := aimodel.NormalizeSpec(&input.Spec); field != "" {
 		fields[field] = specFieldCodes[field]
+	}
+	if input.Price != nil {
+		price := *input.Price
+		if !price.Valid() {
+			fields["price"] = ValidationPriceInvalid
+		}
+		// 向量与重排模型没有输出 Token，判断模型不返回 Token 用量。
+		switch input.Type {
+		case domain.AIModelTypeEmbedding, domain.AIModelTypeRerank:
+			price.Output = 0
+		case domain.AIModelTypeDecision:
+			price.Input, price.Output = 0, 0
+		}
+		input.Price = &price
 	}
 	routes := make([]RouteInput, 0, len(input.Routes))
 	seenIDs := make(map[string]struct{}, len(input.Routes))
@@ -334,12 +354,15 @@ func saveRoutes(ctx context.Context, tx bun.Tx, modelID string, routes []RouteIn
 
 // modelRow 定义平台模型目录查询的一行。
 type modelRow struct {
-	ID              string          `bun:"id"`
-	Name            string          `bun:"name"`
-	Type            string          `bun:"model_type"`
-	InputModalities json.RawMessage `bun:"input_modalities"`
-	ContextWindow   int64           `bun:"context_window"`
-	MaxOutputTokens int64           `bun:"max_output_tokens"`
+	ID                 string          `bun:"id"`
+	Name               string          `bun:"name"`
+	Type               string          `bun:"model_type"`
+	InputModalities    json.RawMessage `bun:"input_modalities"`
+	ContextWindow      int64           `bun:"context_window"`
+	MaxOutputTokens    int64           `bun:"max_output_tokens"`
+	InputCreditPrice   *int64          `bun:"input_credit_price"`
+	OutputCreditPrice  *int64          `bun:"output_credit_price"`
+	RequestCreditPrice *int64          `bun:"request_credit_price"`
 }
 
 // loadRecords 按名称读取平台模型及其按优先级排列的来源，modelIDs 为空时读取全部平台模型。
@@ -347,6 +370,7 @@ func loadRecords(ctx context.Context, db bun.IDB, modelIDs []string) ([]Record, 
 	rows := make([]modelRow, 0)
 	query := db.NewSelect().TableExpr("ai_models AS aim").
 		ColumnExpr("aim.id::text AS id, aim.name, aim.model_type, aim.input_modalities, aim.context_window, aim.max_output_tokens").
+		ColumnExpr("aim.input_credit_price, aim.output_credit_price, aim.request_credit_price").
 		Where("aim.organization_id IS NULL").
 		OrderExpr("lower(aim.name) ASC, aim.id ASC")
 	if modelIDs != nil {
@@ -382,8 +406,12 @@ func loadRecords(ctx context.Context, db bun.IDB, modelIDs []string) ([]Record, 
 		if err := json.Unmarshal(row.InputModalities, &inputModalities); err != nil {
 			return nil, fmt.Errorf("decode model %q input modalities: %w", row.ID, err)
 		}
+		var price *domain.CreditPrice
+		if row.InputCreditPrice != nil {
+			price = &domain.CreditPrice{Input: *row.InputCreditPrice, Output: *row.OutputCreditPrice, Request: *row.RequestCreditPrice}
+		}
 		records = append(records, Record{
-			ID: row.ID,
+			ID: row.ID, Price: price,
 			Spec: aimodel.Spec{
 				Name: row.Name, Type: domain.AIModelType(row.Type), InputModalities: inputModalities,
 				ContextWindow: row.ContextWindow, MaxOutputTokens: row.MaxOutputTokens,
@@ -406,16 +434,20 @@ func reload(ctx context.Context, db bun.IDB, modelID string) (*Record, error) {
 	return &records[0], nil
 }
 
-// modelRecord 把模型属性转换为平台模型存储模型。
-func modelRecord(spec aimodel.Spec) (servermodels.AIModel, error) {
-	inputModalities, err := json.Marshal(spec.InputModalities)
+// modelRecord 把模型属性与价格转换为平台模型存储模型，未定价时三项价格为空。
+func modelRecord(input Input) (servermodels.AIModel, error) {
+	inputModalities, err := json.Marshal(input.InputModalities)
 	if err != nil {
 		return servermodels.AIModel{}, err
 	}
-	return servermodels.AIModel{
-		Name: spec.Name, Type: string(spec.Type), InputModalities: inputModalities,
-		ContextWindow: spec.ContextWindow, MaxOutputTokens: spec.MaxOutputTokens,
-	}, nil
+	record := servermodels.AIModel{
+		Name: input.Name, Type: string(input.Type), InputModalities: inputModalities,
+		ContextWindow: input.ContextWindow, MaxOutputTokens: input.MaxOutputTokens,
+	}
+	if input.Price != nil {
+		record.InputCreditPrice, record.OutputCreditPrice, record.RequestCreditPrice = &input.Price.Input, &input.Price.Output, &input.Price.Request
+	}
+	return record, nil
 }
 
 // conflictError 把平台模型名称或来源的唯一约束冲突转换为字段校验错误，其他错误返回 nil。
