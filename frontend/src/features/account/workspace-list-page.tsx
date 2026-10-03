@@ -17,7 +17,7 @@ import { updateNotificationUnreadIndicator } from "@/platform/notifications"
 import { useWorkspaceActivityConnection, useWorkspaceAttention } from "@/hooks/use-workspace-attention"
 import { useResource } from "@/hooks/use-resource"
 import { resolveServerURL } from "@/lib/server-url"
-import { enterWorkspace, navigateToHashPath, returnToPath } from "@/lib/workspace-route"
+import { enterWorkspace, navigateToHashPath, returnToPath, webAppPath, workspaceHref } from "@/lib/workspace-route"
 
 /** 展示工作区列表；没有工作区时在允许创建时引导创建。 */
 export function WorkspaceListPage() {
@@ -161,7 +161,7 @@ export function WorkspaceListPage() {
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium">{workspace.name}</span>
                   <span className="block truncate text-xs text-muted-foreground">
-                    {host ? `${host}/#/w/${workspace.slug}` : workspace.slug}
+                    {host ? `${host}${webAppPath}#${workspaceHref(workspace.slug, "/")}` : workspace.slug}
                   </span>
                 </span>
                 {suspended ? (

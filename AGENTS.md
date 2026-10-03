@@ -40,7 +40,7 @@ Luway 是开源、以自托管为主的 AI 原生企业协作产品，使用 Go�
 - `appservice.Service` 是统一业务入口：服务端 Web 走 `appservice/direct` 的 `Backend`，桌面端和移动端走 API Proxy。Gin 只做对外 HTTP API 适配。
 - 各端统一使用 Bearer Token，不使用 Cookie；登录令牌保存在 `localStorage`，API Proxy 把应用服务调用转成携带 Token 的 HTTP 请求。唯一例外：公开 Messenger 的网站匿名访客使用渠道级长期 Cookie（`visitor_<channel_id>`）恢复匿名身份。
 - 账号属于部署，一个账号可以加入多个工作区；成员身份、角色和业务数据按工作区隔离。登录只建立账号会话，工作区级调用通过 `RequestMeta.WorkspaceID`（HTTP 请求头 `X-Workspace`）指定目标工作区。
-- 前端工作区页面位于 `/#/w/<工作区标识>/…`，路由器以该前缀为 basename，切换工作区时重建路由器并进入新的登录会话代次；登录、注册、首次安装、服务器连接和工作区列表位于根路径。
+- 服务端根路径是产品首页，Web 应用位于部署地址的 `/app/` 下（`domain.WebAppPath`），服务端生成的应用链接与前端展示的工作区地址都以它为前缀。工作区页面位于 `/app/#/w/<工作区标识>/…`，路由器以 `/w/<工作区标识>` 为 basename，切换工作区时重建路由器并进入新的登录会话代次；登录、注册、首次安装、服务器连接和工作区列表位于应用的哈希根路径。
 - 首次安装只在 Web 端完成，部署尚无账号时创建部署管理员和第一个工作区。桌面端和移动端先检测服务器是否可用，再连接并进入登录页；服务器未完成首次安装时回到连接页。
 - Web 与桌面端共享主要业务页面，移动端保持独立入口。
 - 对象存储是部署级配置，整个部署共用一个存储桶，对象键按工作区编号隔离。开启时客户端通过服务端签发的预签名请求直传文件，服务端不转发文件内容，Endpoint 使用客户端可访问的公开地址；关闭时文件写入服务器的本地最终目录。文件选择后立即上传为临时文件，保存业务数据时在事务中激活；未激活文件默认 24 小时过期，由服务端定时清理。读取按记录中的本地或对象存储类型处理，不受当前开关影响。
@@ -48,14 +48,15 @@ Luway 是开源、以自托管为主的 AI 原生企业协作产品，使用 Go�
 ## 品牌与白标
 
 - 产品需支持白标，代码中不写死产品名称、应用标识和官网地址。构建品牌由 `internal/common/brand/brand.json` 定义，`wails3 task brand:apply` 把它同步到各平台打包元数据，传入 `PROFILE=<品牌目录>` 时先用该目录的 `brand.json` 和图标替换构建品牌；服务端部署配置的 `branding` 段覆盖产品名称、网站嵌入脚本对象名和网站图标。
-- 界面文案只在托盘与应用菜单、邀请邮件等需要指明产品的地方出现产品名称，其余文案不提产品名称。后端词条用 `{{.Product}}` 插值，前端组件用 `useBrandName` 读取；中文词条中产品名称两侧不加空格。Go 代码读取 `brand.Current()`，原生端本机数据目录、可执行文件等构建期确定的资源使用 `brand.Build()`。
+- 界面文案只在托盘与应用菜单、邀请邮件、产品首页等需要指明产品的地方出现产品名称，其余文案不提产品名称。后端词条用 `{{.Product}}` 插值，前端组件用 `useBrandName` 读取；中文词条中产品名称两侧不加空格。Go 代码读取 `brand.Current()`，原生端本机数据目录、可执行文件等构建期确定的资源使用 `brand.Build()`。
 - 请求头、Cookie、事件名、本地存储键、CSS 类名与变量、数据库取值、NATS 主题等内部标识不含品牌；需要命名空间时，应用内使用 `app` 前缀，访客聊天页使用 `messenger` 前缀。
 
 ## 产品文档
 
 - `docs/` 只放面向使用者、部署者与开发者的产品文档 Markdown，中文在 `zh-cn/`、英文在 `en/`，两种语言页面一一对应；侧边栏栏目与分组在 `docs/nav.yaml`。服务端内置这些源文件，由 `internal/productdocs` 用 goldmark 渲染，在 `/docs/` 下输出与服务端同版本的页面和搜索，并通过 `GetProductDocPage` 为应用内帮助提供正文片段。启动服务端即可预览，`productdocs` 的测试校验中英文对应、frontmatter、站内链接与锚点及导航覆盖。
 - 功能变更与对应文档在同一改动中更新。每页 frontmatter 写 `title`、`order`，只在特定部署可见的页面写 `requires`（`commerce`）；正文中的产品名称写 `{{product}}`，输出时替换为当前部署的品牌名称，标题不写产品名称；站内链接写成 `/docs/<语言>/<页面>/`，提示块用 `> [!NOTE]` 等 GitHub 写法。只面向官方与白标运营方的内容不写进产品文档。
-- 文档站点样式在 `frontend/src/product-docs/`：`content.css` 是 `/docs/` 页面与应用内帮助共用的正文排版，`site.css` 是站点布局，经 `wails3 task common:build:docs` 构建到 `internal/productdocs/dist/site`；颜色与圆角取自 `frontend/src/styles/theme-tokens.css`，与 Web 端共用。
+- 服务端根路径由 `internal/productsite` 用 Go 模板输出中英文产品首页（`/zh-cn/`、`/en/`），与 `/docs/` 共用页头和样式，页头互相提供首页与文档入口，右上角按 Web 应用的登录令牌显示当前账号或登录入口；首页文案由 `internal/i18n` 的 `site.*` 词条管理，产品名称用 `{{.Product}}` 插值，只介绍已实现的能力。
+- 站点样式在 `frontend/src/product-docs/`：`content.css` 是 `/docs/` 页面与应用内帮助共用的正文排版，`site.css` 是共用页头与文档布局，`home.css` 是产品首页布局，经 `wails3 task common:build:docs` 构建到 `internal/productdocs/dist/site`；颜色与圆角取自 `frontend/src/styles/theme-tokens.css`，与 Web 端共用。
 - 应用内帮助入口只引用 `frontend/src/lib/product-docs.ts` 中登记的页面：用户菜单经 `@/platform/product-docs` 打开完整文档，配置页面用 `ProductDocSheet` 在侧栏显示；调整文档页面路径时同步更新登记表。
 
 ## 前端开发约定

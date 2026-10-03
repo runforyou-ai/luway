@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{{if .NotFound}}<title>{{.Text.notFoundTitle}} · {{.Product}}</title>
+<meta name="robots" content="noindex">
+{{else}}<title>{{.Product}}</title>
+<meta name="description" content="{{.Text.description}}">
+{{end}}<link rel="icon" href="/favicon.png">
+<link rel="stylesheet" href="{{.Stylesheet}}">
+<script>(() => { const query = matchMedia("(prefers-color-scheme: dark)"); const apply = () => document.documentElement.classList.toggle("dark", query.matches); apply(); query.addEventListener("change", apply) })()</script>
+</head>
+<body class="site-body">
+{{define "icon"}}<svg class="site-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{.}}</svg>{{end}}
+<header class="site-header">
+  <a class="site-brand" href="{{.HomePath}}"><img src="/favicon.png" alt="" width="24" height="24">{{.Product}}</a>
+  <nav class="site-nav"><a href="{{.DocsPath}}">{{.Text.docs}}</a></nav>
+  <select class="site-languages" aria-label="{{.Text.language}}" onchange="location.href = this.value">
+    {{range .Languages}}<option value="{{.Path}}" lang="{{.Lang}}"{{if .Current}} selected{{end}}>{{.Label}}</option>{{end}}
+  </select>
+  <a class="site-action" href="{{.AppPath}}" data-account-link="{{.Text.openApp}}">{{.Text.signIn}}</a>
+</header>
+<script>{{.Script}}</script>
+{{if .NotFound}}
+<main class="home-not-found">
+  <h1>{{.Text.notFoundTitle}}</h1>
+  <p>{{.Text.notFoundBody}}</p>
+  <a class="home-button" href="{{.HomePath}}">{{.Text.backHome}}</a>
+</main>
+{{else}}
+<main>
+  <section class="home-hero home-container">
+    <div class="home-hero-copy">
+      <p class="home-eyebrow">{{.Text.heroEyebrow}}</p>
+      <h1>{{.Text.heroTitle}}</h1>
+      <p class="home-lead">{{.Text.heroBody}}</p>
+      <div class="home-actions">
+        <a class="home-button home-button-primary" href="{{.AppPath}}">{{.Text.openApp}}</a>
+        <a class="home-button" href="{{.DeploymentPath}}">{{.Text.heroDeploy}}</a>
+      </div>
+    </div>
+    <div class="home-demo" aria-hidden="true">
+      <div class="home-demo-message home-demo-customer"><p>{{.Text.demoCustomer}}</p></div>
+      <div class="home-demo-message home-demo-reply">
+        <span class="home-demo-name">{{template "icon" index .Icons "agents"}}{{.Text.demoAgentName}}</span>
+        <p>{{.Text.demoAgentReply}}</p>
+      </div>
+      <div class="home-demo-event">{{template "icon" index .Icons "handoff"}}{{.Text.demoHandoff}}</div>
+      <div class="home-demo-message home-demo-reply">
+        <span class="home-demo-name">{{.Text.demoMemberName}}</span>
+        <p>{{.Text.demoMemberReply}}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section home-container" aria-labelledby="home-features">
+    <h2 id="home-features">{{.Text.featuresTitle}}</h2>
+    <p class="home-section-lead">{{.Text.featuresBody}}</p>
+    <div class="home-features">
+      {{range .Features}}
+      <article class="home-feature">
+        <span class="home-feature-icon">{{template "icon" index $.Icons .Icon}}</span>
+        <h3>{{.Title}}</h3>
+        <p>{{.Body}}</p>
+      </article>
+      {{end}}
+    </div>
+  </section>
+
+  <section class="home-section home-container home-split">
+    <div class="home-panel">
+      <h2>{{.Text.platformsTitle}}</h2>
+      <p>{{.Text.platformsBody}}</p>
+      <ul class="home-platforms">
+        <li>{{template "icon" index .Icons "web"}}{{.Text.platformWeb}}</li>
+        <li>{{template "icon" index .Icons "desktop"}}{{.Text.platformDesktop}}</li>
+        <li>{{template "icon" index .Icons "mobile"}}{{.Text.platformMobile}}</li>
+      </ul>
+    </div>
+    <div class="home-panel">
+      <h2>{{.Text.selfHostTitle}}</h2>
+      <p>{{.Text.selfHostBody}}</p>
+      <a class="home-link" href="{{.DeploymentPath}}">{{template "icon" index .Icons "server"}}{{.Text.selfHostAction}}</a>
+    </div>
+  </section>
+
+  <section class="home-closing home-container">
+    <h2>{{.Text.closingTitle}}</h2>
+    <p>{{.Text.closingBody}}</p>
+    <div class="home-actions">
+      <a class="home-button home-button-primary" href="{{.AppPath}}">{{.Text.openApp}}</a>
+      <a class="home-button" href="{{.DocsPath}}">{{.Text.docs}}</a>
+    </div>
+  </section>
+</main>
+{{end}}
+{{with .Copyright}}<footer class="home-footer home-container">{{.}}</footer>{{end}}
+</body>
+</html>

@@ -252,5 +252,5 @@ type PageInfo struct {
 
 // WorkspaceURL 返回部署地址下进入工作区的 Web 地址。
 func WorkspaceURL(publicURL, slug string) string {
-	return strings.TrimRight(publicURL, "/") + "/#/w/" + slug
+	return strings.TrimRight(publicURL, "/") + domain.WebAppPath + "#/w/" + slug
 }

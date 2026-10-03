@@ -1,13 +1,14 @@
-/* 产品文档站点样式：字体与主题变量同 Web 端，由服务端在 /docs/ 页面引用。 */
+/* 产品站点样式：字体与主题变量同 Web 端，由服务端的产品首页与 /docs/ 页面共同引用。 */
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 @import "../styles/theme-tokens.css";
 @import "./content.css";
+@import "./home.css";
 
 :root {
   --font-sans: "Inter Variable", Inter, "PingFang SC", "HarmonyOS Sans SC", system-ui, sans-serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", monospace;
-  --docs-header-height: 3.5rem;
+  --site-header-height: 3.5rem;
   --docs-sidebar-width: 17rem;
   --docs-toc-width: 14rem;
   color-scheme: light;
@@ -24,34 +25,38 @@
 }
 
 html {
-  scroll-padding-top: calc(var(--docs-header-height) + 1rem);
+  scroll-padding-top: calc(var(--site-header-height) + 1rem);
 }
 
-body.docs-body {
+body.docs-body,
+body.site-body {
   margin: 0;
-  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
-  font-size: 0.875rem;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-.docs-header {
+body.docs-body {
+  background: var(--background);
+  font-size: 0.875rem;
+}
+
+.site-header {
   position: sticky;
   top: 0;
   z-index: 10;
   display: flex;
   align-items: center;
   gap: 1rem;
-  height: var(--docs-header-height);
+  height: var(--site-header-height);
   padding: 0 1.25rem;
   border-bottom: 1px solid var(--border);
   background: color-mix(in oklab, var(--background) 92%, transparent);
   backdrop-filter: blur(8px);
 }
 
-.docs-brand {
+.site-brand {
   display: flex;
   flex-shrink: 0;
   align-items: center;
@@ -62,8 +67,78 @@ body.docs-body {
   text-decoration: none;
 }
 
-.docs-brand img {
+.site-brand img {
   border-radius: calc(var(--radius) * 0.8);
+}
+
+.site-nav {
+  display: flex;
+  gap: 1rem;
+}
+
+.site-nav a {
+  color: var(--muted-foreground);
+  text-decoration: none;
+}
+
+.site-nav a:hover {
+  color: var(--foreground);
+}
+
+.site-action {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  height: 2.125rem;
+  padding: 0 0.875rem;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.site-action:hover {
+  background: var(--primary-hover);
+}
+
+.site-action[data-pending] {
+  visibility: hidden;
+}
+
+/* 已登录时页头入口显示当前账号的首字母头像与名称。 */
+.site-action.site-account {
+  gap: 0.5rem;
+  max-width: 12rem;
+  padding: 0 0.625rem 0 0.25rem;
+  background: transparent;
+  color: var(--foreground);
+}
+
+.site-action.site-account:hover {
+  background: var(--muted);
+}
+
+.site-avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.site-account-name {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .docs-search {
@@ -106,7 +181,7 @@ body.docs-body {
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 20%, transparent);
 }
 
-.docs-languages {
+.site-languages {
   flex-shrink: 0;
   height: 2.125rem;
   padding: 0 1.75rem 0 0.625rem;
@@ -120,11 +195,11 @@ body.docs-body {
   outline: none;
 }
 
-.docs-languages:hover {
+.site-languages:hover {
   background-color: var(--muted);
 }
 
-.docs-languages:focus-visible {
+.site-languages:focus-visible {
   border-color: var(--ring);
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 20%, transparent);
 }
@@ -139,9 +214,9 @@ body.docs-body {
 .docs-sidebar,
 .docs-toc {
   position: sticky;
-  top: var(--docs-header-height);
+  top: var(--site-header-height);
   align-self: start;
-  max-height: calc(100vh - var(--docs-header-height));
+  max-height: calc(100vh - var(--site-header-height));
   overflow-y: auto;
 }
 
@@ -283,13 +358,17 @@ body.docs-body {
     display: none;
   }
 
-  .docs-header {
+  .site-header {
     gap: 0.5rem;
     padding: 0 1rem;
   }
 
-  .docs-brand {
+  .site-brand {
     font-size: 0;
+  }
+
+  .docs-body .site-account-name {
+    display: none;
   }
 
   .docs-mobile-nav {
@@ -303,11 +382,52 @@ body.docs-body {
     cursor: pointer;
   }
 
+  .docs-mobile-home {
+    display: block;
+    padding: 0.375rem 1rem 0.5rem;
+    color: var(--foreground);
+    text-decoration: none;
+  }
+
   .docs-mobile-nav > .docs-nav {
     padding: 0 0.5rem 1rem;
   }
 
   .docs-main {
     padding: 1.5rem 1rem 3rem;
+  }
+}
+
+/* 极窄屏收起页头导航，首页入口由文档移动目录提供；文档页头换行，搜索框独占第二行。 */
+@media (max-width: 480px) {
+  .site-nav {
+    display: none;
+  }
+
+  .site-account-name {
+    display: none;
+  }
+
+  html:has(body.docs-body) {
+    --site-header-height: 6.25rem;
+  }
+
+  .docs-body .site-header {
+    flex-wrap: wrap;
+    align-content: center;
+    row-gap: 0.5rem;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+
+  .docs-body .site-languages {
+    margin-left: auto;
+  }
+
+  .docs-body .docs-search {
+    order: 1;
+    flex-basis: 100%;
+    max-width: none;
+    margin-left: 0;
   }
 }
