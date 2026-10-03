@@ -76,6 +76,17 @@ type DeploymentSettings struct {
 	StatisticsTimeZone      string                  `json:"statisticsTimeZone"`
 }
 
+// DeploymentPoliciesInput 定义部署注册策略和工作区创建策略的修改值。
+type DeploymentPoliciesInput struct {
+	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy"`
+	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
+}
+
+// DeploymentStatisticsTimeZoneInput 定义运营数据统计时区的修改值。
+type DeploymentStatisticsTimeZoneInput struct {
+	StatisticsTimeZone string `json:"statisticsTimeZone"`
+}
+
 // DeploymentAccountListInput 定义部署账号列表的筛选与分页条件，Status 缺省为有效账号。
 type DeploymentAccountListInput struct {
 	Query    string        `json:"query" query:"query"`

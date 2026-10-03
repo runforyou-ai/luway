@@ -929,10 +929,17 @@ func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.Req
 	return output, err
 }
 
-// UpdateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
-func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentSettings) (appservice.DeploymentSettings, error) {
+// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentPoliciesInput) (appservice.DeploymentSettings, error) {
 	var output appservice.DeploymentSettings
 	err := b.do(ctx, meta, http.MethodPut, "/deployment/settings", nil, input, &output)
+	return output, err
+}
+
+// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (b *Backend) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentStatisticsTimeZoneInput) (appservice.DeploymentSettings, error) {
+	var output appservice.DeploymentSettings
+	err := b.do(ctx, meta, http.MethodPut, "/deployment/settings/statistics-time-zone", nil, input, &output)
 	return output, err
 }
 

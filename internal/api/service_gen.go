@@ -154,6 +154,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/deployment/overview", s.getDeploymentOverview)
 	router.GET("/deployment/settings", s.getDeploymentSettings)
 	router.PUT("/deployment/settings", s.updateDeploymentSettings)
+	router.PUT("/deployment/settings/statistics-time-zone", s.updateDeploymentStatisticsTimeZone)
 	router.GET("/deployment/accounts", s.listDeploymentAccounts)
 	router.POST("/deployment/accounts/:accountID/deactivate", s.deactivateDeploymentAccount)
 	router.POST("/deployment/accounts/:accountID/reactivate", s.reactivateDeploymentAccount)
@@ -1395,13 +1396,23 @@ func (s *Service) getDeploymentSettings(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
+// updateDeploymentSettings 修改部署注册策略和工作区创建策略。
 func (s *Service) updateDeploymentSettings(c *gin.Context) {
-	var input appservice.DeploymentSettings
+	var input appservice.DeploymentPoliciesInput
 	if !bindJSON(c, &input) {
 		return
 	}
 	output, err := s.application.UpdateDeploymentSettings(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// updateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (s *Service) updateDeploymentStatisticsTimeZone(c *gin.Context) {
+	var input appservice.DeploymentStatisticsTimeZoneInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.UpdateDeploymentStatisticsTimeZone(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 

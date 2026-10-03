@@ -23,7 +23,8 @@ import (
 type deploymentOps struct {
 	deploymentOverview       *deploymentaction.OverviewQuery
 	deploymentSettingsRead   *deploymentaction.SettingsQuery
-	updateDeploymentSettings *deploymentaction.UpdateSettingsAction
+	updateDeploymentPolicies *deploymentaction.UpdatePoliciesAction
+	updateStatisticsTimeZone *deploymentaction.UpdateStatisticsTimeZoneAction
 	listDeploymentAccounts   *deploymentaction.ListAccountsQuery
 	updateDeploymentAccount  *deploymentaction.UpdateAccountAction
 	listDeploymentWorkspaces *deploymentaction.ListWorkspacesQuery
@@ -35,7 +36,8 @@ func newDeploymentOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer) deployment
 	return deploymentOps{
 		deploymentOverview:       deploymentaction.NewOverviewQuery(db),
 		deploymentSettingsRead:   deploymentaction.NewSettingsQuery(db),
-		updateDeploymentSettings: deploymentaction.NewUpdateSettingsAction(db, taskEnqueuer),
+		updateDeploymentPolicies: deploymentaction.NewUpdatePoliciesAction(db),
+		updateStatisticsTimeZone: deploymentaction.NewUpdateStatisticsTimeZoneAction(db, taskEnqueuer),
 		listDeploymentAccounts:   deploymentaction.NewListAccountsQuery(db),
 		updateDeploymentAccount:  deploymentaction.NewUpdateAccountAction(db),
 		listDeploymentWorkspaces: deploymentaction.NewListWorkspacesQuery(db),
@@ -77,19 +79,27 @@ func (o *directOperations) GetDeploymentSettings(ctx context.Context, meta appse
 	return deploymentSettingsFromAction(settings), nil
 }
 
-// UpdateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
-func (o *directOperations) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentSettings) (appservice.DeploymentSettings, error) {
-	settings, err := o.updateDeploymentSettings.Execute(ctx, account, deploymentaction.Settings{
+// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+func (o *directOperations) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentPoliciesInput) (appservice.DeploymentSettings, error) {
+	settings, err := o.updateDeploymentPolicies.Execute(ctx, account, deploymentaction.Policies{
 		RegistrationPolicy:      domain.RegistrationPolicy(input.RegistrationPolicy),
 		WorkspaceCreationPolicy: domain.WorkspaceCreationPolicy(input.WorkspaceCreationPolicy),
-		StatisticsTimeZone:      input.StatisticsTimeZone,
 	})
 	if err != nil {
 		return appservice.DeploymentSettings{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentSettingsUpdateFailed, account, "")
 	}
-	slog.Info("部署设置已修改", "account_id", account.Account.ID,
-		"registration_policy", settings.RegistrationPolicy, "workspace_creation_policy", settings.WorkspaceCreationPolicy,
-		"statistics_time_zone", settings.StatisticsTimeZone)
+	slog.Info("部署策略已修改", "account_id", account.Account.ID,
+		"registration_policy", settings.RegistrationPolicy, "workspace_creation_policy", settings.WorkspaceCreationPolicy)
+	return deploymentSettingsFromAction(settings), nil
+}
+
+// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (o *directOperations) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentStatisticsTimeZoneInput) (appservice.DeploymentSettings, error) {
+	settings, err := o.updateStatisticsTimeZone.Execute(ctx, account, input.StatisticsTimeZone)
+	if err != nil {
+		return appservice.DeploymentSettings{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentSettingsUpdateFailed, account, "")
+	}
+	slog.Info("统计时区已修改", "account_id", account.Account.ID, "statistics_time_zone", settings.StatisticsTimeZone)
 	return deploymentSettingsFromAction(settings), nil
 }
 

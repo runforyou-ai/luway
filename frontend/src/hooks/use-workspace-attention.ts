@@ -31,7 +31,7 @@ export function useWorkspaceAttention(currentWorkspaceId: string) {
   }, [attention.data, currentWorkspaceId])
 }
 
-/** 挂载期间保持工作区动态事件流：其他工作区有变化、重新连接、回到前台或到达兜底周期时刷新数量；账号的工作区增减后重建事件流以订阅新工作区。currentWorkspaceId 为空时全部工作区都算其他工作区。 */
+/** 挂载期间保持工作区动态事件流：其他工作区有变化、重新连接、回到前台或到达兜底周期时刷新数量，重新连接时同时刷新工作区列表；账号的工作区增减后重建事件流以订阅新工作区。currentWorkspaceId 为空时全部工作区都算其他工作区。 */
 export function useWorkspaceActivityConnection(currentWorkspaceId: string, workspaceIds: string[]) {
   const invalidate = useResourceInvalidator()
 
@@ -44,6 +44,8 @@ export function useWorkspaceActivityConnection(currentWorkspaceId: string, works
     }
     const unsubscribe = workspaceActivityClient.subscribe((event) => {
       if (event.type !== "frame") return
+      // 工作区暂停或恢复会关闭事件流，重连后重新读取工作区列表与状态。
+      if (event.frame.type === "server_hello") void invalidate(resourceKeys.workspaces())
       // 当前工作区的数量由其成员事件流维护，这里只关心其他工作区。
       if (event.frame.type === "workspace_activity" ? event.frame.workspaceId !== currentWorkspaceId : event.frame.type === "server_hello") {
         refresh()

@@ -11,6 +11,7 @@ import {
   RevokeDeploymentAdmin,
   SuspendDeploymentWorkspace,
   UpdateDeploymentSettings,
+  UpdateDeploymentStatisticsTimeZone,
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   AccountStatus,
@@ -30,8 +31,11 @@ export const getDeploymentOverview = bind(GetDeploymentOverview)
 /** 读取部署注册策略、工作区创建策略和统计时区。 */
 export const getDeploymentSettings = bind(GetDeploymentSettings)
 
-/** 修改部署注册策略、工作区创建策略和统计时区。 */
+/** 修改部署注册策略和工作区创建策略。 */
 export const updateDeploymentSettings = bind(UpdateDeploymentSettings)
+
+/** 修改运营数据统计时区，服务端按新时区在后台重建运营数据。 */
+export const updateDeploymentStatisticsTimeZone = bind(UpdateDeploymentStatisticsTimeZone)
 
 /** 停用其他账号并使其登录会话失效。 */
 export const deactivateDeploymentAccount = bind(DeactivateDeploymentAccount)

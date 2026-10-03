@@ -185,7 +185,7 @@ type Membership struct {
 	UserID         string `bun:"user_id"`
 }
 
-// ListMemberships 返回账号在正常状态工作区中的全部有效成员身份，按工作区编号排序。
+// ListMemberships 返回账号在正常或已暂停工作区中的全部有效成员身份，按工作区编号排序；工作区动态事件流据此订阅，已暂停工作区的恢复通知经本人受众送达。
 func ListMemberships(ctx context.Context, db bun.IDB, account *servermodels.AccountIdentity) ([]Membership, error) {
 	var memberships []Membership
 	if err := db.NewSelect().
@@ -194,7 +194,7 @@ func ListMemberships(ctx context.Context, db bun.IDB, account *servermodels.Acco
 		Join("JOIN organizations AS o ON o.id = u.organization_id").
 		Where("u.account_id = ?", account.Account.ID).
 		Where("u.status = ?", domain.IdentityStatusActive).
-		Where("o.lifecycle_status = ?", domain.OrganizationLifecycleActive).
+		Where("o.lifecycle_status IN (?)", bun.In([]domain.OrganizationLifecycleStatus{domain.OrganizationLifecycleActive, domain.OrganizationLifecycleSuspended})).
 		OrderExpr("u.organization_id ASC").
 		Scan(ctx, &memberships); err != nil {
 		return nil, fmt.Errorf("list account memberships: %w", err)

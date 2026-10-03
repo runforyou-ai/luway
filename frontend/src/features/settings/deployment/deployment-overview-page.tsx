@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
 
-import { getDeploymentOverview, getDeploymentSettings, updateDeploymentSettings, type DeploymentSettings } from "@/api"
+import { getDeploymentOverview, getDeploymentSettings, updateDeploymentStatisticsTimeZone, type DeploymentSettings } from "@/api"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { DailyBarChart, ReportSection, StatTile } from "@/components/report-parts"
@@ -146,7 +146,7 @@ export function DeploymentOverviewPage() {
   )
 }
 
-/** 统计时区选择框，选择后保留其余部署设置立即保存，并刷新概览中的活跃数据。 */
+/** 统计时区选择框，选择后立即保存并刷新概览中的活跃数据。 */
 function StatisticsTimeZoneField({ settings }: { settings: DeploymentSettings }) {
   const { t } = useTranslation("deployment")
   const invalidate = useResourceInvalidator()
@@ -161,7 +161,7 @@ function StatisticsTimeZoneField({ settings }: { settings: DeploymentSettings })
     schema: statisticsTimeZoneSchema,
     autoSave: true,
     save: async (values) => {
-      const saved = await updateDeploymentSettings({ ...settings, statisticsTimeZone: values.statisticsTimeZone })
+      const saved = await updateDeploymentStatisticsTimeZone(values)
       void invalidate(resourceKeys.deploymentOverview())
       return saved
     },

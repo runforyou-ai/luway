@@ -1837,10 +1837,17 @@ export function UpdateCustomerReplyLanguage(meta: $models.RequestMeta, conversat
 }
 
 /**
- * UpdateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
+ * UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
  */
-export function UpdateDeploymentSettings(meta: $models.RequestMeta, input: $models.DeploymentSettings): $CancellablePromise<$models.DeploymentSettings> {
+export function UpdateDeploymentSettings(meta: $models.RequestMeta, input: $models.DeploymentPoliciesInput): $CancellablePromise<$models.DeploymentSettings> {
     return $Call.ByID(2154649026, meta, input);
+}
+
+/**
+ * UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+ */
+export function UpdateDeploymentStatisticsTimeZone(meta: $models.RequestMeta, input: $models.DeploymentStatisticsTimeZoneInput): $CancellablePromise<$models.DeploymentSettings> {
+    return $Call.ByID(4121777375, meta, input);
 }
 
 /**

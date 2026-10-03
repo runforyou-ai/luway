@@ -12,6 +12,7 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -166,13 +167,13 @@ func NewSetWorkspaceStatusAction(db *bun.DB) *SetWorkspaceStatusAction {
 	return &SetWorkspaceStatusAction{db: db}
 }
 
-// Execute 由仍有效的部署管理员把工作区切换为正常或暂停状态；有有效部署管理员成员的工作区不能暂停，恢复时在同一事务内重新投递暂停期间挂起的后台任务，工作区已处于目标状态时直接返回。
+// Execute 由仍有效的部署管理员把工作区切换为正常或暂停状态；有有效部署管理员成员的工作区不能暂停，恢复时在同一事务内重新投递暂停期间挂起的后台任务，状态变化后通知成员与网站访客重连，工作区已处于目标状态时直接返回。
 func (a *SetWorkspaceStatusAction) Execute(ctx context.Context, operator *servermodels.AccountIdentity, workspaceID string, status domain.OrganizationLifecycleStatus) (WorkspaceRecord, error) {
 	if !common.ValidUUID(workspaceID) {
 		return WorkspaceRecord{}, ErrWorkspaceNotFound
 	}
 	var record WorkspaceRecord
-	err := a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
+	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := lockActiveAdmins(ctx, tx, operator); err != nil {
 			return err
 		}
@@ -210,6 +211,25 @@ func (a *SetWorkspaceStatusAction) Execute(ctx context.Context, operator *server
 			if status == domain.OrganizationLifecycleActive {
 				if _, err := servertask.ResumeOrganizationRunsIn(ctx, tx, workspaceID); err != nil {
 					return err
+				}
+			}
+			// 有效成员的连接全部关闭并按新状态重连；暂停时同时结束网站渠道的访客事件流。
+			var userIDs []string
+			if err := tx.NewSelect().Model((*servermodels.User)(nil)).ColumnExpr("id::text").
+				Where("organization_id = ? AND status = ?", workspaceID, domain.IdentityStatusActive).Scan(ctx, &userIDs); err != nil {
+				return err
+			}
+			for _, userID := range userIDs {
+				realtime.Notify(ctx, realtime.UserWorkspaceStatusChanged(workspaceID, userID))
+			}
+			if status == domain.OrganizationLifecycleSuspended {
+				var channelIDs []string
+				if err := tx.NewSelect().Model((*servermodels.Channel)(nil)).ColumnExpr("id::text").
+					Where("organization_id = ? AND type = ?", workspaceID, domain.ChannelTypeWebsite).Scan(ctx, &channelIDs); err != nil {
+					return err
+				}
+				for _, channelID := range channelIDs {
+					realtime.Notify(ctx, realtime.WebsiteChannelDisabled(workspaceID, channelID))
 				}
 			}
 		}

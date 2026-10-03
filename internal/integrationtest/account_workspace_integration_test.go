@@ -133,8 +133,8 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	if closed, _ := i18n.Localize("zh-CN", i18n.ErrorRegistrationClosed); !ok || appErr.Message != closed {
 		t.Fatalf("closed registration error = %#v", err)
 	}
-	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
-		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin, StatisticsTimeZone: "Asia/Shanghai",
+	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -157,8 +157,8 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	_, err = backend.CreateWorkspace(ctx, memberMeta, appservice.WorkspaceInput{Name: "成员工作区", Slug: "member-team"})
 	requireErrorKind(t, err, appservice.ErrorKindForbidden)
 	// 所有账号可创建时，普通账号同样受实例工作区上限约束。
-	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
-		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyAnyAccount, StatisticsTimeZone: "Asia/Shanghai",
+	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyAnyAccount,
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -186,12 +186,11 @@ func TestDeploymentAdministration(t *testing.T) {
 		t.Fatal(err)
 	}
 	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: appservice.LocaleChineseSimplified}
-	_, err = backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{RegistrationPolicy: "closed", WorkspaceCreationPolicy: "everyone"})
+	_, err = backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{RegistrationPolicy: "closed", WorkspaceCreationPolicy: "everyone"})
 	requireFieldError(t, err, "registrationPolicy", i18n.FieldRegistrationPolicyInvalid)
 	requireFieldError(t, err, "workspaceCreationPolicy", i18n.FieldWorkspaceCreationPolicyInvalid)
-	requireFieldError(t, err, "statisticsTimeZone", i18n.FieldTimeZoneInvalid)
-	settings, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
-		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin, StatisticsTimeZone: "Asia/Shanghai",
+	settings, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
 	})
 	if err != nil || settings.RegistrationPolicy != appservice.RegistrationPolicyOpen {
 		t.Fatalf("settings = %#v, err = %v", settings, err)

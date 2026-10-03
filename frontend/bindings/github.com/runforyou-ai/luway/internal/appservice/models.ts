@@ -2263,11 +2263,26 @@ export interface DeploymentOverview {
 }
 
 /**
+ * DeploymentPoliciesInput 定义部署注册策略和工作区创建策略的修改值。
+ */
+export interface DeploymentPoliciesInput {
+    "registrationPolicy": RegistrationPolicy;
+    "workspaceCreationPolicy": WorkspaceCreationPolicy;
+}
+
+/**
  * DeploymentSettings 定义部署注册策略、工作区创建策略和运营数据统计时区。
  */
 export interface DeploymentSettings {
     "registrationPolicy": RegistrationPolicy;
     "workspaceCreationPolicy": WorkspaceCreationPolicy;
+    "statisticsTimeZone": string;
+}
+
+/**
+ * DeploymentStatisticsTimeZoneInput 定义运营数据统计时区的修改值。
+ */
+export interface DeploymentStatisticsTimeZoneInput {
     "statisticsTimeZone": string;
 }
 

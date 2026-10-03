@@ -617,7 +617,7 @@ func (g *Gateway) deliver(subject string, data []byte) {
 			}
 		}
 		return
-	case realtime.KindUserDisabled, realtime.KindChannelDisabled, realtime.KindCustomerIdentityRevoked:
+	case realtime.KindUserDisabled, realtime.KindWorkspaceStatusChanged, realtime.KindChannelDisabled, realtime.KindCustomerIdentityRevoked:
 		for _, current := range targets {
 			current.revoke(payload.Kind)
 		}

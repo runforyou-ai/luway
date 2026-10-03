@@ -1,8 +1,8 @@
 -- +goose Up
 -- 创建工作区按日运营指标表。
 CREATE TABLE workspace_daily_stats (
-    organization_id       uuid NOT NULL,
     stat_date             date NOT NULL,
+    organization_id       uuid NOT NULL,
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now(),
     member_count          integer NOT NULL,
@@ -12,10 +12,10 @@ CREATE TABLE workspace_daily_stats (
     storage_bytes         bigint NOT NULL,
     active_account_count  integer NOT NULL,
     message_count         integer NOT NULL,
-    PRIMARY KEY (organization_id, stat_date)
+    PRIMARY KEY (stat_date, organization_id)
 );
 
-COMMENT ON TABLE workspace_daily_stats IS '工作区按日运营指标，由运营数据汇总任务写入；规模字段是当天最后一次汇总时的取值，活跃字段统计当天全天';
+COMMENT ON TABLE workspace_daily_stats IS '工作区按日运营指标，由运营数据汇总任务写入；规模字段是当天最后一次汇总时的取值，修改统计时区全部重建时历史日期取重建时的当前值；活跃字段统计当天全天';
 COMMENT ON COLUMN workspace_daily_stats.organization_id IS '工作区编号';
 COMMENT ON COLUMN workspace_daily_stats.stat_date IS '按部署统计时区划分的日期';
 COMMENT ON COLUMN workspace_daily_stats.created_at IS '创建时间';

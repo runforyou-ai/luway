@@ -1,11 +1,11 @@
 -- +goose Up
 -- 创建账号按日活跃明细表。
 CREATE TABLE account_daily_activities (
-    organization_id  uuid NOT NULL,
     activity_date    date NOT NULL,
+    organization_id  uuid NOT NULL,
     account_id       uuid NOT NULL,
     created_at       timestamptz NOT NULL DEFAULT now(),
-    PRIMARY KEY (organization_id, activity_date, account_id)
+    PRIMARY KEY (activity_date, organization_id, account_id)
 );
 
 COMMENT ON TABLE account_daily_activities IS '账号按日活跃明细：账号当天在工作区发送消息或操作客服处理周期时有一行，由运营数据汇总任务从消息记录推导';

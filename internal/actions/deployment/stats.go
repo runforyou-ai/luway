@@ -61,8 +61,12 @@ func (a *AggregateStatsAction) Execute(ctx context.Context, _ AggregateStatsInpu
 				}
 			}
 			from = statsToday(deployment.CreatedAt, location)
-		} else if _, err := tx.NewDelete().TableExpr("account_daily_activities").Where("activity_date > ?::date", today.Format(time.DateOnly)).Exec(ctx); err != nil {
-			return fmt.Errorf("delete future account daily activities: %w", err)
+		} else {
+			for _, table := range []struct{ name, column string }{{"account_daily_activities", "activity_date"}, {"workspace_daily_stats", "stat_date"}} {
+				if _, err := tx.NewDelete().TableExpr(table.name).Where("? > ?::date", bun.Ident(table.column), today.Format(time.DateOnly)).Exec(ctx); err != nil {
+					return fmt.Errorf("delete future %s: %w", table.name, err)
+				}
+			}
 		}
 		for day := from; !day.After(today); day = day.AddDate(0, 0, 1) {
 			if err := aggregateDay(ctx, tx, day, day.Equal(today)); err != nil {
@@ -116,7 +120,7 @@ func aggregateDay(ctx context.Context, tx bun.Tx, day time.Time, current bool) e
 			active_account_count, message_count
 		)
 		?
-		ON CONFLICT (organization_id, stat_date) DO UPDATE SET
+		ON CONFLICT (stat_date, organization_id) DO UPDATE SET
 			updated_at = now(),
 			active_account_count = EXCLUDED.active_account_count,
 			message_count = EXCLUDED.message_count,

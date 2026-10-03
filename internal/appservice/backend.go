@@ -438,9 +438,12 @@ type Backend interface {
 	// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
 	//appservice:route GET /deployment/settings auth=admin
 	GetDeploymentSettings(context.Context, RequestMeta) (DeploymentSettings, error)
-	// UpdateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
+	// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
 	//appservice:route PUT /deployment/settings auth=admin
-	UpdateDeploymentSettings(context.Context, RequestMeta, DeploymentSettings) (DeploymentSettings, error)
+	UpdateDeploymentSettings(context.Context, RequestMeta, DeploymentPoliciesInput) (DeploymentSettings, error)
+	// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+	//appservice:route PUT /deployment/settings/statistics-time-zone auth=admin
+	UpdateDeploymentStatisticsTimeZone(context.Context, RequestMeta, DeploymentStatisticsTimeZoneInput) (DeploymentSettings, error)
 	// ListDeploymentAccounts 返回部署内的账号。
 	//appservice:route GET /deployment/accounts auth=admin
 	ListDeploymentAccounts(context.Context, RequestMeta, DeploymentAccountListInput) (DeploymentAccountList, error)

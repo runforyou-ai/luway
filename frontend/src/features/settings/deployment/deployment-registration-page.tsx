@@ -55,7 +55,7 @@ function settingsValues(settings: DeploymentSettings): RegistrationSettingsFormV
   }
 }
 
-/** 修改注册策略与工作区创建策略，选择后立即保存并保留统计时区；实例有工作区上限时在创建策略下方说明。 */
+/** 修改注册策略与工作区创建策略，选择后立即保存；实例有工作区上限时在创建策略下方说明。 */
 function RegistrationSettingsForm({
   settings,
   workspaceLimit,
@@ -75,7 +75,7 @@ function RegistrationSettingsForm({
     schema: registrationSettingsSchema,
     autoSave: true,
     save: async (values) => {
-      const saved = await updateDeploymentSettings({ ...values, statisticsTimeZone: settings.statisticsTimeZone })
+      const saved = await updateDeploymentSettings(values)
       void invalidate(resourceKeys.installationStatus())
       void invalidate(resourceKeys.workspaces())
       return saved

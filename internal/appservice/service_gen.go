@@ -684,9 +684,14 @@ func (s *Service) GetDeploymentSettings(ctx context.Context, meta RequestMeta) (
 	return WithNormalizedSlices(s.backend.GetDeploymentSettings(ctx, meta))
 }
 
-// UpdateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
-func (s *Service) UpdateDeploymentSettings(ctx context.Context, meta RequestMeta, input DeploymentSettings) (DeploymentSettings, error) {
+// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+func (s *Service) UpdateDeploymentSettings(ctx context.Context, meta RequestMeta, input DeploymentPoliciesInput) (DeploymentSettings, error) {
 	return WithNormalizedSlices(s.backend.UpdateDeploymentSettings(ctx, meta, input))
+}
+
+// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (s *Service) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta RequestMeta, input DeploymentStatisticsTimeZoneInput) (DeploymentSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdateDeploymentStatisticsTimeZone(ctx, meta, input))
 }
 
 // ListDeploymentAccounts 返回部署内的账号。

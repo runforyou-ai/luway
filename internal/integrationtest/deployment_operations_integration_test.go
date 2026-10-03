@@ -45,9 +45,7 @@ func TestDeploymentOperationsData(t *testing.T) {
 	if err != nil || settings.StatisticsTimeZone != "Asia/Shanghai" {
 		t.Fatalf("settings = %#v, err = %v", settings, err)
 	}
-	_, err = backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
-		RegistrationPolicy: settings.RegistrationPolicy, WorkspaceCreationPolicy: settings.WorkspaceCreationPolicy, StatisticsTimeZone: "Mars/Olympus",
-	})
+	_, err = backend.UpdateDeploymentStatisticsTimeZone(ctx, adminMeta, appservice.DeploymentStatisticsTimeZoneInput{StatisticsTimeZone: "Mars/Olympus"})
 	requireFieldError(t, err, "statisticsTimeZone", i18n.FieldTimeZoneInvalid)
 
 	workspaces, err := backend.ListWorkspaces(ctx, adminMeta)
@@ -110,10 +108,15 @@ func TestDeploymentOperationsData(t *testing.T) {
 	if _, err := db.NewRaw("UPDATE deployments SET created_at = now() - interval '20 days'").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
-		RegistrationPolicy: settings.RegistrationPolicy, WorkspaceCreationPolicy: settings.WorkspaceCreationPolicy, StatisticsTimeZone: "Pacific/Pago_Pago",
+	// 修改统计时区只更新时区，注册策略保持不变。
+	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: settings.WorkspaceCreationPolicy,
 	}); err != nil {
 		t.Fatal(err)
+	}
+	if updated, err := backend.UpdateDeploymentStatisticsTimeZone(ctx, adminMeta, appservice.DeploymentStatisticsTimeZoneInput{StatisticsTimeZone: "Pacific/Pago_Pago"}); err != nil ||
+		updated.StatisticsTimeZone != "Pacific/Pago_Pago" || updated.RegistrationPolicy != appservice.RegistrationPolicyOpen {
+		t.Fatalf("updated settings = %#v, err = %v", updated, err)
 	}
 	rebuilds, err := db.NewSelect().TableExpr("task_runs").
 		Where("action_name = ? AND schedule_key IS NULL", deploymentaction.AggregateStatsActionName).Count(ctx)

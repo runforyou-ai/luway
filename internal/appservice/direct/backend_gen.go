@@ -1370,14 +1370,24 @@ func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.Req
 	return b.ops.GetDeploymentSettings(ctx, meta, account)
 }
 
-// UpdateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
-func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentSettings) (appservice.DeploymentSettings, error) {
+// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentPoliciesInput) (appservice.DeploymentSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.DeploymentSettings
 		return zero, err
 	}
 	return b.ops.UpdateDeploymentSettings(ctx, meta, account, input)
+}
+
+// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (b *Backend) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentStatisticsTimeZoneInput) (appservice.DeploymentSettings, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentSettings
+		return zero, err
+	}
+	return b.ops.UpdateDeploymentStatisticsTimeZone(ctx, meta, account, input)
 }
 
 // ListDeploymentAccounts 返回部署内的账号。
