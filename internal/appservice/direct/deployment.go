@@ -310,7 +310,7 @@ func (o *directOperations) GetDeploymentRuntimeStatus(ctx context.Context, meta 
 	return status, nil
 }
 
-// ListDeploymentFailedTasks 返回近 7 天内失败与等待重试的后台任务。
+// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 func (o *directOperations) ListDeploymentFailedTasks(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentFailedTaskListInput) (appservice.DeploymentFailedTaskList, error) {
 	output, err := o.deploymentFailedTasks.Execute(ctx, deploymentaction.FailedTaskListInput{Page: input.Page, PageSize: input.PageSize})
 	if err != nil {

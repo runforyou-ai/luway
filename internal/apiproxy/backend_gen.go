@@ -1055,7 +1055,7 @@ func (b *Backend) GetDeploymentRuntimeStatus(ctx context.Context, meta appservic
 	return output, err
 }
 
-// ListDeploymentFailedTasks 返回近 7 天内失败与等待重试的后台任务。
+// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 func (b *Backend) ListDeploymentFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentFailedTaskListInput) (appservice.DeploymentFailedTaskList, error) {
 	var output appservice.DeploymentFailedTaskList
 	err := b.do(ctx, meta, http.MethodGet, "/deployment/runtime/failed-tasks", encodeDeploymentFailedTaskListInputQuery(input), nil, &output)

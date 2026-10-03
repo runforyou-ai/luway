@@ -1,4 +1,4 @@
-/** 部署设置的运行状态页：服务端版本、后台任务各队列的等待、执行、挂起与失败情况，以及近 7 天失败与等待重试的任务，点击任务在侧栏查看完整错误。 */
+/** 部署设置的运行状态页：服务端版本、后台任务各队列的等待、执行、挂起与失败情况，以及等待重试与近 7 天失败的任务，点击任务在侧栏查看完整错误。 */
 import { CircleAlertIcon } from "lucide-react"
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
@@ -38,6 +38,7 @@ export function DeploymentRuntimePage() {
   const queues = status.data?.queues ?? []
   const waiting = queues.reduce((sum, queue) => sum + queue.waiting, 0)
   const running = queues.reduce((sum, queue) => sum + queue.running, 0)
+  const retrying = queues.reduce((sum, queue) => sum + queue.retrying, 0)
   const paused = queues.reduce((sum, queue) => sum + queue.paused, 0)
   const failedCount = queues.reduce((sum, queue) => sum + queue.failed, 0)
   const oldestWaitingSince = queues
@@ -67,7 +68,11 @@ export function DeploymentRuntimePage() {
                 value={count(running)}
                 detail={t("runtime.pausedDetail", { formatted: count(paused) })}
               />
-              <StatTile label={t("runtime.failed")} value={count(failedCount)} detail={t("runtime.failedDetail")} />
+              <StatTile
+                label={t("runtime.failed")}
+                value={count(failedCount)}
+                detail={t("runtime.retryingDetail", { formatted: count(retrying) })}
+              />
             </div>
 
             <ReportSection title={t("runtime.queuesTitle")} titleClassName="px-3">
@@ -90,6 +95,12 @@ export function DeploymentRuntimePage() {
                     header: t("runtime.running"),
                     cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground tabular-nums",
                     cell: (queue) => t("runtime.runningCell", { formatted: count(queue.running) }),
+                  },
+                  {
+                    key: "retrying",
+                    header: t("runtime.retrying"),
+                    cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground tabular-nums",
+                    cell: (queue) => t("runtime.retryingCell", { formatted: count(queue.retrying) }),
                   },
                   {
                     key: "paused",

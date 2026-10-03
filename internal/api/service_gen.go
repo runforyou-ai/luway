@@ -1562,7 +1562,7 @@ func (s *Service) getDeploymentRuntimeStatus(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listDeploymentFailedTasks 返回近 7 天内失败与等待重试的后台任务。
+// listDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 func (s *Service) listDeploymentFailedTasks(c *gin.Context) {
 	input, ok := bindDeploymentFailedTaskListInputQuery(c)
 	if !ok {

@@ -492,7 +492,7 @@ type Backend interface {
 	// GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
 	//appservice:route GET /deployment/runtime auth=admin
 	GetDeploymentRuntimeStatus(context.Context, RequestMeta) (DeploymentRuntimeStatus, error)
-	// ListDeploymentFailedTasks 返回近 7 天内失败与等待重试的后台任务。
+	// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 	//appservice:route GET /deployment/runtime/failed-tasks auth=admin
 	ListDeploymentFailedTasks(context.Context, RequestMeta, DeploymentFailedTaskListInput) (DeploymentFailedTaskList, error)
 	// ListPlatformAIProviders 返回部署的平台供应商。

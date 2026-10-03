@@ -245,13 +245,14 @@ type DeploymentRuntimeStatus struct {
 	Queues  []DeploymentTaskQueue `json:"queues"`
 }
 
-// DeploymentTaskQueue 定义一个后台任务队列的运行概况：Waiting 为已到执行时间仍在等待执行的任务数（含等待重试），OldestWaitingSince 为其中最早的到期时间，没有等待任务时为空；
-// Running 为执行中的任务数，Paused 为所属工作区暂停而挂起的任务数，Failed 为近 7 天失败的任务数。
+// DeploymentTaskQueue 定义一个后台任务队列的运行概况：Waiting 为已到执行时间仍在排队的任务数，OldestWaitingSince 为其中最早的到期时间，没有排队任务时为空；
+// Running 为执行中的任务数，Retrying 为执行失败后等待重试的任务数，Paused 为所属工作区暂停而挂起的任务数，Failed 为近 7 天失败且不再重试的任务数。
 type DeploymentTaskQueue struct {
 	Queue              string     `json:"queue"`
 	Waiting            int        `json:"waiting"`
 	OldestWaitingSince *time.Time `json:"oldestWaitingSince"`
 	Running            int        `json:"running"`
+	Retrying           int        `json:"retrying"`
 	Paused             int        `json:"paused"`
 	Failed             int        `json:"failed"`
 }
@@ -262,7 +263,7 @@ type DeploymentFailedTaskListInput struct {
 	PageSize int `json:"pageSize" query:"pageSize,default=50"`
 }
 
-// DeploymentFailedTask 定义近 7 天内一次失败或等待重试的后台任务运行；WorkspaceName 为所属工作区名称，部署级任务为空，FailedAt 为最近一次执行失败的时间。
+// DeploymentFailedTask 定义一次等待重试或近 7 天内失败的后台任务运行；WorkspaceName 为所属工作区名称，部署级任务为空，FailedAt 为最近一次执行失败的时间。
 type DeploymentFailedTask struct {
 	ID            string    `json:"id"`
 	Action        string    `json:"action"`

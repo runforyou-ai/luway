@@ -774,7 +774,7 @@ func (s *Service) GetDeploymentRuntimeStatus(ctx context.Context, meta RequestMe
 	return WithNormalizedSlices(s.backend.GetDeploymentRuntimeStatus(ctx, meta))
 }
 
-// ListDeploymentFailedTasks 返回近 7 天内失败与等待重试的后台任务。
+// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 func (s *Service) ListDeploymentFailedTasks(ctx context.Context, meta RequestMeta, input DeploymentFailedTaskListInput) (DeploymentFailedTaskList, error) {
 	return WithNormalizedSlices(s.backend.ListDeploymentFailedTasks(ctx, meta, input))
 }

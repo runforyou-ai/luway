@@ -1,4 +1,4 @@
-/** 部署设置的业务使用页：按统计周期查看部署整体与各工作区的客服接待量、AI 独立解决率、转人工率、真人首响和待补知识。 */
+/** 部署设置的业务使用页：按统计周期查看部署整体与各工作区关闭的服务周期、AI 独立解决率、转人工率、真人首响和待补知识。 */
 import { LayoutGridIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
@@ -83,7 +83,11 @@ export function DeploymentUsagePage() {
             <StatTile
               label={t("usage.aiResolvedRate")}
               value={rate(total.aiResolved, total.aiClosed)}
-              detail={t("usage.handoffRateDetail", { rate: rate(total.handedOff, total.aiClosed) })}
+              detail={t("usage.aiResolvedDetail", {
+                resolved: count(total.aiResolved),
+                closed: count(total.aiClosed),
+                rate: rate(total.handedOff, total.aiClosed),
+              })}
             />
             <StatTile
               label={t("usage.firstResponse")}

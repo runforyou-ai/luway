@@ -21,19 +21,19 @@ The **Deployment overview** page shows:
 
 The workspace total includes active and suspended workspaces. For each workspace's scale, storage, and last activity, see [Accounts and workspaces](/docs/en/guide/admin/accounts-workspaces/).
 
-## Service usage
+## Business usage
 
 The **Business usage** page summarizes customer service data for the whole deployment and for each workspace over the selected period (last 7, 30, or 90 days):
 
 | Metric | Description |
 | --- | --- |
-| Service sessions | Service sessions that ended in the period, and how many conversations they came from |
-| AI resolution rate | Among sessions handled by AI employees, the share resolved by AI employees on their own |
+| Service sessions | Service sessions closed in the period, and how many conversations they came from |
+| AI resolution rate | Among sessions handled by AI employees, the share resolved by AI employees on their own, along with how many sessions AI employees handled |
 | Handoff rate | Among sessions handled by AI employees, the share handed off to teammates |
 | Teammate first response | Median time from needing a teammate to the teammate's first reply, counted within business hours only. For the whole deployment, the page also shows how long 90% of sessions waited |
 | Knowledge gaps | All pending knowledge gaps, regardless of the period |
 
-These metrics are counted the same way as the **AI performance** and **Team performance** reports inside a workspace, so workspace administrators see the same numbers in their own reports. The workspace list can be sorted by service sessions, conversations, teammate first response, or knowledge gaps.
+The AI resolution rate, handoff rate, teammate first response, and knowledge gaps are counted the same way as the **AI performance** and **Team performance** reports inside a workspace, so workspace administrators see the same numbers in their reports without filters. The workspace list can be sorted by service sessions, conversations, teammate first response, or knowledge gaps.
 
 ## AI and resources
 

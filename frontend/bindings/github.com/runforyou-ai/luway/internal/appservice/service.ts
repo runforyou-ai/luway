@@ -1025,7 +1025,7 @@ export function ListDeploymentAccounts(meta: $models.RequestMeta, input: $models
 }
 
 /**
- * ListDeploymentFailedTasks 返回近 7 天内失败与等待重试的后台任务。
+ * ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
  */
 export function ListDeploymentFailedTasks(meta: $models.RequestMeta, input: $models.DeploymentFailedTaskListInput): $CancellablePromise<$models.DeploymentFailedTaskList> {
     return $Call.ByID(282833375, meta, input);
