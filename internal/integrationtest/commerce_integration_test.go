@@ -125,10 +125,11 @@ func TestCommerce(t *testing.T) {
 		nil, serverfilecontent.S3Config{}, nil, nil, tasks, nil, nil, nil)
 	service := appservice.New(backend)
 	ctx := context.Background()
-	admin, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
-		WorkspaceName: "商业服务", WorkspaceSlug: "commerce", DisplayName: "管理员", Email: "admin@example.test",
+	installed, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
+		WorkspaceName: "商业服务", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	admin := installed.Auth
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -312,11 +312,10 @@ const settings = {
   },
   general: {
     title: "General",
-    description: "Edit your workspace's name and view its ID and address",
+    description: "Edit your workspace's name and view or copy its address",
     saveError: "Could not save general settings. Try again.",
     form: {
       name: "Workspace name",
-      slug: "Workspace ID",
       address: "Address",
     },
     validation: {

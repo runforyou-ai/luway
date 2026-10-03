@@ -15,11 +15,6 @@ import (
 	"github.com/uptrace/bun"
 )
 
-const (
-	ValidationSlugInvalid ValidationCode = "ORGANIZATION_SLUG_INVALID"
-	ValidationSlugTaken   ValidationCode = "ORGANIZATION_SLUG_TAKEN"
-)
-
 var (
 	// ErrCreationNotAllowed 表示平台创建策略不允许该账号创建工作区。
 	ErrCreationNotAllowed = errors.New("workspace creation is not allowed for the account")
@@ -35,10 +30,9 @@ type Workspace struct {
 	Status domain.OrganizationLifecycleStatus `bun:"lifecycle_status"`
 }
 
-// WorkspaceInput 定义工作区名称和标识。
+// WorkspaceInput 定义新建工作区的名称。
 type WorkspaceInput struct {
 	Name string
-	Slug string
 }
 
 // normalizeWorkspaceName 规范化并校验工作区名称，字段名与客户端表单一致。
@@ -53,14 +47,10 @@ func normalizeWorkspaceName(name string) (string, map[string]ValidationCode) {
 	return name, fields
 }
 
-// NormalizeWorkspaceInput 规范化并校验工作区名称和标识，字段名与客户端表单一致。
+// NormalizeWorkspaceInput 规范化并校验工作区名称，字段名与客户端表单一致。
 func NormalizeWorkspaceInput(input WorkspaceInput) (WorkspaceInput, map[string]ValidationCode) {
 	var fields map[string]ValidationCode
 	input.Name, fields = normalizeWorkspaceName(input.Name)
-	input.Slug = domain.NormalizeWorkspaceSlug(input.Slug)
-	if !domain.WorkspaceSlugValid(input.Slug) {
-		fields["slug"] = ValidationSlugInvalid
-	}
 	return input, fields
 }
 
@@ -74,7 +64,7 @@ func NewCreateWorkspaceAction(db *bun.DB) *CreateWorkspaceAction {
 	return &CreateWorkspaceAction{db: db}
 }
 
-// Execute 校验名称和标识后，在平台创建策略和平台工作区上限允许时创建工作区，账号以账号名称成为首位管理员成员。
+// Execute 校验名称后，在平台创建策略和平台工作区上限允许时创建工作区，账号以账号名称成为首位管理员成员。
 func (a *CreateWorkspaceAction) Execute(ctx context.Context, identity *servermodels.AccountIdentity, input WorkspaceInput) (Workspace, error) {
 	input, fields := NormalizeWorkspaceInput(input)
 	if len(fields) > 0 {
@@ -90,12 +80,9 @@ func (a *CreateWorkspaceAction) Execute(ctx context.Context, identity *servermod
 		if err := checkWorkspaceCreation(ctx, tx, platform, identity.Account.IsPlatformAdmin); err != nil {
 			return err
 		}
-		created, err = Create(ctx, tx, CreateInput{Name: input.Name, Slug: input.Slug, Account: &identity.Account, AdminDisplayName: identity.Account.DisplayName})
+		created, err = Create(ctx, tx, CreateInput{Name: input.Name, Account: &identity.Account, AdminDisplayName: identity.Account.DisplayName})
 		return err
 	})
-	if errors.Is(err, ErrSlugTaken) {
-		return Workspace{}, &ValidationError{Fields: map[string]ValidationCode{"slug": ValidationSlugTaken}}
-	}
 	if errors.Is(err, ErrCreationNotAllowed) || errors.Is(err, ErrWorkspaceLimitReached) {
 		return Workspace{}, err
 	}

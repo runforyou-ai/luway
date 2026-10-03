@@ -20,7 +20,9 @@ Platform administrators can't change their own account status or administrator a
 
 ## Workspace management
 
-The **All workspaces** page lists the platform's workspaces. Search by name or identifier, filter by status, and sort by newest, recently active, most members, or most storage. Each workspace shows its members, AI employees, channels, computers, storage, and last activity.
+The **All workspaces** page lists the platform's workspaces. Search by name or the identifier in its access address, filter by status, and sort by newest, recently active, most members, or most storage. Each workspace shows its members, AI employees, channels, computers, storage, and last activity.
+
+Creating a workspace only requires a name; the server generates its access address. Names must be unique within the deployment. Creating and renaming trim surrounding whitespace and compare existing names without regard to case. General settings let you rename a workspace and view or copy its address. Existing links continue working after renaming. The platform usage list, credits panel, and management dialogs also show the address to identify the workspace being managed.
 
 ### Suspend a workspace
 

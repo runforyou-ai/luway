@@ -19,6 +19,7 @@ import { ResourceListLayout } from "@/components/resource-list"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable, type ResourceRowAction } from "@/components/resource-table"
 import { StatusBadge } from "@/components/status-badge"
+import { WorkspaceAddress } from "@/components/workspace-address"
 import { PlatformWorkspaceCreditsSheet } from "@/features/settings/platform/platform-workspace-credits-sheet"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
@@ -186,7 +187,10 @@ export function PlatformWorkspaceListPage() {
         {...pending.dialog}
         destructive={pending.item?.change === "suspend"}
         title={pending.item ? t(`workspaces.${pending.item.change}Title`, { name: pending.item.workspace.name }) : ""}
-        description={pending.item ? t(`workspaces.${pending.item.change}Description`) : ""}
+        description={pending.item ? <>
+          <WorkspaceAddress slug={pending.item.workspace.slug} className="mb-2" />
+          {t(`workspaces.${pending.item.change}Description`)}
+        </> : ""}
         pendingLabel={t("workspaces.saving")}
       />
     </div>

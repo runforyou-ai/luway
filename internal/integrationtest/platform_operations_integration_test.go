@@ -33,10 +33,11 @@ func TestPlatformOperationsData(t *testing.T) {
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
 
-	admin, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
-		WorkspaceName: "运营数据", WorkspaceSlug: "operations", DisplayName: "管理员", Email: "admin@example.test",
+	installed, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
+		WorkspaceName: "运营数据", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	admin := installed.Auth
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,10 +153,11 @@ func TestPlatformWorkspaceSuspension(t *testing.T) {
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
 
-	admin, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
-		WorkspaceName: "暂停验证", WorkspaceSlug: "suspension", DisplayName: "管理员", Email: "admin@example.test",
+	installed, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
+		WorkspaceName: "暂停验证", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	admin := installed.Auth
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -27,10 +27,11 @@ func TestPlatformDiagnostics(t *testing.T) {
 	service := appservice.New(backend)
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
-	admin, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
-		WorkspaceName: "诊断信息", WorkspaceSlug: "diagnostics", DisplayName: "管理员", Email: uniqueEmail("diagnostics"),
+	installed, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
+		WorkspaceName: "诊断信息", DisplayName: "管理员", Email: uniqueEmail("diagnostics"),
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	admin := installed.Auth
 	if err != nil {
 		t.Fatal(err)
 	}

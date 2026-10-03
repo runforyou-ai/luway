@@ -4,7 +4,9 @@ package organization
 
 import (
 	"context"
-	"errors"
+	"crypto/rand"
+	"fmt"
+	"strings"
 
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -12,28 +14,20 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ErrSlugTaken 表示工作区标识已被其他工作区使用。
-var ErrSlugTaken = errors.New("workspace slug is taken")
-
 // CreateInput 定义创建工作区及首位管理员成员所需的已校验字段。
 type CreateInput struct {
 	Name             string
-	Slug             string
 	Account          *servermodels.Account
 	AdminDisplayName string
 }
 
 // Create 在调用方事务内创建工作区、客服设置、内置角色与默认权限，并把账号加为首位管理员成员。
 func Create(ctx context.Context, tx bun.Tx, input CreateInput) (*servermodels.Identity, error) {
-	organization := &servermodels.Organization{Slug: input.Slug, Name: input.Name}
-	if _, err := tx.NewInsert().
-		Model(organization).
-		Column("slug", "name").
-		Returning("id, lifecycle_status, created_at, updated_at").
-		Exec(ctx); err != nil {
-		if pgerr.UniqueViolationOn(err, "organizations_slug_unique") {
-			return nil, ErrSlugTaken
-		}
+	// 工作区访问标识由服务端随机生成并在创建后保持固定。
+	organization, err := insertOrganization(ctx, tx, input.Name, func() string {
+		return "ws-" + strings.ToLower(rand.Text())
+	})
+	if err != nil {
 		return nil, err
 	}
 	// 客服设置行随工作区创建，各项取列默认值。
@@ -109,4 +103,31 @@ func Create(ctx context.Context, tx bun.Tx, input CreateInput) (*servermodels.Id
 		User:                 *user,
 		Account:              *input.Account,
 	}, nil
+}
+
+// insertOrganization 插入工作区，标识冲突时重新生成，最多尝试三次。
+func insertOrganization(ctx context.Context, tx bun.Tx, name string, generateSlug func() string) (*servermodels.Organization, error) {
+	for range 3 {
+		organization := &servermodels.Organization{Slug: generateSlug(), Name: name}
+		result, err := tx.NewInsert().
+			Model(organization).
+			Column("slug", "name").
+			On("CONFLICT (slug) DO NOTHING").
+			Returning("id, lifecycle_status, created_at, updated_at").
+			Exec(ctx)
+		if pgerr.UniqueViolationOn(err, "organizations_name_unique") {
+			return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+		}
+		if err != nil {
+			return nil, err
+		}
+		count, err := result.RowsAffected()
+		if err != nil {
+			return nil, err
+		}
+		if count == 1 {
+			return organization, nil
+		}
+	}
+	return nil, fmt.Errorf("generate unique workspace slug: attempts exhausted")
 }

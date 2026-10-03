@@ -28,10 +28,11 @@ func TestPlatformModels(t *testing.T) {
 	service := appservice.New(backend)
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
-	admin, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
-		WorkspaceName: "平台模型", WorkspaceSlug: "platform-models", DisplayName: "管理员", Email: "admin@example.test",
+	installed, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
+		WorkspaceName: "平台模型", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	admin := installed.Auth
 	if err != nil {
 		t.Fatal(err)
 	}

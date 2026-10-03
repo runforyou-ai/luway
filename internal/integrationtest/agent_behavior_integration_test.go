@@ -92,7 +92,7 @@ func TestAgentRoleBehavior(t *testing.T) {
 	if captured.Assignment.Scene != agentruntime.SceneAgentChat {
 		t.Fatalf("scene = %q", captured.Assignment.Scene)
 	}
-	baselinePrefix := "你是企业「行为测试」的 AI 员工「行为助手」，专业领域是客户服务。"
+	baselinePrefix := "你是企业「" + identity.Organization.Name + "」的 AI 员工「行为助手」，专业领域是客户服务。"
 	if !strings.HasPrefix(captured.Assignment.Instruction, baselinePrefix) || !strings.Contains(captured.Assignment.Instruction, "\n\n本次是企业内部对话") ||
 		strings.Contains(captured.Assignment.Instruction, "\n\n\n") || !strings.Contains(captured.Assignment.Instruction, "可用工具：\n- web_fetch：") ||
 		strings.Contains(captured.Assignment.Instruction, "search_knowledge") || strings.Contains(captured.Assignment.Instruction, "- web_search：") {

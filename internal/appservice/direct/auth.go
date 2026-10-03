@@ -75,11 +75,10 @@ func (o *directOperations) InstallationStatus(ctx context.Context, meta appservi
 	}, nil
 }
 
-// InstallWorkspace 在平台尚无账号时创建平台管理员和第一个工作区，并返回登录会话。
-func (o *directOperations) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (appservice.Auth, error) {
+// InstallWorkspace 在平台尚无账号时创建平台管理员和第一个工作区，并返回工作区和登录会话。
+func (o *directOperations) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (appservice.InstallWorkspaceResult, error) {
 	output, err := o.installWorkspace.Execute(ctx, installationaction.InstallWorkspaceInput{
 		WorkspaceName: input.WorkspaceName,
-		WorkspaceSlug: input.WorkspaceSlug,
 		DisplayName:   input.DisplayName,
 		Email:         input.Email,
 		Password:      input.Password,
@@ -87,17 +86,21 @@ func (o *directOperations) InstallWorkspace(ctx context.Context, meta appservice
 		TimeZone:      input.TimeZone,
 	})
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
-		return appservice.Auth{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, accountFieldKeys(validationError.Fields))
+		return appservice.InstallWorkspaceResult{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, accountFieldKeys(validationError.Fields))
 	}
 	if errors.Is(err, installationaction.ErrAlreadyInstalled) {
 		slog.Info("平台已完成首次安装")
-		return appservice.Auth{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAlreadyInitialized).WithStatus(http.StatusConflict)
+		return appservice.InstallWorkspaceResult{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAlreadyInitialized).WithStatus(http.StatusConflict)
 	}
 	if err != nil {
-		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorInstallationFailed, err)
+		return appservice.InstallWorkspaceResult{}, appservice.FailedError(meta, i18n.ErrorInstallationFailed, err)
 	}
 	slog.Info("首次安装完成", "organization_id", output.Identity.Organization.ID, "account_id", output.Identity.Account.ID)
-	return authFromSession(output.Session), nil
+	workspace := output.Identity.Organization
+	return appservice.InstallWorkspaceResult{
+		Auth:      authFromSession(output.Session),
+		Workspace: appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug, Status: appservice.WorkspaceStatus(workspace.LifecycleStatus)},
+	}, nil
 }
 
 // Login 校验账号密码并返回登录会话。
@@ -199,7 +202,7 @@ func (o *directOperations) ListWorkspaces(ctx context.Context, meta appservice.R
 
 // CreateWorkspace 在平台创建策略和平台工作区上限允许时创建工作区，当前账号成为首位管理员成员。
 func (o *directOperations) CreateWorkspace(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.WorkspaceInput) (appservice.Workspace, error) {
-	workspace, err := o.createWorkspace.Execute(ctx, account, organizationaction.WorkspaceInput{Name: input.Name, Slug: input.Slug})
+	workspace, err := o.createWorkspace.Execute(ctx, account, organizationaction.WorkspaceInput{Name: input.Name})
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		return appservice.Workspace{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, workspaceFieldKeys(validationError.Fields))
 	}
@@ -239,19 +242,17 @@ func accountFieldKeys(fields map[string]common.FieldCode) map[string]i18n.Key {
 		accountaction.ValidationTimeZoneInvalid:          i18n.FieldTimeZoneInvalid,
 		organizationaction.ValidationNameRequired:        i18n.FieldOrganizationNameRequired,
 		organizationaction.ValidationNameTooLong:         i18n.FieldOrganizationNameTooLong,
-		organizationaction.ValidationSlugInvalid:         i18n.FieldWorkspaceSlugInvalid,
-		organizationaction.ValidationSlugTaken:           i18n.FieldWorkspaceSlugTaken,
+		organizationaction.ValidationNameDuplicate:       i18n.FieldOrganizationNameDuplicate,
 	}
 	return translateValidationFields(fields, keys)
 }
 
-// workspaceFieldKeys 把工作区名称和标识的校验错误码映射为本地化文案键。
+// workspaceFieldKeys 把工作区名称的校验错误码映射为本地化文案键。
 func workspaceFieldKeys(fields map[string]common.FieldCode) map[string]i18n.Key {
 	keys := map[common.FieldCode]i18n.Key{
-		organizationaction.ValidationNameRequired: i18n.FieldOrganizationNameRequired,
-		organizationaction.ValidationNameTooLong:  i18n.FieldOrganizationNameTooLong,
-		organizationaction.ValidationSlugInvalid:  i18n.FieldWorkspaceSlugInvalid,
-		organizationaction.ValidationSlugTaken:    i18n.FieldWorkspaceSlugTaken,
+		organizationaction.ValidationNameRequired:  i18n.FieldOrganizationNameRequired,
+		organizationaction.ValidationNameTooLong:   i18n.FieldOrganizationNameTooLong,
+		organizationaction.ValidationNameDuplicate: i18n.FieldOrganizationNameDuplicate,
 	}
 	return translateValidationFields(fields, keys)
 }

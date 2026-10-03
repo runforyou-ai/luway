@@ -1,15 +1,13 @@
 /** 首次安装表单校验规则。 */
 import { z } from "zod"
 
-import { workspaceNameField, workspaceSlugField } from "@/lib/workspace-schema"
+import { workspaceNameField } from "@/lib/workspace-schema"
 import { displayNamePattern } from "@/lib/display-name"
 
 type SetupTranslator = (
   key:
     | "workspaceNameRequired"
     | "workspaceNameTooLong"
-    | "workspaceSlugRequired"
-    | "workspaceSlugInvalid"
     | "displayNameRequired"
     | "displayNameInvalid"
     | "emailRequired"
@@ -24,12 +22,9 @@ export function createSetupSchema(t: SetupTranslator) {
   const workspaceMessages = {
     nameRequired: t("workspaceNameRequired"),
     nameTooLong: t("workspaceNameTooLong"),
-    slugRequired: t("workspaceSlugRequired"),
-    slugInvalid: t("workspaceSlugInvalid"),
   }
   return z.object({
     workspaceName: workspaceNameField(workspaceMessages),
-    workspaceSlug: workspaceSlugField(workspaceMessages),
     displayName: z
       .string()
       .trim()

@@ -10,6 +10,7 @@ import (
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/common"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/internal/storage/server/pgerr"
 	"github.com/uptrace/bun"
 )
 
@@ -17,8 +18,9 @@ import (
 type ValidationCode = common.FieldCode
 
 const (
-	ValidationNameRequired ValidationCode = "ORGANIZATION_NAME_REQUIRED"
-	ValidationNameTooLong  ValidationCode = "ORGANIZATION_NAME_TOO_LONG"
+	ValidationNameRequired  ValidationCode = "ORGANIZATION_NAME_REQUIRED"
+	ValidationNameTooLong   ValidationCode = "ORGANIZATION_NAME_TOO_LONG"
+	ValidationNameDuplicate ValidationCode = "ORGANIZATION_NAME_DUPLICATE"
 )
 
 // ValidationError 表示工作区设置校验失败。
@@ -34,7 +36,7 @@ func NewUpdateOrganizationAction(db *bun.DB) *UpdateOrganizationAction {
 	return &UpdateOrganizationAction{db: db}
 }
 
-// Execute 校验并修改当前成员所在工作区的名称；工作区标识创建后不修改。
+// Execute 校验并修改当前成员所在工作区的名称，访问标识保持固定。
 func (a *UpdateOrganizationAction) Execute(ctx context.Context, identity *servermodels.Identity, name string) (*servermodels.Organization, error) {
 	name, fields := normalizeWorkspaceName(name)
 	if len(fields) > 0 {
@@ -55,6 +57,9 @@ func (a *UpdateOrganizationAction) Execute(ctx context.Context, identity *server
 			Exec(ctx)
 		return err
 	})
+	if pgerr.UniqueViolationOn(err, "organizations_name_unique") {
+		return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+	}
 	if err != nil {
 		return nil, fmt.Errorf("update organization: %w", err)
 	}

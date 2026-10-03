@@ -919,7 +919,7 @@ type Backend interface {
 
 // WorkspaceInstaller 由服务端 Backend 实现，用于首次安装。
 type WorkspaceInstaller interface {
-	InstallWorkspace(context.Context, RequestMeta, InstallWorkspaceInput) (Auth, error)
+	InstallWorkspace(context.Context, RequestMeta, InstallWorkspaceInput) (InstallWorkspaceResult, error)
 }
 
 // ServerConnector 由原生端 Backend 实现，用于企业服务器地址。

@@ -934,9 +934,9 @@ export function InstallLocalToolchain(meta: $models.RequestMeta): $CancellablePr
 }
 
 /**
- * InstallWorkspace 完成首次安装并返回平台管理员的登录会话。
+ * InstallWorkspace 完成首次安装并返回创建的工作区和平台管理员登录会话。
  */
-export function InstallWorkspace(meta: $models.RequestMeta, input: $models.InstallWorkspaceInput): $CancellablePromise<$models.Auth> {
+export function InstallWorkspace(meta: $models.RequestMeta, input: $models.InstallWorkspaceInput): $CancellablePromise<$models.InstallWorkspaceResult> {
     return $Call.ByID(1987182585, meta, input);
 }
 

@@ -307,11 +307,10 @@ const settings = {
   },
   general: {
     title: "通用设置",
-    description: "维护工作区名称，查看工作区标识和访问地址",
+    description: "维护工作区名称，查看和复制访问地址",
     saveError: "保存通用设置失败，请重试。",
     form: {
       name: "工作区名称",
-      slug: "工作区标识",
       address: "访问地址",
     },
     validation: {
