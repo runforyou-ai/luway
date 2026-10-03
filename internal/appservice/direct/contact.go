@@ -71,7 +71,7 @@ func (o *directOperations) ListContacts(ctx context.Context, meta appservice.Req
 		return appservice.ContactList{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, contactFieldKeys(validationError.Fields))
 	}
 	if err != nil {
-		return appservice.ContactList{}, o.contactError(ctx, meta, err, i18n.ErrorContactListFailed)
+		return appservice.ContactList{}, o.contactError(meta, err, i18n.ErrorContactListFailed)
 	}
 	avatarFileIDs := make([]*string, 0, len(output.Contacts))
 	for _, contact := range output.Contacts {
@@ -79,7 +79,7 @@ func (o *directOperations) ListContacts(ctx context.Context, meta appservice.Req
 	}
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, avatarFileIDs...)
 	if err != nil {
-		return appservice.ContactList{}, o.contactError(ctx, meta, err, i18n.ErrorContactListFailed)
+		return appservice.ContactList{}, o.contactError(meta, err, i18n.ErrorContactListFailed)
 	}
 	contacts := make([]appservice.ContactSummary, 0, len(output.Contacts))
 	for _, contact := range output.Contacts {
@@ -99,7 +99,7 @@ func (o *directOperations) ListContacts(ctx context.Context, meta appservice.Req
 func (o *directOperations) GetContact(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, contactID string) (appservice.Contact, error) {
 	contact, err := o.getContact.Execute(ctx, identity, contactID)
 	if err != nil {
-		return appservice.Contact{}, o.contactError(ctx, meta, err, i18n.ErrorContactReadFailed)
+		return appservice.Contact{}, o.contactError(meta, err, i18n.ErrorContactReadFailed)
 	}
 	return o.contactWithAvatar(ctx, meta, identity, contact, i18n.ErrorContactReadFailed)
 }
@@ -108,7 +108,7 @@ func (o *directOperations) GetContact(ctx context.Context, meta appservice.Reque
 func (o *directOperations) CreateContact(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ContactInput) (appservice.Contact, error) {
 	contact, err := o.createContact.Execute(ctx, identity, contactInput(input))
 	if err != nil {
-		return appservice.Contact{}, o.contactMutationError(ctx, meta, err, i18n.ErrorContactCreateFailed)
+		return appservice.Contact{}, o.contactMutationError(meta, err, i18n.ErrorContactCreateFailed)
 	}
 	slog.Info("联系人创建成功", "organization_id", identity.Organization.ID, "contact_id", contact.Contact.ID)
 	return o.contactWithAvatar(ctx, meta, identity, contact, i18n.ErrorContactCreateFailed)
@@ -118,7 +118,7 @@ func (o *directOperations) CreateContact(ctx context.Context, meta appservice.Re
 func (o *directOperations) UpdateContact(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, contactID string, input appservice.ContactInput) (appservice.Contact, error) {
 	contact, err := o.updateContact.Execute(ctx, identity, contactID, contactInput(input))
 	if err != nil {
-		return appservice.Contact{}, o.contactMutationError(ctx, meta, err, i18n.ErrorContactUpdateFailed)
+		return appservice.Contact{}, o.contactMutationError(meta, err, i18n.ErrorContactUpdateFailed)
 	}
 	slog.Info("联系人更新成功", "organization_id", identity.Organization.ID, "contact_id", contact.Contact.ID)
 	return o.contactWithAvatar(ctx, meta, identity, contact, i18n.ErrorContactUpdateFailed)
@@ -127,7 +127,7 @@ func (o *directOperations) UpdateContact(ctx context.Context, meta appservice.Re
 // DeleteContact 将联系人移入回收站。
 func (o *directOperations) DeleteContact(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, contactID string) error {
 	if err := o.deleteContact.Execute(ctx, identity, contactID); err != nil {
-		return o.contactError(ctx, meta, err, i18n.ErrorContactDeleteFailed)
+		return o.contactError(meta, err, i18n.ErrorContactDeleteFailed)
 	}
 	slog.Info("联系人移入回收站", "organization_id", identity.Organization.ID, "contact_id", contactID)
 	return nil
@@ -137,33 +137,29 @@ func (o *directOperations) DeleteContact(ctx context.Context, meta appservice.Re
 func (o *directOperations) RestoreContact(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, contactID string) (appservice.Contact, error) {
 	contact, err := o.restoreContact.Execute(ctx, identity, contactID)
 	if err != nil {
-		return appservice.Contact{}, o.contactError(ctx, meta, err, i18n.ErrorContactRestoreFailed)
+		return appservice.Contact{}, o.contactError(meta, err, i18n.ErrorContactRestoreFailed)
 	}
 	slog.Info("联系人恢复成功", "organization_id", identity.Organization.ID, "contact_id", contact.Contact.ID)
 	return o.contactWithAvatar(ctx, meta, identity, contact, i18n.ErrorContactRestoreFailed)
 }
 
 // contactMutationError 转换联系人写入校验和操作错误。
-func (o *directOperations) contactMutationError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func (o *directOperations) contactMutationError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, contactFieldKeys(validationError.Fields))
 	}
-	return o.contactError(ctx, meta, err, failureKey)
+	return o.contactError(meta, err, failureKey)
 }
 
 // contactError 转换联系人读取和删除错误。
-func (o *directOperations) contactError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func (o *directOperations) contactError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, contactaction.ErrNotFound) {
 		return appservice.NotFoundError(meta, i18n.ErrorContactNotFound)
 	}
-	slog.Warn("联系人操作失败", "failure", failureKey, "error", err)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // contactInput 把联系人契约输入转换为动作层输入。
@@ -179,7 +175,7 @@ func contactInput(input appservice.ContactInput) contactaction.ContactInput {
 func (o *directOperations) contactWithAvatar(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, contact *contactaction.ContactDetail, failureKey i18n.Key) (appservice.Contact, error) {
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, contact.AvatarFileID)
 	if err != nil {
-		return appservice.Contact{}, o.contactError(ctx, meta, err, failureKey)
+		return appservice.Contact{}, o.contactError(meta, err, failureKey)
 	}
 	output := contactFromAction(contact)
 	output.AvatarURL = optionalFileURL(avatarURLs, contact.AvatarFileID)

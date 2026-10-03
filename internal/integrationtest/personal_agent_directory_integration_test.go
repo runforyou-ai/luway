@@ -11,7 +11,7 @@ import (
 
 	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
-	deviceaction "github.com/runforyou-ai/luway/internal/actions/device"
+	computeraction "github.com/runforyou-ai/luway/internal/actions/computer"
 	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
 	memberaction "github.com/runforyou-ai/luway/internal/actions/member"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -39,11 +39,11 @@ func TestPersonalAgentDirectory(t *testing.T) {
 	}
 	createPersonal := func(owner *servermodels.Identity, name string) *agentaction.PersonalAgent {
 		t.Helper()
-		device, err := deviceaction.NewRegisterDeviceAction(db).Execute(ctx, owner, deviceaction.RegisterInput{InstallID: uuid.NewV7().String(), Name: name + "的电脑", Platform: domain.DevicePlatformMacOS})
+		computer, err := computeraction.NewRegisterComputerAction(db).Execute(ctx, owner, computeraction.RegisterInput{InstallID: uuid.NewV7().String(), Name: name + "的电脑", Platform: domain.ComputerPlatformMacOS})
 		if err != nil {
 			t.Fatal(err)
 		}
-		created, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, owner, device.ID, agentaction.PersonalAgentInput{DisplayName: name, Execution: execution})
+		created, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, owner, computer.Record.ID, agentaction.PersonalAgentInput{DisplayName: name, Execution: execution})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,11 +62,11 @@ func TestPersonalAgentDirectory(t *testing.T) {
 			ids = append(ids, item.ID)
 			switch item.ID {
 			case own.ID:
-				if !item.Personal() || common.StringValue(item.DeviceID) != own.DeviceID || item.Presence(own.CreatedAt) != domain.PersonalAgentPresenceOffline {
+				if !item.Personal() || common.StringValue(item.ComputerID) != own.ComputerID || item.Presence(own.CreatedAt) != domain.PersonalAgentPresenceOffline {
 					t.Fatalf("own personal item=%+v", item)
 				}
 			case service.ID:
-				if item.Personal() || item.DeviceID != nil {
+				if item.Personal() || item.ComputerID != nil {
 					t.Fatalf("service item=%+v", item)
 				}
 			}

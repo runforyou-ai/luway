@@ -5,12 +5,14 @@ package api
 
 import (
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
@@ -23,9 +25,7 @@ type WebsiteVisitorRealtime interface {
 // Service 是企业服务端对外提供的 Gin HTTP 适配器。
 type Service struct {
 	application           *appservice.Service
-	deviceRuns            appservice.DeviceRunBackend
-	deviceModels          DeviceModelGateway
-	deviceAttachments     DeviceRunAttachmentReader
+	computers             appservice.ComputerBackend
 	websiteVisitor        *appservice.WebsiteVisitorService
 	visitorRealtime       WebsiteVisitorRealtime
 	telegramWebhook       TelegramWebhookReceiver
@@ -55,10 +55,10 @@ func WithWebsiteVisitorRealtime(realtime WebsiteVisitorRealtime) ServiceOption {
 	}
 }
 
-// WithDeviceRuns 注入本机设备执行 Agent 运行的运行期调用。
-func WithDeviceRuns(backend appservice.DeviceRunBackend) ServiceOption {
+// WithComputers 注入执行器以电脑身份调用的服务端契约。
+func WithComputers(backend appservice.ComputerBackend) ServiceOption {
 	return func(service *Service) {
-		service.deviceRuns = backend
+		service.computers = backend
 	}
 }
 
@@ -84,19 +84,15 @@ func NewService(application *appservice.Service, options ...ServiceOption) *Serv
 	}
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(gin.Recovery())
+	// 处理请求时发生的 panic 记录为带调用栈的错误并返回 500。
+	router.Use(gin.CustomRecoveryWithWriter(io.Discard, func(c *gin.Context, recovered any) {
+		slog.Error("处理接口请求时发生 panic", "path", c.FullPath(), "error", common.NewPanicError(recovered))
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}))
 
 	service.registerGeneratedRoutes(router)
-	if service.deviceRuns != nil {
-		service.registerGeneratedDeviceRunRoutes(router)
-	}
-	// 注册设备运行的模型网关，设备的模型请求经统一调用入口执行。
-	if service.deviceModels != nil {
-		router.POST("/agent-runs/:runID/model", service.serveDeviceModel)
-	}
-	// 注册设备运行读取会话附件的原始内容入口。
-	if service.deviceAttachments != nil {
-		router.GET("/agent-runs/:runID/attachments/:messageID", service.readDeviceRunAttachment)
+	if service.computers != nil {
+		service.registerGeneratedComputerRoutes(router)
 	}
 	// 创建企业管理员并返回登录令牌。
 	router.POST("/install", func(c *gin.Context) {
@@ -147,7 +143,7 @@ func enumList[T ~string](values []string) []T {
 	return list
 }
 
-// requestMeta 从请求头提取令牌、目标工作区、语言和设备编号，构造应用服务请求元数据。
+// requestMeta 从请求头提取令牌、目标工作区和语言，构造应用服务请求元数据。
 func requestMeta(c *gin.Context) appservice.RequestMeta {
 	return appservice.RequestMetaFromHTTP(c.Request.Header)
 }
@@ -203,7 +199,7 @@ func writeApplicationError(c *gin.Context, err error) bool {
 		appservice.WriteHTTPError(c.Writer, c.Request, applicationError)
 		return true
 	}
-	slog.Warn("应用服务调用失败", "error", err)
-	appservice.WriteHTTPError(c.Writer, c.Request, appservice.FailedError(requestMeta(c), i18n.ErrorInternal))
+	slog.Error("接口返回非业务错误", "path", c.FullPath(), "error", err)
+	appservice.WriteHTTPError(c.Writer, c.Request, appservice.FailedError(requestMeta(c), i18n.ErrorInternal, err))
 	return true
 }

@@ -32,22 +32,11 @@ func (e *scriptedMemoryExtractor) ExtractMemory(_ context.Context, request agent
 }
 
 // testAgentMemory 验证个人 AI 员工单聊的运行下发记忆、回复后投递提取任务、提取只分析新消息并推进进度，以及负责人查看、编辑、删除记忆；提取期间记忆被负责人修改或进度被其他任务推进时本次结果作废，重试时基于最新状态提取。
-func testAgentMemory(t *testing.T, f *deviceRunFixture) {
+func testAgentMemory(t *testing.T, f *personalAgentFixture) {
 	ctx, db, identity := f.ctx, f.db, f.identity
 	conversationID := f.personalAgentChat()
 	run := f.sendAndLoadRun(conversationID, "以后周报按客户分组")
-	claim, err := f.executor.ClaimDeviceRun(ctx, f.device, run.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var assignment agentruntime.Assignment
-	if err := json.Unmarshal(claim.Assignment, &assignment); err != nil || !assignment.Memory {
-		t.Fatalf("personalAgent chat assignment memory=%v err=%v", assignment.Memory, err)
-	}
-	if entries, err := f.executor.LoadDeviceRunMemory(ctx, f.device, run.ID); err != nil || len(entries) != 0 {
-		t.Fatalf("initial memory=%+v err=%v", entries, err)
-	}
-	f.complete(run.ID, "好的，以后按客户分组")
+	f.execute(memoryRuntime(t, 0, "好的，以后按客户分组"), run.ID)
 
 	var tasks []servermodels.TaskRun
 	if err := db.NewSelect().Model(&tasks).
@@ -93,7 +82,7 @@ func testAgentMemory(t *testing.T, f *deviceRunFixture) {
 
 	// 第二轮只分析新消息；提取期间负责人修改了记忆，本次结果作废，重试时基于负责人的版本提取，负责人的修改保留。
 	second := f.sendAndLoadRun(conversationID, "我下周去上海出差")
-	f.claimAndComplete(second.ID, "记下了")
+	f.execute(memoryRuntime(t, 1, "记下了"), second.ID)
 	extractor.during = func() {
 		if _, err := agentaction.NewUpdateAgentMemoryAction(db).Execute(ctx, identity, f.personalAgent.ID, memories[0].ID, agentaction.AgentMemoryInput{
 			Name: "周报要求", Description: "周报按客户分组并附风险", Body: "周报按客户分组，每组附风险。",
@@ -130,7 +119,7 @@ func testAgentMemory(t *testing.T, f *deviceRunFixture) {
 
 	// 提取期间进度被其他任务推进时本次结果作废并报错重试，重试从新的进度继续。
 	overlap := f.sendAndLoadRun(conversationID, "周报改成按项目分组")
-	f.claimAndComplete(overlap.ID, "好的，改成按项目分组")
+	f.execute(memoryRuntime(t, 2, "好的，改成按项目分组"), overlap.ID)
 	var progress int64
 	if err := db.NewSelect().Model((*servermodels.AgentConversation)(nil)).Column("memory_extracted_seq").
 		Where("conversation_id = ?", conversationID).Scan(ctx, &progress); err != nil {
@@ -165,20 +154,27 @@ func testAgentMemory(t *testing.T, f *deviceRunFixture) {
 
 	// 新运行读到当前记忆；负责人删除后不再出现。
 	third := f.sendAndLoadRun(conversationID, "安排行程")
-	if _, err := f.executor.ClaimDeviceRun(ctx, f.device, third.ID); err != nil {
-		t.Fatal(err)
-	}
-	entries, err := f.executor.LoadDeviceRunMemory(ctx, f.device, third.ID)
-	if err != nil || len(entries) != 2 {
-		t.Fatalf("run memory=%+v err=%v", entries, err)
-	}
+	f.execute(memoryRuntime(t, 2, "好的"), third.ID)
 	for _, memory := range memories {
 		if err := agentaction.NewDeleteAgentMemoryAction(db).Execute(ctx, identity, f.personalAgent.ID, memory.ID); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if entries, err := f.executor.LoadDeviceRunMemory(ctx, f.device, third.ID); err != nil || len(entries) != 0 {
-		t.Fatalf("memory after delete=%+v err=%v", entries, err)
-	}
-	f.complete(third.ID, "好的")
+	fourth := f.sendAndLoadRun(conversationID, "再安排一次")
+	f.execute(memoryRuntime(t, 0, "好的"), fourth.ID)
+}
+
+// memoryRuntime 返回核对本次运行启用记忆并读到指定条数记忆后以指定正文结束的运行时。
+func memoryRuntime(t *testing.T, entries int, content string) testAgentRuntime {
+	return testAgentRuntime{run: func(ctx context.Context, request agentruntime.RunRequest, feed agentruntime.InputFeed) (agentruntime.RunResult, error) {
+		if !request.Assignment.Memory || request.Memory == nil {
+			t.Errorf("personalAgent chat memory=%v loader=%v", request.Assignment.Memory, request.Memory != nil)
+			return completeTestRun(ctx, feed, content)
+		}
+		loaded, err := request.Memory(ctx)
+		if err != nil || len(loaded) != entries {
+			t.Errorf("run memory=%+v err=%v, want %d entries", loaded, err, entries)
+		}
+		return completeTestRun(ctx, feed, content)
+	}}
 }

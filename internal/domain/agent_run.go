@@ -46,22 +46,6 @@ const (
 	AgentRunErrorCodeAgentRemoved    AgentRunErrorCode = "agent_removed"
 )
 
-// 设备执行的运行失败原因。
-const (
-	// AgentRunErrorCodeDeviceLeaseExpired 表示执行设备未按时续租，运行以失败结束。
-	AgentRunErrorCodeDeviceLeaseExpired AgentRunErrorCode = "device_lease_expired"
-	// AgentRunErrorCodeDeviceUnavailable 表示执行设备已撤销或设备所属成员已停用。
-	AgentRunErrorCodeDeviceUnavailable AgentRunErrorCode = "device_unavailable"
-	// AgentRunErrorCodeExecutionChanged 表示运行派发后个人 AI 员工已换电脑，排队中的运行不再执行。
-	AgentRunErrorCodeExecutionChanged AgentRunErrorCode = "execution_changed"
-	// AgentRunErrorCodeDeviceRunFailed 表示设备上的运行时执行失败。
-	AgentRunErrorCodeDeviceRunFailed AgentRunErrorCode = "device_run_failed"
-	// AgentRunErrorCodeLocalAgentAuthRequired 表示执行运行的本机 Agent 尚未在电脑上登录。
-	AgentRunErrorCodeLocalAgentAuthRequired AgentRunErrorCode = "local_agent_auth_required"
-	// AgentRunErrorCodeDeviceRunTimedOut 表示设备运行自领取起超出总时限。
-	AgentRunErrorCodeDeviceRunTimedOut AgentRunErrorCode = "device_run_timed_out"
-)
-
 // AgentRunErrorCodeAgentUnavailable 表示 AI 员工被停用或失去接客资格，由管理操作取消运行。
 const AgentRunErrorCodeAgentUnavailable AgentRunErrorCode = "agent_unavailable"
 

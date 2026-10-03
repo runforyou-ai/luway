@@ -40,11 +40,9 @@ const webFetchToolGuidance = "- web_fetch：读取网页正文，用于查看对
 
 const webSourceGuidance = "使用网上的信息回答时，注明信息来源的网页链接。"
 
-const workspaceToolGuidance = "- %s：在这台电脑上查阅和修改文件、运行命令。相对路径与命令的工作目录以本会话的默认文件夹为起点，~ 表示用户主目录，其他位置使用绝对路径；需要了解文件内容时先按文件名或内容定位，再读取相关部分；新生成的文件默认放在默认文件夹中，完成后告诉用户文件位置。"
+const computerToolGuidance = "- %s：在负责人的电脑上查阅和修改文件、运行命令。相对路径与命令的工作目录以本会话的默认文件夹为起点，~ 表示用户主目录，其他位置使用绝对路径；需要了解文件内容时先用命令按文件名或内容定位，再读取相关部分；新生成的文件默认放在默认文件夹中，完成后告诉用户文件位置。电脑未连接时告诉用户打开电脑上的应用后再试。"
 
-const localMCPToolGuidance = "- %s：用户需要让你连接这台电脑上的外部工具或服务时，为这台电脑添加或移除本地 MCP 服务；新添加的服务从下一次运行起可用。"
-
-const skillToolGuidance = "- %s：技能是针对特定任务的操作说明，可能附带脚本、参考文件与模板。任务与 skill 列出的技能简介相符时，先加载该技能再按其说明完成，技能中的相对路径以技能目录为起点，脚本用 execute 运行；任务需要而没有合适的技能时，用 install_skill 安装现成的技能，例如 anthropics/skills 仓库中的 xlsx、docx、pptx、pdf 分别处理 Excel、Word、PPT 与 PDF 文件；用户要求时用 remove_skill 删除。"
+const skillToolGuidance = "- %s：技能是针对特定任务的操作说明，可能附带脚本、参考文件与模板。任务与 skill 列出的技能简介相符时，先加载该技能再按其说明完成，技能中的相对路径以技能目录为起点，脚本用 execute 运行。"
 
 const planToolGuidance = "- %s：任务需要三个以上步骤或用户一次提出多件事时，先用 TaskCreate 列出任务清单，开始一项前用 TaskUpdate 标为 in_progress，完成后立即标为 completed；清单会实时展示给用户，一两步就能完成的任务不建清单。subject 写简短的动作，activeForm 写进行时（如「正在整理报价表」），都使用与用户相同的语言。全部任务完成后 TaskList 返回空，但已完成的任务仍展示给用户；之后又有新工作时直接用 TaskCreate 追加，不重复创建已完成的任务。"
 
@@ -143,7 +141,7 @@ type builtinTools struct {
 	Knowledge         bool
 	WebSearch         bool
 	WebFetch          bool
-	Workspace         []string // 执行设备提供的本机工具。
+	Computer          []string // 在负责人电脑上执行的工具。
 	Orchestration     bool     // 内部场景的任务清单与子 Agent 委派工具。
 	CustomerHistory   bool
 	Terminal          bool // 客服场景的 ask_customer、handoff_to_human 与 resolve_conversation。
@@ -201,18 +199,13 @@ func toolGuidance(tools builtinTools) string {
 	if tools.WebFetch {
 		lines = append(lines, webFetchToolGuidance)
 	}
-	// 本机工具中的本地 MCP 管理工具与技能工具单独说明。
-	workspace := slices.DeleteFunc(slices.Clone(tools.Workspace), func(name string) bool {
-		return slices.Contains(localMCPToolNames, name) || slices.Contains(skillToolNames, name)
-	})
-	if len(workspace) > 0 {
-		lines = append(lines, fmt.Sprintf(workspaceToolGuidance, strings.Join(workspace, "、")))
+	// 电脑工具中的技能工具单独说明。
+	computer := slices.DeleteFunc(slices.Clone(tools.Computer), func(name string) bool { return name == skillToolName })
+	if len(computer) > 0 {
+		lines = append(lines, fmt.Sprintf(computerToolGuidance, strings.Join(computer, "、")))
 	}
-	if mcp := slices.DeleteFunc(slices.Clone(tools.Workspace), func(name string) bool { return !slices.Contains(localMCPToolNames, name) }); len(mcp) > 0 {
-		lines = append(lines, fmt.Sprintf(localMCPToolGuidance, strings.Join(mcp, "、")))
-	}
-	if skills := slices.DeleteFunc(slices.Clone(tools.Workspace), func(name string) bool { return !slices.Contains(skillToolNames, name) }); len(skills) > 0 {
-		lines = append(lines, fmt.Sprintf(skillToolGuidance, strings.Join(skills, "、")))
+	if slices.Contains(tools.Computer, skillToolName) {
+		lines = append(lines, fmt.Sprintf(skillToolGuidance, skillToolName))
 	}
 	if tools.Orchestration {
 		lines = append(lines, fmt.Sprintf(planToolGuidance, strings.Join(planToolNames, "、")), subagentToolGuidance)

@@ -822,9 +822,9 @@ func (b *Backend) ResumePersonalAgent(ctx context.Context, meta appservice.Reque
 }
 
 // MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentDeviceInput) (appservice.PersonalAgent, error) {
+func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentComputerInput) (appservice.PersonalAgent, error) {
 	var output appservice.PersonalAgent
-	err := b.do(ctx, meta, http.MethodPut, "/personal-agents/"+url.PathEscape(agentID)+"/device", nil, input, &output)
+	err := b.do(ctx, meta, http.MethodPut, "/personal-agents/"+url.PathEscape(agentID)+"/computer", nil, input, &output)
 	return output, err
 }
 
@@ -922,7 +922,7 @@ func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.Reque
 	return output, err
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
 	err := b.do(ctx, meta, http.MethodGet, "/platform/settings", nil, nil, &output)
@@ -950,7 +950,7 @@ func (b *Backend) UpdatePlatformDailyCreditGrant(ctx context.Context, meta appse
 	return output, err
 }
 
-// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (b *Backend) UpdatePlatformTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTelemetryInput) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
 	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/telemetry", nil, input, &output)
@@ -1092,6 +1092,13 @@ func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.
 func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformFailedTaskListInput) (appservice.PlatformFailedTaskList, error) {
 	var output appservice.PlatformFailedTaskList
 	err := b.do(ctx, meta, http.MethodGet, "/platform/runtime/failed-tasks", encodePlatformFailedTaskListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (b *Backend) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformDiagnostics, error) {
+	var output appservice.PlatformDiagnostics
+	err := b.do(ctx, meta, http.MethodGet, "/platform/diagnostics", nil, nil, &output)
 	return output, err
 }
 
@@ -1948,23 +1955,23 @@ func (b *Backend) DismissKnowledgeGap(ctx context.Context, meta appservice.Reque
 	return b.do(ctx, meta, http.MethodPost, "/knowledge-gaps/"+url.PathEscape(gapID)+"/dismiss", nil, nil, nil)
 }
 
-// RegisterDevice 注册当前用户的本机设备。
-func (b *Backend) RegisterDevice(ctx context.Context, meta appservice.RequestMeta, input appservice.DeviceRegistrationInput) (appservice.Device, error) {
-	var output appservice.Device
-	err := b.do(ctx, meta, http.MethodPost, "/devices", nil, input, &output)
+// RegisterComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+func (b *Backend) RegisterComputer(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerRegistrationInput) (appservice.ComputerRegistration, error) {
+	var output appservice.ComputerRegistration
+	err := b.do(ctx, meta, http.MethodPost, "/computers", nil, input, &output)
 	return output, err
 }
 
-// ListDevices 返回当前用户已注册的设备。
-func (b *Backend) ListDevices(ctx context.Context, meta appservice.RequestMeta) (appservice.DeviceList, error) {
-	var output appservice.DeviceList
-	err := b.do(ctx, meta, http.MethodGet, "/devices", nil, nil, &output)
+// ListComputers 返回当前成员未撤销的电脑。
+func (b *Backend) ListComputers(ctx context.Context, meta appservice.RequestMeta) (appservice.ComputerList, error) {
+	var output appservice.ComputerList
+	err := b.do(ctx, meta, http.MethodGet, "/computers", nil, nil, &output)
 	return output, err
 }
 
-// RevokeDevice 撤销当前用户的设备。
-func (b *Backend) RevokeDevice(ctx context.Context, meta appservice.RequestMeta, deviceID string) error {
-	return b.do(ctx, meta, http.MethodDelete, "/devices/"+url.PathEscape(deviceID), nil, nil, nil)
+// RevokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+func (b *Backend) RevokeComputer(ctx context.Context, meta appservice.RequestMeta, computerID string) error {
+	return b.do(ctx, meta, http.MethodDelete, "/computers/"+url.PathEscape(computerID), nil, nil, nil)
 }
 
 // encodeAIPerformanceBreakdownInputQuery 将 appservice.AIPerformanceBreakdownInput 编码为查询参数。

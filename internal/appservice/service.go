@@ -13,12 +13,13 @@ import (
 type Service struct {
 	backend             Backend
 	imageSelector       ImageSelector
+	fileSaver           FileSaver
 	nativeLocaleUpdater NativeLocaleUpdater
 	nativeNotification  NativeNotification
 	nativeServerLink    NativeServerLink
 	unreadIndicator     UnreadIndicator
 	conversationWindows ConversationWindowOpener
-	localDevice         LocalDeviceReporter
+	localComputer       LocalComputerReporter
 	localEnvironment    LocalEnvironmentManager
 }
 
@@ -29,6 +30,13 @@ type Option func(*Service)
 func WithImageSelector(selector ImageSelector) Option {
 	return func(service *Service) {
 		service.imageSelector = selector
+	}
+}
+
+// WithFileSaver 注入原生端文件保存器。
+func WithFileSaver(saver FileSaver) Option {
+	return func(service *Service) {
+		service.fileSaver = saver
 	}
 }
 
@@ -67,10 +75,10 @@ func WithConversationWindowOpener(opener ConversationWindowOpener) Option {
 	}
 }
 
-// WithLocalDevice 注入原生端本机设备注册状态。
-func WithLocalDevice(reporter LocalDeviceReporter) Option {
+// WithLocalComputer 注入原生端本机电脑注册状态。
+func WithLocalComputer(reporter LocalComputerReporter) Option {
 	return func(service *Service) {
-		service.localDevice = reporter
+		service.localComputer = reporter
 	}
 }
 
@@ -154,6 +162,14 @@ func (s *Service) SelectImage(ctx context.Context, meta RequestMeta) (ImageFile,
 	return WithNormalizedSlices(s.imageSelector.SelectImage(ctx, meta))
 }
 
+// SaveTextFile 在原生端让用户选择保存位置并写入文本文件，用户取消时返回 false。
+func (s *Service) SaveTextFile(ctx context.Context, meta RequestMeta, input TextFileInput) (bool, error) {
+	if s.fileSaver == nil {
+		return false, methodNotAllowedError(meta, "SaveTextFile")
+	}
+	return s.fileSaver.SaveTextFile(ctx, meta, input)
+}
+
 // OpenConversationWindow 在桌面端独立窗口打开指定会话，同一会话已打开时聚焦现有窗口。
 func (s *Service) OpenConversationWindow(ctx context.Context, meta RequestMeta, input ConversationWindowInput) error {
 	if s.conversationWindows == nil {
@@ -215,12 +231,12 @@ func (s *Service) UpdateUnreadIndicator(_ context.Context, meta RequestMeta, sta
 	return s.unreadIndicator.SetUnreadState(state)
 }
 
-// CurrentDevice 返回本机在当前企业服务器上的设备注册状态与 Agent 运行环境的准备状态；不注册设备的平台返回空设备编号且不含运行环境。
-func (s *Service) CurrentDevice(ctx context.Context, meta RequestMeta) (LocalDevice, error) {
-	if s.localDevice == nil {
-		return LocalDevice{}, nil
+// CurrentComputer 返回本机在当前工作区的电脑注册状态与运行环境的准备状态；不作为电脑执行操作的平台返回空电脑编号且不含运行环境。
+func (s *Service) CurrentComputer(ctx context.Context, meta RequestMeta) (LocalComputer, error) {
+	if s.localComputer == nil {
+		return LocalComputer{}, nil
 	}
-	return WithNormalizedSlices(s.localDevice.CurrentDevice(ctx, meta))
+	return WithNormalizedSlices(s.localComputer.CurrentComputer(ctx, meta))
 }
 
 // GetLocalEnvironment 返回本机为个人 AI 员工提供的运行环境、本地 MCP 服务与技能。
@@ -263,12 +279,28 @@ func (s *Service) OpenLocalToolchainFolder(ctx context.Context, meta RequestMeta
 	return s.localEnvironment.OpenLocalToolchainFolder(ctx, meta)
 }
 
+// AddLocalMCPServer 试启动本地 MCP 服务并读取工具目录，成功后添加到这台电脑，同名服务被替换。
+func (s *Service) AddLocalMCPServer(ctx context.Context, meta RequestMeta, input LocalMCPServerInput) error {
+	if s.localEnvironment == nil {
+		return methodNotAllowedError(meta, "AddLocalMCPServer")
+	}
+	return s.localEnvironment.AddLocalMCPServer(ctx, meta, input)
+}
+
 // RemoveLocalMCPServer 删除这台电脑上的本地 MCP 服务。
 func (s *Service) RemoveLocalMCPServer(ctx context.Context, meta RequestMeta, name string) error {
 	if s.localEnvironment == nil {
 		return methodNotAllowedError(meta, "RemoveLocalMCPServer")
 	}
 	return s.localEnvironment.RemoveLocalMCPServer(ctx, meta, name)
+}
+
+// InstallLocalSkill 从来源把技能安装到这台电脑，同名技能被替换。
+func (s *Service) InstallLocalSkill(ctx context.Context, meta RequestMeta, input LocalSkillInstallInput) error {
+	if s.localEnvironment == nil {
+		return methodNotAllowedError(meta, "InstallLocalSkill")
+	}
+	return s.localEnvironment.InstallLocalSkill(ctx, meta, input)
 }
 
 // RemoveLocalSkill 删除个人 AI 员工安装在这台电脑上的技能。

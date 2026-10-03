@@ -100,7 +100,7 @@ type PlatformDailyActivity struct {
 	NewWorkspaces    int    `json:"newWorkspaces"`
 }
 
-// PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 type PlatformSettings struct {
 	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy"`
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
@@ -115,7 +115,7 @@ type PlatformPoliciesInput struct {
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
 }
 
-// PlatformTelemetryInput 定义运行指标上报开关的修改值。
+// PlatformTelemetryInput 定义运行指标与错误上报开关的修改值。
 type PlatformTelemetryInput struct {
 	TelemetryEnabled bool `json:"telemetryEnabled"`
 }
@@ -178,7 +178,7 @@ type PlatformWorkspace struct {
 	MemberCount      int             `json:"memberCount"`
 	AIEmployeeCount  int             `json:"aiEmployeeCount"`
 	ChannelCount     int             `json:"channelCount"`
-	DeviceCount      int             `json:"deviceCount"`
+	ComputerCount    int             `json:"computerCount"`
 	HasPlatformAdmin bool            `json:"hasPlatformAdmin"`
 	StorageBytes     int64           `json:"storageBytes"`
 	LastActiveOn     *string         `json:"lastActiveOn"`
@@ -258,16 +258,65 @@ type PlatformRuntimeStatus struct {
 	Queues        []PlatformTaskQueue         `json:"queues"`
 }
 
-// PlatformServer 定义一个服务端进程及其最近一次心跳；TasksNATSConnected 与 RealtimeNATSConnected 为最近一次心跳时后台任务与实时通知的 NATS 连接是否可用，Online 表示 2 分钟内有心跳。
+// PlatformServer 定义一个服务端进程及其最近一次心跳；TasksNATSConnected 与 RealtimeNATSConnected 为最近一次心跳时后台任务与实时通知的 NATS 连接是否可用，Online 表示 2 分钟内有心跳，Config 为进程启动时的服务端配置。
 type PlatformServer struct {
-	ID                    string    `json:"id"`
-	StartedAt             time.Time `json:"startedAt"`
-	HeartbeatAt           time.Time `json:"heartbeatAt"`
-	Hostname              string    `json:"hostname"`
-	Version               string    `json:"version"`
-	TasksNATSConnected    bool      `json:"tasksNatsConnected"`
-	RealtimeNATSConnected bool      `json:"realtimeNatsConnected"`
-	Online                bool      `json:"online"`
+	ID                    string               `json:"id"`
+	StartedAt             time.Time            `json:"startedAt"`
+	HeartbeatAt           time.Time            `json:"heartbeatAt"`
+	Hostname              string               `json:"hostname"`
+	Version               string               `json:"version"`
+	TasksNATSConnected    bool                 `json:"tasksNatsConnected"`
+	RealtimeNATSConnected bool                 `json:"realtimeNatsConnected"`
+	Online                bool                 `json:"online"`
+	Config                PlatformServerConfig `json:"config"`
+}
+
+// PlatformServerConfig 定义服务端进程的配置，只包含不含密码、密钥和地址凭据的字段；Listen 为监听地址与端口。
+type PlatformServerConfig struct {
+	DeploymentName   string                       `json:"deploymentName"`
+	PublicURL        string                       `json:"publicURL"`
+	Listen           string                       `json:"listen"`
+	TLSMode          string                       `json:"tlsMode"`
+	Database         PlatformServerDatabaseConfig `json:"database"`
+	NATS             PlatformServerNATSConfig     `json:"nats"`
+	Storage          PlatformServerStorageConfig  `json:"storage"`
+	SMTP             PlatformServerSMTPConfig     `json:"smtp"`
+	ClientsDirectory string                       `json:"clientsDirectory"`
+}
+
+// PlatformServerDatabaseConfig 定义 PostgreSQL 连接的地址、账号名、库名与 SSL 模式。
+type PlatformServerDatabaseConfig struct {
+	Host    string `json:"host"`
+	Port    int    `json:"port"`
+	User    string `json:"user"`
+	Name    string `json:"name"`
+	SSLMode string `json:"sslMode"`
+}
+
+// PlatformServerNATSConfig 定义去掉凭据的 NATS 地址与命名空间。
+type PlatformServerNATSConfig struct {
+	URL       string `json:"url"`
+	Namespace string `json:"namespace"`
+}
+
+// PlatformServerStorageConfig 定义文件存储方式：S3Enabled 为假时文件写入 LocalDirectory，为真时写入对象存储桶。
+type PlatformServerStorageConfig struct {
+	LocalDirectory string `json:"localDirectory"`
+	S3Enabled      bool   `json:"s3Enabled"`
+	Endpoint       string `json:"endpoint"`
+	PublicBaseURL  string `json:"publicBaseURL"`
+	Region         string `json:"region"`
+	Bucket         string `json:"bucket"`
+	ForcePathStyle bool   `json:"forcePathStyle"`
+}
+
+// PlatformServerSMTPConfig 定义邮件发送配置，Enabled 为假表示未配置 SMTP 主机。
+type PlatformServerSMTPConfig struct {
+	Enabled     bool   `json:"enabled"`
+	Host        string `json:"host"`
+	Port        int    `json:"port"`
+	Security    string `json:"security"`
+	FromAddress string `json:"fromAddress"`
 }
 
 // PlatformObjectStorageStatus 定义对象存储状态：Enabled 为假表示文件写入服务器本地目录；Error 为存储桶检查失败的原因，可以访问时为空。
@@ -293,6 +342,37 @@ type PlatformTaskQueue struct {
 	Retrying           int        `json:"retrying"`
 	Paused             int        `json:"paused"`
 	Failed             int        `json:"failed"`
+}
+
+// PlatformDiagnostics 定义平台管理员导出的诊断信息：GeneratedAt 为生成时间，ExportedBy 为生成诊断信息并检查对象存储的服务端进程编号；
+// FailedTasks 为全部等待重试与近 7 天失败的任务，AIProviders 为平台供应商及其近 24 小时上游尝试的结果。
+type PlatformDiagnostics struct {
+	GeneratedAt time.Time                   `json:"generatedAt"`
+	ExportedBy  string                      `json:"exportedBy"`
+	Overview    PlatformOverview            `json:"overview"`
+	Runtime     PlatformRuntimeStatus       `json:"runtime"`
+	Database    PlatformDatabaseStatus      `json:"database"`
+	FailedTasks []PlatformDiagnosticTask    `json:"failedTasks"`
+	AIProviders []PlatformAIProviderSummary `json:"aiProviders"`
+}
+
+// PlatformDatabaseStatus 定义 PostgreSQL 服务端版本与已执行的最新迁移版本。
+type PlatformDatabaseStatus struct {
+	Version   string `json:"version"`
+	Migration int64  `json:"migration"`
+}
+
+// PlatformDiagnosticTask 定义诊断信息中一次等待重试或失败的后台任务运行；WorkspaceID 为所属工作区编号，平台级任务为空，FailedAt 为最近一次执行失败的时间。
+type PlatformDiagnosticTask struct {
+	ID          string    `json:"id"`
+	Action      string    `json:"action"`
+	Queue       string    `json:"queue"`
+	WorkspaceID *string   `json:"workspaceId"`
+	Retrying    bool      `json:"retrying"`
+	Attempt     int       `json:"attempt"`
+	MaxAttempts int       `json:"maxAttempts"`
+	Error       string    `json:"error"`
+	FailedAt    time.Time `json:"failedAt"`
 }
 
 // PlatformFailedTaskListInput 定义失败任务列表的分页。

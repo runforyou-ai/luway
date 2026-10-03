@@ -38,7 +38,7 @@ func newCommerceOps(db *bun.DB, client *commerce.Client, taskEnqueuer servertask
 func (o *directOperations) GetCommercePairing(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.CommercePairing, error) {
 	pairing, err := o.commercePairingRead.Execute(ctx)
 	if err != nil {
-		return appservice.CommercePairing{}, commerceError(ctx, meta, err, i18n.ErrorCommerceReadFailed, account)
+		return appservice.CommercePairing{}, commerceError(meta, err, i18n.ErrorCommerceReadFailed)
 	}
 	return commercePairingFromAction(pairing), nil
 }
@@ -47,7 +47,7 @@ func (o *directOperations) GetCommercePairing(ctx context.Context, meta appservi
 func (o *directOperations) PairCommerce(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PairCommerceInput) (appservice.CommercePairing, error) {
 	pairing, err := o.pairCommerce.Execute(ctx, account, input.PairingCode)
 	if err != nil {
-		return appservice.CommercePairing{}, commerceError(ctx, meta, err, i18n.ErrorCommercePairFailed, account)
+		return appservice.CommercePairing{}, commerceError(meta, err, i18n.ErrorCommercePairFailed)
 	}
 	slog.Info("商业服务已配对", "account_id", account.Account.ID, "url", pairing.URL, "service_id", pairing.ServiceID)
 	return commercePairingFromAction(&pairing), nil
@@ -56,7 +56,7 @@ func (o *directOperations) PairCommerce(ctx context.Context, meta appservice.Req
 // UnpairCommerce 解除与商业服务的配对并删除已应用的工作区权益。
 func (o *directOperations) UnpairCommerce(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) error {
 	if err := o.unpairCommerce.Execute(ctx, account); err != nil {
-		return commerceError(ctx, meta, err, i18n.ErrorCommerceUnpairFailed, account)
+		return commerceError(meta, err, i18n.ErrorCommerceUnpairFailed)
 	}
 	slog.Info("商业服务已解除配对", "account_id", account.Account.ID)
 	return nil
@@ -65,17 +65,17 @@ func (o *directOperations) UnpairCommerce(ctx context.Context, meta appservice.R
 // SyncCommerce 立即读取商业服务的变更。
 func (o *directOperations) SyncCommerce(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.CommercePairing, error) {
 	if err := o.syncCommerce.Sync(ctx); err != nil {
-		return appservice.CommercePairing{}, commerceError(ctx, meta, err, i18n.ErrorCommerceSyncFailed, account)
+		return appservice.CommercePairing{}, commerceError(meta, err, i18n.ErrorCommerceSyncFailed)
 	}
 	pairing, err := o.commercePairingRead.Execute(ctx)
 	if err != nil {
-		return appservice.CommercePairing{}, commerceError(ctx, meta, err, i18n.ErrorCommerceReadFailed, account)
+		return appservice.CommercePairing{}, commerceError(meta, err, i18n.ErrorCommerceReadFailed)
 	}
 	return commercePairingFromAction(pairing), nil
 }
 
 // commerceError 把商业服务配对与同步错误转换为本地化错误，其余错误按平台管理错误处理。
-func commerceError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, account *servermodels.AccountIdentity) error {
+func commerceError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	// 把配对码、商业服务拒绝与通信错误映射为本地化文案键。
 	for target, key := range map[error]i18n.Key{
 		commerceaction.ErrPairingCodeInvalid: i18n.ErrorCommercePairingCodeInvalid,
@@ -84,11 +84,11 @@ func commerceError(ctx context.Context, meta appservice.RequestMeta, err error, 
 		commerceaction.ErrNotPaired:          i18n.ErrorCommerceNotPaired,
 		commerceaction.ErrInvalidData:        i18n.ErrorCommerceInvalidData,
 	} {
-		if errors.Is(err, target) && ctx.Err() == nil {
+		if errors.Is(err, target) {
 			return appservice.InvalidError(meta, key, nil)
 		}
 	}
-	return platformError(ctx, meta, err, failureKey, account, "")
+	return platformError(meta, err, failureKey)
 }
 
 // commercePairingFromAction 把配对状态转换为应用契约，未配对时只返回 Paired 为 false。

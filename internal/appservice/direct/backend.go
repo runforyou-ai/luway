@@ -16,6 +16,7 @@ import (
 	invitationaction "github.com/runforyou-ai/luway/internal/actions/invitation"
 	knowledgebaseaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
 	mcpserveraction "github.com/runforyou-ai/luway/internal/actions/mcpserver"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common/license"
@@ -74,7 +75,7 @@ type directOperations struct {
 	personalAgentOps
 	knowledgeOps
 	integrationOps
-	deviceOps
+	computerOps
 	fileOps
 	translationOps
 	webSearchOps
@@ -86,7 +87,7 @@ type directOperations struct {
 	productDocsOps
 }
 
-// DeploymentConfig 定义直接后端的部署名称、部署地址、邀请邮件发送、产品文档、授权码验签公钥、control 客户端和商业服务客户端；邮件发送只在配置了 SMTP 时设置。
+// DeploymentConfig 定义直接后端的部署名称、部署地址、邀请邮件发送、产品文档、授权码验签公钥、control 客户端、上报开关缓存和商业服务客户端；邮件发送只在配置了 SMTP 时设置。
 type DeploymentConfig struct {
 	Name             string
 	PublicURL        string
@@ -95,6 +96,9 @@ type DeploymentConfig struct {
 	LicenseKeys      license.Keys
 	Control          *control.Client
 	Commerce         *commerce.Client
+	Telemetry        *platformaction.Telemetry
+	// InstanceID 是本服务端进程编号，写入导出的诊断信息。
+	InstanceID string
 }
 
 // New 创建直接访问服务端存储的应用后端。
@@ -125,12 +129,12 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		personalAgentOps:   newPersonalAgentOps(db),
 		knowledgeOps:       newKnowledgeOps(db, taskEnqueuer, documentQuery, knowledgeRetrieval),
 		integrationOps:     newIntegrationOps(db, taskEnqueuer, connectionRunner, modelProviderRegistry, mcpTest, mcpScheduler),
-		deviceOps:          newDeviceOps(db),
+		computerOps:        newComputerOps(db, taskEnqueuer),
 		fileOps:            newFileOps(db, localFiles, s3, serverfilecontent.NewLinks("", s3.PublicBaseURL)),
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
-		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control, s3),
+		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control, s3, deployment.Telemetry, deployment.InstanceID),
 		platformModelOps:   newPlatformModelOps(db, modelProviderRegistry),
 		creditOps:          newCreditOps(db),
 		commerceOps:        newCommerceOps(db, deployment.Commerce, taskEnqueuer),
@@ -140,12 +144,14 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 }
 
 // InstallWorkspace 完成首次安装并返回平台管理员的登录会话。
-func (b *Backend) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (appservice.Auth, error) {
+func (b *Backend) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (_ appservice.Auth, err error) {
+	defer settle(ctx, "InstallWorkspace", &err, internalError(meta))
 	return b.ops.InstallWorkspace(ctx, meta, input)
 }
 
 // AuthenticateMember 校验实时事件流请求携带的登录令牌并返回成员会话。
-func (b *Backend) AuthenticateMember(ctx context.Context, meta appservice.RequestMeta) (MemberSession, error) {
+func (b *Backend) AuthenticateMember(ctx context.Context, meta appservice.RequestMeta) (_ MemberSession, err error) {
+	defer settle(ctx, "AuthenticateMember", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return MemberSession{}, err
@@ -154,18 +160,15 @@ func (b *Backend) AuthenticateMember(ctx context.Context, meta appservice.Reques
 }
 
 // AuthenticateAccountMembers 校验请求携带的账号登录令牌，返回账号会话及其全部有效成员身份，工作区动态事件流据此订阅各工作区的本人受众。
-func (b *Backend) AuthenticateAccountMembers(ctx context.Context, meta appservice.RequestMeta) (AccountMembersSession, error) {
+func (b *Backend) AuthenticateAccountMembers(ctx context.Context, meta appservice.RequestMeta) (_ AccountMembersSession, err error) {
+	defer settle(ctx, "AuthenticateAccountMembers", &err, internalError(meta))
 	account, err := b.ops.authenticateAccount(ctx, meta)
 	if err != nil {
 		return AccountMembersSession{}, err
 	}
 	memberships, err := authaction.ListMemberships(ctx, b.ops.db, account)
 	if err != nil {
-		if ctx.Err() != nil {
-			return AccountMembersSession{}, ctx.Err()
-		}
-		slog.Warn("读取账号成员身份失败", "account_id", account.Account.ID, "error", err)
-		return AccountMembersSession{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed)
+		return AccountMembersSession{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed, err)
 	}
 	members := make([]WorkspaceMember, 0, len(memberships))
 	for _, membership := range memberships {
@@ -175,15 +178,17 @@ func (b *Backend) AuthenticateAccountMembers(ctx context.Context, meta appservic
 }
 
 // MemberSyncHeads 返回实时事件流所属成员的同步探针值。
-func (b *Backend) MemberSyncHeads(ctx context.Context, session MemberSession) (appservice.SyncHeads, error) {
+func (b *Backend) MemberSyncHeads(ctx context.Context, session MemberSession) (_ appservice.SyncHeads, err error) {
+	defer settle(ctx, "MemberSyncHeads", &err, internalError(appservice.RequestMeta{}))
 	return b.ops.GetSyncHeads(ctx, appservice.RequestMeta{}, session.identity)
 }
 
 // AuthorizeAgentRunStream 校验运行过程流请求方对运行所属会话的阅读资格，并返回运行所属会话编号。
-func (b *Backend) AuthorizeAgentRunStream(ctx context.Context, meta appservice.RequestMeta, session MemberSession, runID string) (string, error) {
+func (b *Backend) AuthorizeAgentRunStream(ctx context.Context, meta appservice.RequestMeta, session MemberSession, runID string) (_ string, err error) {
+	defer settle(ctx, "AuthorizeAgentRunStream", &err, internalError(meta))
 	conversationID, err := b.ops.authorizeAgentRunStream.Execute(ctx, session.identity, runID)
 	if err != nil {
-		return "", agentRunProcessError(ctx, meta, err, session.OrganizationID, runID)
+		return "", agentRunProcessError(meta, err)
 	}
 	return conversationID, nil
 }
@@ -206,11 +211,7 @@ func (g sessionGuard) authenticateAccount(ctx context.Context, meta appservice.R
 		return nil, g.loginRequired(ctx, meta)
 	}
 	if err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		slog.Warn("读取登录会话失败", "error", err)
-		return nil, appservice.FailedError(meta, i18n.ErrorAuthenticationStatusFailed)
+		return nil, appservice.FailedError(meta, i18n.ErrorAuthenticationStatusFailed, err)
 	}
 	return account, nil
 }
@@ -243,11 +244,7 @@ func (g sessionGuard) authenticate(ctx context.Context, meta appservice.RequestM
 		return nil, appservice.SessionError(meta, appservice.SessionStateWorkspace, i18n.ErrorWorkspaceSuspended)
 	}
 	if err != nil {
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
-		}
-		slog.Warn("读取工作区成员身份失败", "workspace_id", meta.WorkspaceID, "error", err)
-		return nil, appservice.FailedError(meta, i18n.ErrorAuthenticationStatusFailed)
+		return nil, appservice.FailedError(meta, i18n.ErrorAuthenticationStatusFailed, err)
 	}
 	return identity, nil
 }
@@ -256,11 +253,7 @@ func (g sessionGuard) authenticate(ctx context.Context, meta appservice.RequestM
 func (g sessionGuard) loginRequired(ctx context.Context, meta appservice.RequestMeta) error {
 	installed, err := g.installationStatus.Execute(ctx)
 	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		slog.Warn("读取安装状态失败", "error", err)
-		return appservice.FailedError(meta, i18n.ErrorInstallationStatusReadFailed)
+		return appservice.FailedError(meta, i18n.ErrorInstallationStatusReadFailed, err)
 	}
 	if !installed {
 		return appservice.SessionError(meta, appservice.SessionStateSetup, i18n.ErrorInstallationRequired)

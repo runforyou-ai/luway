@@ -185,6 +185,7 @@ const (
 	ErrorPlatformWorkspaceUpdateFailed           Key = "error.platform_workspace_update_failed"
 	ErrorPlatformUsageFailed                     Key = "error.platform_usage_failed"
 	ErrorPlatformRuntimeFailed                   Key = "error.platform_runtime_failed"
+	ErrorPlatformDiagnosticsFailed               Key = "error.platform_diagnostics_failed"
 	ErrorChannelNotFound                         Key = "error.channel_not_found"
 	ErrorChannelListFailed                       Key = "error.channel_list_failed"
 	ErrorChannelReadFailed                       Key = "error.channel_read_failed"
@@ -305,10 +306,10 @@ const (
 	ErrorMCPServerCreateFailed                   Key = "error.mcp_server_create_failed"
 	ErrorMCPServerUpdateFailed                   Key = "error.mcp_server_update_failed"
 	ErrorMCPServerDeleteFailed                   Key = "error.mcp_server_delete_failed"
-	ErrorDeviceRegisterFailed                    Key = "error.device_register_failed"
-	ErrorDeviceListFailed                        Key = "error.device_list_failed"
-	ErrorDeviceRevokeFailed                      Key = "error.device_revoke_failed"
-	ErrorDeviceNotFound                          Key = "error.device_not_found"
+	ErrorComputerRegisterFailed                  Key = "error.computer_register_failed"
+	ErrorComputerListFailed                      Key = "error.computer_list_failed"
+	ErrorComputerRevokeFailed                    Key = "error.computer_revoke_failed"
+	ErrorComputerNotFound                        Key = "error.computer_not_found"
 	ErrorProfileUpdateFailed                     Key = "error.profile_update_failed"
 	ErrorFileUploadCreateFailed                  Key = "error.file_upload_create_failed"
 	ErrorFileUploadCompleteFailed                Key = "error.file_upload_complete_failed"
@@ -433,8 +434,6 @@ const (
 	FieldAgentEvaluationQuestionRequired       Key = "field.agent_evaluation_question_required"
 	FieldAgentEvaluationExpectedActionInvalid  Key = "field.agent_evaluation_expected_action_invalid"
 	FieldAgentEvaluationExpectedAnswerRequired Key = "field.agent_evaluation_expected_answer_required"
-	FieldLocalAgentInvalid                     Key = "field.local_agent_invalid"
-	FieldLocalAgentUnavailable                 Key = "field.local_agent_unavailable"
 	FieldMemoryNameRequired                    Key = "field.memory_name_required"
 	FieldMemoryNameTooLong                     Key = "field.memory_name_too_long"
 	FieldMemoryDescriptionRequired             Key = "field.memory_description_required"
@@ -630,28 +629,28 @@ const (
 )
 
 const (
-	ErrorAgentPauseFailed         Key = "error.agent_pause_failed"
-	ErrorAgentMoveFailed          Key = "error.agent_move_failed"
-	ErrorAgentResponsibleInactive Key = "error.agent_responsible_inactive"
-	ErrorAgentPaused              Key = "error.agent_paused"
-	ErrorAgentDeviceUnbound       Key = "error.agent_device_unbound"
-	ErrorAgentInactive            Key = "error.agent_inactive"
-	ErrorMemoryNotFound           Key = "error.memory_not_found"
-	ErrorMemoryListFailed         Key = "error.memory_list_failed"
-	ErrorMemoryUpdateFailed       Key = "error.memory_update_failed"
-	ErrorMemoryDeleteFailed       Key = "error.memory_delete_failed"
-	ErrorDeviceRunRequestFailed   Key = "error.device_run_request_failed"
-	ErrorDeviceRunNotFound        Key = "error.device_run_not_found"
-	ErrorDeviceRunUnavailable     Key = "error.device_run_unavailable"
-	ErrorDeviceRunLeaseLost       Key = "error.device_run_lease_lost"
-	ErrorLocalToolchainBusy       Key = "error.local_toolchain_busy"
-	ErrorLocalToolchainNotReady   Key = "error.local_toolchain_not_ready"
-	ErrorLocalToolchainDownload   Key = "error.local_toolchain_download"
-	ErrorLocalToolchainVerify     Key = "error.local_toolchain_verify"
-	ErrorLocalToolchainInstall    Key = "error.local_toolchain_install"
-	ErrorLocalToolchainUninstall  Key = "error.local_toolchain_uninstall"
-	ErrorLocalMCPServerNotFound   Key = "error.local_mcp_server_not_found"
-	ErrorLocalSkillNotFound       Key = "error.local_skill_not_found"
+	ErrorAgentPauseFailed          Key = "error.agent_pause_failed"
+	ErrorAgentMoveFailed           Key = "error.agent_move_failed"
+	ErrorAgentResponsibleInactive  Key = "error.agent_responsible_inactive"
+	ErrorAgentPaused               Key = "error.agent_paused"
+	ErrorAgentComputerUnbound      Key = "error.agent_computer_unbound"
+	ErrorAgentInactive             Key = "error.agent_inactive"
+	ErrorMemoryNotFound            Key = "error.memory_not_found"
+	ErrorMemoryListFailed          Key = "error.memory_list_failed"
+	ErrorMemoryUpdateFailed        Key = "error.memory_update_failed"
+	ErrorMemoryDeleteFailed        Key = "error.memory_delete_failed"
+	ErrorComputerRequestFailed     Key = "error.computer_request_failed"
+	ErrorComputerCredentialInvalid Key = "error.computer_credential_invalid"
+	ErrorLocalToolchainBusy        Key = "error.local_toolchain_busy"
+	ErrorLocalToolchainNotReady    Key = "error.local_toolchain_not_ready"
+	ErrorLocalToolchainDownload    Key = "error.local_toolchain_download"
+	ErrorLocalToolchainVerify      Key = "error.local_toolchain_verify"
+	ErrorLocalToolchainInstall     Key = "error.local_toolchain_install"
+	ErrorLocalToolchainUninstall   Key = "error.local_toolchain_uninstall"
+	ErrorLocalMCPServerNotFound    Key = "error.local_mcp_server_not_found"
+	ErrorLocalSkillNotFound        Key = "error.local_skill_not_found"
+	ErrorLocalMCPServerStartFailed Key = "error.local_mcp_server_start_failed"
+	ErrorLocalSkillInstallFailed   Key = "error.local_skill_install_failed"
 )
 
 //go:embed locales/*.json locales/customer/*.json
@@ -684,29 +683,29 @@ func productData(acceptLanguage string, data map[string]any) map[string]any {
 	return merged
 }
 
-// Localize 根据语言偏好返回本地化文案和最终匹配的语言；词条缺失或本地化失败时记录错误并回退返回键本身。
+// Localize 根据语言偏好返回本地化文案和最终匹配的语言；词条缺失或本地化失败时记录警告并回退返回键本身。
 func Localize(acceptLanguage string, key Key) (string, string) {
 	localizer := goi18n.NewLocalizer(bundle, acceptLanguage)
 	message, tag, err := localizer.LocalizeWithTag(&goi18n.LocalizeConfig{MessageID: string(key), TemplateData: productData(acceptLanguage, nil)})
 	if err != nil {
-		slog.Error("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
+		slog.Warn("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
 		return string(key), tag.String()
 	}
 	return message, tag.String()
 }
 
-// LocalizeTemplate 根据语言偏好用模板数据渲染本地化文案；词条缺失或本地化失败时记录错误并回退返回键本身。
+// LocalizeTemplate 根据语言偏好用模板数据渲染本地化文案；词条缺失或本地化失败时记录警告并回退返回键本身。
 func LocalizeTemplate(acceptLanguage string, key Key, data map[string]any) string {
 	localizer := goi18n.NewLocalizer(bundle, acceptLanguage)
 	message, err := localizer.Localize(&goi18n.LocalizeConfig{MessageID: string(key), TemplateData: productData(acceptLanguage, data)})
 	if err != nil {
-		slog.Error("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
+		slog.Warn("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
 		return string(key)
 	}
 	return message
 }
 
-// LocalizeMap 将一组文案键翻译为对应文案；词条缺失或本地化失败时记录错误并回退返回键本身。
+// LocalizeMap 将一组文案键翻译为对应文案；词条缺失或本地化失败时记录警告并回退返回键本身。
 func LocalizeMap[K comparable](acceptLanguage string, keys map[K]Key) map[K]string {
 	if len(keys) == 0 {
 		return nil
@@ -717,7 +716,7 @@ func LocalizeMap[K comparable](acceptLanguage string, keys map[K]Key) map[K]stri
 	for name, key := range keys {
 		message, err := localizer.Localize(&goi18n.LocalizeConfig{MessageID: string(key), TemplateData: data})
 		if err != nil {
-			slog.Error("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
+			slog.Warn("本地化文案失败，回退返回文案键", "key", string(key), "locale", acceptLanguage, "error", err)
 			message = string(key)
 		}
 		messages[name] = message

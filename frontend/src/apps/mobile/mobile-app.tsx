@@ -63,8 +63,8 @@ const MobileGroupMemberActionPage = lazy(() =>
 const MobileGroupDetailsPage = lazy(() =>
   import("@/apps/mobile/mobile-group-details-page").then((module) => ({ default: module.MobileGroupDetailsPage })),
 )
-const MobileDevicesPage = lazy(() =>
-  import("@/apps/mobile/mobile-devices-page").then((module) => ({ default: module.MobileDevicesPage })),
+const MobileComputersPage = lazy(() =>
+  import("@/apps/mobile/mobile-computers-page").then((module) => ({ default: module.MobileComputersPage })),
 )
 const MobileKnowledgeGapsPage = lazy(() =>
   import("@/apps/mobile/mobile-knowledge-gaps-page").then((module) => ({ default: module.MobileKnowledgeGapsPage })),
@@ -243,7 +243,7 @@ export default function MobileApp({ workspaceSlug }: { workspaceSlug: string | n
               path="/me/notifications"
               element={<MobileMeSettingsPage section="notifications" />}
             />
-            <Route path="/me/devices" element={<MobileDevicesPage />} />
+            <Route path="/me/computers" element={<MobileComputersPage />} />
             <Route path="/me/archived-chats" element={<MobileArchivedChatsPage />} />
             <Route path="/me/knowledge-gaps" element={<MobileKnowledgeGapsPage />} />
             <Route path="/me/knowledge-gaps/review" element={<MobileKnowledgeGapReviewPage />} />

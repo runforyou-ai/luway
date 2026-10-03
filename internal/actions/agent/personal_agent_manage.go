@@ -31,7 +31,7 @@ func NewCreatePersonalAgentAction(db *bun.DB) *CreatePersonalAgentAction {
 }
 
 // Execute 创建绑定当前成员指定电脑的个人 AI 员工及其首个执行配置版本。
-func (a *CreatePersonalAgentAction) Execute(ctx context.Context, identity *servermodels.Identity, deviceID string, input PersonalAgentInput) (*PersonalAgent, error) {
+func (a *CreatePersonalAgentAction) Execute(ctx context.Context, identity *servermodels.Identity, computerID string, input PersonalAgentInput) (*PersonalAgent, error) {
 	input, execution, err := normalizePersonalAgentInput(input)
 	if err != nil {
 		return nil, err
@@ -53,10 +53,7 @@ func (a *CreatePersonalAgentAction) Execute(ctx context.Context, identity *serve
 		if err := lockExecutionKnowledgeBases(ctx, tx, identity.Organization.ID, execution); err != nil {
 			return err
 		}
-		if err := lockOwnActiveDevice(ctx, tx, identity, deviceID); err != nil {
-			return err
-		}
-		if err := checkPersonalAgentLocalAgent(ctx, tx, identity.Organization.ID, deviceID, execution); err != nil {
+		if err := lockOwnActiveComputer(ctx, tx, identity, computerID); err != nil {
 			return err
 		}
 		organizationIdentity := &servermodels.OrganizationIdentity{
@@ -76,11 +73,11 @@ func (a *CreatePersonalAgentAction) Execute(ctx context.Context, identity *serve
 		revisionID := uuid.NewV7().String()
 		stored := &servermodels.Agent{
 			IdentityID: organizationIdentity.ID, OrganizationID: identity.Organization.ID, ActiveRevisionID: revisionID,
-			Status: string(domain.IdentityStatusActive), ResponsibleUserID: &identity.User.ID, DeviceID: &deviceID,
+			Status: string(domain.IdentityStatusActive), ResponsibleUserID: &identity.User.ID, ComputerID: &computerID,
 			ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudiencePersonal},
 		}
 		if _, err := tx.NewInsert().Model(stored).
-			Column("identity_id", "organization_id", "active_revision_id", "status", "responsible_user_id", "device_id", "service_audiences").
+			Column("identity_id", "organization_id", "active_revision_id", "status", "responsible_user_id", "computer_id", "service_audiences").
 			Returning("id").Exec(ctx); err != nil {
 			return err
 		}
@@ -91,7 +88,7 @@ func (a *CreatePersonalAgentAction) Execute(ctx context.Context, identity *serve
 	if err != nil {
 		return nil, fmt.Errorf("create personal agent: %w", err)
 	}
-	slog.Info("个人 AI 员工已创建", "organization_id", identity.Organization.ID, "agent_id", agentID, "device_id", deviceID)
+	slog.Info("个人 AI 员工已创建", "organization_id", identity.Organization.ID, "agent_id", agentID, "computer_id", computerID)
 	return loadPersonalAgent(ctx, a.db, identity.Organization.ID, agentID, identity.User.ID)
 }
 
@@ -127,9 +124,6 @@ func (a *UpdatePersonalAgentAction) Execute(ctx context.Context, identity *serve
 		}
 		stored, err := lockOwnPersonalAgent(ctx, tx, identity, agentID)
 		if err != nil {
-			return err
-		}
-		if err := checkPersonalAgentLocalAgent(ctx, tx, identity.Organization.ID, *stored.DeviceID, execution); err != nil {
 			return err
 		}
 		var currentAvatarFileID *string
@@ -223,7 +217,7 @@ func NewMovePersonalAgentAction(db *bun.DB) *MovePersonalAgentAction {
 }
 
 // Execute 把个人 AI 员工绑定到当前成员名下的指定电脑；原电脑上尚未领取的运行由收敛扫描结束。
-func (a *MovePersonalAgentAction) Execute(ctx context.Context, identity *servermodels.Identity, agentID, deviceID string) (*PersonalAgent, error) {
+func (a *MovePersonalAgentAction) Execute(ctx context.Context, identity *servermodels.Identity, agentID, computerID string) (*PersonalAgent, error) {
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
@@ -232,14 +226,14 @@ func (a *MovePersonalAgentAction) Execute(ctx context.Context, identity *serverm
 		if err != nil {
 			return err
 		}
-		if err := lockOwnActiveDevice(ctx, tx, identity, deviceID); err != nil {
+		if err := lockOwnActiveComputer(ctx, tx, identity, computerID); err != nil {
 			return err
 		}
-		if stored.DeviceID != nil && *stored.DeviceID == deviceID {
+		if stored.ComputerID != nil && *stored.ComputerID == computerID {
 			return nil
 		}
 		if _, err := tx.NewUpdate().Model((*servermodels.Agent)(nil)).
-			Set("device_id = ?", deviceID).Set("updated_at = now()").
+			Set("computer_id = ?", computerID).Set("updated_at = now()").
 			Where("organization_id = ? AND id = ?", identity.Organization.ID, stored.ID).
 			Exec(ctx); err != nil {
 			return err
@@ -249,7 +243,7 @@ func (a *MovePersonalAgentAction) Execute(ctx context.Context, identity *serverm
 	if err != nil {
 		return nil, fmt.Errorf("move personal agent: %w", err)
 	}
-	slog.Info("个人 AI 员工已换绑电脑", "organization_id", identity.Organization.ID, "agent_id", agentID, "device_id", deviceID)
+	slog.Info("个人 AI 员工已换电脑", "organization_id", identity.Organization.ID, "agent_id", agentID, "computer_id", computerID)
 	return loadPersonalAgent(ctx, a.db, identity.Organization.ID, agentID, identity.User.ID)
 }
 
@@ -370,7 +364,7 @@ func (q *GetPersonalAgentQuery) Execute(ctx context.Context, identity *servermod
 	return personalAgent, execution, nil
 }
 
-// normalizePersonalAgentInput 规范化并校验个人 AI 员工名称与执行配置；本机 Agent 执行不使用企业 MCP 服务。
+// normalizePersonalAgentInput 规范化并校验个人 AI 员工名称与执行配置。
 func normalizePersonalAgentInput(input PersonalAgentInput) (PersonalAgentInput, ExecutionInput, error) {
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	if input.DisplayName == "" {
@@ -379,38 +373,14 @@ func normalizePersonalAgentInput(input PersonalAgentInput) (PersonalAgentInput, 
 	if !domain.IdentityDisplayNameValid(input.DisplayName) {
 		return input, ExecutionInput{}, &common.FieldError{Fields: map[string]common.FieldCode{"displayName": ValidationDisplayNameInvalid}}
 	}
-	execution, err := normalizeExecutionInput(input.Execution, true)
+	execution, err := normalizeExecutionInput(input.Execution)
 	if err != nil {
 		return input, ExecutionInput{}, err
-	}
-	if execution.Mode == domain.AgentExecutionModeLocalAgent && len(input.MCPServerIDs) > 0 {
-		return input, ExecutionInput{}, &common.FieldError{Fields: map[string]common.FieldCode{"mcpServerIds": ValidationMCPServerInvalid}}
 	}
 	return input, execution, nil
 }
 
-// lockPersonalAgentModel 平台托管执行时校验并锁定所用模型，本机 Agent 执行返回空模型。
+// lockPersonalAgentModel 校验并锁定个人 AI 员工所用模型。
 func lockPersonalAgentModel(ctx context.Context, tx bun.Tx, organizationID string, execution ExecutionInput) (aimodel.Option, error) {
-	if execution.Mode != domain.AgentExecutionModeManaged {
-		return aimodel.Option{}, nil
-	}
 	return lockManagedExecutionModel(ctx, tx, organizationID, *execution.Managed)
-}
-
-// checkPersonalAgentLocalAgent 本机 Agent 执行时要求绑定电脑已上报该本机 Agent 可用。
-func checkPersonalAgentLocalAgent(ctx context.Context, tx bun.Tx, organizationID, deviceID string, execution ExecutionInput) error {
-	if execution.Mode != domain.AgentExecutionModeLocalAgent {
-		return nil
-	}
-	available, err := tx.NewSelect().Model((*servermodels.Device)(nil)).
-		Where("d.organization_id = ? AND d.id = ?", organizationID, deviceID).
-		Where("d.local_agents @> ?::jsonb", fmt.Sprintf(`[%q]`, execution.LocalAgent.Kind)).
-		Exists(ctx)
-	if err != nil {
-		return fmt.Errorf("check personal agent local agent: %w", err)
-	}
-	if !available {
-		return &common.FieldError{Fields: map[string]common.FieldCode{"localAgent": ValidationLocalAgentUnavailable}}
-	}
-	return nil
 }

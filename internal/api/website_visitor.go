@@ -146,7 +146,7 @@ func (s *Service) initializeWebsiteMessenger(c *gin.Context) {
 		var err error
 		token, err = generateWebsiteVisitorToken()
 		if err != nil {
-			slog.Warn("生成网站访客令牌失败", "channel_id", channelID, "error", err)
+			slog.Error("生成网站访客令牌失败", "channel_id", channelID, "error", err)
 			writeApplicationError(c, appservice.WebsiteVisitorError(websiteVisitorLocale(c), appservice.ErrorKindFailed, i18n.VisitorErrorLoadFailed, nil))
 			return
 		}

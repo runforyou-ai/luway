@@ -281,7 +281,7 @@ func (q *ListServiceReplyAgentsQuery) Execute(ctx context.Context, identity *ser
 		TableExpr("agents AS a").
 		ColumnExpr("a.identity_id, oi.display_name").
 		Apply(func(query *bun.SelectQuery) *bun.SelectQuery {
-			return joinAgentConfiguration(query, "a.active_revision_id", false)
+			return joinAgentConfiguration(query, "a.active_revision_id")
 		}).
 		Where("a.organization_id = ? AND a.status = ? AND oi.type = ?", identity.Organization.ID, domain.IdentityStatusActive, domain.OrganizationIdentityTypeAgent).
 		Where("NOT ? = ANY(a.service_audiences)", domain.ServiceAudiencePersonal).

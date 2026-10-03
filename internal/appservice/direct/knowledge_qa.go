@@ -17,7 +17,7 @@ import (
 func (o *directOperations) ListKnowledgeQAEntries(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, knowledgeBaseID string, input appservice.KnowledgeQAListInput) (appservice.KnowledgeQAList, error) {
 	output, err := o.listQAEntries.Execute(ctx, identity, knowledgeBaseID, knowledgebaseaction.QAListInput{Keyword: input.Keyword, Page: input.Page, PageSize: input.PageSize})
 	if err != nil {
-		return appservice.KnowledgeQAList{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeQAReadFailed, identity.Organization.ID, knowledgeBaseID)
+		return appservice.KnowledgeQAList{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeQAReadFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	entries := make([]appservice.KnowledgeQASummary, 0, len(output.Entries))
 	for _, entry := range output.Entries {
@@ -32,7 +32,7 @@ func (o *directOperations) ListKnowledgeQAEntries(ctx context.Context, meta apps
 func (o *directOperations) GetKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, knowledgeBaseID, entryID string) (appservice.KnowledgeQAEntry, error) {
 	record, err := o.getQAEntry.Execute(ctx, identity, knowledgeBaseID, entryID)
 	if err != nil {
-		return appservice.KnowledgeQAEntry{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeQAReadFailed, identity.Organization.ID, knowledgeBaseID)
+		return appservice.KnowledgeQAEntry{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeQAReadFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	return knowledgeQAFromAction(*record), nil
 }
@@ -60,7 +60,7 @@ func (o *directOperations) saveKnowledgeQAEntry(ctx context.Context, meta appser
 		Question: input.Question, Answer: input.Answer, SimilarQuestions: questions,
 	})
 	if err != nil {
-		return appservice.KnowledgeQAEntry{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeQASaveFailed, identity.Organization.ID, knowledgeBaseID)
+		return appservice.KnowledgeQAEntry{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeQASaveFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	slog.Info("知识问答保存成功", "organization_id", identity.Organization.ID, "knowledge_base_id", knowledgeBaseID, "entry_id", record.ID, "created", entryID == "", "similar_question_count", len(record.SimilarQuestions))
 	return knowledgeQAFromAction(*record), nil
@@ -69,7 +69,7 @@ func (o *directOperations) saveKnowledgeQAEntry(ctx context.Context, meta appser
 // DeleteKnowledgeQAEntry 删除当前企业的问答及其内容。
 func (o *directOperations) DeleteKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, knowledgeBaseID, entryID string) error {
 	if err := o.deleteQAEntry.Execute(ctx, identity, knowledgeBaseID, entryID); err != nil {
-		return o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeQADeleteFailed, identity.Organization.ID, knowledgeBaseID)
+		return o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeQADeleteFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	slog.Info("知识问答删除成功", "organization_id", identity.Organization.ID, "knowledge_base_id", knowledgeBaseID, "entry_id", entryID)
 	return nil
@@ -78,7 +78,7 @@ func (o *directOperations) DeleteKnowledgeQAEntry(ctx context.Context, meta apps
 // RetryKnowledgeQAEntry 按当前配置为问答安排新的索引任务。
 func (o *directOperations) RetryKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, knowledgeBaseID, entryID string) error {
 	if err := o.qaProcessing.Retry(ctx, identity, knowledgeBaseID, entryID); err != nil {
-		return o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeQARetryFailed, identity.Organization.ID, knowledgeBaseID)
+		return o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeQARetryFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	slog.Info("知识问答已提交重试", "knowledge_base_id", knowledgeBaseID, "entry_id", entryID)
 	return nil

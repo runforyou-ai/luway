@@ -20,7 +20,7 @@ import (
 func (o *directOperations) ListKnowledgeDocuments(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID string, input appservice.KnowledgeDocumentListInput) (appservice.KnowledgeDocumentList, error) {
 	result, err := o.documentQuery.List(ctx, identity, baseID, knowledgeaction.DocumentListInput{Keyword: input.Keyword, Page: input.Page, PageSize: input.PageSize})
 	if err != nil {
-		return appservice.KnowledgeDocumentList{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocumentList{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
 	}
 	output := appservice.KnowledgeDocumentList{Documents: make([]appservice.KnowledgeDocument, 0, len(result.Documents)), Page: appservice.PageInfo{Number: result.Page, Size: result.PageSize, Total: result.Total}}
 	for _, record := range result.Documents {
@@ -33,7 +33,7 @@ func (o *directOperations) ListKnowledgeDocuments(ctx context.Context, meta apps
 func (o *directOperations) GetKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string) (appservice.KnowledgeDocument, error) {
 	record, err := o.documentQuery.Get(ctx, identity, baseID, documentID)
 	if err != nil {
-		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
 	}
 	return knowledgeDocumentFromAction(meta, *record), nil
 }
@@ -42,7 +42,7 @@ func (o *directOperations) GetKnowledgeDocument(ctx context.Context, meta appser
 func (o *directOperations) CreateKnowledgeDocuments(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID string, input appservice.KnowledgeDocumentBatchInput) (appservice.KnowledgeDocumentBatch, error) {
 	records, err := o.createDocuments.Execute(ctx, identity, baseID, input.FileIDs)
 	if err != nil {
-		return appservice.KnowledgeDocumentBatch{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocumentBatch{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
 	}
 	output := appservice.KnowledgeDocumentBatch{Documents: make([]appservice.KnowledgeDocument, 0, len(records))}
 	for _, record := range records {
@@ -55,7 +55,7 @@ func (o *directOperations) CreateKnowledgeDocuments(ctx context.Context, meta ap
 // DeleteKnowledgeDocument 删除文档并安排原件清理。
 func (o *directOperations) DeleteKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string) error {
 	if err := o.deleteDocument.Execute(ctx, identity, baseID, documentID); err != nil {
-		return o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentDeleteFailed, identity.Organization.ID, baseID)
+		return o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentDeleteFailed, identity.Organization.ID, baseID)
 	}
 	slog.Info("知识文档已删除", "knowledge_base_id", baseID, "document_id", documentID)
 	return nil
@@ -65,7 +65,7 @@ func (o *directOperations) DeleteKnowledgeDocument(ctx context.Context, meta app
 func (o *directOperations) CreateKnowledgeTextDocument(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID string, input appservice.KnowledgeTextDocumentInput) (appservice.KnowledgeDocument, error) {
 	record, err := o.saveTextDocument.Execute(ctx, identity, baseID, "", knowledgeaction.TextDocumentInput{Title: input.Title, Content: input.Content})
 	if err != nil {
-		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
 	}
 	slog.Info("在线文档已创建", "knowledge_base_id", baseID, "document_id", record.ID)
 	return knowledgeDocumentFromAction(meta, *record), nil
@@ -75,7 +75,7 @@ func (o *directOperations) CreateKnowledgeTextDocument(ctx context.Context, meta
 func (o *directOperations) GetKnowledgeDocumentContent(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string) (appservice.KnowledgeDocumentContent, error) {
 	record, err := o.documentQuery.Content(ctx, identity, baseID, documentID)
 	if err != nil {
-		return appservice.KnowledgeDocumentContent{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocumentContent{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
 	}
 	return appservice.KnowledgeDocumentContent{Document: knowledgeDocumentFromAction(meta, record.Document), Content: record.Content}, nil
 }
@@ -84,7 +84,7 @@ func (o *directOperations) GetKnowledgeDocumentContent(ctx context.Context, meta
 func (o *directOperations) UpdateKnowledgeDocumentContent(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string, input appservice.KnowledgeDocumentContentInput) (appservice.KnowledgeDocument, error) {
 	record, err := o.saveTextDocument.Execute(ctx, identity, baseID, documentID, knowledgeaction.TextDocumentInput{Title: input.Title, Content: input.Content})
 	if err != nil {
-		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
 	}
 	slog.Info("在线文档已保存", "knowledge_base_id", baseID, "document_id", documentID)
 	return knowledgeDocumentFromAction(meta, *record), nil
@@ -94,7 +94,7 @@ func (o *directOperations) UpdateKnowledgeDocumentContent(ctx context.Context, m
 func (o *directOperations) RenameKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string, input appservice.KnowledgeDocumentRenameInput) (appservice.KnowledgeDocument, error) {
 	record, err := o.renameDocument.Execute(ctx, identity, baseID, documentID, input.Title)
 	if err != nil {
-		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
 	}
 	slog.Info("知识文档已改名", "knowledge_base_id", baseID, "document_id", documentID)
 	return knowledgeDocumentFromAction(meta, *record), nil
@@ -104,7 +104,7 @@ func (o *directOperations) RenameKnowledgeDocument(ctx context.Context, meta app
 func (o *directOperations) CreateKnowledgeWebDocument(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID string, input appservice.KnowledgeWebDocumentInput) (appservice.KnowledgeDocument, error) {
 	record, err := o.createWebDocument.Execute(ctx, identity, baseID, knowledgeaction.WebDocumentInput{Title: input.Title, SourceURL: input.SourceURL})
 	if err != nil {
-		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocument{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentSaveFailed, identity.Organization.ID, baseID)
 	}
 	slog.Info("网页文档已导入", "knowledge_base_id", baseID, "document_id", record.ID, "source_url", record.SourceURL)
 	return knowledgeDocumentFromAction(meta, *record), nil
@@ -113,7 +113,7 @@ func (o *directOperations) CreateKnowledgeWebDocument(ctx context.Context, meta 
 // RefetchKnowledgeDocument 重新抓取网页文档并重新索引。
 func (o *directOperations) RefetchKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string, input appservice.KnowledgeDocumentRefetchInput) error {
 	if err := o.documentProcessing.Refetch(ctx, identity, baseID, documentID, input.SourceURL); err != nil {
-		return o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentRetryFailed, identity.Organization.ID, baseID)
+		return o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentRetryFailed, identity.Organization.ID, baseID)
 	}
 	slog.Info("网页文档已提交重新抓取", "knowledge_base_id", baseID, "document_id", documentID)
 	return nil
@@ -123,18 +123,18 @@ func (o *directOperations) RefetchKnowledgeDocument(ctx context.Context, meta ap
 func (o *directOperations) GetKnowledgeDocumentPreview(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string) (appservice.KnowledgeDocumentPreviewRequest, error) {
 	record, err := o.documentQuery.File(ctx, identity, baseID, documentID)
 	if err != nil {
-		return appservice.KnowledgeDocumentPreviewRequest{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocumentPreviewRequest{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
 	}
 	if record.StorageBackend == string(domain.FileStorageBackendLocal) {
 		url, err := o.links.URL(domain.FileStorageBackendLocal, record.StorageKey)
 		if err != nil {
-			return appservice.KnowledgeDocumentPreviewRequest{}, o.fileOperationError(ctx, meta, err, i18n.ErrorKnowledgeDocumentReadFailed)
+			return appservice.KnowledgeDocumentPreviewRequest{}, o.fileOperationError(meta, err, i18n.ErrorKnowledgeDocumentReadFailed)
 		}
 		return appservice.KnowledgeDocumentPreviewRequest{URL: url, Headers: map[string]string{"Authorization": "Bearer " + meta.Token}}, nil
 	}
 	request, err := filecontent.PresignDownload(ctx, o.s3, record.StorageKey, "inline")
 	if err != nil {
-		return appservice.KnowledgeDocumentPreviewRequest{}, o.fileOperationError(ctx, meta, err, i18n.ErrorKnowledgeDocumentReadFailed)
+		return appservice.KnowledgeDocumentPreviewRequest{}, o.fileOperationError(meta, err, i18n.ErrorKnowledgeDocumentReadFailed)
 	}
 	return appservice.KnowledgeDocumentPreviewRequest{URL: request.URL, Headers: map[string]string{}}, nil
 }
@@ -153,7 +153,7 @@ func knowledgeDocumentFromAction(meta appservice.RequestMeta, record knowledgeac
 // RetryKnowledgeDocument 按当前配置为文档安排新的处理任务。
 func (o *directOperations) RetryKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string) error {
 	if err := o.documentProcessing.Retry(ctx, identity, baseID, documentID); err != nil {
-		return o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentRetryFailed, identity.Organization.ID, baseID)
+		return o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentRetryFailed, identity.Organization.ID, baseID)
 	}
 	slog.Info("知识文档已提交重试", "knowledge_base_id", baseID, "document_id", documentID)
 	return nil
@@ -163,7 +163,7 @@ func (o *directOperations) RetryKnowledgeDocument(ctx context.Context, meta apps
 func (o *directOperations) ListKnowledgeDocumentSegments(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string, input appservice.KnowledgeDocumentSegmentInput) (appservice.KnowledgeDocumentSegmentPage, error) {
 	page, err := o.documentQuery.Segments(ctx, identity, baseID, documentID, knowledgeaction.SegmentQueryInput{Page: input.Page, PageSize: input.PageSize, SegmentBatchID: input.SegmentBatchID, AnchorSegmentID: input.AnchorSegmentID})
 	if err != nil {
-		return appservice.KnowledgeDocumentSegmentPage{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
+		return appservice.KnowledgeDocumentSegmentPage{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Organization.ID, baseID)
 	}
 	output := appservice.KnowledgeDocumentSegmentPage{SegmentBatchID: page.SegmentBatchID, Page: appservice.PageInfo{Number: page.Page, Size: page.PageSize, Total: page.Total}, AnchorSegmentID: page.AnchorSegmentID, AnchorPosition: page.AnchorPosition, Segments: make([]appservice.KnowledgeDocumentSegment, 0, len(page.Segments))}
 	for _, segment := range page.Segments {

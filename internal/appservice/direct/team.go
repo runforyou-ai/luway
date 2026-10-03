@@ -19,7 +19,7 @@ import (
 func (o *directOperations) ListTeams(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.TeamListInput) (appservice.TeamList, error) {
 	output, err := o.listTeams.Execute(ctx, identity, teamaction.ListInput{Query: input.Query, Page: input.Page, PageSize: input.PageSize})
 	if err != nil {
-		return appservice.TeamList{}, o.teamError(ctx, meta, err, i18n.ErrorTeamListFailed, identity.Organization.ID, "")
+		return appservice.TeamList{}, o.teamError(meta, err, i18n.ErrorTeamListFailed)
 	}
 	teams := make([]appservice.Team, 0, len(output.Teams))
 	for _, team := range output.Teams {
@@ -32,7 +32,7 @@ func (o *directOperations) ListTeams(ctx context.Context, meta appservice.Reques
 func (o *directOperations) GetTeam(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, teamID string) (appservice.Team, error) {
 	team, err := o.getTeam.Execute(ctx, identity, teamID)
 	if err != nil {
-		return appservice.Team{}, o.teamError(ctx, meta, err, i18n.ErrorTeamLoadFailed, identity.Organization.ID, teamID)
+		return appservice.Team{}, o.teamError(meta, err, i18n.ErrorTeamLoadFailed)
 	}
 	return teamFromAction(team), nil
 }
@@ -41,7 +41,7 @@ func (o *directOperations) GetTeam(ctx context.Context, meta appservice.RequestM
 func (o *directOperations) CreateTeam(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.TeamInput) (appservice.Team, error) {
 	team, err := o.createTeam.Execute(ctx, identity, teamaction.Input{Name: input.Name, Description: input.Description})
 	if err != nil {
-		return appservice.Team{}, o.teamError(ctx, meta, err, i18n.ErrorTeamCreateFailed, identity.Organization.ID, "")
+		return appservice.Team{}, o.teamError(meta, err, i18n.ErrorTeamCreateFailed)
 	}
 	slog.Info("团队创建成功", "organization_id", identity.Organization.ID, "team_id", team.ID)
 	return teamFromAction(*team), nil
@@ -51,7 +51,7 @@ func (o *directOperations) CreateTeam(ctx context.Context, meta appservice.Reque
 func (o *directOperations) UpdateTeam(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, teamID string, input appservice.TeamInput) (appservice.Team, error) {
 	team, err := o.updateTeam.Execute(ctx, identity, teamID, teamaction.Input{Name: input.Name, Description: input.Description})
 	if err != nil {
-		return appservice.Team{}, o.teamError(ctx, meta, err, i18n.ErrorTeamUpdateFailed, identity.Organization.ID, teamID)
+		return appservice.Team{}, o.teamError(meta, err, i18n.ErrorTeamUpdateFailed)
 	}
 	slog.Info("团队更新成功", "organization_id", identity.Organization.ID, "team_id", teamID)
 	return teamFromAction(*team), nil
@@ -60,7 +60,7 @@ func (o *directOperations) UpdateTeam(ctx context.Context, meta appservice.Reque
 // DeleteTeam 删除企业团队及其成员关系。
 func (o *directOperations) DeleteTeam(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, teamID string) error {
 	if err := o.deleteTeam.Execute(ctx, identity, teamID); err != nil {
-		return o.teamError(ctx, meta, err, i18n.ErrorTeamDeleteFailed, identity.Organization.ID, teamID)
+		return o.teamError(meta, err, i18n.ErrorTeamDeleteFailed)
 	}
 	slog.Info("团队删除成功", "organization_id", identity.Organization.ID, "team_id", teamID)
 	return nil
@@ -72,20 +72,20 @@ func (o *directOperations) ListTeamMembers(ctx context.Context, meta appservice.
 		Query: input.Query, WorkStatus: optionalDomain[appservice.WorkStatus, domain.WorkStatus](input.WorkStatus), Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
-		return appservice.TeamMemberList{}, o.teamError(ctx, meta, err, i18n.ErrorTeamMemberListFailed, identity.Organization.ID, teamID)
+		return appservice.TeamMemberList{}, o.teamError(meta, err, i18n.ErrorTeamMemberListFailed)
 	}
-	return o.teamMemberList(ctx, meta, identity, teamID, output)
+	return o.teamMemberList(ctx, meta, identity, output)
 }
 
 // teamMemberList 把团队成员查询结果转换为应用服务结构并补齐头像地址。
-func (o *directOperations) teamMemberList(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, teamID string, output teamaction.MemberListOutput) (appservice.TeamMemberList, error) {
+func (o *directOperations) teamMemberList(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, output teamaction.MemberListOutput) (appservice.TeamMemberList, error) {
 	avatarFileIDs := make([]*string, 0, len(output.Members))
 	for _, member := range output.Members {
 		avatarFileIDs = append(avatarFileIDs, member.AvatarFileID)
 	}
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, avatarFileIDs...)
 	if err != nil {
-		return appservice.TeamMemberList{}, o.teamError(ctx, meta, err, i18n.ErrorTeamMemberListFailed, identity.Organization.ID, teamID)
+		return appservice.TeamMemberList{}, o.teamError(meta, err, i18n.ErrorTeamMemberListFailed)
 	}
 	members := make([]appservice.TeamMember, 0, len(output.Members))
 	for _, member := range output.Members {
@@ -110,7 +110,7 @@ func (o *directOperations) teamMemberList(ctx context.Context, meta appservice.R
 func (o *directOperations) ListTeamMemberCandidates(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, teamID string, input appservice.TeamMemberCandidateInput) (appservice.TeamMemberCandidateList, error) {
 	output, err := o.listTeamMemberCandidates.Execute(ctx, identity, teamID, teamaction.MemberCandidateInput{Query: input.Query, Page: input.Page, PageSize: input.PageSize})
 	if err != nil {
-		return appservice.TeamMemberCandidateList{}, o.teamError(ctx, meta, err, i18n.ErrorTeamMemberListFailed, identity.Organization.ID, teamID)
+		return appservice.TeamMemberCandidateList{}, o.teamError(meta, err, i18n.ErrorTeamMemberListFailed)
 	}
 	avatarFileIDs := make([]string, 0, len(output.Members))
 	for _, member := range output.Members {
@@ -120,7 +120,7 @@ func (o *directOperations) ListTeamMemberCandidates(ctx context.Context, meta ap
 	}
 	avatarURLs, err := o.activeFileURLs(ctx, identity, avatarFileIDs)
 	if err != nil {
-		return appservice.TeamMemberCandidateList{}, o.teamError(ctx, meta, err, i18n.ErrorTeamMemberListFailed, identity.Organization.ID, teamID)
+		return appservice.TeamMemberCandidateList{}, o.teamError(meta, err, i18n.ErrorTeamMemberListFailed)
 	}
 	members := make([]appservice.TeamMemberCandidate, 0, len(output.Members))
 	for _, member := range output.Members {
@@ -140,7 +140,7 @@ func (o *directOperations) AddTeamMembers(ctx context.Context, meta appservice.R
 	}
 	team, err := o.addTeamMembers.Execute(ctx, identity, teamID, members)
 	if err != nil {
-		return appservice.Team{}, o.teamError(ctx, meta, err, i18n.ErrorTeamMemberAddFailed, identity.Organization.ID, teamID)
+		return appservice.Team{}, o.teamError(meta, err, i18n.ErrorTeamMemberAddFailed)
 	}
 	slog.Info("团队成员添加成功", "organization_id", identity.Organization.ID, "team_id", teamID, "requested_member_count", len(members))
 	return teamFromAction(*team), nil
@@ -154,15 +154,15 @@ func (o *directOperations) RemoveTeamMembers(ctx context.Context, meta appservic
 	}
 	team, err := o.removeTeamMembers.Execute(ctx, identity, teamID, members)
 	if err != nil {
-		return appservice.Team{}, o.teamError(ctx, meta, err, i18n.ErrorTeamMemberRemoveFailed, identity.Organization.ID, teamID)
+		return appservice.Team{}, o.teamError(meta, err, i18n.ErrorTeamMemberRemoveFailed)
 	}
 	slog.Info("团队成员移出成功", "organization_id", identity.Organization.ID, "team_id", teamID, "requested_member_count", len(members))
 	return teamFromAction(*team), nil
 }
 
 // teamError 转换团队领域错误。
-func (o *directOperations) teamError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID, teamID string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func (o *directOperations) teamError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
@@ -186,12 +186,7 @@ func (o *directOperations) teamError(ctx context.Context, meta appservice.Reques
 	if errors.Is(err, teamaction.ErrMemberInvalid) {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 	}
-	attributes := []any{"organization_id", organizationID, "failure", failureKey, "error", err}
-	if teamID != "" {
-		attributes = append(attributes, "team_id", teamID)
-	}
-	slog.Warn("团队操作失败", attributes...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // teamFromAction 转换团队契约。
