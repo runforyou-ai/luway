@@ -1,6 +1,6 @@
 /** 美式英语·初始化文案。 */
 const setup = {
-  title: "Bring your team together",
+  title: "Start collaborating",
   description: "Create your first workspace and administrator account to get started.",
   workspaceNameLabel: "Workspace name",
   workspaceSlugLabel: "Workspace ID",

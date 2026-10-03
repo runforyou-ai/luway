@@ -16,7 +16,7 @@ const auth = {
   registerPrompt: "还没有账号？",
   registerLink: "注册",
   registerTitle: "创建账号",
-  registerDescription: "加入团队，开启与 AI 员工协作的日常。",
+  registerDescription: "开启与同事和 AI 员工协作的日常。",
   registerInvitationDescription: "注册后即可接受邀请加入工作区，请使用受邀邮箱。",
   displayNameLabel: "姓名",
   displayNameRequired: "请输入姓名。",

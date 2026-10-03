@@ -1,6 +1,6 @@
 /** 简体中文·初始化文案。 */
 const setup = {
-  title: "开启团队协作",
+  title: "开启协作",
   description: "创建首个工作区和管理员账号，开始使用。",
   workspaceNameLabel: "工作区名称",
   workspaceSlugLabel: "工作区标识",
