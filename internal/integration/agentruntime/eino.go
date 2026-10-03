@@ -8,7 +8,9 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/cloudwego/eino/adk"
 	"github.com/cloudwego/eino/adk/middlewares/plantask"
@@ -47,6 +49,14 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 		return RunResult{}, errors.New("agent input feed is required")
 	}
 	ctx = context.WithValue(ctx, runIDContextKey{}, request.RunID)
+	var restored *checkpoint
+	if request.Resume != nil {
+		state, err := decodeCheckpoint(request.Resume.State)
+		if err != nil {
+			return RunResult{}, err
+		}
+		restored = &state
+	}
 	recorder := newProcessRecorder(request)
 	recorder.publisher.start()
 	defer recorder.publisher.close()
@@ -89,6 +99,11 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 	defer releaseSessions()
 	if delegation != nil {
 		delegation.tools = slices.DeleteFunc(slices.Clone(tools), func(item tool.BaseTool) bool { return slices.Contains(workspace.tools, item) })
+	}
+	// 登记工具特性，框架中间件注册的工具按名称登记。
+	frameworkTools := slices.Concat(workspace.names, planToolNames, []string{offloadedResultToolName, skillToolName})
+	if err := registerToolTraits(ctx, recorder.traits, tools, frameworkTools, delegation != nil); err != nil {
+		return RunResult{}, err
 	}
 	// 登记 MCP 工具的所属服务与原工具名；客服场景只挂载查询工具，其结果作为回答依据。
 	recorder.mcpTools = make(map[string]mcpToolRef)
@@ -133,13 +148,17 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 			handlers = append(handlers, memory)
 		}
 	}
+	var plans *planStore
 	if slices.Contains(request.Assignment.Tools, plantask.TaskCreateToolName) {
-		plan, err := newPlanMiddleware(ctx, recorder)
+		plan, store, err := newPlanMiddleware(ctx, recorder)
 		if err != nil {
 			return RunResult{}, err
 		}
 		handlers = append(handlers, plan)
+		plans = store
 	}
+	// 恢复时没有结果的调用按已保存的调用记录补上结果。
+	resumed := make(map[string]string)
 	if delegation != nil {
 		delegate, err := newSubagentMiddleware(ctx, delegation)
 		if err != nil {
@@ -160,6 +179,10 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 		request: request, maxIterations: maxIterations, mediaEnabled: mediaEnabled,
 		workspace: workspace, tools: tools, toolMiddlewares: toolMiddlewares,
 		observer: recorder, evidenceTools: evidenceTools, guard: guard, extra: handlers,
+		patchResults: func(callID string) (string, bool) {
+			result, ok := resumed[callID]
+			return result, ok
+		},
 	})
 	if err != nil {
 		return RunResult{}, err
@@ -171,6 +194,21 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 	execution := &einoExecution{
 		inputs: &turnInputs{feed: feed, holdPreempt: terminal.handoffFixed}, recorder: recorder, terminal: terminal, gate: gate, guard: guard, summarizer: assembly.summarizer,
 		maxTurns: request.MaxTurns, contextWindow: window, media: media, mediaEnabled: mediaEnabled,
+		plans: plans, offloaded: assembly.offloaded, usage: func() Usage {
+			total := assembly.auxiliaryUsage()
+			total.merge(selection.usage)
+			if delegation != nil {
+				total.merge(delegation.usage.total())
+			}
+			return total
+		},
+	}
+	recorder.onStep, recorder.onToolFinished = execution.saveStep, execution.save
+	if restored != nil {
+		suspended, err := execution.restore(ctx, *restored, request.Resume, resumed)
+		if err != nil || suspended {
+			return RunResult{Usage: restored.Usage, Blocks: recorder.blocks(), Calls: recorder.childCalls(), Plan: recorder.currentPlan(), Suspended: suspended}, err
+		}
 	}
 	execution.inputs.loop = adk.NewTurnLoop(adk.TurnLoopConfig[Trigger, *schema.AgenticMessage]{
 		GenInput: execution.genInput,
@@ -180,20 +218,21 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 		OnAgentEvents: execution.onAgentEvents,
 	})
 	err = execution.inputs.run(ctx)
-	execution.result.Usage.merge(assembly.auxiliaryUsage())
-	execution.result.Usage.merge(selection.usage)
-	if delegation != nil {
-		execution.result.Usage.merge(delegation.usage.total())
+	usage := execution.totalUsage()
+	if errors.Is(err, errRunSuspended) {
+		return RunResult{Usage: usage, Blocks: recorder.blocks(), Calls: recorder.childCalls(), Plan: recorder.currentPlan(), Suspended: true}, nil
 	}
 	if err != nil {
-		return RunResult{Usage: execution.result.Usage, Blocks: recorder.partialBlocks(), Plan: recorder.currentPlan()}, err
+		return RunResult{Usage: usage, Blocks: recorder.partialBlocks(), Calls: recorder.childCalls(), Plan: recorder.currentPlan()}, err
 	}
 	if !execution.finished || execution.inputs.claimedSeq <= 0 {
-		return RunResult{Usage: execution.result.Usage, Blocks: recorder.partialBlocks(), Plan: recorder.currentPlan()},
+		return RunResult{Usage: usage, Blocks: recorder.partialBlocks(), Calls: recorder.childCalls(), Plan: recorder.currentPlan()},
 			errors.New("agent run stopped without a stable response")
 	}
 	execution.result.EndSeq = execution.inputs.claimedSeq
+	execution.result.Usage = usage
 	execution.result.Blocks = recorder.blocks()
+	execution.result.Calls = recorder.childCalls()
 	execution.result.Plan = recorder.currentPlan()
 	return execution.result, nil
 }
@@ -213,6 +252,7 @@ type agentSpec struct {
 	evidenceTools   []string                                                    // 结果不参与清理的依据来源工具。
 	guard           *finalIterationGuard                                        // 收敛预算末端工具的中间件。
 	extra           []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage] // 挂载在通用中间件之后的专有中间件。
+	patchResults    func(callID string) (string, bool)                          // 恢复时没有结果的调用补上的已保存结果，为空时补上取消说明。
 }
 
 // agentAssembly 是装配完成的 Agent 及其摘要中间件和对话模型以外的用量来源。
@@ -221,6 +261,7 @@ type agentAssembly struct {
 	summarizer   *contextSummarizer
 	summaryUsage Usage
 	retry        *modelRetry
+	offloaded    *offloadStore
 }
 
 // auxiliaryUsage 返回摘要调用与被重试丢弃的输出的用量之和。
@@ -248,16 +289,16 @@ func (r *EinoRuntime) buildAgent(ctx context.Context, spec agentSpec) (*agentAss
 	if slices.Contains(spec.workspace.names, skillToolName) {
 		intactTools = append(intactTools, skillToolName)
 	}
-	reductionHandlers, err := newContextReductionHandlers(ctx, ContextWindowTokens(modelConfig), spec.evidenceTools, intactTools)
+	reductionHandlers, offloaded, err := newContextReductionHandlers(ctx, ContextWindowTokens(modelConfig), spec.evidenceTools, intactTools)
 	if err != nil {
 		return nil, err
 	}
-	assembly := &agentAssembly{retry: &modelRetry{runID: spec.request.RunID, mediaEnabled: spec.mediaEnabled}}
+	assembly := &agentAssembly{retry: &modelRetry{runID: spec.request.RunID, mediaEnabled: spec.mediaEnabled}, offloaded: offloaded}
 	assembly.summarizer, err = newContextSummarizer(ctx, summaryModel, modelConfig, spec.request.Assignment.Scene, &assembly.summaryUsage)
 	if err != nil {
 		return nil, err
 	}
-	patch, err := newToolCallPatchHandler(ctx)
+	patch, err := newToolCallPatchHandler(ctx, spec.patchResults)
 	if err != nil {
 		return nil, err
 	}
@@ -427,10 +468,23 @@ type einoExecution struct {
 	turns         int
 	result        RunResult
 	finished      bool
+	plans         *planStore
+	offloaded     *offloadStore
+	usage         func() Usage             // 返回对话模型以外的累计用量。
+	saveMu        sync.Mutex               // 串行保存安全点，并行工具各自结束时依次写入。
+	context       []*schema.AgenticMessage // 最近一次模型输出定稿时的模型上下文，不含系统指令。
 }
 
 // genInput 认领新输入，并在已有执行上下文后追加尚未消费的会话消息；只有依据纠正信号时在当前边界内追加纠正提示重新执行。
 func (e *einoExecution) genInput(ctx context.Context, _ *adk.TurnLoop[Trigger, *schema.AgenticMessage], items []Trigger) (*adk.GenInputResult[Trigger, *schema.AgenticMessage], error) {
+	// 恢复信号先于其他输入单独消费，以保存的模型上下文继续当前轮次。
+	if slices.ContainsFunc(items, func(item Trigger) bool { return item.Resume }) {
+		return &adk.GenInputResult[Trigger, *schema.AgenticMessage]{
+			Input:    &adk.TypedAgentInput[*schema.AgenticMessage]{Messages: slices.Clone(e.history.messages), EnableStreaming: true},
+			RunOpts:  []adk.AgentRunOption{adk.WithAfterToolCallsHook(e.afterToolCalls)},
+			Consumed: slices.DeleteFunc(slices.Clone(items), func(item Trigger) bool { return !item.Resume }),
+		}, nil
+	}
 	e.recorder.resetCandidate()
 	var throughSeq int64
 	claiming := false
@@ -487,11 +541,7 @@ func (e *einoExecution) genInput(ctx context.Context, _ *adk.TurnLoop[Trigger, *
 			Messages:        messages,
 			EnableStreaming: true,
 		},
-		RunOpts: []adk.AgentRunOption{
-			adk.WithAfterToolCallsHook(func(hookCtx context.Context) error {
-				return e.inputs.poll(hookCtx, true)
-			}),
-		},
+		RunOpts:  []adk.AgentRunOption{adk.WithAfterToolCallsHook(e.afterToolCalls)},
 		Consumed: items,
 	}, nil
 }
@@ -542,7 +592,6 @@ func (e *einoExecution) onAgentEvents(ctx context.Context, turn *adk.TurnContext
 			}
 			continue
 		}
-		e.result.Usage.add(message.ResponseMeta)
 		if text := strings.TrimSpace(assistantText(message)); !hasToolCalls(message) && text != "" {
 			candidate = text
 		}
@@ -653,4 +702,108 @@ func hasToolCalls(message *schema.AgenticMessage) bool {
 func runIDFromContext(ctx context.Context) string {
 	runID, _ := ctx.Value(runIDContextKey{}).(string)
 	return runID
+}
+
+// totalUsage 返回本次运行的累计用量。
+func (e *einoExecution) totalUsage() Usage {
+	total := e.recorder.modelUsage()
+	total.merge(e.usage())
+	return total
+}
+
+// saveStep 在模型输出定稿后记下模型上下文并保存安全点。
+func (e *einoExecution) saveStep(ctx context.Context, messages []*schema.AgenticMessage) error {
+	e.context = withoutSystem(messages)
+	return e.save(ctx)
+}
+
+// save 把全部内容块、子 Agent 调用、用量、任务清单与恢复状态写入日志，没有日志时忽略。
+func (e *einoExecution) save(ctx context.Context) error {
+	journal := e.recorder.journal
+	if journal == nil {
+		return nil
+	}
+	e.saveMu.Lock()
+	defer e.saveMu.Unlock()
+	e.inputs.mu.Lock()
+	claimedSeq := e.inputs.claimedSeq
+	e.inputs.mu.Unlock()
+	usage := e.totalUsage()
+	state := checkpoint{
+		Messages: e.context, Seen: e.history.seen, MediaCount: e.history.mediaCount, MediaBytes: e.history.mediaBytes,
+		ClaimedSeq: claimedSeq, Turns: e.turns, MediaEnabled: e.mediaEnabled.Load(), KeepFromID: e.summarizer.keptFrom(),
+		Iterations: e.guard.spent(), Terminal: e.terminal.export(), Offloaded: e.offloaded.snapshot(), Usage: usage,
+	}
+	state.Evidence, state.Grounded = e.gate.export()
+	if e.plans != nil {
+		state.PlanFiles = e.plans.snapshot()
+	}
+	encoded, err := encodeCheckpoint(state)
+	if err != nil {
+		return err
+	}
+	return journal.SaveStep(ctx, Step{Blocks: e.recorder.blocks(), Calls: e.recorder.childCalls(), Usage: usage, Plan: e.recorder.currentPlan(), State: encoded})
+}
+
+// restore 从已保存的恢复状态重建执行上下文：未结束的调用改为中断或待核对，最近一次模型输出的调用结果登记到 resumed 供修补中间件补上；
+// 仍有调用等待外部结果时返回 true，运行继续挂起。
+func (e *einoExecution) restore(ctx context.Context, state checkpoint, saved *Resume, resumed map[string]string) (bool, error) {
+	blocks := cloneBlocks(saved.Blocks)
+	children := slices.Clone(saved.Calls)
+	changed, waiting := settleInterrupted(blocks, children, time.Now())
+	e.recorder.restore(blocks, children, saved.Plan)
+	e.recorder.usage = state.Usage
+	for _, call := range changed {
+		if err := e.recorder.saveToolCall(ctx, call); err != nil {
+			return false, err
+		}
+	}
+	if waiting {
+		return true, nil
+	}
+	messages := state.Messages
+	// 最后一条模型输出不含工具调用时是未发出的候选正文，恢复后重新生成。
+	if last := len(messages) - 1; last >= 0 && messages[last].Role == schema.AgenticRoleTypeAssistant && !hasToolCalls(messages[last]) {
+		messages = messages[:last]
+	}
+	if last := len(messages) - 1; last >= 0 && messages[last].Role == schema.AgenticRoleTypeAssistant {
+		calls := make(map[string]*ToolCall)
+		for _, block := range blocks {
+			if call := block.Payload.ToolCall; call != nil {
+				calls[call.CallID] = call
+			}
+		}
+		for _, call := range toolCalls(messages[last]) {
+			if recorded, ok := calls[call.CallID]; ok {
+				if result, ok := modelToolResult(recorded); ok {
+					resumed[call.CallID] = result
+				}
+			}
+		}
+	}
+	e.context = messages
+	e.history.messages = slices.Clone(messages)
+	e.history.seen, e.history.mediaCount, e.history.mediaBytes = state.Seen, state.MediaCount, state.MediaBytes
+	e.turns = state.Turns
+	e.mediaEnabled.Store(state.MediaEnabled)
+	e.summarizer.restoreKeepFrom(state.KeepFromID)
+	e.guard.resume(state.Iterations)
+	e.terminal.restore(state.Terminal)
+	e.gate.restore(state.Evidence, state.Grounded)
+	if err := e.offloaded.restore(ctx, state.Offloaded); err != nil {
+		return false, err
+	}
+	if e.plans != nil {
+		e.plans.restore(state.PlanFiles, saved.Plan)
+	}
+	e.inputs.resume(state.ClaimedSeq)
+	return false, nil
+}
+
+// afterToolCalls 在一批工具结束后检查挂起与新输入：有调用等待外部结果时挂起，否则投递新输入并在安全点抢占。
+func (e *einoExecution) afterToolCalls(ctx context.Context) error {
+	if e.recorder.waiting() {
+		return errRunSuspended
+	}
+	return e.inputs.poll(ctx, true)
 }

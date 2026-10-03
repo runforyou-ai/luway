@@ -50,7 +50,7 @@ func TestRecorderDropsSkippedTools(t *testing.T) {
 func TestRecorderDropsUnfinishedModelCall(t *testing.T) {
 	recorder := newProcessRecorder(RunRequest{RunID: "run", OnStream: func(runstream.Delta) {}})
 	recorder.mu.Lock()
-	recorder.beginCallLocked()
+	recorder.beginCallLocked("")
 	recorder.mu.Unlock()
 	recorder.receive(&schema.AgenticMessage{Role: schema.AgenticRoleTypeAssistant, ContentBlocks: []*schema.ContentBlock{
 		schema.NewContentBlockChunk(&schema.Reasoning{Text: "先分析"}, &schema.StreamingMeta{Index: 0}),
@@ -81,7 +81,7 @@ func TestRecorderKeepsStreamedBlockIDs(t *testing.T) {
 		{Role: schema.AgenticRoleTypeAssistant, ContentBlocks: []*schema.ContentBlock{schema.NewContentBlockChunk(&schema.FunctionToolCall{CallID: "call", Name: "echo", Arguments: "{}"}, &schema.StreamingMeta{Index: 3})}},
 	}
 	recorder.mu.Lock()
-	recorder.beginCallLocked()
+	recorder.beginCallLocked("")
 	recorder.mu.Unlock()
 	for _, chunk := range chunks {
 		recorder.receive(chunk)

@@ -19,6 +19,12 @@ const (
 	AgentToolCallRunning   AgentToolCallStatus = AgentToolCallStatus(domain.AgentToolCallRunning)
 	AgentToolCallSucceeded AgentToolCallStatus = AgentToolCallStatus(domain.AgentToolCallSucceeded)
 	AgentToolCallFailed    AgentToolCallStatus = AgentToolCallStatus(domain.AgentToolCallFailed)
+	AgentToolCallWaiting   AgentToolCallStatus = AgentToolCallStatus(domain.AgentToolCallWaiting)
+	AgentToolCallCancelled AgentToolCallStatus = AgentToolCallStatus(domain.AgentToolCallCancelled)
+	// AgentToolCallInterrupted 表示执行中断且没有外部副作用。
+	AgentToolCallInterrupted AgentToolCallStatus = AgentToolCallStatus(domain.AgentToolCallInterrupted)
+	// AgentToolCallNeedsReview 表示有外部副作用的调用中断，实际结果待人工核对。
+	AgentToolCallNeedsReview AgentToolCallStatus = AgentToolCallStatus(domain.AgentToolCallNeedsReview)
 )
 
 // AgentPlanTaskStatus 定义任务清单中一项任务的状态。

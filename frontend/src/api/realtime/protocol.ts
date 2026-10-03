@@ -10,7 +10,7 @@ import type {
 const blockKinds = new Set(["thinking", "content", "tool_call"])
 
 /** 运行过程流工具调用的已知状态，取值与 AgentToolCallStatus 一致。 */
-const toolCallStatuses = new Set(["queued", "running", "succeeded", "failed"])
+const toolCallStatuses = new Set(["queued", "running", "waiting", "succeeded", "failed", "cancelled", "interrupted", "needs_review"])
 
 /** 运行任务清单中任务的已知状态，取值与 AgentPlanTaskStatus 一致。 */
 const planTaskStatuses = new Set(["pending", "in_progress", "completed"])

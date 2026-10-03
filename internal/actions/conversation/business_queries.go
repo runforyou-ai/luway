@@ -5,10 +5,10 @@ package conversation
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
@@ -42,37 +42,34 @@ func (q *ListBusinessQueriesQuery) Execute(ctx context.Context, identity *server
 			return err
 		}
 		rows := make([]struct {
-			ID          string          `bun:"id"`
-			CompletedAt time.Time       `bun:"completed_at"`
-			Payload     json.RawMessage `bun:"payload"`
+			BlockID     string                     `bun:"block_id"`
+			CompletedAt time.Time                  `bun:"run_completed_at"`
+			Call        servermodels.AgentToolCall `bun:",embed"`
 		}, 0)
 		if err := tx.NewSelect().
 			TableExpr("service_conversations AS svc").
-			ColumnExpr("arb.id, agr.completed_at, arb.payload").
+			ColumnExpr("arb.id AS block_id, agr.completed_at AS run_completed_at, atc.*").
 			Join("JOIN agent_runs AS agr ON agr.organization_id = svc.organization_id AND agr.scope_kind = ? AND agr.scope_id = svc.current_service_session_id", domain.AgentExecutionScopeServiceSession).
 			Join("JOIN agent_run_blocks AS arb ON arb.organization_id = agr.organization_id AND arb.agent_run_id = agr.id").
+			Join("JOIN agent_tool_calls AS atc ON atc.organization_id = arb.organization_id AND atc.id = arb.tool_call_id").
 			Where("svc.organization_id = ? AND svc.conversation_id = ?", identity.Organization.ID, conversationID).
 			Where("agr.status IN (?)", bun.In([]domain.AgentRunStatus{
 				domain.AgentRunStatusSucceeded, domain.AgentRunStatusFailed, domain.AgentRunStatusCancelled,
 			})).
 			Where("agr.completed_at IS NOT NULL").
-			Where("arb.kind = ?", domain.AgentRunBlockToolCall).
-			Where("COALESCE(arb.payload->'toolCall'->>'mcpServer', '') <> ''").
+			Where("atc.source = ?", domain.AgentToolSourceMCP).
 			OrderExpr("agr.created_at DESC, arb.position DESC").
 			Scan(ctx, &rows); err != nil {
 			return fmt.Errorf("load business queries: %w", err)
 		}
 		for _, row := range rows {
-			var payload agentruntime.BlockPayload
-			if err := json.Unmarshal(row.Payload, &payload); err != nil {
-				return fmt.Errorf("decode business query block: %w", err)
-			}
+			call := agentprocess.ToolCall(row.Call)
 			// 未开始执行的调用以运行结束时间作为调用时间。
 			calledAt := row.CompletedAt
-			if payload.ToolCall.StartedAt != nil {
-				calledAt = *payload.ToolCall.StartedAt
+			if call.StartedAt != nil {
+				calledAt = *call.StartedAt
 			}
-			queries = append(queries, BusinessQuery{ID: row.ID, CalledAt: calledAt, ToolCall: *payload.ToolCall})
+			queries = append(queries, BusinessQuery{ID: row.BlockID, CalledAt: calledAt, ToolCall: call})
 		}
 		return nil
 	})

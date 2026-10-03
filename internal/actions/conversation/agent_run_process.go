@@ -9,9 +9,9 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
@@ -26,7 +26,7 @@ func NewGetAgentRunProcessQuery(db *bun.DB) *GetAgentRunProcessQuery {
 	return &GetAgentRunProcessQuery{db: db}
 }
 
-// Execute 校验运行所属会话的阅读资格后返回过程内容、任务清单和模型用量，成功、失败和取消的运行一律按已持久化的内容返回。
+// Execute 校验运行所属会话的阅读资格后返回过程内容、任务清单和模型用量，已结束和挂起等待的运行一律按已持久化的内容返回。
 func (q *GetAgentRunProcessQuery) Execute(ctx context.Context, identity *servermodels.Identity, runID string) (AgentRunProcess, error) {
 	if !common.ValidUUID(runID) {
 		return AgentRunProcess{}, ErrAgentRunProcessUnavailable
@@ -37,9 +37,9 @@ func (q *GetAgentRunProcessQuery) Execute(ctx context.Context, identity *serverm
 		err := tx.NewSelect().Model(&run).
 			Where("agr.organization_id = ? AND agr.id = ?", identity.Organization.ID, runID).
 			Where("agr.status IN (?)", bun.In([]domain.AgentRunStatus{
-				domain.AgentRunStatusSucceeded, domain.AgentRunStatusFailed, domain.AgentRunStatusCancelled,
+				domain.AgentRunStatusSucceeded, domain.AgentRunStatusFailed, domain.AgentRunStatusCancelled, domain.AgentRunStatusWaiting,
 			})).
-			Where("agr.started_at IS NOT NULL AND agr.completed_at IS NOT NULL").Scan(ctx)
+			Where("agr.started_at IS NOT NULL AND (agr.completed_at IS NOT NULL OR agr.status = ?)", domain.AgentRunStatusWaiting).Scan(ctx)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrAgentRunProcessUnavailable
 		} else if err != nil {
@@ -52,7 +52,7 @@ func (q *GetAgentRunProcessQuery) Execute(ctx context.Context, identity *serverm
 			}
 			return err
 		}
-		process = AgentRunProcess{ID: run.ID, DurationMilliseconds: run.CompletedAt.Sub(*run.StartedAt).Milliseconds(), Blocks: []agentruntime.Block{},
+		process = AgentRunProcess{ID: run.ID, DurationMilliseconds: runDuration(&run).Milliseconds(),
 			Outcome: (*domain.AgentRunOutcome)(run.Outcome), OutcomeReason: (*domain.AgentHandoffReason)(run.OutcomeReason)}
 		if err := json.Unmarshal(run.Usage, &process.Usage); err != nil {
 			return fmt.Errorf("decode agent usage: %w", err)
@@ -62,19 +62,11 @@ func (q *GetAgentRunProcessQuery) Execute(ctx context.Context, identity *serverm
 				return fmt.Errorf("decode agent run plan: %w", err)
 			}
 		}
-		var blocks []servermodels.AgentRunBlock
-		if err := tx.NewSelect().Model(&blocks).
-			Where("arb.organization_id = ? AND arb.agent_run_id = ?", identity.Organization.ID, runID).
-			OrderExpr("arb.position").Scan(ctx); err != nil {
-			return fmt.Errorf("load agent process blocks: %w", err)
+		blocks, _, err := agentprocess.Load(ctx, tx, identity.Organization.ID, runID)
+		if err != nil {
+			return err
 		}
-		for _, block := range blocks {
-			var payload agentruntime.BlockPayload
-			if err := json.Unmarshal(block.Payload, &payload); err != nil {
-				return fmt.Errorf("decode agent process block: %w", err)
-			}
-			process.Blocks = append(process.Blocks, agentruntime.Block{ID: block.ID, Position: block.Position, ModelCallID: block.ModelCallID, Kind: domain.AgentRunBlockKind(block.Kind), Payload: payload})
-		}
+		process.Blocks = blocks
 		return nil
 	})
 	if err != nil {

@@ -230,6 +230,15 @@ func TestAgentConversations(t *testing.T) {
 	t.Run("主动停止回复", func(t *testing.T) {
 		testAgentReplyStopping(t, db, identity, agent.ID, agent.IdentityID, tasks)
 	})
+	t.Run("运行挂起与恢复", func(t *testing.T) {
+		testAgentRunSuspendAndResume(t, db, identity, agent.IdentityID, tasks)
+	})
+	t.Run("停止挂起的运行", func(t *testing.T) {
+		testStopWaitingAgentRun(t, db, identity, agent.IdentityID, tasks)
+	})
+	t.Run("失败时取消未结束的调用", func(t *testing.T) {
+		testFailedAgentRunCancelsToolCalls(t, db, identity, agent.IdentityID, tasks)
+	})
 	t.Run("禁用 AI 员工后保留会话", func(t *testing.T) {
 		testDisabledAgentConversation(t, db, identity, agent.ID, agent.IdentityID, tasks)
 	})

@@ -949,6 +949,7 @@ export enum AgentRunStatus {
 
     AgentRunStatusQueued = "queued",
     AgentRunStatusRunning = "running",
+    AgentRunStatusWaiting = "waiting",
     AgentRunStatusSucceeded = "succeeded",
     AgentRunStatusFailed = "failed",
     AgentRunStatusCancelled = "cancelled",
@@ -1026,6 +1027,18 @@ export enum AgentToolCallStatus {
     AgentToolCallRunning = "running",
     AgentToolCallSucceeded = "succeeded",
     AgentToolCallFailed = "failed",
+    AgentToolCallWaiting = "waiting",
+    AgentToolCallCancelled = "cancelled",
+
+    /**
+     * AgentToolCallInterrupted 表示执行中断且没有外部副作用。
+     */
+    AgentToolCallInterrupted = "interrupted",
+
+    /**
+     * AgentToolCallNeedsReview 表示有外部副作用的调用中断，实际结果待人工核对。
+     */
+    AgentToolCallNeedsReview = "needs_review",
 };
 
 /**

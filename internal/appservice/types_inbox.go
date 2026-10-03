@@ -20,6 +20,7 @@ type AgentRunStatus string
 const (
 	AgentRunStatusQueued    AgentRunStatus = AgentRunStatus(domain.AgentRunStatusQueued)
 	AgentRunStatusRunning   AgentRunStatus = AgentRunStatus(domain.AgentRunStatusRunning)
+	AgentRunStatusWaiting   AgentRunStatus = AgentRunStatus(domain.AgentRunStatusWaiting)
 	AgentRunStatusSucceeded AgentRunStatus = AgentRunStatus(domain.AgentRunStatusSucceeded)
 	AgentRunStatusFailed    AgentRunStatus = AgentRunStatus(domain.AgentRunStatusFailed)
 	AgentRunStatusCancelled AgentRunStatus = AgentRunStatus(domain.AgentRunStatusCancelled)
