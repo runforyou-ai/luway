@@ -15,7 +15,7 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 )
 
-// metricsInterval 是运行指标的采集与上报间隔，control 按该频率判断实例是否在线。
+// metricsInterval 是运行指标的采集与上报间隔，control 按该频率判断服务器是否在线。
 const metricsInterval = time.Minute
 
 // Gauge 定义一个按次采集的整数指标。

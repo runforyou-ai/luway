@@ -1,18 +1,18 @@
 {
     "description": "Test vectors for the product <-> control contract. Keys derive from fixed 32-byte Ed25519 seeds (unpadded base64url). Requests use RFC 9421 HTTP Message Signatures with an RFC 9530 Content-Digest; license codes are EdDSA JWTs (RFC 7519, RFC 8037).",
-    "instance_request": {
+    "server_request": {
         "seed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
         "public_key": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
         "method": "POST",
-        "url": "https://control.example.com/api/v1/instances",
+        "url": "https://control.example.com/api/v1/servers",
         "body": "{\"product\":\"luway\",\"public_key\":\"iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w\",\"version\":\"1.5.0\"}",
         "headers": {
             "Content-Type": "application/json",
             "Content-Digest": "sha-256=:KUNOydaBvJcT9Kwo1aVPZoEMuOQ4GvxF5cjAPSHPY00=:",
             "Signature-Input": "sig=(\"@method\" \"@authority\" \"@path\" \"@query\" \"content-digest\");created=1790000000;nonce=\"AAECAwQFBgcICQoLDA0ODw\";keyid=\"019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c\";alg=\"ed25519\"",
-            "Signature": "sig=:QKyqq6lMzOEmLc8xou78y+sM+ND7akSSwgVq3WxTwH65i9Lskl5/gHyfA/TXsRWXTAYStWDSu2sAx5Goa5k6Bg==:"
+            "Signature": "sig=:fbzvO7VqYjgTSwE2atX7X1hWKDvhIsAmkLLGOFMbrRzTX+xpAN0kf66WSqYgH1LMBhTao/quBecJjmZW/pWCAw==:"
         },
-        "signature_base": "\"@method\": POST\n\"@authority\": control.example.com\n\"@path\": /api/v1/instances\n\"@query\": ?\n\"content-digest\": sha-256=:KUNOydaBvJcT9Kwo1aVPZoEMuOQ4GvxF5cjAPSHPY00=:\n\"@signature-params\": (\"@method\" \"@authority\" \"@path\" \"@query\" \"content-digest\");created=1790000000;nonce=\"AAECAwQFBgcICQoLDA0ODw\";keyid=\"019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c\";alg=\"ed25519\""
+        "signature_base": "\"@method\": POST\n\"@authority\": control.example.com\n\"@path\": /api/v1/servers\n\"@query\": ?\n\"content-digest\": sha-256=:KUNOydaBvJcT9Kwo1aVPZoEMuOQ4GvxF5cjAPSHPY00=:\n\"@signature-params\": (\"@method\" \"@authority\" \"@path\" \"@query\" \"content-digest\");created=1790000000;nonce=\"AAECAwQFBgcICQoLDA0ODw\";keyid=\"019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c\";alg=\"ed25519\""
     },
     "license_code": {
         "seed": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",

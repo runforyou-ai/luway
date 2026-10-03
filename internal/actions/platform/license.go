@@ -166,7 +166,7 @@ func storeLicense(ctx context.Context, db *bun.DB, operator *servermodels.Accoun
 		if err != nil {
 			return err
 		}
-		if claims.InstanceID != platform.ServerID {
+		if claims.ServerID != platform.ServerID {
 			return ErrLicenseServerMismatch
 		}
 		now := time.Now()

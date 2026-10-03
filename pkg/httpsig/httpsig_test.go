@@ -18,14 +18,14 @@ func TestSignMatchesVector(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := `{"product":"luway","public_key":"iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w","version":"1.5.0"}`
-	request := httptest.NewRequest(http.MethodPost, "https://control.example.com/api/v1/instances", strings.NewReader(body))
+	request := httptest.NewRequest(http.MethodPost, "https://control.example.com/api/v1/servers", strings.NewReader(body))
 	signer := Signer{KeyID: "019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c", Key: ed25519.NewKeyFromSeed(seed)}
 	signer.sign(request, []byte(body), time.Unix(1790000000, 0), "AAECAwQFBgcICQoLDA0ODw")
 
 	want := map[string]string{
 		"Content-Digest":  "sha-256=:KUNOydaBvJcT9Kwo1aVPZoEMuOQ4GvxF5cjAPSHPY00=:",
 		"Signature-Input": `sig=("@method" "@authority" "@path" "@query" "content-digest");created=1790000000;nonce="AAECAwQFBgcICQoLDA0ODw";keyid="019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c";alg="ed25519"`,
-		"Signature":       "sig=:QKyqq6lMzOEmLc8xou78y+sM+ND7akSSwgVq3WxTwH65i9Lskl5/gHyfA/TXsRWXTAYStWDSu2sAx5Goa5k6Bg==:",
+		"Signature":       "sig=:fbzvO7VqYjgTSwE2atX7X1hWKDvhIsAmkLLGOFMbrRzTX+xpAN0kf66WSqYgH1LMBhTao/quBecJjmZW/pWCAw==:",
 	}
 	for name, value := range want {
 		if got := request.Header.Get(name); got != value {
@@ -50,7 +50,7 @@ func TestAuthorityOmitsDefaultPort(t *testing.T) {
 // TestTransportSignsEachAttempt 校验传输层按发送的请求体签名，每次发送使用新的 nonce。
 func TestTransportSignsEachAttempt(t *testing.T) {
 	seed := make([]byte, ed25519.SeedSize)
-	signer := Signer{KeyID: "instance", Key: ed25519.NewKeyFromSeed(seed)}
+	signer := Signer{KeyID: "server", Key: ed25519.NewKeyFromSeed(seed)}
 	inputs := map[string]bool{}
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		body, _ := io.ReadAll(request.Body)

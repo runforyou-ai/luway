@@ -15,11 +15,11 @@ import (
 
 // 向 control 上报的运行指标名称，与 control 约定的指标名一致。
 const (
-	metricAccounts         = "deployment.accounts"
-	metricWorkspaces       = "deployment.workspaces"
-	metricMembers          = "deployment.members"
-	metricActiveAccounts   = "deployment.accounts.active_7d"
-	metricActiveWorkspaces = "deployment.workspaces.active_7d"
+	metricAccounts         = "platform.accounts"
+	metricWorkspaces       = "platform.workspaces"
+	metricMembers          = "platform.members"
+	metricActiveAccounts   = "platform.accounts.active_7d"
+	metricActiveWorkspaces = "platform.workspaces.active_7d"
 )
 
 // TelemetryGauges 是向 control 上报的运行指标定义。
