@@ -40,6 +40,8 @@ export const resourceKeys = {
   installationStatus: () => ["installation-status"],
   /** 部署概况。 */
   deploymentOverview: () => ["deployment-overview"],
+  /** 实例授权状态。 */
+  instanceLicense: () => ["instance-license"],
   /** 部署注册策略和工作区创建策略。 */
   deploymentSettings: () => ["deployment-settings"],
   /** 部署账号列表，可带筛选分页参数。 */
@@ -280,6 +282,7 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.workspaceAttention()[0],
   resourceKeys.installationStatus()[0],
   resourceKeys.deploymentOverview()[0],
+  resourceKeys.instanceLicense()[0],
   resourceKeys.deploymentSettings()[0],
   resourceKeys.deploymentAccounts()[0],
   resourceKeys.deploymentWorkspaces()[0],

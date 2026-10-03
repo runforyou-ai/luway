@@ -978,6 +978,20 @@ func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.
 	return output, err
 }
 
+// GetInstanceLicense 返回实例授权状态。
+func (b *Backend) GetInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
+	var output appservice.InstanceLicense
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/license", nil, nil, &output)
+	return output, err
+}
+
+// ActivateInstanceLicense 用授权码激活或替换实例授权。
+func (b *Backend) ActivateInstanceLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseInput) (appservice.InstanceLicense, error) {
+	var output appservice.InstanceLicense
+	err := b.do(ctx, meta, http.MethodPut, "/deployment/license", nil, input, &output)
+	return output, err
+}
+
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。
 func (b *Backend) UpdateUser(ctx context.Context, meta appservice.RequestMeta, userID string, input appservice.UpdateUserInput) (appservice.User, error) {
 	var output appservice.User

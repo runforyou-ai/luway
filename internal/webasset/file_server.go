@@ -28,7 +28,14 @@ var contentTypes = map[string]string{
 // FileServer 提供启动时整体载入并预压缩的静态目录。
 type FileServer struct {
 	assets       map[string]Asset
+	overrides    map[string]conditionalAsset
 	immutableDir string
+}
+
+// conditionalAsset 是条件成立时替换目录文件的内容。
+type conditionalAsset struct {
+	asset  Asset
+	active func() bool
 }
 
 // NewFileServer 载入目录下全部文件；immutableDir 下的文件名含内容哈希，使用长期缓存，其余文件按 ETag 校验。
@@ -55,16 +62,16 @@ func NewFileServer(files fs.FS, immutableDir string) (*FileServer, error) {
 	if _, ok := assets["index.html"]; !ok {
 		return nil, fmt.Errorf("load static assets: index.html not found")
 	}
-	return &FileServer{assets: assets, immutableDir: strings.TrimSuffix(immutableDir, "/") + "/"}, nil
+	return &FileServer{assets: assets, overrides: map[string]conditionalAsset{}, immutableDir: strings.TrimSuffix(immutableDir, "/") + "/"}, nil
 }
 
-// Replace 用指定内容替换目录中的文件。
-func (s *FileServer) Replace(name string, raw []byte) {
+// Override 登记条件替换的文件，每次请求时 active 返回 true 则返回指定内容；在开始处理请求前调用。
+func (s *FileServer) Override(name string, raw []byte, active func() bool) {
 	contentType, ok := contentTypes[path.Ext(name)]
 	if !ok {
 		contentType = http.DetectContentType(raw)
 	}
-	s.assets[name] = New(contentType, raw)
+	s.overrides[name] = conditionalAsset{asset: New(contentType, raw), active: active}
 }
 
 // ServeHTTP 按规范化后的请求路径返回文件，根路径返回 index.html；错误响应不缓存。
@@ -80,6 +87,9 @@ func (s *FileServer) ServeHTTP(writer http.ResponseWriter, request *http.Request
 		name = "index.html"
 	}
 	asset, ok := s.assets[name]
+	if override, overridden := s.overrides[name]; overridden && override.active() {
+		asset, ok = override.asset, true
+	}
 	if !ok {
 		writer.Header().Set("Cache-Control", "no-store")
 		http.NotFound(writer, request)

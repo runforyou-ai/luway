@@ -459,6 +459,12 @@ type Backend interface {
 	// ListDeploymentWorkspaces 返回部署内的全部工作区。
 	//appservice:route GET /deployment/workspaces auth=admin
 	ListDeploymentWorkspaces(context.Context, RequestMeta, DeploymentWorkspaceListInput) (DeploymentWorkspaceList, error)
+	// GetInstanceLicense 返回实例授权状态。
+	//appservice:route GET /deployment/license auth=admin
+	GetInstanceLicense(context.Context, RequestMeta) (InstanceLicense, error)
+	// ActivateInstanceLicense 用授权码激活或替换实例授权。
+	//appservice:route PUT /deployment/license auth=admin
+	ActivateInstanceLicense(context.Context, RequestMeta, ActivateInstanceLicenseInput) (InstanceLicense, error)
 	// UpdateUser 修改企业成员头像、资料、角色和所属团队。
 	//appservice:route PUT /users/:userID
 	UpdateUser(context.Context, RequestMeta, string, UpdateUserInput) (User, error)

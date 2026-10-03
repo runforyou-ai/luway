@@ -160,6 +160,8 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.POST("/deployment/accounts/:accountID/admin", s.grantDeploymentAdmin)
 	router.DELETE("/deployment/accounts/:accountID/admin", s.revokeDeploymentAdmin)
 	router.GET("/deployment/workspaces", s.listDeploymentWorkspaces)
+	router.GET("/deployment/license", s.getInstanceLicense)
+	router.PUT("/deployment/license", s.activateInstanceLicense)
 	router.PUT("/users/:userID", s.updateUser)
 	router.PATCH("/roles/assignments", s.updateRoleAssignments)
 	router.POST("/users/:userID/deactivate", s.deactivateUser)
@@ -1444,6 +1446,22 @@ func (s *Service) listDeploymentWorkspaces(c *gin.Context) {
 		return
 	}
 	output, err := s.application.ListDeploymentWorkspaces(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getInstanceLicense 返回实例授权状态。
+func (s *Service) getInstanceLicense(c *gin.Context) {
+	output, err := s.application.GetInstanceLicense(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// activateInstanceLicense 用授权码激活或替换实例授权。
+func (s *Service) activateInstanceLicense(c *gin.Context) {
+	var input appservice.ActivateInstanceLicenseInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.ActivateInstanceLicense(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 

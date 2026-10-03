@@ -1,8 +1,10 @@
-/** 部署管理调用：部署概况、注册与创建策略、部署账号和部署工作区。 */
+/** 部署管理调用：部署概况、实例授权、注册与创建策略、部署账号和部署工作区。 */
 import {
+  ActivateInstanceLicense,
   DeactivateDeploymentAccount,
   GetDeploymentOverview,
   GetDeploymentSettings,
+  GetInstanceLicense,
   GrantDeploymentAdmin,
   ListDeploymentAccounts,
   ListDeploymentWorkspaces,
@@ -22,6 +24,12 @@ const listDeploymentWorkspacesBound = bind(ListDeploymentWorkspaces)
 
 /** 读取部署实例标识、服务端版本、规模和实例能力。 */
 export const getDeploymentOverview = bind(GetDeploymentOverview)
+
+/** 读取实例授权状态。 */
+export const getInstanceLicense = bind(GetInstanceLicense)
+
+/** 用授权码激活或替换实例授权。 */
+export const activateInstanceLicense = bind(ActivateInstanceLicense)
 
 /** 读取部署注册策略和工作区创建策略。 */
 export const getDeploymentSettings = bind(GetDeploymentSettings)

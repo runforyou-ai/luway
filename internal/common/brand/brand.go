@@ -1,4 +1,4 @@
-// Package brand 提供产品品牌：构建品牌来自随程序嵌入的 brand.json，服务端按部署配置覆盖展示名称与嵌入脚本对象名。
+// Package brand 提供产品品牌：构建品牌来自随程序嵌入的 brand.json，服务端在授权允许期间按部署配置覆盖展示名称与嵌入脚本对象名。
 package brand
 
 import (
@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"golang.org/x/text/language"
 )
@@ -65,23 +66,41 @@ var build = func() Brand {
 	return value
 }()
 
-// current 是当前进程使用的品牌，默认为构建品牌。
+// current 是应用部署级覆盖后的品牌，未配置时为空。
 var current atomic.Pointer[Brand]
+
+// overrideUntil 是部署级覆盖生效的截止时间（Unix 纳秒），0 表示不应用覆盖。
+var overrideUntil atomic.Int64
 
 // Build 返回随程序构建的品牌。
 func Build() Brand {
 	return build.clone()
 }
 
-// Current 返回当前进程使用的品牌。
+// Current 返回当前进程使用的品牌：部署级覆盖生效时返回覆盖后的品牌，否则返回构建品牌。
 func Current() Brand {
-	if value := current.Load(); value != nil {
+	if value := current.Load(); value != nil && OverrideActive() {
 		return value.clone()
 	}
 	return build.clone()
 }
 
-// Configure 在构建品牌上应用部署级覆盖并设为当前品牌。
+// EnableOverrideUntil 设置部署级覆盖生效的截止时间，零值表示不应用覆盖。
+func EnableOverrideUntil(until time.Time) {
+	if until.IsZero() {
+		overrideUntil.Store(0)
+		return
+	}
+	overrideUntil.Store(until.UnixNano())
+}
+
+// OverrideActive 判断部署级覆盖当前是否生效。
+func OverrideActive() bool {
+	until := overrideUntil.Load()
+	return until != 0 && time.Now().UnixNano() < until
+}
+
+// Configure 校验并保存在构建品牌上应用部署级覆盖后的品牌，覆盖在 EnableOverrideUntil 设置的截止时间前生效。
 func Configure(override Override) error {
 	value := build.WithOverride(override)
 	if err := value.Validate(); err != nil {

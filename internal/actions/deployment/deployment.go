@@ -72,11 +72,6 @@ func load(ctx context.Context, query *bun.SelectQuery) (*servermodels.Deployment
 	return deployment, nil
 }
 
-// Capabilities 返回实例当前生效的能力；实例未激活授权时按免费取值执行。
-func Capabilities(_ context.Context, _ bun.IDB) (domain.InstanceCapabilities, error) {
-	return domain.FreeInstanceCapabilities(), nil
-}
-
 // lockActiveAdmins 按账号编号顺序锁定全部有效部署管理员，并确认操作者仍在其中。
 func lockActiveAdmins(ctx context.Context, tx bun.Tx, operator *servermodels.AccountIdentity) error {
 	var adminIDs []string

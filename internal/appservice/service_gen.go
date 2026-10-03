@@ -719,6 +719,16 @@ func (s *Service) ListDeploymentWorkspaces(ctx context.Context, meta RequestMeta
 	return WithNormalizedSlices(s.backend.ListDeploymentWorkspaces(ctx, meta, input))
 }
 
+// GetInstanceLicense 返回实例授权状态。
+func (s *Service) GetInstanceLicense(ctx context.Context, meta RequestMeta) (InstanceLicense, error) {
+	return WithNormalizedSlices(s.backend.GetInstanceLicense(ctx, meta))
+}
+
+// ActivateInstanceLicense 用授权码激活或替换实例授权。
+func (s *Service) ActivateInstanceLicense(ctx context.Context, meta RequestMeta, input ActivateInstanceLicenseInput) (InstanceLicense, error) {
+	return WithNormalizedSlices(s.backend.ActivateInstanceLicense(ctx, meta, input))
+}
+
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。
 func (s *Service) UpdateUser(ctx context.Context, meta RequestMeta, userID string, input UpdateUserInput) (User, error) {
 	return WithNormalizedSlices(s.backend.UpdateUser(ctx, meta, userID, input))

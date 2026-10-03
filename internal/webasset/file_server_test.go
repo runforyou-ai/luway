@@ -95,3 +95,29 @@ func TestNewFileServerRequiresIndex(t *testing.T) {
 		t.Fatal("expected missing index.html error")
 	}
 }
+
+// TestFileServerOverride 验证条件成立时返回替换内容，条件不成立时返回原文件。
+func TestFileServerOverride(t *testing.T) {
+	server, err := NewFileServer(fstest.MapFS{
+		"index.html":  {Data: []byte("<!doctype html>")},
+		"favicon.png": {Data: []byte("original")},
+	}, "assets")
+	if err != nil {
+		t.Fatal(err)
+	}
+	active := false
+	server.Override("favicon.png", []byte("custom"), func() bool { return active })
+	// body 返回图标请求的响应内容。
+	body := func() string {
+		response := httptest.NewRecorder()
+		server.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/favicon.png", nil))
+		return response.Body.String()
+	}
+	if got := body(); got != "original" {
+		t.Fatalf("inactive override body = %q", got)
+	}
+	active = true
+	if got := body(); got != "custom" {
+		t.Fatalf("active override body = %q", got)
+	}
+}

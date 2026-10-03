@@ -11,6 +11,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
+	"github.com/runforyou-ai/luway/internal/common/license"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -25,10 +26,12 @@ type deploymentOps struct {
 	listDeploymentAccounts   *deploymentaction.ListAccountsQuery
 	updateDeploymentAccount  *deploymentaction.UpdateAccountAction
 	listDeploymentWorkspaces *deploymentaction.ListWorkspacesQuery
+	instanceLicenseRead      *deploymentaction.LicenseQuery
+	activateInstanceLicense  *deploymentaction.ActivateLicenseAction
 }
 
-// newDeploymentOps 创建部署管理的业务实现依赖。
-func newDeploymentOps(db *bun.DB) deploymentOps {
+// newDeploymentOps 创建部署管理的业务实现依赖，licenseKeys 是授权码验签公钥。
+func newDeploymentOps(db *bun.DB, licenseKeys license.Keys) deploymentOps {
 	return deploymentOps{
 		deploymentOverview:       deploymentaction.NewOverviewQuery(db),
 		deploymentSettingsRead:   deploymentaction.NewSettingsQuery(db),
@@ -36,6 +39,8 @@ func newDeploymentOps(db *bun.DB) deploymentOps {
 		listDeploymentAccounts:   deploymentaction.NewListAccountsQuery(db),
 		updateDeploymentAccount:  deploymentaction.NewUpdateAccountAction(db),
 		listDeploymentWorkspaces: deploymentaction.NewListWorkspacesQuery(db),
+		instanceLicenseRead:      deploymentaction.NewLicenseQuery(db),
+		activateInstanceLicense:  deploymentaction.NewActivateLicenseAction(db, licenseKeys),
 	}
 }
 
@@ -131,6 +136,40 @@ func (o *directOperations) ListDeploymentWorkspaces(ctx context.Context, meta ap
 	return appservice.DeploymentWorkspaceList{Workspaces: workspaces, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total}}, nil
 }
 
+// GetInstanceLicense 返回实例授权状态。
+func (o *directOperations) GetInstanceLicense(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.InstanceLicense, error) {
+	current, err := o.instanceLicenseRead.Execute(ctx)
+	if err != nil {
+		return appservice.InstanceLicense{}, deploymentError(ctx, meta, err, i18n.ErrorInstanceLicenseReadFailed, account, "")
+	}
+	return instanceLicenseFromAction(current), nil
+}
+
+// ActivateInstanceLicense 用授权码激活或替换实例授权。
+func (o *directOperations) ActivateInstanceLicense(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.ActivateInstanceLicenseInput) (appservice.InstanceLicense, error) {
+	current, err := o.activateInstanceLicense.Execute(ctx, account, input.LicenseCode)
+	if err != nil {
+		return appservice.InstanceLicense{}, deploymentError(ctx, meta, err, i18n.ErrorInstanceLicenseActivateFailed, account, "")
+	}
+	slog.Info("实例授权已激活", "account_id", account.Account.ID, "license_id", current.LicenseID, "expires_at", current.ExpiresAt)
+	return instanceLicenseFromAction(current), nil
+}
+
+// instanceLicenseFromAction 把实例授权状态转换为应用契约，未激活时不返回授权字段。
+func instanceLicenseFromAction(current deploymentaction.License) appservice.InstanceLicense {
+	output := appservice.InstanceLicense{
+		Status: appservice.LicenseStatus(current.Status),
+		Capabilities: appservice.InstanceCapabilities{
+			WorkspaceLimit: current.Capabilities.WorkspaceLimit, CustomBranding: current.Capabilities.CustomBranding,
+		},
+	}
+	if current.Status != domain.LicenseStatusNone {
+		output.LicenseID, output.Customer = current.LicenseID, current.Customer
+		output.IssuedAt, output.ExpiresAt = &current.IssuedAt, &current.ExpiresAt
+	}
+	return output
+}
+
 // deploymentSettingsFromAction 把部署级策略转换为应用契约。
 func deploymentSettingsFromAction(settings deploymentaction.Settings) appservice.DeploymentSettings {
 	return appservice.DeploymentSettings{
@@ -182,6 +221,18 @@ func deploymentError(ctx context.Context, meta appservice.RequestMeta, err error
 	}
 	if errors.Is(err, deploymentaction.ErrNoActiveMembership) {
 		return appservice.InvalidError(meta, i18n.ErrorDeploymentAccountNoWorkspace, nil)
+	}
+	// 把授权码校验错误映射为本地化文案键。
+	licenseErrors := map[error]i18n.Key{
+		deploymentaction.ErrLicenseInvalid:          i18n.ErrorInstanceLicenseInvalid,
+		deploymentaction.ErrLicenseInstanceMismatch: i18n.ErrorInstanceLicenseInstanceMismatch,
+		deploymentaction.ErrLicenseExpired:          i18n.ErrorInstanceLicenseExpired,
+		deploymentaction.ErrLicenseSuperseded:       i18n.ErrorInstanceLicenseSuperseded,
+	}
+	for target, key := range licenseErrors {
+		if errors.Is(err, target) {
+			return appservice.InvalidError(meta, key, nil)
+		}
 	}
 	attributes := []any{"account_id", account.Account.ID, "failure", failureKey, "error", err}
 	if accountID != "" {

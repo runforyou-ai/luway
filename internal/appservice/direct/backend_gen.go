@@ -1440,6 +1440,26 @@ func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.
 	return b.ops.ListDeploymentWorkspaces(ctx, meta, account, input)
 }
 
+// GetInstanceLicense 返回实例授权状态。
+func (b *Backend) GetInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.InstanceLicense
+		return zero, err
+	}
+	return b.ops.GetInstanceLicense(ctx, meta, account)
+}
+
+// ActivateInstanceLicense 用授权码激活或替换实例授权。
+func (b *Backend) ActivateInstanceLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseInput) (appservice.InstanceLicense, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.InstanceLicense
+		return zero, err
+	}
+	return b.ops.ActivateInstanceLicense(ctx, meta, account, input)
+}
+
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。
 func (b *Backend) UpdateUser(ctx context.Context, meta appservice.RequestMeta, userID string, input appservice.UpdateUserInput) (appservice.User, error) {
 	identity, err := b.ops.authenticate(ctx, meta)

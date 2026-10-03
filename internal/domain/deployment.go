@@ -52,3 +52,15 @@ func FreeInstanceCapabilities() InstanceCapabilities {
 func (c InstanceCapabilities) AllowsAnotherWorkspace(count int) bool {
 	return c.WorkspaceLimit == 0 || count < c.WorkspaceLimit
 }
+
+// LicenseStatus 定义实例授权状态。
+type LicenseStatus string
+
+const (
+	// LicenseStatusNone 表示实例未激活授权。
+	LicenseStatusNone LicenseStatus = "none"
+	// LicenseStatusActive 表示授权在有效期内。
+	LicenseStatusActive LicenseStatus = "active"
+	// LicenseStatusExpired 表示授权已到期，实例按免费取值运行。
+	LicenseStatusExpired LicenseStatus = "expired"
+)
