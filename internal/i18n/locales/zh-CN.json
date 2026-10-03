@@ -220,6 +220,7 @@
   "error.platform_workspace_update_failed": "修改工作区状态失败。",
   "error.platform_usage_failed": "读取业务使用失败。",
   "error.platform_runtime_failed": "读取运行状态失败。",
+  "error.platform_diagnostics_failed": "生成诊断信息失败。",
   "error.license_read_failed": "读取授权失败。",
   "error.license_activate_failed": "激活授权失败。",
   "error.license_invalid": "授权码无效，请确认已完整复制。",

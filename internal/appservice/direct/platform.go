@@ -9,6 +9,7 @@ import (
 	"time"
 
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
+	platformdiagnosticsaction "github.com/runforyou-ai/luway/internal/actions/platformdiagnostics"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/license"
@@ -34,14 +35,16 @@ type platformOps struct {
 	platformUsage          *platformaction.UsageQuery
 	platformRuntime        *platformaction.RuntimeStatusQuery
 	platformFailedTasks    *platformaction.FailedTaskListQuery
+	platformDiagnostics    *platformdiagnosticsaction.Query
+	instanceID             string
 	licenseRead            *platformaction.LicenseQuery
 	activateLicense        *platformaction.ActivateLicenseAction
 	onlineLicense          *platformaction.OnlineLicenseAction
 	updateTelemetry        *platformaction.UpdateTelemetryAction
 }
 
-// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权，s3 是用于检查可用性的对象存储配置，telemetry 是上报开关缓存。
-func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client, s3 serverfilecontent.S3Config, telemetry *platformaction.Telemetry) platformOps {
+// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权，s3 是用于检查可用性的对象存储配置，telemetry 是上报开关缓存，instanceID 是本服务端进程编号。
+func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client, s3 serverfilecontent.S3Config, telemetry *platformaction.Telemetry, instanceID string) platformOps {
 	return platformOps{
 		platformOverview:       platformaction.NewOverviewQuery(db),
 		platformSettingsRead:   platformaction.NewSettingsQuery(db),
@@ -54,6 +57,8 @@ func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys 
 		platformUsage:          platformaction.NewUsageQuery(db),
 		platformRuntime:        platformaction.NewRuntimeStatusQuery(db, s3),
 		platformFailedTasks:    platformaction.NewFailedTaskListQuery(db),
+		platformDiagnostics:    platformdiagnosticsaction.NewQuery(db, s3),
+		instanceID:             instanceID,
 		licenseRead:            platformaction.NewLicenseQuery(db),
 		activateLicense:        platformaction.NewActivateLicenseAction(db, licenseKeys),
 		onlineLicense:          platformaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
@@ -67,23 +72,7 @@ func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appserv
 	if err != nil {
 		return appservice.PlatformOverview{}, platformError(meta, err, i18n.ErrorPlatformOverviewFailed)
 	}
-	trend := make([]appservice.PlatformDailyActivity, 0, len(overview.Trend))
-	for _, day := range overview.Trend {
-		trend = append(trend, appservice.PlatformDailyActivity{
-			Date: day.Date.Format(time.DateOnly), ActiveAccounts: day.ActiveAccounts, ActiveWorkspaces: day.ActiveWorkspaces,
-			NewAccounts: day.NewAccounts, NewWorkspaces: day.NewWorkspaces,
-		})
-	}
-	return appservice.PlatformOverview{
-		ServerID: overview.ServerID, InstalledAt: overview.InstalledAt, TimeZone: overview.TimeZone,
-		StatsRebuilding: overview.StatsRebuilding,
-		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
-		Last7Days: appservice.PlatformActivityWindow(overview.Last7Days), Last30Days: appservice.PlatformActivityWindow(overview.Last30Days),
-		Trend: trend, License: licenseFromAction(overview.License),
-		Capabilities: appservice.Capabilities{
-			WorkspaceLimit: overview.Capabilities.WorkspaceLimit, CustomBranding: overview.Capabilities.CustomBranding,
-		},
-	}, nil
+	return platformOverviewFromAction(overview), nil
 }
 
 // GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
@@ -304,19 +293,7 @@ func (o *directOperations) GetPlatformRuntimeStatus(ctx context.Context, meta ap
 	if err != nil {
 		return appservice.PlatformRuntimeStatus{}, platformError(meta, err, i18n.ErrorPlatformRuntimeFailed)
 	}
-	status := appservice.PlatformRuntimeStatus{
-		Servers:       make([]appservice.PlatformServer, 0, len(runtime.Servers)),
-		ObjectStorage: appservice.PlatformObjectStorageStatus(runtime.ObjectStorage),
-		Control:       appservice.PlatformControlStatus(runtime.Control),
-		Queues:        make([]appservice.PlatformTaskQueue, 0, len(runtime.Queues)),
-	}
-	for _, server := range runtime.Servers {
-		status.Servers = append(status.Servers, appservice.PlatformServer(server))
-	}
-	for _, queue := range runtime.Queues {
-		status.Queues = append(status.Queues, appservice.PlatformTaskQueue(queue))
-	}
-	return status, nil
+	return platformRuntimeFromAction(runtime), nil
 }
 
 // ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
@@ -335,6 +312,82 @@ func (o *directOperations) ListPlatformFailedTasks(ctx context.Context, meta app
 	return appservice.PlatformFailedTaskList{
 		Tasks: tasks, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total},
 	}, nil
+}
+
+// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (o *directOperations) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformDiagnostics, error) {
+	diagnostics, err := o.platformDiagnostics.Execute(ctx)
+	if err != nil {
+		return appservice.PlatformDiagnostics{}, platformError(meta, err, i18n.ErrorPlatformDiagnosticsFailed)
+	}
+	output := appservice.PlatformDiagnostics{
+		GeneratedAt: diagnostics.GeneratedAt, ExportedBy: o.instanceID,
+		Overview: platformOverviewFromAction(diagnostics.Overview), Runtime: platformRuntimeFromAction(diagnostics.Runtime),
+		Database:    appservice.PlatformDatabaseStatus(diagnostics.Database),
+		FailedTasks: make([]appservice.PlatformDiagnosticTask, 0, len(diagnostics.FailedTasks)),
+		AIProviders: make([]appservice.PlatformAIProviderSummary, 0, len(diagnostics.AIProviders)),
+	}
+	for _, task := range diagnostics.FailedTasks {
+		output.FailedTasks = append(output.FailedTasks, appservice.PlatformDiagnosticTask{
+			ID: task.ID, Action: task.ActionName, Queue: task.QueueName, WorkspaceID: task.OrganizationID, Retrying: task.Retrying,
+			Attempt: task.Attempt, MaxAttempts: task.MaxAttempts, Error: task.LastError, FailedAt: task.FailedAt,
+		})
+	}
+	for _, provider := range diagnostics.AIProviders {
+		output.AIProviders = append(output.AIProviders, platformAIProviderSummaryFromAction(provider))
+	}
+	slog.Info("平台诊断信息已导出", "account_id", account.Account.ID)
+	return output, nil
+}
+
+// platformOverviewFromAction 把平台概览转换为应用契约。
+func platformOverviewFromAction(overview platformaction.Overview) appservice.PlatformOverview {
+	trend := make([]appservice.PlatformDailyActivity, 0, len(overview.Trend))
+	for _, day := range overview.Trend {
+		trend = append(trend, appservice.PlatformDailyActivity{
+			Date: day.Date.Format(time.DateOnly), ActiveAccounts: day.ActiveAccounts, ActiveWorkspaces: day.ActiveWorkspaces,
+			NewAccounts: day.NewAccounts, NewWorkspaces: day.NewWorkspaces,
+		})
+	}
+	return appservice.PlatformOverview{
+		ServerID: overview.ServerID, InstalledAt: overview.InstalledAt, TimeZone: overview.TimeZone,
+		StatsRebuilding: overview.StatsRebuilding,
+		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
+		Last7Days: appservice.PlatformActivityWindow(overview.Last7Days), Last30Days: appservice.PlatformActivityWindow(overview.Last30Days),
+		Trend: trend, License: licenseFromAction(overview.License),
+		Capabilities: appservice.Capabilities{
+			WorkspaceLimit: overview.Capabilities.WorkspaceLimit, CustomBranding: overview.Capabilities.CustomBranding,
+		},
+	}
+}
+
+// platformRuntimeFromAction 把平台运行状态转换为应用契约。
+func platformRuntimeFromAction(runtime platformaction.RuntimeStatus) appservice.PlatformRuntimeStatus {
+	status := appservice.PlatformRuntimeStatus{
+		Servers:       make([]appservice.PlatformServer, 0, len(runtime.Servers)),
+		ObjectStorage: appservice.PlatformObjectStorageStatus(runtime.ObjectStorage),
+		Control:       appservice.PlatformControlStatus(runtime.Control),
+		Queues:        make([]appservice.PlatformTaskQueue, 0, len(runtime.Queues)),
+	}
+	for _, server := range runtime.Servers {
+		config := server.Config
+		status.Servers = append(status.Servers, appservice.PlatformServer{
+			ID: server.ID, StartedAt: server.StartedAt, HeartbeatAt: server.HeartbeatAt, Hostname: server.Hostname, Version: server.Version,
+			TasksNATSConnected: server.TasksNATSConnected, RealtimeNATSConnected: server.RealtimeNATSConnected, Online: server.Online,
+			Config: appservice.PlatformServerConfig{
+				DeploymentName: config.DeploymentName, PublicURL: config.PublicURL, Listen: config.Listen, TLSMode: config.TLSMode,
+				Database:         appservice.PlatformServerDatabaseConfig(config.Database),
+				NATS:             appservice.PlatformServerNATSConfig(config.NATS),
+				Storage:          appservice.PlatformServerStorageConfig(config.Storage),
+				SMTP:             appservice.PlatformServerSMTPConfig(config.SMTP),
+				ClientsDirectory: config.ClientsDir,
+			},
+		})
+	}
+	for _, queue := range runtime.Queues {
+		status.Queues = append(status.Queues, appservice.PlatformTaskQueue(queue))
+	}
+	return status
 }
 
 // platformWorkspaceFromAction 把平台工作区记录转换为应用契约。

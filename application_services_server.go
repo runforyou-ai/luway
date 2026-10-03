@@ -112,6 +112,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	deployment := directDeploymentConfig(config, emailSender)
 	deployment.ProductDocs = productDocs
 	deployment.Control = controlClient
+	deployment.InstanceID = tasks.InstanceID()
 	deployment.Telemetry = telemetry
 	translator := translationaction.NewTranslator(db, agentRuntime, modelInvoker)
 	directBackend := direct.New(db, deployment, localFiles, fileS3, agentRunScheduler, executeAgentRun, tasks, serviceReplySuggestions, translator, knowledgeRetrieval)
@@ -147,7 +148,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewServiceWithOptions(httpAPI, application.ServiceOptions{Route: "/api"}),
 		application.NewServiceWithOptions(api.NewLocalObjectService(direct.NewLocalObjectAuthorizer(db), localFiles), application.ServiceOptions{Route: domain.LocalFilePublicPath + "/"}),
 		application.NewService(&serverTaskLifecycle{runtime: tasks}),
-		application.NewService(&serverInstanceLifecycle{db: db, tasks: tasks, publisher: realtimePublisher, hostname: hostname}),
+		application.NewService(&serverInstanceLifecycle{db: db, tasks: tasks, publisher: realtimePublisher, hostname: hostname, config: config.Diagnostics()}),
 		application.NewServiceWithOptions(publicweb.NewEmbedService(publicLookup), application.ServiceOptions{Route: "/embed"}),
 		application.NewServiceWithOptions(publicweb.NewChatService(publicLookup), application.ServiceOptions{Route: "/chat/"}),
 		application.NewServiceWithOptions(productDocsService, application.ServiceOptions{Route: "/docs"}),

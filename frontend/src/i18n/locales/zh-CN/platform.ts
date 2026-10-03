@@ -68,6 +68,10 @@ const platform = {
   runtime: {
     title: "运行状态",
     description: "查看服务器、外部依赖和后台任务的运行情况。",
+    exportDiagnostics: "导出诊断信息",
+    exportingDiagnostics: "正在导出…",
+    diagnosticsExported: "诊断信息已导出",
+    exportDiagnosticsError: "导出诊断信息失败，请稍后重试。",
     servers: "在线服务器",
     serverVersion: "版本 {{version}}",
     mixedVersions: "{{formatted}} 个版本同时运行",

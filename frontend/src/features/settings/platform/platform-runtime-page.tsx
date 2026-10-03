@@ -1,10 +1,14 @@
-/** 平台设置的运行状态页：各服务端进程的版本与心跳，对象存储与授权服务的状态，后台任务各队列的等待、执行、挂起与失败情况，以及等待重试与近 7 天失败的任务；点击任务或异常的依赖在侧栏查看完整错误。 */
+/** 平台设置的运行状态页：各服务端进程的版本与心跳，对象存储与授权服务的状态，后台任务各队列的等待、执行、挂起与失败情况，以及等待重试与近 7 天失败的任务；点击任务或异常的依赖在侧栏查看完整错误，页头导出诊断信息。 */
 import { CircleAlertIcon, CloudIcon, KeyRoundIcon, ServerIcon, type LucideIcon } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
+import { useNavigate } from "react-router"
+import { toast } from "sonner"
 
 import {
+  getPlatformDiagnostics,
   getPlatformRuntimeStatus,
+  isApiError,
   listPlatformFailedTasks,
   type PlatformFailedTask,
   type PlatformRuntimeStatus,
@@ -17,12 +21,16 @@ import { ResourceListLayout } from "@/components/resource-list"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable } from "@/components/resource-table"
 import { StatusBadge } from "@/components/status-badge"
+import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useReportFormat } from "@/hooks/use-report-format"
 import { usePagedResource, useResource } from "@/hooks/use-resource"
+import { apiErrorMessage } from "@/lib/form-errors"
+import { recoverSession } from "@/lib/session-navigation"
 import { cn } from "@/lib/utils"
+import { saveTextFile } from "@/platform/save-file"
 
 /** 运行状态的自动刷新间隔。 */
 const refreshInterval = 15_000
@@ -50,7 +58,9 @@ export function PlatformRuntimePage() {
   const { t } = useTranslation("platform")
   const { count, duration } = useReportFormat()
   const { formatDateTime } = useDateTime()
+  const navigate = useNavigate()
   const [selected, setSelected] = useState<ErrorDetail | null>(null)
+  const [exporting, setExporting] = useState(false)
   const trigger = useRef<HTMLElement | null>(null)
   const status = useResource(resourceKeys.platformRuntime(), (signal) => getPlatformRuntimeStatus(signal), {
     staleTime: 0,
@@ -81,6 +91,26 @@ export function PlatformRuntimePage() {
     setSelected(detail)
   }
 
+  /** 生成诊断信息并保存为以导出时间命名的 JSON 文件，原生端取消保存时不提示。 */
+  async function exportDiagnostics() {
+    setExporting(true)
+    try {
+      const diagnostics = await getPlatformDiagnostics()
+      // 文件名使用本地时间，格式为 diagnostics-YYYYMMDD-HHmmss.json。
+      const now = new Date()
+      const pad = (value: number) => String(value).padStart(2, "0")
+      const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+      const saved = await saveTextFile(`diagnostics-${stamp}.json`, JSON.stringify(diagnostics, null, 2), "application/json")
+      if (saved) toast.success(t("runtime.diagnosticsExported"))
+    } catch (error) {
+      if (recoverSession(error, navigate)) return
+      console.warn("导出诊断信息失败", error)
+      toast.error(isApiError(error) ? apiErrorMessage(error, []) : t("runtime.exportDiagnosticsError"))
+    } finally {
+      setExporting(false)
+    }
+  }
+
   /** 返回在线服务器的版本说明，并附上失联与 NATS 连接异常的服务器数。 */
   function serversDetail() {
     const lost = servers.length - onlineServers.length
@@ -106,7 +136,11 @@ export function PlatformRuntimePage() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <PageHeader title={t("runtime.title")} description={t("runtime.description")} />
+      <PageHeader title={t("runtime.title")} description={t("runtime.description")}>
+        <Button variant="outline" size="sm" disabled={exporting} onClick={() => void exportDiagnostics()}>
+          {exporting ? t("runtime.exportingDiagnostics") : t("runtime.exportDiagnostics")}
+        </Button>
+      </PageHeader>
 
       <ResourceListLayout resources={[status, failed]} errorMessage={t("runtime.loadError")} more={failed.more}>
         {status.data ? (

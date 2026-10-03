@@ -79,6 +79,7 @@ func applicationServices(
 	}
 	options := []appservice.Option{
 		appservice.WithImageSelector(appservicenative.NewImageSelector()),
+		appservice.WithFileSaver(appservicenative.NewFileSaver()),
 		appservice.WithNativeLocaleUpdater(nativeLocaleUpdater),
 		appservice.WithNativeNotification(notification),
 		appservice.WithNativeServerLink(serverLinks),
