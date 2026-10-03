@@ -49,7 +49,7 @@ func ControlIdentity(ctx context.Context, db bun.IDB) (control.Identity, error) 
 	if err != nil {
 		return control.Identity{}, err
 	}
-	return control.Identity{InstanceID: platform.ServerID, PrivateKey: ed25519.NewKeyFromSeed(platform.ServerPrivateKey)}, nil
+	return control.Identity{ServerID: platform.ServerID, PrivateKey: ed25519.NewKeyFromSeed(platform.ServerPrivateKey)}, nil
 }
 
 // ResetServerID 为平台生成新的服务器标识与签名私钥并删除本地授权，返回新服务器标识。
@@ -170,8 +170,8 @@ func (a *OnlineLicenseAction) store(ctx context.Context, operator *servermodels.
 func controlError(err error) error {
 	for source, target := range map[error]error{
 		control.ErrActivationCodeInvalid: ErrActivationCodeInvalid,
-		control.ErrInstanceMismatch:      ErrActivationServerMismatch,
-		control.ErrInstanceKeyMismatch:   ErrServerKeyMismatch,
+		control.ErrServerMismatch:        ErrActivationServerMismatch,
+		control.ErrServerKeyMismatch:     ErrServerKeyMismatch,
 		control.ErrLicenseNotFound:       ErrLicenseNotIssued,
 		control.ErrUnavailable:           ErrControlUnavailable,
 	} {

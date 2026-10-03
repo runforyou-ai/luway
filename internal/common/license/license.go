@@ -1,4 +1,4 @@
-// Package license 校验 control 签发的实例授权码并解析其中的授权声明与能力清单。
+// Package license 校验 control 签发的服务器授权码并解析其中的授权声明与能力清单。
 package license
 
 import (
@@ -44,7 +44,7 @@ type Claims struct {
 	Code         string
 	LicenseID    string
 	Customer     string
-	InstanceID   string
+	ServerID     string
 	IssuedAt     time.Time
 	ExpiresAt    time.Time
 	Capabilities map[string]json.RawMessage
@@ -71,7 +71,7 @@ func DecodeKeys(encoded map[string]string) (Keys, error) {
 	return keys, nil
 }
 
-// Parse 按头部 kid 选择公钥校验 EdDSA 签名，并校验 typ、签发方、产品标识、必填声明和能力取值；实例标识与有效期由调用方判断。
+// Parse 按头部 kid 选择公钥校验 EdDSA 签名，并校验 typ、签发方、产品标识、必填声明和能力取值；服务器标识与有效期由调用方判断。
 func Parse(code string, keys Keys) (Claims, error) {
 	code = strings.TrimSpace(code)
 	if code == "" || len(code) > maxCodeLength {
@@ -99,7 +99,7 @@ func Parse(code string, keys Keys) (Claims, error) {
 	if claims.Issuer != Issuer || len(claims.Audience) != 1 || claims.Audience[0] != ProductID {
 		return Claims{}, fmt.Errorf("%w: issuer or audience mismatch", ErrInvalid)
 	}
-	instanceID, ok := common.NormalizeUUID(claims.Subject)
+	serverID, ok := common.NormalizeUUID(claims.Subject)
 	if !ok || !common.ValidUUID(claims.LicenseID) || claims.IssuedAt == nil || claims.ExpiresAt == nil {
 		return Claims{}, fmt.Errorf("%w: required claims missing", ErrInvalid)
 	}
@@ -111,7 +111,7 @@ func Parse(code string, keys Keys) (Claims, error) {
 		capabilities = map[string]json.RawMessage{}
 	}
 	return Claims{
-		Code: code, LicenseID: strings.ToLower(claims.LicenseID), Customer: strings.TrimSpace(claims.Customer), InstanceID: instanceID,
+		Code: code, LicenseID: strings.ToLower(claims.LicenseID), Customer: strings.TrimSpace(claims.Customer), ServerID: serverID,
 		IssuedAt: claims.IssuedAt.UTC(), ExpiresAt: claims.ExpiresAt.UTC(), Capabilities: capabilities,
 	}, nil
 }

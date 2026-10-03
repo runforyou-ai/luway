@@ -1,4 +1,4 @@
-// Package control 实现产品实例与 control 的通信：登记实例、用激活码换取授权码、拉取当前授权码和上报运行指标，每个请求都用实例密钥签名。
+// Package control 实现服务器与 control 的通信：登记服务器、用激活码换取授权码、拉取当前授权码和上报运行指标，每个请求都用服务器密钥签名。
 package control
 
 import (
@@ -21,11 +21,11 @@ import (
 var (
 	// ErrActivationCodeInvalid 表示激活码不存在、不属于本产品或授权已到期。
 	ErrActivationCodeInvalid = errors.New("control: activation code invalid")
-	// ErrInstanceMismatch 表示激活码已绑定其他实例，或本实例已绑定其他授权。
-	ErrInstanceMismatch = errors.New("control: instance mismatch")
-	// ErrInstanceKeyMismatch 表示 control 登记的实例公钥与本实例密钥不一致。
-	ErrInstanceKeyMismatch = errors.New("control: instance key mismatch")
-	// ErrLicenseNotFound 表示 control 中没有适用于本实例的授权。
+	// ErrServerMismatch 表示激活码已绑定其他服务器，或本服务器已绑定其他授权。
+	ErrServerMismatch = errors.New("control: server mismatch")
+	// ErrServerKeyMismatch 表示 control 登记的服务器公钥与本服务器密钥不一致。
+	ErrServerKeyMismatch = errors.New("control: server key mismatch")
+	// ErrLicenseNotFound 表示 control 中没有适用于本服务器的授权。
 	ErrLicenseNotFound = errors.New("control: license not found")
 	// ErrUnavailable 表示 control 无法连接、限流或暂时不可用。
 	ErrUnavailable = errors.New("control: unavailable")
@@ -34,13 +34,13 @@ var (
 // requestTimeout 是单次请求 control 的超时时间。
 const requestTimeout = 30 * time.Second
 
-// Identity 是实例在 control 中的身份：实例标识与签名私钥。
+// Identity 是服务器在 control 中的身份：服务器标识与签名私钥。
 type Identity struct {
-	InstanceID string
+	ServerID   string
 	PrivateKey ed25519.PrivateKey
 }
 
-// IdentitySource 读取当前实例身份，实例尚未完成首次安装时返回错误。
+// IdentitySource 读取当前服务器身份，平台尚未完成首次安装时返回错误。
 type IdentitySource func(context.Context) (Identity, error)
 
 // ProblemError 是 control 返回的 RFC 9457 错误。
@@ -55,7 +55,7 @@ func (e *ProblemError) Error() string {
 	return fmt.Sprintf("control: %d %s: %s", e.Status, e.Code, e.Detail)
 }
 
-// Client 是 control 实例接口客户端。
+// Client 是 control 服务器接口客户端。
 type Client struct {
 	baseURL  string
 	version  string
@@ -63,14 +63,14 @@ type Client struct {
 	http     *http.Client
 }
 
-// New 创建 control 客户端，baseURL 是 control 服务地址，version 是上报的产品版本，identity 提供签名用的实例身份。
+// New 创建 control 客户端，baseURL 是 control 服务地址，version 是上报的产品版本，identity 提供签名用的服务器身份。
 func New(baseURL, version string, identity IdentitySource) *Client {
 	transport := &httpsig.Transport{Signer: func(request *http.Request) (httpsig.Signer, error) {
 		current, err := identity(request.Context())
 		if err != nil {
 			return httpsig.Signer{}, err
 		}
-		return httpsig.Signer{KeyID: current.InstanceID, Key: current.PrivateKey}, nil
+		return httpsig.Signer{KeyID: current.ServerID, Key: current.PrivateKey}, nil
 	}}
 	return &Client{
 		baseURL: strings.TrimRight(baseURL, "/"), version: version, identity: identity,
@@ -78,26 +78,26 @@ func New(baseURL, version string, identity IdentitySource) *Client {
 	}
 }
 
-// instanceKey 是登记与激活请求体中的产品、实例公钥和版本。
-type instanceKey struct {
+// serverKey 是登记与激活请求体中的产品、服务器公钥和版本。
+type serverKey struct {
 	Product        string `json:"product"`
 	PublicKey      string `json:"public_key"`
 	Version        string `json:"version,omitempty"`
 	ActivationCode string `json:"activation_code,omitempty"`
 }
 
-// Register 登记实例与其公钥和当前版本，可重复调用。
+// Register 登记服务器与其公钥和当前版本，可重复调用。
 func (c *Client) Register(ctx context.Context) error {
-	body, err := c.instanceKey(ctx, "")
+	body, err := c.serverKey(ctx, "")
 	if err != nil {
 		return err
 	}
-	return c.do(ctx, http.MethodPost, "/api/v1/instances", body, nil)
+	return c.do(ctx, http.MethodPost, "/api/v1/servers", body, nil)
 }
 
-// Activate 用激活码换取绑定本实例的授权码，实例未登记时同时完成登记。
+// Activate 用激活码换取绑定本服务器的授权码，服务器未登记时同时完成登记。
 func (c *Client) Activate(ctx context.Context, activationCode string) (string, error) {
-	body, err := c.instanceKey(ctx, activationCode)
+	body, err := c.serverKey(ctx, activationCode)
 	if err != nil {
 		return "", err
 	}
@@ -110,7 +110,7 @@ func (c *Client) Activate(ctx context.Context, activationCode string) (string, e
 	return output.LicenseCode, nil
 }
 
-// License 返回 control 中本实例当前的授权码；没有适用的授权时返回 ErrLicenseNotFound。
+// License 返回 control 中本服务器当前的授权码；没有适用的授权时返回 ErrLicenseNotFound。
 func (c *Client) License(ctx context.Context) (string, error) {
 	var output struct {
 		LicenseCode string `json:"license_code"`
@@ -126,14 +126,14 @@ func (c *Client) License(ctx context.Context) (string, error) {
 	return output.LicenseCode, nil
 }
 
-// instanceKey 读取实例身份并编码登记或激活请求体。
-func (c *Client) instanceKey(ctx context.Context, activationCode string) ([]byte, error) {
+// serverKey 读取服务器身份并编码登记或激活请求体。
+func (c *Client) serverKey(ctx context.Context, activationCode string) ([]byte, error) {
 	current, err := c.identity(ctx)
 	if err != nil {
 		return nil, err
 	}
 	publicKey := current.PrivateKey.Public().(ed25519.PublicKey)
-	return json.Marshal(instanceKey{
+	return json.Marshal(serverKey{
 		Product: license.ProductID, PublicKey: base64.RawURLEncoding.EncodeToString(publicKey),
 		Version: c.version, ActivationCode: activationCode,
 	})
@@ -183,10 +183,10 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte, outpu
 	switch {
 	case problem.Code == "activation_code_invalid":
 		return fmt.Errorf("%w: %w", ErrActivationCodeInvalid, problem)
-	case problem.Code == "instance_mismatch":
-		return fmt.Errorf("%w: %w", ErrInstanceMismatch, problem)
-	case problem.Code == "instance_key_mismatch":
-		return fmt.Errorf("%w: %w", ErrInstanceKeyMismatch, problem)
+	case problem.Code == "server_mismatch":
+		return fmt.Errorf("%w: %w", ErrServerMismatch, problem)
+	case problem.Code == "server_key_mismatch":
+		return fmt.Errorf("%w: %w", ErrServerKeyMismatch, problem)
 	case response.StatusCode == http.StatusTooManyRequests || response.StatusCode >= http.StatusInternalServerError:
 		return fmt.Errorf("%w: %w", ErrUnavailable, problem)
 	}

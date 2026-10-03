@@ -26,7 +26,7 @@ type contractVector struct {
 // loadVector 读取与 control 共用的测试向量。
 func loadVector(t *testing.T) contractVector {
 	t.Helper()
-	raw, err := os.ReadFile("testdata/instance-contract-vectors.json")
+	raw, err := os.ReadFile("testdata/control-contract-vectors.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestParseContractVector(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if claims.InstanceID != "019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c" || claims.LicenseID != "019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5b" || claims.Customer != "武汉润予科技有限公司" {
+	if claims.ServerID != "019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c" || claims.LicenseID != "019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5b" || claims.Customer != "武汉润予科技有限公司" {
 		t.Fatalf("claims = %+v", claims)
 	}
 	if !claims.IssuedAt.Equal(time.Unix(1790000000, 0)) || !claims.ExpiresAt.Equal(time.Unix(1821536000, 0)) {
@@ -129,7 +129,7 @@ func TestParseRejectsInvalidCodes(t *testing.T) {
 		"wrong typ":           sign(t, key, withHeader("typ", "JWT"), claims),
 		"wrong issuer":        sign(t, key, header, with("iss", "someone-else")),
 		"wrong product":       sign(t, key, header, with("aud", "other-product")),
-		"bad instance":        sign(t, key, header, with("sub", "instance")),
+		"bad server":          sign(t, key, header, with("sub", "server")),
 		"missing license id":  sign(t, key, header, with("license_id", "")),
 		"missing expiry":      sign(t, key, header, with("exp", nil)),
 		"limit not integer":   sign(t, key, header, with("capabilities", map[string]any{CapabilityWorkspaceLimit: "3"})),

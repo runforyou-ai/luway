@@ -180,7 +180,7 @@ func (f *fakeControl) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	}
 	_ = json.NewDecoder(request.Body).Decode(&body)
 	switch request.URL.Path {
-	case "/api/v1/instances":
+	case "/api/v1/servers":
 		if body.Product != license.ProductID || body.PublicKey == "" {
 			writeProblem(writer, http.StatusBadRequest, "validation_failed")
 			return
@@ -190,7 +190,7 @@ func (f *fakeControl) ServeHTTP(writer http.ResponseWriter, request *http.Reques
 	case "/api/v1/activations":
 		switch body.ActivationCode {
 		case "USED-USED-USED-USED":
-			writeProblem(writer, http.StatusConflict, "instance_mismatch")
+			writeProblem(writer, http.StatusConflict, "server_mismatch")
 		case "GOOD-GOOD-GOOD-GOOD":
 			f.licenseCode = f.issue()
 			_ = json.NewEncoder(writer).Encode(map[string]string{"license_code": f.licenseCode})
@@ -318,7 +318,7 @@ func TestLicenseOnline(t *testing.T) {
 
 	// 关闭上报后不再采集运行指标。
 	values, err := platformaction.TelemetryMetrics(ctx, db)
-	if err != nil || values == nil || values["deployment.accounts"] != 1 {
+	if err != nil || values == nil || values["platform.accounts"] != 1 {
 		t.Fatalf("metrics = %#v, err = %v", values, err)
 	}
 	settings, err := service.UpdatePlatformTelemetry(ctx, adminMeta, appservice.PlatformTelemetryInput{TelemetryEnabled: false})
