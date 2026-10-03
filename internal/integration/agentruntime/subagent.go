@@ -30,8 +30,9 @@ const subagentDescription = "通用子 Agent：使用与你相同的工具（不
 type subagentFactory struct {
 	runtime       *EinoRuntime
 	request       RunRequest
-	tools         []tool.BaseTool // 主 Agent 的普通工具，本机工具由每个子 Agent 各自创建。
+	tools         []tool.BaseTool // 主 Agent 的普通工具，电脑工具由每个子 Agent 各自创建。
 	mediaEnabled  *atomic.Bool
+	versions      *fileVersions // 与主 Agent 共用的文件内容摘要。
 	maxIterations int
 	recorder      *processRecorder
 	usage         sharedUsage
@@ -107,7 +108,7 @@ func (f *subagentFactory) Run(ctx context.Context, input *adk.TypedAgentInput[*s
 
 // build 按主 Agent 的有效配置创建一个子 Agent，返回的函数在子 Agent 结束后给出其累计用量。
 func (f *subagentFactory) build(ctx context.Context, input *adk.TypedAgentInput[*schema.AgenticMessage], observer toolObserver) (adk.TypedAgent[*schema.AgenticMessage], func() Usage, error) {
-	workspace, err := newWorkspaceTools(ctx, f.request, f.mediaEnabled, nil)
+	computer, err := newComputerToolset(ctx, f.request, f.versions, nil)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -115,7 +116,7 @@ func (f *subagentFactory) build(ctx context.Context, input *adk.TypedAgentInput[
 	assembly, err := f.runtime.buildAgent(ctx, agentSpec{
 		name: subagentName, description: subagentDescription, instruction: f.request.Assignment.DelegateInstruction,
 		request: f.request, maxIterations: f.maxIterations, mediaEnabled: f.mediaEnabled,
-		workspace: workspace, tools: append(slices.Clone(f.tools), workspace.tools...),
+		computer: computer, tools: append(slices.Clone(f.tools), computer.tools...),
 		toolMiddlewares: []compose.ToolMiddleware{toolExecutionMiddleware(observer)},
 		observer:        counter, guard: newFinalIterationGuard(f.maxIterations, false),
 	})
@@ -153,8 +154,8 @@ type delegatedActivity struct {
 	callID   string
 }
 
-// toolStarted 登记子 Agent 开始的工具调用，并把它记为委派调用的当前活动。
-func (a delegatedActivity) toolStarted(ctx context.Context, input *compose.ToolInput, at time.Time) error {
+// toolStarted 登记子 Agent 开始的工具调用，并把它记为委派调用的当前活动，返回调用的记录编号。
+func (a delegatedActivity) toolStarted(ctx context.Context, input *compose.ToolInput, at time.Time) (string, error) {
 	return a.recorder.childStarted(ctx, a.callID, input, at)
 }
 

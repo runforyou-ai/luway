@@ -104,7 +104,7 @@ const mobile = {
     security: "登录与安全",
     preferences: "偏好设置",
     notifications: "通知",
-    devices: "设备",
+    computers: "电脑",
     archivedChats: "已归档的聊天",
     workspace: "工作区",
     title: "我的",

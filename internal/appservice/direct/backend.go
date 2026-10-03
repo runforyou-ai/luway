@@ -73,7 +73,7 @@ type directOperations struct {
 	personalAgentOps
 	knowledgeOps
 	integrationOps
-	deviceOps
+	computerOps
 	fileOps
 	translationOps
 	webSearchOps
@@ -122,7 +122,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		personalAgentOps:   newPersonalAgentOps(db),
 		knowledgeOps:       newKnowledgeOps(db, taskEnqueuer, documentQuery, knowledgeRetrieval),
 		integrationOps:     newIntegrationOps(db, taskEnqueuer, connectionRunner, modelProviderRegistry, mcpTest, mcpScheduler),
-		deviceOps:          newDeviceOps(db),
+		computerOps:        newComputerOps(db, taskEnqueuer),
 		fileOps:            newFileOps(db, localFiles, s3, serverfilecontent.NewLinks("", s3.PublicBaseURL)),
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),

@@ -8,7 +8,7 @@ import { ArchivedChatsPage } from "@/features/settings/archived-chats-page"
 import { ChangePasswordForm } from "@/features/settings/change-password-form"
 import { CreditsPage } from "@/features/settings/credits-page"
 import { CustomerServiceSettings } from "@/features/settings/customer-service-settings"
-import { DeviceListPage } from "@/features/settings/device-list-page"
+import { ComputerListPage } from "@/features/settings/computer-list-page"
 import { LocalEnvironmentSettings } from "@/features/settings/local-environment-settings"
 import { GeneralSettingsForm } from "@/features/settings/general-settings-form"
 import { MemberListPage } from "@/features/settings/members/member-list-page"
@@ -24,7 +24,7 @@ const formSections = [
   "security",
   "preferences",
   "notifications",
-  "devices",
+  "computers",
   "local",
   "general",
   "customerService",
@@ -67,13 +67,13 @@ export function SettingsPage({
             title={t(`${section}.title`)}
             description={t(`${section}.description`)}
           />
-          <PageContent variant={section === "devices" || section === "local" ? "default" : "form"}>
+          <PageContent variant={section === "computers" || section === "local" ? "default" : "form"}>
             {section === "profile" ? (
               <ProfileSettingsForm user={identity.user} />
             ) : section === "security" ? (
               <ChangePasswordForm />
-            ) : section === "devices" ? (
-              <DeviceListPage />
+            ) : section === "computers" ? (
+              <ComputerListPage />
             ) : section === "local" ? (
               <LocalEnvironmentSettings />
             ) : section === "notifications" ? (

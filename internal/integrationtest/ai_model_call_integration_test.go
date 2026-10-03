@@ -7,9 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"net/http"
-	"net/http/httptest"
-	"sync"
 	"testing"
 	"time"
 
@@ -21,7 +18,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	"github.com/runforyou-ai/luway/internal/integration/decision"
-	"github.com/runforyou-ai/luway/internal/integration/modelgateway"
 	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/pkg/embedding"
@@ -330,92 +326,5 @@ func TestModelCallServices(t *testing.T) {
 			len(attempts[calls[0].ID]) != 1 {
 			t.Fatalf("model %s calls=%+v attempts=%+v", modelID, calls, attempts)
 		}
-	}
-}
-
-// TestModelGatewayRoundTrip 验证设备侧模型组件经网关把消息、工具与创建参数传给服务端统一调用入口，并收到完整与流式输出。
-func TestModelGatewayRoundTrip(t *testing.T) {
-	t.Parallel()
-	ctx := context.Background()
-	db, identity, _, modelID := newAIWorkspace(t)
-	resolved, err := aimodel.Resolve(ctx, db, identity.Organization.ID, modelID, domain.AIModelUsageAgent)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var mu sync.Mutex
-	var received []model.Option
-	var created []modelprovider.ChatConfig
-	upstreams := fakeUpstreams(nil, nil)
-	upstreams.Chat = func(_ context.Context, config modelprovider.ChatConfig) (model.AgenticModel, error) {
-		mu.Lock()
-		created = append(created, config)
-		mu.Unlock()
-		return &upstreamChat{identifier: config.Identifier, options: &received}, nil
-	}
-	invoker := modelcall.New(db, upstreams)
-	scope := modelcall.AgentScope(identity.Organization.ID, identity.OrganizationIdentity.ID, domain.AIModelCallSourceAgentRun, modelID)
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		decoded, err := modelgateway.DecodeRequest(request.Body)
-		if err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
-			return
-		}
-		if err := modelgateway.Serve(request.Context(), writer, invoker.ChatModels(scope, resolved), decoded); err != nil {
-			http.Error(writer, err.Error(), http.StatusBadRequest)
-		}
-	}))
-	defer server.Close()
-
-	chatModel, err := modelgateway.Models(server.URL, http.DefaultTransport)(ctx, agentruntime.ModelOptions{MaxOutputTokens: 256, DisableThinking: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	tool := &schema.ToolInfo{Name: "lookup", Desc: "查询", ParamsOneOf: schema.NewParamsOneOfByParams(map[string]*schema.ParameterInfo{
-		"query": {Type: schema.String, Desc: "查询内容", Required: true},
-	})}
-	input := schema.UserAgenticMessage("你好")
-	input.Extra = map[string]any{"signature": []byte{1, 2, 3}}
-	message, err := chatModel.Generate(ctx, []*schema.AgenticMessage{input}, model.WithTools([]*schema.ToolInfo{tool}), model.WithTemperature(0.2))
-	if err != nil || message.ContentBlocks[0].AssistantGenText.Text != "来自 chat-model" {
-		t.Fatalf("message=%+v err=%v", message, err)
-	}
-	mu.Lock()
-	options := model.GetCommonOptions(nil, received...)
-	config := created[0]
-	mu.Unlock()
-	if len(options.Tools) != 1 || options.Tools[0].Name != "lookup" || options.Tools[0].ParamsOneOf == nil || options.Temperature == nil || *options.Temperature != 0.2 {
-		t.Fatalf("options=%+v", options)
-	}
-	if parameters, err := options.Tools[0].ToJSONSchema(); err != nil || parameters.Properties.Len() != 1 {
-		t.Fatalf("parameters=%+v err=%v", parameters, err)
-	}
-	if config.MaxOutputTokens != 256 || !config.DisableThinking || config.Identifier != "chat-model" || config.APIKey != "test-key" {
-		t.Fatalf("config=%+v", config)
-	}
-
-	stream, err := chatModel.Stream(ctx, []*schema.AgenticMessage{input})
-	if err != nil {
-		t.Fatal(err)
-	}
-	chunks := make([]*schema.AgenticMessage, 0, 3)
-	for {
-		chunk, err := stream.Recv()
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			t.Fatal(err)
-		}
-		chunks = append(chunks, chunk)
-	}
-	concatenated, err := schema.ConcatAgenticMessages(chunks)
-	if err != nil || len(chunks) != 3 || concatenated.ResponseMeta.TokenUsage.PromptTokens != 20 {
-		t.Fatalf("chunks=%d message=%+v err=%v", len(chunks), concatenated, err)
-	}
-	streamed := waitModelCallFinished(t, db, modelID)
-	calls, _ := loadModelCalls(t, db, modelID)
-	if len(calls) != 2 || streamed.Status != string(domain.AIModelCallStatusSucceeded) || streamed.ActorType != string(domain.AIModelCallActorAgent) ||
-		streamed.SourceType != string(domain.AIModelCallSourceAgentRun) {
-		t.Fatalf("calls=%+v", calls)
 	}
 }

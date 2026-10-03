@@ -240,7 +240,7 @@ const platform = {
     },
     memberCount_one: "{{count}} 名成员",
     memberCount_other: "{{count}} 名成员",
-    scale: "AI 员工 {{agents}} · 渠道 {{channels}} · 电脑 {{devices}}",
+    scale: "AI 员工 {{agents}} · 渠道 {{channels}} · 电脑 {{computers}}",
     storageColumn: "存储用量",
     lastActiveColumn: "最近活跃",
     activeToday: "今天活跃",

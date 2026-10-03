@@ -42,20 +42,17 @@ const (
 
 // ExecuteAction 执行并收尾一次 Agent 业务运行。
 type ExecuteAction struct {
-	db           *bun.DB
-	enqueuer     servertask.TxEnqueuer
-	runtime      agentruntime.Runtime
-	invoker      *modelcall.Invoker
-	attachments  *AttachmentReader
-	knowledge    KnowledgeRetrieval
-	webSearch    websearchaction.Searcher
-	webFetch     *webfetch.Client
-	emailSender  customernotify.Sender
-	runningMu    sync.Mutex
-	runningRuns  map[string]*runningAgentRun
-	typingMu     sync.Mutex
-	deviceTyping map[string]*runTyping
-	deviceMCP    *deviceMCPSessions
+	db          *bun.DB
+	enqueuer    servertask.TxEnqueuer
+	runtime     agentruntime.Runtime
+	invoker     *modelcall.Invoker
+	attachments *AttachmentReader
+	knowledge   KnowledgeRetrieval
+	webSearch   websearchaction.Searcher
+	webFetch    *webfetch.Client
+	emailSender customernotify.Sender
+	runningMu   sync.Mutex
+	runningRuns map[string]*runningAgentRun
 }
 
 type executionContext struct {
@@ -69,8 +66,9 @@ type executionContext struct {
 	ModelID          string                        `bun:"model_id"`
 	HandlesCustomers bool                          `bun:"handles_customers"`
 	OrganizationName string                        `bun:"organization_name"`
-	ExecutionMode    domain.AgentExecutionMode     `bun:"execution_mode"`
-	LocalAgentKind   domain.LocalAgentKind         `bun:"local_agent_kind"`
+	AgentID          string                        `bun:"agent_id"`
+	// ComputerID 是仅服务负责人本人的 AI 员工使用的电脑，其他 AI 员工为空。
+	ComputerID *string `bun:"computer_id"`
 }
 
 // NewExecuteAction 创建 Agent Worker Action，联网搜索与网页读取使用默认客户端；emailSender 为空表示部署未配置邮件发送。
@@ -78,7 +76,7 @@ func NewExecuteAction(db *bun.DB, enqueuer servertask.TxEnqueuer, runtime agentr
 	return &ExecuteAction{
 		db: db, enqueuer: enqueuer, runtime: runtime, invoker: invoker, attachments: attachments, knowledge: knowledge,
 		webSearch: websearch.NewClient(), webFetch: webfetch.NewClient(common.WebFetchUserAgent()), emailSender: emailSender,
-		runningRuns: make(map[string]*runningAgentRun), deviceTyping: make(map[string]*runTyping), deviceMCP: newDeviceMCPSessions(),
+		runningRuns: make(map[string]*runningAgentRun),
 	}
 }
 
@@ -93,9 +91,13 @@ type runAssignment struct {
 	WebSearch      agentruntime.WebSearch
 	WebFetch       agentruntime.WebFetch
 	History        agentruntime.CustomerHistorySearch
-	Running        *runningAgentRun
-	RunCtx         context.Context
-	Release        func() // 结束本次执行的输入状态、取消注册与运行 context。
+	Memory         agentruntime.MemoryLoader
+	Computer       agentruntime.Computer
+	// ComputerCapabilities 是个人 AI 员工使用的电脑在本次执行开始时上报的执行能力。
+	ComputerCapabilities domain.ComputerCapabilities
+	Running              *runningAgentRun
+	RunCtx               context.Context
+	Release              func() // 结束本次执行的输入状态、取消注册与运行 context。
 }
 
 // Execute 取得执行指派、运行 TurnLoop 并收尾，只保存吸收完当前输入后的稳定回复。
@@ -160,9 +162,29 @@ func (a *ExecuteAction) assign(ctx context.Context, runID string) (runAssignment
 	capabilities := shared.capabilities
 	capabilities.Knowledge = assigned.Knowledge != nil
 	capabilities.CustomerHistory = historySessionID != ""
+	// 个人 AI 员工的文件、命令、本机 MCP 与技能操作派发到其使用的电脑，并读取其记忆。
+	if execution.ComputerID != nil {
+		computer, err := loadRunComputer(ctx, a.db, execution.Run.OrganizationID, *execution.ComputerID)
+		if err != nil {
+			return assigned, err
+		}
+		assigned.Computer = &runComputer{db: a.db, organizationID: execution.Run.OrganizationID, computerID: computer.ID, folder: execution.Run.ConversationID}
+		assigned.ComputerCapabilities = computer.Capabilities
+		assigned.MCPConnections = append(assigned.MCPConnections, agentruntime.ComputerMCPServers(assigned.Computer, computer.Capabilities)...)
+		capabilities.ComputerTools = slices.DeleteFunc(agentruntime.ComputerTools(), func(name string) bool {
+			return name == agentruntime.SkillToolName && len(computer.Capabilities.Skills) == 0
+		})
+		capabilities.Memory = true
+	}
 	assigned.Assignment, err = a.resolveAssignment(ctx, execution, policy, capabilities)
 	if err != nil {
 		return assigned, err
+	}
+	if assigned.Assignment.Memory {
+		organizationID, agentID := execution.Run.OrganizationID, execution.AgentID
+		assigned.Memory = func(ctx context.Context) ([]agentruntime.MemoryEntry, error) {
+			return loadAgentMemoryEntries(ctx, a.db, organizationID, agentID)
+		}
 	}
 	if assigned.Models, err = a.runModels(ctx, &execution.Run, execution.ModelID); err != nil {
 		return assigned, err
@@ -183,7 +205,7 @@ func (a *ExecuteAction) assign(ctx context.Context, runID string) (runAssignment
 	return assigned, nil
 }
 
-// runCapabilities 是托管执行与设备执行共用的运行能力：本次挂载的 MCP 服务、企业联网搜索与据此填写的能力声明。
+// runCapabilities 是运行能力：本次挂载的企业 MCP 服务、企业联网搜索与据此填写的能力声明。
 type runCapabilities struct {
 	mcpServers   []agentruntime.MCPServer
 	webSearch    agentruntime.WebSearch // 企业未启用联网搜索时为 nil。
@@ -232,9 +254,12 @@ func (a *ExecuteAction) runAssigned(assigned runAssignment) (agentruntime.RunRes
 		ReadAttachment: func(ctx context.Context, messageID string) ([]byte, error) {
 			return a.attachments.Content(ctx, &execution.Run, messageID)
 		},
-		MCPConnections: assigned.MCPConnections,
-		StreamID:       running.streamID,
-		Attempt:        running.attempt,
+		MCPConnections:       assigned.MCPConnections,
+		Computer:             assigned.Computer,
+		ComputerCapabilities: assigned.ComputerCapabilities,
+		Memory:               assigned.Memory,
+		StreamID:             running.streamID,
+		Attempt:              running.attempt,
 		OnStream: func(delta runstream.Delta) {
 			// 运行 context 已取消时丢弃增量。
 			if assigned.RunCtx.Err() == nil {
@@ -368,10 +393,11 @@ func (a *ExecuteAction) loadExecution(ctx context.Context, runID string) (execut
 		ColumnExpr("aim.input_modalities").
 		ColumnExpr("ar.configuration->'knowledgeBaseIds' AS knowledge_base_ids").
 		ColumnExpr("? = ANY(a.service_audiences) AS handles_customers, o.name AS organization_name", domain.ServiceAudienceCustomer).
+		ColumnExpr("a.id::text AS agent_id, a.computer_id").
 		Join("JOIN agents AS a ON a.identity_id = agr.agent_identity_id AND a.organization_id = agr.organization_id").
 		Join("JOIN organizations AS o ON o.id = agr.organization_id").
 		Apply(func(query *bun.SelectQuery) *bun.SelectQuery {
-			return withRunAgentConfiguration(query, "agr.agent_revision_id")
+			return withManagedAgentConfiguration(query, "agr.agent_revision_id")
 		}).
 		Where("agr.id = ?", runID).
 		Where("agr.status = ?", domain.AgentRunStatusRunning).
@@ -395,13 +421,7 @@ func (a *ExecuteAction) loadExecution(ctx context.Context, runID string) (execut
 
 // withManagedAgentConfiguration 为已关联 agents AS a 的查询补充指定配置版本的模型和系统指令列，只保留有效的托管对话模型配置。
 func withManagedAgentConfiguration(query *bun.SelectQuery, revisionIDColumn string) *bun.SelectQuery {
-	return agentConfigurationColumns(joinAgentConfiguration(query, revisionIDColumn, false))
-}
-
-// withRunAgentConfiguration 为已关联 agents AS a 的查询补充运行锁定配置版本的执行方式、本机 Agent 种类、模型和系统指令列；托管执行只保留有效的对话模型配置，本机 Agent 执行的模型列为空。
-func withRunAgentConfiguration(query *bun.SelectQuery, revisionIDColumn string) *bun.SelectQuery {
-	return agentConfigurationColumns(joinAgentConfiguration(query, revisionIDColumn, true)).
-		ColumnExpr("ar.execution_mode, ar.configuration->>'kind' AS local_agent_kind")
+	return agentConfigurationColumns(joinAgentConfiguration(query, revisionIDColumn))
 }
 
 // runScope 返回 AI 员工为该运行发起的模型调用归属。
@@ -450,16 +470,13 @@ func agentModelConfig(ctx context.Context, db bun.IDB, invoker *modelcall.Invoke
 	return invoker.ModelConfig(scope, model), nil
 }
 
-// joinAgentConfiguration 为已关联 agents AS a 的查询关联身份、指定配置版本与对话模型，保留有效的托管对话模型配置；includeLocalAgent 为 true 时同时保留本机 Agent 执行的配置，其模型关联为空。
-func joinAgentConfiguration(query *bun.SelectQuery, revisionIDColumn string, includeLocalAgent bool) *bun.SelectQuery {
+// joinAgentConfiguration 为已关联 agents AS a 的查询关联身份、指定配置版本与对话模型，保留有效的托管对话模型配置。
+func joinAgentConfiguration(query *bun.SelectQuery, revisionIDColumn string) *bun.SelectQuery {
 	query = query.
 		Join("JOIN organization_identities AS oi ON oi.id = a.identity_id AND oi.organization_id = a.organization_id").
 		Join("JOIN agent_revisions AS ar ON ar.id = " + revisionIDColumn + " AND ar.agent_id = a.id AND ar.organization_id = a.organization_id").
 		Where("ar.schema_version = 1")
 	query = aimodel.Join(query, "ar.model_id", "a.organization_id", domain.AIModelUsageAgent)
-	if includeLocalAgent {
-		return query.Where("(ar.execution_mode = ? AND aim.id IS NOT NULL) OR ar.execution_mode = ?", domain.AgentExecutionModeManaged, domain.AgentExecutionModeLocalAgent)
-	}
 	return query.Where("ar.execution_mode = ? AND aim.id IS NOT NULL", domain.AgentExecutionModeManaged)
 }
 

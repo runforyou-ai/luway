@@ -9,7 +9,6 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.47.1
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.6
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.4
-	github.com/bmatcuk/doublestar/v4 v4.10.2
 	github.com/cloudwego/eino v0.10.0-alpha.35
 	github.com/cloudwego/eino-ext/components/model/agenticark v0.2.5
 	github.com/cloudwego/eino-ext/components/model/agenticclaude v0.1.6
@@ -18,7 +17,6 @@ require (
 	github.com/cloudwego/eino-ext/components/model/agenticopenai v0.2.3
 	github.com/cloudwego/eino-ext/components/model/agenticqwen v0.1.1
 	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.18-0.20260923024851-c21d73d93527
-	github.com/coder/acp-go-sdk v0.13.5
 	github.com/eino-contrib/jsonschema v1.0.3
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-ego/gse v1.1.0
@@ -92,6 +90,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.51.1 // indirect
 	github.com/aws/smithy-go v1.28.2 // indirect
 	github.com/bahlo/generic-list-go v0.2.0 // indirect
+	github.com/bmatcuk/doublestar/v4 v4.10.2 // indirect
 	github.com/buger/jsonparser v1.6.1 // indirect
 	github.com/bytedance/gopkg v0.1.4 // indirect
 	github.com/bytedance/sonic v1.15.4 // indirect

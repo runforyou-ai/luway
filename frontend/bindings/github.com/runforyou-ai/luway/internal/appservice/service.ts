@@ -66,6 +66,13 @@ export function AddGroupConversationMembers(meta: $models.RequestMeta, conversat
 }
 
 /**
+ * AddLocalMCPServer 试启动本地 MCP 服务并读取工具目录，成功后添加到这台电脑，同名服务被替换。
+ */
+export function AddLocalMCPServer(meta: $models.RequestMeta, input: $models.LocalMCPServerInput): $CancellablePromise<void> {
+    return $Call.ByID(605634622, meta, input);
+}
+
+/**
  * AddServiceIssueToEvaluation 把应转人工未转的问题会话以选定的客户消息为提问加入负责 AI 员工的评测。
  */
 export function AddServiceIssueToEvaluation(meta: $models.RequestMeta, serviceSessionID: string, input: $models.ServiceIssueEvaluationInput): $CancellablePromise<$models.AgentEvaluationCase> {
@@ -332,10 +339,10 @@ export function CreateWorkspace(meta: $models.RequestMeta, input: $models.Worksp
 }
 
 /**
- * CurrentDevice 返回本机在当前企业服务器上的设备注册状态与 Agent 运行环境的准备状态；不注册设备的平台返回空设备编号且不含运行环境。
+ * CurrentComputer 返回本机在当前工作区的电脑注册状态与运行环境的准备状态；不作为电脑执行操作的平台返回空电脑编号且不含运行环境。
  */
-export function CurrentDevice(meta: $models.RequestMeta): $CancellablePromise<$models.LocalDevice> {
-    return $Call.ByID(2732025576, meta);
+export function CurrentComputer(meta: $models.RequestMeta): $CancellablePromise<$models.LocalComputer> {
+    return $Call.ByID(1583639547, meta);
 }
 
 /**
@@ -899,6 +906,13 @@ export function GrantPlatformAdmin(meta: $models.RequestMeta, accountID: string)
 }
 
 /**
+ * InstallLocalSkill 从来源把技能安装到这台电脑，同名技能被替换。
+ */
+export function InstallLocalSkill(meta: $models.RequestMeta, input: $models.LocalSkillInstallInput): $CancellablePromise<void> {
+    return $Call.ByID(1544619948, meta, input);
+}
+
+/**
  * InstallLocalToolchain 重新安装已卸载的本机运行环境。
  */
 export function InstallLocalToolchain(meta: $models.RequestMeta): $CancellablePromise<void> {
@@ -1011,6 +1025,13 @@ export function ListColleagues(meta: $models.RequestMeta, input: $models.Colleag
 }
 
 /**
+ * ListComputers 返回当前成员未撤销的电脑。
+ */
+export function ListComputers(meta: $models.RequestMeta): $CancellablePromise<$models.ComputerList> {
+    return $Call.ByID(352369617, meta);
+}
+
+/**
  * ListContactFields 返回当前企业的联系人字段。
  */
 export function ListContactFields(meta: $models.RequestMeta): $CancellablePromise<$models.ContactFieldList> {
@@ -1043,13 +1064,6 @@ export function ListConversationMessages(meta: $models.RequestMeta, conversation
  */
 export function ListCreditEntries(meta: $models.RequestMeta, input: $models.CreditEntryListInput): $CancellablePromise<$models.CreditEntryList> {
     return $Call.ByID(2369565244, meta, input);
-}
-
-/**
- * ListDevices 返回当前用户已注册的设备。
- */
-export function ListDevices(meta: $models.RequestMeta): $CancellablePromise<$models.DeviceList> {
-    return $Call.ByID(3779825248, meta);
 }
 
 /**
@@ -1384,7 +1398,7 @@ export function MarkConversationRead(meta: $models.RequestMeta, conversationID: 
 /**
  * MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
  */
-export function MovePersonalAgent(meta: $models.RequestMeta, agentID: string, input: $models.PersonalAgentDeviceInput): $CancellablePromise<$models.PersonalAgent> {
+export function MovePersonalAgent(meta: $models.RequestMeta, agentID: string, input: $models.PersonalAgentComputerInput): $CancellablePromise<$models.PersonalAgent> {
     return $Call.ByID(635028841, meta, agentID, input);
 }
 
@@ -1529,10 +1543,10 @@ export function Register(meta: $models.RequestMeta, input: $models.RegisterInput
 }
 
 /**
- * RegisterDevice 注册当前用户的本机设备。
+ * RegisterComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
  */
-export function RegisterDevice(meta: $models.RequestMeta, input: $models.DeviceRegistrationInput): $CancellablePromise<$models.Device> {
-    return $Call.ByID(2649582750, meta, input);
+export function RegisterComputer(meta: $models.RequestMeta, input: $models.ComputerRegistrationInput): $CancellablePromise<$models.ComputerRegistration> {
+    return $Call.ByID(3528938749, meta, input);
 }
 
 /**
@@ -1655,10 +1669,10 @@ export function RetryKnowledgeQAEntry(meta: $models.RequestMeta, knowledgeBaseID
 }
 
 /**
- * RevokeDevice 撤销当前用户的设备。
+ * RevokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
  */
-export function RevokeDevice(meta: $models.RequestMeta, deviceID: string): $CancellablePromise<void> {
-    return $Call.ByID(3380780173, meta, deviceID);
+export function RevokeComputer(meta: $models.RequestMeta, computerID: string): $CancellablePromise<void> {
+    return $Call.ByID(2221329382, meta, computerID);
 }
 
 /**

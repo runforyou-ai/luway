@@ -187,10 +187,10 @@ export const resourceKeys = {
   mcpServers: () => ["mcp-servers"],
   /** 单个 MCP 服务。 */
   mcpServer: (id?: string) => itemKey("mcp-server", id),
-  /** 当前用户已注册的设备列表。 */
-  devices: () => ["devices"],
-  /** 本机在当前企业服务器上的设备注册状态。 */
-  currentDevice: () => ["current-device"],
+  /** 当前成员已注册的电脑列表。 */
+  computers: () => ["computers"],
+  /** 本机在当前工作区的电脑注册状态。 */
+  currentComputer: () => ["current-computer"],
   localEnvironment: () => ["local-environment"],
   /** 当前企业的客服工作时间。 */
   businessHours: () => ["business-hours"],

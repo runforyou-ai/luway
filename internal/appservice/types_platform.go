@@ -178,7 +178,7 @@ type PlatformWorkspace struct {
 	MemberCount      int             `json:"memberCount"`
 	AIEmployeeCount  int             `json:"aiEmployeeCount"`
 	ChannelCount     int             `json:"channelCount"`
-	DeviceCount      int             `json:"deviceCount"`
+	ComputerCount    int             `json:"computerCount"`
 	HasPlatformAdmin bool            `json:"hasPlatformAdmin"`
 	StorageBytes     int64           `json:"storageBytes"`
 	LastActiveOn     *string         `json:"lastActiveOn"`

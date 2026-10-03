@@ -54,7 +54,7 @@ type WorkspaceRecord struct {
 	MemberCount     int        `bun:"member_count"`
 	AIEmployeeCount int        `bun:"ai_employee_count"`
 	ChannelCount    int        `bun:"channel_count"`
-	DeviceCount     int        `bun:"device_count"`
+	ComputerCount   int        `bun:"computer_count"`
 	HasAdmin        bool       `bun:"has_admin"`
 	StorageBytes    int64      `bun:"storage_bytes"`
 	LastActiveOn    *time.Time `bun:"last_active_on"`
@@ -153,7 +153,7 @@ func workspaceScaleColumns(query *bun.SelectQuery) *bun.SelectQuery {
 		ColumnExpr("(SELECT count(*) FROM users AS u WHERE u.organization_id = o.id AND u.status = ?) AS member_count", domain.IdentityStatusActive).
 		ColumnExpr("(SELECT count(*) FROM agents AS a WHERE a.organization_id = o.id AND a.status = ?) AS ai_employee_count", domain.IdentityStatusActive).
 		ColumnExpr("(SELECT count(*) FROM channels AS c WHERE c.organization_id = o.id AND c.enabled) AS channel_count").
-		ColumnExpr("(SELECT count(*) FROM devices AS d WHERE d.organization_id = o.id AND d.revoked_at IS NULL) AS device_count").
+		ColumnExpr("(SELECT count(*) FROM computers AS cmp WHERE cmp.organization_id = o.id AND cmp.revoked_at IS NULL) AS computer_count").
 		ColumnExpr("(SELECT COALESCE(sum(f.byte_size), 0) FROM files AS f WHERE f.organization_id = o.id AND f.status = ?) AS storage_bytes", domain.FileStatusActive)
 }
 

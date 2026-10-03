@@ -57,8 +57,6 @@ var personalAgentFieldKeys = map[common.FieldCode]i18n.Key{
 	agentaction.ValidationMCPServerInvalid:          i18n.FieldAgentMCPServerInvalid,
 	agentaction.ValidationModelInvalid:              i18n.FieldChatModelInvalid,
 	agentaction.ValidationSystemInstructionTooLong:  i18n.FieldAgentSystemInstructionTooLong,
-	agentaction.ValidationLocalAgentInvalid:         i18n.FieldLocalAgentInvalid,
-	agentaction.ValidationLocalAgentUnavailable:     i18n.FieldLocalAgentUnavailable,
 	agentaction.ValidationMemoryNameRequired:        i18n.FieldMemoryNameRequired,
 	agentaction.ValidationMemoryNameTooLong:         i18n.FieldMemoryNameTooLong,
 	agentaction.ValidationMemoryDescriptionRequired: i18n.FieldMemoryDescriptionRequired,
@@ -118,17 +116,12 @@ func (o *directOperations) GetPersonalAgent(ctx context.Context, meta appservice
 			SystemInstruction: execution.Managed.SystemInstruction, KnowledgeBaseIDs: execution.Managed.KnowledgeBaseIDs,
 		}
 	}
-	if execution.LocalAgent != nil {
-		output.LocalAgent = &appservice.AgentLocalAgentExecution{
-			Kind: appservice.LocalAgentKind(execution.LocalAgent.Kind), SystemInstruction: execution.LocalAgent.SystemInstruction,
-		}
-	}
 	return appservice.PersonalAgentDetail{PersonalAgent: personalAgent, Execution: output}, nil
 }
 
 // CreatePersonalAgent 在当前成员的电脑上创建个人 AI 员工。
 func (o *directOperations) CreatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.CreatePersonalAgentInput) (appservice.PersonalAgent, error) {
-	record, err := o.createPersonalAgent.Execute(ctx, identity, input.DeviceID, agentaction.PersonalAgentInput{
+	record, err := o.createPersonalAgent.Execute(ctx, identity, input.ComputerID, agentaction.PersonalAgentInput{
 		DisplayName: input.DisplayName, AvatarFileID: input.AvatarFileID, Execution: personalAgentExecutionInput(input.Execution),
 		MCPServerIDs: input.MCPServerIDs,
 	})
@@ -172,8 +165,8 @@ func (o *directOperations) changePersonalAgentPaused(ctx context.Context, meta a
 }
 
 // MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-func (o *directOperations) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string, input appservice.PersonalAgentDeviceInput) (appservice.PersonalAgent, error) {
-	record, err := o.movePersonalAgent.Execute(ctx, identity, agentID, input.DeviceID)
+func (o *directOperations) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string, input appservice.PersonalAgentComputerInput) (appservice.PersonalAgent, error) {
+	record, err := o.movePersonalAgent.Execute(ctx, identity, agentID, input.ComputerID)
 	if err != nil {
 		return appservice.PersonalAgent{}, o.personalAgentError(ctx, meta, err, i18n.ErrorAgentMoveFailed, identity.Organization.ID, agentID)
 	}
@@ -262,8 +255,8 @@ func (o *directOperations) personalAgentError(ctx context.Context, meta appservi
 	if errors.Is(err, agentaction.ErrAgentMemoryNotFound) {
 		return appservice.NotFoundError(meta, i18n.ErrorMemoryNotFound)
 	}
-	if errors.Is(err, agentaction.ErrPersonalAgentDeviceNotFound) {
-		return appservice.NotFoundError(meta, i18n.ErrorDeviceNotFound)
+	if errors.Is(err, agentaction.ErrPersonalAgentComputerNotFound) {
+		return appservice.NotFoundError(meta, i18n.ErrorComputerNotFound)
 	}
 	if errors.Is(err, agentaction.ErrPersonalAgentResponsibleInactive) {
 		return appservice.ConflictError(meta, i18n.ErrorAgentResponsibleInactive, "personal_agent_responsible_inactive")
@@ -284,11 +277,6 @@ func personalAgentExecutionInput(input appservice.AgentExecutionInput) agentacti
 			SystemInstruction: input.Managed.SystemInstruction, KnowledgeBaseIDs: input.Managed.KnowledgeBaseIDs,
 		}
 	}
-	if input.LocalAgent != nil {
-		output.LocalAgent = &agentaction.LocalAgentExecutionInput{
-			Kind: domain.LocalAgentKind(input.LocalAgent.Kind), SystemInstruction: input.LocalAgent.SystemInstruction,
-		}
-	}
 	return output
 }
 
@@ -300,17 +288,10 @@ func personalAgentFromAction(record agentaction.PersonalAgent, avatarURL string,
 			Model: aiModelOptionFromAction(record.Execution.Managed.Model),
 		}
 	}
-	if record.Execution.LocalAgent != nil {
-		execution.LocalAgent = &appservice.AgentLocalAgentExecutionSummary{Kind: appservice.LocalAgentKind(record.Execution.LocalAgent.Kind)}
-	}
-	localAgents := make([]appservice.LocalAgentKind, 0, len(record.DeviceLocalAgents))
-	for _, kind := range record.DeviceLocalAgents {
-		localAgents = append(localAgents, appservice.LocalAgentKind(kind))
-	}
 	return appservice.PersonalAgent{
 		ID: record.ID, IdentityID: record.IdentityID, DisplayName: record.DisplayName, AvatarURL: avatarURL,
 		Responsible: appservice.PersonalAgentResponsible{UserID: record.ResponsibleUserID, IdentityID: record.ResponsibleIdentityID, DisplayName: record.ResponsibleDisplayName},
-		Device:      appservice.PersonalAgentDevice{ID: record.DeviceID, Name: record.DeviceName, LocalAgents: localAgents},
+		Computer:    appservice.PersonalAgentComputer{ID: record.ComputerID, Name: record.ComputerName},
 		Status:      appservice.UserStatus(record.Status),
 		Presence:    appservice.PersonalAgentPresence(record.Presence(now)),
 		Execution:   execution,

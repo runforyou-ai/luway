@@ -4,11 +4,11 @@ import { useTranslation } from "react-i18next"
 import { useParams, useSearchParams } from "react-router"
 
 import {
-  currentDevice,
+  currentComputer,
   getAIPerformanceReport,
   getAgent,
   isNotFoundApiError,
-  listDevices,
+  listComputers,
   listTeams,
   type AgentData,
   type ServiceAudience,
@@ -126,18 +126,17 @@ function AgentCreateForms({
   const avatar = useAgentAvatarUpload()
   const draftDirty =
     draft.displayName !== "" || draft.modelId !== "" || draft.systemInstruction !== "" || draft.knowledgeBaseIds.length > 0
-  const local = useResource(resourceKeys.currentDevice(), () => currentDevice())
-  const devices = useResource(resourceKeys.devices(), () => listDevices(), { enabled: personal })
-  const localDeviceID = local.data?.deviceId ?? ""
-  const localDevice = devices.data?.devices.find((device) => device.id === localDeviceID)
+  const local = useResource(resourceKeys.currentComputer(), () => currentComputer())
+  const computers = useResource(resourceKeys.computers(), () => listComputers(), { enabled: personal })
+  const localComputerID = local.data?.computerId ?? ""
+  const localComputer = computers.data?.computers.find((computer) => computer.id === localComputerID)
 
-  if (personal && localDeviceID) {
+  if (personal && localComputerID) {
     return (
-      <ResourceContent resources={devices} errorMessage={t("personal.loadError")}>
+      <ResourceContent resources={computers} errorMessage={t("personal.loadError")}>
         <PersonalAgentCreateForm
-          deviceID={localDeviceID}
-          deviceName={localDevice?.name ?? ""}
-          localAgents={localDevice?.localAgents ?? []}
+          computerID={localComputerID}
+          computerName={localComputer?.name ?? ""}
           draft={draft}
           draftDirty={draftDirty}
           avatar={avatar}
@@ -160,7 +159,7 @@ function AgentCreateForms({
       draftDirty={draftDirty}
       avatar={avatar}
       personal={{
-        available: localDeviceID !== "",
+        available: localComputerID !== "",
         onSelect: (next) => {
           setDraft(next)
           setPersonal(true)
