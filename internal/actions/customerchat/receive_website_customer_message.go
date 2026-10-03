@@ -128,7 +128,7 @@ func (a *ReceiveWebsiteCustomerMessageAction) executeTransaction(ctx context.Con
 	if input.Attachment != nil && !setting.AttachmentsEnabled {
 		return ReceiveWebsiteCustomerMessageResult{}, &conversationaction.ConflictError{Reason: ConflictReasonAttachmentsDisabled}
 	}
-	// 未开启多会话时，未指定会话的消息进入访客已有的会话。
+	// 未开启多会话时，未指定会话的消息进入访客最近有消息的会话。
 	input.SingleConversation = !setting.MultipleConversationsEnabled && input.RequestedConversationID == nil
 	received, err := ReceiveInboundCustomerMessage(ctx, tx, a.enqueuer, channel, input)
 	if err != nil {

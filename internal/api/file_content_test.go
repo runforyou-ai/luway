@@ -58,7 +58,7 @@ func TestLocalObjectServiceServesFinalObjects(t *testing.T) {
 	}
 }
 
-// TestLocalObjectServiceForcesSafeContentType 验证只有可内嵌展示的图片按图片类型输出，其余文件一律按附件下载并在沙箱中打开。
+// TestLocalObjectServiceForcesSafeContentType 验证只有可内嵌展示的图片按图片类型输出，其余文件一律按附件下载并在沙箱中打开，多段范围请求不改写内容类型。
 func TestLocalObjectServiceForcesSafeContentType(t *testing.T) {
 	store, err := serverfilecontent.NewLocalStore(t.TempDir())
 	if err != nil {
@@ -74,7 +74,9 @@ func TestLocalObjectServiceForcesSafeContentType(t *testing.T) {
 			t.Fatal(err)
 		}
 		response := httptest.NewRecorder()
-		NewLocalObjectService(nil, store).ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/"+storageKey, nil))
+		request := httptest.NewRequest(http.MethodGet, "/"+storageKey, nil)
+		request.Header.Set("Range", "bytes=0-1,3-4")
+		NewLocalObjectService(nil, store).ServeHTTP(response, request)
 		header := response.Header()
 		if response.Code != http.StatusOK || header.Get("Content-Type") != item.contentType || header.Get("Content-Disposition") != item.disposition ||
 			header.Get("Content-Security-Policy") != "sandbox" || header.Get("X-Content-Type-Options") != "nosniff" {

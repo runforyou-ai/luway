@@ -2891,7 +2891,8 @@
           conversation.replyTo = null;
         }
         appendServerMessage(conversation, result.message);
-        if (startsConversation) {
+        // 未开启多会话时消息可能并入已有会话，此时补读历史。
+        if (startsConversation && result.createdConversation) {
           conversation.historyLoaded = true;
         } else if (!conversation.historyLoaded) {
           loadConversationHistory(conversation);
@@ -3242,7 +3243,8 @@
     }
     entry.node.remove();
     appendServerMessage(target, result.message);
-    if (startsConversation) {
+    // 未开启多会话时附件可能并入已有会话，此时补读历史。
+    if (startsConversation && result.createdConversation) {
       target.historyLoaded = true;
     } else if (!target.historyLoaded) {
       loadConversationHistory(target);
@@ -3293,10 +3295,15 @@
     });
   }
 
+  // 判断内容类型是否为服务端提供内嵌预览的图片。
+  function inlineImage(contentType) {
+    return ["image/jpeg", "image/png", "image/gif", "image/webp"].indexOf(contentType) !== -1;
+  }
+
   // 读取可内嵌预览图片的像素尺寸，其他文件或无法解码时为 0。
   function readImageSize(file) {
     return new Promise(function (resolve) {
-      if (["image/jpeg", "image/png", "image/gif", "image/webp"].indexOf(file.type) === -1) {
+      if (!inlineImage(file.type)) {
         resolve({ width: 0, height: 0 });
         return;
       }
@@ -3326,7 +3333,7 @@
   function mediaNode(file) {
     var kind = fileKind(file.type);
     var url = URL.createObjectURL(file);
-    if (kind === "image") {
+    if (inlineImage(file.type)) {
       var imageButton = document.createElement("button");
       imageButton.type = "button";
       imageButton.className = "cv-asset";

@@ -26,7 +26,7 @@ func setWebsiteChannelSetting(t *testing.T, db *bun.DB, channelID, column string
 	}
 }
 
-// TestWebsiteVisitorConversationFollowsMultipleConversationsSetting 验证未开启多会话时未指定会话的消息进入已有会话，开启后新建会话。
+// TestWebsiteVisitorConversationFollowsMultipleConversationsSetting 验证未开启多会话时未指定会话的消息进入最近有消息的会话，开启后新建会话。
 func TestWebsiteVisitorConversationFollowsMultipleConversationsSetting(t *testing.T) {
 	t.Parallel()
 	f := newCustomerReadFixture(t)
@@ -46,8 +46,14 @@ func TestWebsiteVisitorConversationFollowsMultipleConversationsSetting(t *testin
 		t.Fatalf("single conversation result=%+v", result)
 	}
 	setWebsiteChannelSetting(t, f.db, f.channelID, "multiple_conversations_enabled", true)
-	if result := send(); !result.CreatedConversation || result.Conversation.ID == f.conversationID {
-		t.Fatalf("multiple conversations result=%+v", result)
+	created := send()
+	if !created.CreatedConversation || created.Conversation.ID == f.conversationID {
+		t.Fatalf("multiple conversations result=%+v", created)
+	}
+	// 再次关闭多会话后，未指定会话的消息进入最近有消息的会话。
+	setWebsiteChannelSetting(t, f.db, f.channelID, "multiple_conversations_enabled", false)
+	if result := send(); result.CreatedConversation || result.Conversation.ID != created.Conversation.ID {
+		t.Fatalf("recent conversation result=%+v", result)
 	}
 }
 

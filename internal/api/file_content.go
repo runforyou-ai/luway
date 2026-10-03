@@ -63,6 +63,10 @@ func (s *LocalObjectService) ServeHTTP(writer http.ResponseWriter, request *http
 		} else if !inline {
 			writer.Header().Set("Content-Disposition", "attachment")
 		}
+		// 多段范围请求按完整文件输出，响应保持上面确定的内容类型。
+		if strings.Contains(request.Header.Get("Range"), ",") {
+			request.Header.Del("Range")
+		}
 		// 通过最终对象目录的静态文件服务输出不可变文件。
 		s.objects.ServeHTTP(&localObjectResponseWriter{ResponseWriter: writer}, request)
 	case http.MethodPut:
