@@ -922,7 +922,7 @@ func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.Reque
 	return output, err
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
 	err := b.do(ctx, meta, http.MethodGet, "/platform/settings", nil, nil, &output)
@@ -950,7 +950,7 @@ func (b *Backend) UpdatePlatformDailyCreditGrant(ctx context.Context, meta appse
 	return output, err
 }
 
-// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (b *Backend) UpdatePlatformTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTelemetryInput) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
 	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/telemetry", nil, input, &output)
@@ -1066,6 +1066,13 @@ func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.
 func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformFailedTaskListInput) (appservice.PlatformFailedTaskList, error) {
 	var output appservice.PlatformFailedTaskList
 	err := b.do(ctx, meta, http.MethodGet, "/platform/runtime/failed-tasks", encodePlatformFailedTaskListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (b *Backend) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformDiagnostics, error) {
+	var output appservice.PlatformDiagnostics
+	err := b.do(ctx, meta, http.MethodGet, "/platform/diagnostics", nil, nil, &output)
 	return output, err
 }
 

@@ -5,7 +5,6 @@ package direct
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
@@ -27,9 +26,6 @@ func (o *directOperations) GenerateServiceReplySuggestions(ctx context.Context, 
 	if err == nil {
 		return appservice.ServiceReplySuggestions{Candidates: candidates}, nil
 	}
-	if ctx.Err() != nil {
-		return appservice.ServiceReplySuggestions{}, ctx.Err()
-	}
 	switch {
 	case errors.Is(err, creditaction.ErrInsufficient):
 		return appservice.ServiceReplySuggestions{}, appservice.ConflictError(meta, i18n.ErrorCreditsInsufficient, "credits_insufficient")
@@ -38,7 +34,7 @@ func (o *directOperations) GenerateServiceReplySuggestions(ctx context.Context, 
 	case errors.Is(err, agentrunaction.ErrAgentUnavailable):
 		return appservice.ServiceReplySuggestions{}, appservice.NotFoundError(meta, i18n.ErrorAgentUnavailable)
 	case errors.Is(err, agentrunaction.ErrCustomerReplyGenerationFailed):
-		return appservice.ServiceReplySuggestions{}, appservice.FailedError(meta, i18n.ErrorCustomerReplySuggestFailed)
+		return appservice.ServiceReplySuggestions{}, appservice.UnavailableError(meta, i18n.ErrorCustomerReplySuggestFailed, nil)
 	}
 	if validationError, ok := errors.AsType[*conversationaction.ValidationError](err); ok {
 		return appservice.ServiceReplySuggestions{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, serviceReplySuggestionsValidationKeys))
@@ -46,19 +42,14 @@ func (o *directOperations) GenerateServiceReplySuggestions(ctx context.Context, 
 	if conflictError, ok := errors.AsType[*conversationaction.ConflictError](err); ok {
 		return appservice.ServiceReplySuggestions{}, appservice.ConflictError(meta, customerReplyConflictMessageKey(conflictError.Reason), conflictError.Reason)
 	}
-	slog.Warn("读取客户回复候选资料失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "error", err)
-	return appservice.ServiceReplySuggestions{}, appservice.FailedError(meta, i18n.ErrorCustomerReplySuggestFailed)
+	return appservice.ServiceReplySuggestions{}, appservice.FailedError(meta, i18n.ErrorCustomerReplySuggestFailed, err)
 }
 
 // ListServiceReplyAgents 返回可用于 AI 写回复的 AI 员工。
 func (o *directOperations) ListServiceReplyAgents(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ServiceReplyAgentList, error) {
 	agents, err := o.listServiceReplyAgents.Execute(ctx, identity)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.ServiceReplyAgentList{}, ctx.Err()
-		}
-		slog.Warn("读取 AI 写回复可用员工失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.ServiceReplyAgentList{}, appservice.FailedError(meta, i18n.ErrorAgentListFailed)
+		return appservice.ServiceReplyAgentList{}, appservice.FailedError(meta, i18n.ErrorAgentListFailed, err)
 	}
 	output := make([]appservice.ServiceReplyAgent, 0, len(agents))
 	for _, agent := range agents {

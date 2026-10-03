@@ -1,4 +1,4 @@
-/** 平台设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，平台时区，授权状态，服务器标识、运行指标上报开关、安装时间和工作区上限。 */
+/** 平台设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，平台时区，授权状态，服务器标识、运行指标与错误上报开关、安装时间和工作区上限。 */
 import { useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -39,10 +39,10 @@ const timeZoneSchema = z.object({ timeZone: z.string().min(1) })
 /** 平台时区表单值。 */
 type TimeZoneFormValues = z.infer<typeof timeZoneSchema>
 
-/** 运行指标上报开关表单校验。 */
+/** 上报开关表单校验。 */
 const telemetrySchema = z.object({ telemetryEnabled: z.boolean() })
 
-/** 运行指标上报开关表单值。 */
+/** 上报开关表单值。 */
 type TelemetryFormValues = z.infer<typeof telemetrySchema>
 
 /** 展示平台规模、活跃趋势和服务器信息，平台时区与上报开关修改后立即保存，服务器标识可一键复制。 */
@@ -246,7 +246,7 @@ function TimeZoneField({ settings }: { settings: PlatformSettings }) {
   )
 }
 
-/** 运行指标上报开关，切换后立即保存。 */
+/** 运行指标与错误上报开关，切换后立即保存。 */
 function TelemetryField({ settings }: { settings: PlatformSettings }) {
   const { t } = useTranslation("platform")
   const form = useForm<TelemetryFormValues>({
@@ -262,7 +262,7 @@ function TelemetryField({ settings }: { settings: PlatformSettings }) {
     savedValues: (saved) => ({ telemetryEnabled: saved.telemetryEnabled }),
     errorMessage: t("overview.telemetrySaveError"),
     errorFields: ["telemetryEnabled"],
-    logLabel: "保存运行指标上报开关",
+    logLabel: "保存上报开关",
   })
 
   return (

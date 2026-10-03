@@ -9,6 +9,7 @@ import (
 	"time"
 
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
+	platformdiagnosticsaction "github.com/runforyou-ai/luway/internal/actions/platformdiagnostics"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/license"
@@ -34,14 +35,16 @@ type platformOps struct {
 	platformUsage          *platformaction.UsageQuery
 	platformRuntime        *platformaction.RuntimeStatusQuery
 	platformFailedTasks    *platformaction.FailedTaskListQuery
+	platformDiagnostics    *platformdiagnosticsaction.Query
+	instanceID             string
 	licenseRead            *platformaction.LicenseQuery
 	activateLicense        *platformaction.ActivateLicenseAction
 	onlineLicense          *platformaction.OnlineLicenseAction
 	updateTelemetry        *platformaction.UpdateTelemetryAction
 }
 
-// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权，s3 是用于检查可用性的对象存储配置。
-func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client, s3 serverfilecontent.S3Config) platformOps {
+// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权，s3 是用于检查可用性的对象存储配置，telemetry 是上报开关缓存，instanceID 是本服务端进程编号。
+func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client, s3 serverfilecontent.S3Config, telemetry *platformaction.Telemetry, instanceID string) platformOps {
 	return platformOps{
 		platformOverview:       platformaction.NewOverviewQuery(db),
 		platformSettingsRead:   platformaction.NewSettingsQuery(db),
@@ -54,10 +57,12 @@ func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys 
 		platformUsage:          platformaction.NewUsageQuery(db),
 		platformRuntime:        platformaction.NewRuntimeStatusQuery(db, s3),
 		platformFailedTasks:    platformaction.NewFailedTaskListQuery(db),
+		platformDiagnostics:    platformdiagnosticsaction.NewQuery(db, s3),
+		instanceID:             instanceID,
 		licenseRead:            platformaction.NewLicenseQuery(db),
 		activateLicense:        platformaction.NewActivateLicenseAction(db, licenseKeys),
 		onlineLicense:          platformaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
-		updateTelemetry:        platformaction.NewUpdateTelemetryAction(db),
+		updateTelemetry:        platformaction.NewUpdateTelemetryAction(db, telemetry),
 	}
 }
 
@@ -65,32 +70,16 @@ func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys 
 func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformOverview, error) {
 	overview, err := o.platformOverview.Execute(ctx)
 	if err != nil {
-		return appservice.PlatformOverview{}, platformError(ctx, meta, err, i18n.ErrorPlatformOverviewFailed, account, "")
+		return appservice.PlatformOverview{}, platformError(meta, err, i18n.ErrorPlatformOverviewFailed)
 	}
-	trend := make([]appservice.PlatformDailyActivity, 0, len(overview.Trend))
-	for _, day := range overview.Trend {
-		trend = append(trend, appservice.PlatformDailyActivity{
-			Date: day.Date.Format(time.DateOnly), ActiveAccounts: day.ActiveAccounts, ActiveWorkspaces: day.ActiveWorkspaces,
-			NewAccounts: day.NewAccounts, NewWorkspaces: day.NewWorkspaces,
-		})
-	}
-	return appservice.PlatformOverview{
-		ServerID: overview.ServerID, InstalledAt: overview.InstalledAt, TimeZone: overview.TimeZone,
-		StatsRebuilding: overview.StatsRebuilding,
-		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
-		Last7Days: appservice.PlatformActivityWindow(overview.Last7Days), Last30Days: appservice.PlatformActivityWindow(overview.Last30Days),
-		Trend: trend, License: licenseFromAction(overview.License),
-		Capabilities: appservice.Capabilities{
-			WorkspaceLimit: overview.Capabilities.WorkspaceLimit, CustomBranding: overview.Capabilities.CustomBranding,
-		},
-	}, nil
+	return platformOverviewFromAction(overview), nil
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (o *directOperations) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformSettings, error) {
 	settings, err := o.platformSettingsRead.Execute(ctx)
 	if err != nil {
-		return appservice.PlatformSettings{}, platformError(ctx, meta, err, i18n.ErrorPlatformSettingsReadFailed, account, "")
+		return appservice.PlatformSettings{}, platformError(meta, err, i18n.ErrorPlatformSettingsReadFailed)
 	}
 	return platformSettingsFromAction(settings), nil
 }
@@ -102,7 +91,7 @@ func (o *directOperations) UpdatePlatformSettings(ctx context.Context, meta apps
 		WorkspaceCreationPolicy: domain.WorkspaceCreationPolicy(input.WorkspaceCreationPolicy),
 	})
 	if err != nil {
-		return appservice.PlatformSettings{}, platformError(ctx, meta, err, i18n.ErrorPlatformSettingsUpdateFailed, account, "")
+		return appservice.PlatformSettings{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
 	}
 	slog.Info("平台策略已修改", "account_id", account.Account.ID,
 		"registration_policy", settings.RegistrationPolicy, "workspace_creation_policy", settings.WorkspaceCreationPolicy)
@@ -113,19 +102,19 @@ func (o *directOperations) UpdatePlatformSettings(ctx context.Context, meta apps
 func (o *directOperations) UpdatePlatformTimeZone(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformTimeZoneInput) (appservice.PlatformSettings, error) {
 	settings, err := o.updateTimeZone.Execute(ctx, account, input.TimeZone)
 	if err != nil {
-		return appservice.PlatformSettings{}, platformError(ctx, meta, err, i18n.ErrorPlatformSettingsUpdateFailed, account, "")
+		return appservice.PlatformSettings{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
 	}
 	slog.Info("平台时区已修改", "account_id", account.Account.ID, "time_zone", settings.TimeZone)
 	return platformSettingsFromAction(settings), nil
 }
 
-// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (o *directOperations) UpdatePlatformTelemetry(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformTelemetryInput) (appservice.PlatformSettings, error) {
 	settings, err := o.updateTelemetry.Execute(ctx, account, input.TelemetryEnabled)
 	if err != nil {
-		return appservice.PlatformSettings{}, platformError(ctx, meta, err, i18n.ErrorPlatformSettingsUpdateFailed, account, "")
+		return appservice.PlatformSettings{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
 	}
-	slog.Info("运行指标上报开关已修改", "account_id", account.Account.ID, "telemetry_enabled", settings.TelemetryEnabled)
+	slog.Info("上报开关已修改", "account_id", account.Account.ID, "telemetry_enabled", settings.TelemetryEnabled)
 	return platformSettingsFromAction(settings), nil
 }
 
@@ -135,7 +124,7 @@ func (o *directOperations) ListPlatformAccounts(ctx context.Context, meta appser
 		Query: input.Query, Status: domain.AccountStatus(input.Status), Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
-		return appservice.PlatformAccountList{}, platformError(ctx, meta, err, i18n.ErrorPlatformAccountListFailed, account, "")
+		return appservice.PlatformAccountList{}, platformError(meta, err, i18n.ErrorPlatformAccountListFailed)
 	}
 	accounts := make([]appservice.PlatformAccount, 0, len(output.Accounts))
 	for _, record := range output.Accounts {
@@ -147,25 +136,25 @@ func (o *directOperations) ListPlatformAccounts(ctx context.Context, meta appser
 // DeactivatePlatformAccount 停用其他账号并使其登录会话失效。
 func (o *directOperations) DeactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, accountID string) (appservice.PlatformAccount, error) {
 	record, err := o.updatePlatformAccount.SetStatus(ctx, account, accountID, domain.AccountStatusInactive)
-	return platformAccountResult(ctx, meta, account, accountID, record, err, "账号已停用")
+	return platformAccountResult(meta, account, accountID, record, err, "账号已停用")
 }
 
 // ReactivatePlatformAccount 恢复已停用的其他账号。
 func (o *directOperations) ReactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, accountID string) (appservice.PlatformAccount, error) {
 	record, err := o.updatePlatformAccount.SetStatus(ctx, account, accountID, domain.AccountStatusActive)
-	return platformAccountResult(ctx, meta, account, accountID, record, err, "账号已恢复")
+	return platformAccountResult(meta, account, accountID, record, err, "账号已恢复")
 }
 
 // GrantPlatformAdmin 把其他账号设为平台管理员。
 func (o *directOperations) GrantPlatformAdmin(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, accountID string) (appservice.PlatformAccount, error) {
 	record, err := o.updatePlatformAccount.SetPlatformAdmin(ctx, account, accountID, true)
-	return platformAccountResult(ctx, meta, account, accountID, record, err, "已设为平台管理员")
+	return platformAccountResult(meta, account, accountID, record, err, "已设为平台管理员")
 }
 
 // RevokePlatformAdmin 撤销其他账号的平台管理员身份。
 func (o *directOperations) RevokePlatformAdmin(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, accountID string) (appservice.PlatformAccount, error) {
 	record, err := o.updatePlatformAccount.SetPlatformAdmin(ctx, account, accountID, false)
-	return platformAccountResult(ctx, meta, account, accountID, record, err, "已撤销平台管理员")
+	return platformAccountResult(meta, account, accountID, record, err, "已撤销平台管理员")
 }
 
 // ListPlatformWorkspaces 返回平台内的全部工作区及其状态和当前规模。
@@ -175,7 +164,7 @@ func (o *directOperations) ListPlatformWorkspaces(ctx context.Context, meta apps
 		Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
-		return appservice.PlatformWorkspaceList{}, platformError(ctx, meta, err, i18n.ErrorWorkspaceListFailed, account, "")
+		return appservice.PlatformWorkspaceList{}, platformError(meta, err, i18n.ErrorWorkspaceListFailed)
 	}
 	workspaces := make([]appservice.PlatformWorkspace, 0, len(output.Workspaces))
 	for _, record := range output.Workspaces {
@@ -188,7 +177,7 @@ func (o *directOperations) ListPlatformWorkspaces(ctx context.Context, meta apps
 func (o *directOperations) GetLicense(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.License, error) {
 	current, err := o.licenseRead.Execute(ctx)
 	if err != nil {
-		return appservice.License{}, platformError(ctx, meta, err, i18n.ErrorLicenseReadFailed, account, "")
+		return appservice.License{}, platformError(meta, err, i18n.ErrorLicenseReadFailed)
 	}
 	return licenseFromAction(current), nil
 }
@@ -197,7 +186,7 @@ func (o *directOperations) GetLicense(ctx context.Context, meta appservice.Reque
 func (o *directOperations) ActivateLicense(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.ActivateLicenseInput) (appservice.License, error) {
 	current, err := o.activateLicense.Execute(ctx, account, input.LicenseCode)
 	if err != nil {
-		return appservice.License{}, platformError(ctx, meta, err, i18n.ErrorLicenseActivateFailed, account, "")
+		return appservice.License{}, platformError(meta, err, i18n.ErrorLicenseActivateFailed)
 	}
 	slog.Info("授权已激活", "account_id", account.Account.ID, "license_id", current.LicenseID, "expires_at", current.ExpiresAt)
 	return licenseFromAction(current), nil
@@ -207,7 +196,7 @@ func (o *directOperations) ActivateLicense(ctx context.Context, meta appservice.
 func (o *directOperations) ActivateLicenseOnline(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.ActivateLicenseOnlineInput) (appservice.License, error) {
 	current, err := o.onlineLicense.Activate(ctx, account, input.ActivationCode)
 	if err != nil {
-		return appservice.License{}, platformError(ctx, meta, err, i18n.ErrorLicenseActivateFailed, account, "")
+		return appservice.License{}, platformError(meta, err, i18n.ErrorLicenseActivateFailed)
 	}
 	slog.Info("授权已在线激活", "account_id", account.Account.ID, "license_id", current.LicenseID, "expires_at", current.ExpiresAt)
 	return licenseFromAction(current), nil
@@ -220,7 +209,7 @@ func (o *directOperations) SyncLicense(ctx context.Context, meta appservice.Requ
 		return appservice.License{}, appservice.InvalidError(meta, i18n.ErrorLicenseRenewalRequired, nil)
 	}
 	if err != nil {
-		return appservice.License{}, platformError(ctx, meta, err, i18n.ErrorLicenseSyncFailed, account, "")
+		return appservice.License{}, platformError(meta, err, i18n.ErrorLicenseSyncFailed)
 	}
 	slog.Info("授权已同步", "account_id", account.Account.ID, "license_id", current.LicenseID, "expires_at", current.ExpiresAt)
 	return licenseFromAction(current), nil
@@ -262,7 +251,7 @@ func (o *directOperations) setPlatformWorkspaceStatus(ctx context.Context, meta 
 		return appservice.PlatformWorkspace{}, appservice.InvalidError(meta, i18n.ErrorPlatformWorkspaceHasAdmin, nil)
 	}
 	if err != nil {
-		return appservice.PlatformWorkspace{}, platformError(ctx, meta, err, i18n.ErrorPlatformWorkspaceUpdateFailed, account, "")
+		return appservice.PlatformWorkspace{}, platformError(meta, err, i18n.ErrorPlatformWorkspaceUpdateFailed)
 	}
 	slog.Info(message, "operator_account_id", account.Account.ID, "workspace_id", workspaceID)
 	return platformWorkspaceFromAction(record), nil
@@ -272,7 +261,7 @@ func (o *directOperations) setPlatformWorkspaceStatus(ctx context.Context, meta 
 func (o *directOperations) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
 	metrics, err := o.platformUsage.Summary(ctx, input.Days)
 	if err != nil {
-		return appservice.PlatformUsageMetrics{}, platformError(ctx, meta, err, i18n.ErrorPlatformUsageFailed, account, "")
+		return appservice.PlatformUsageMetrics{}, platformError(meta, err, i18n.ErrorPlatformUsageFailed)
 	}
 	return appservice.PlatformUsageMetrics(metrics), nil
 }
@@ -283,7 +272,7 @@ func (o *directOperations) ListPlatformWorkspaceUsage(ctx context.Context, meta 
 		Days: input.Days, Sort: platformaction.UsageSort(input.Sort), Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
-		return appservice.PlatformWorkspaceUsageList{}, platformError(ctx, meta, err, i18n.ErrorPlatformUsageFailed, account, "")
+		return appservice.PlatformWorkspaceUsageList{}, platformError(meta, err, i18n.ErrorPlatformUsageFailed)
 	}
 	workspaces := make([]appservice.PlatformWorkspaceUsage, 0, len(output.Workspaces))
 	for _, record := range output.Workspaces {
@@ -302,28 +291,16 @@ func (o *directOperations) ListPlatformWorkspaceUsage(ctx context.Context, meta 
 func (o *directOperations) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformRuntimeStatus, error) {
 	runtime, err := o.platformRuntime.Execute(ctx)
 	if err != nil {
-		return appservice.PlatformRuntimeStatus{}, platformError(ctx, meta, err, i18n.ErrorPlatformRuntimeFailed, account, "")
+		return appservice.PlatformRuntimeStatus{}, platformError(meta, err, i18n.ErrorPlatformRuntimeFailed)
 	}
-	status := appservice.PlatformRuntimeStatus{
-		Servers:       make([]appservice.PlatformServer, 0, len(runtime.Servers)),
-		ObjectStorage: appservice.PlatformObjectStorageStatus(runtime.ObjectStorage),
-		Control:       appservice.PlatformControlStatus(runtime.Control),
-		Queues:        make([]appservice.PlatformTaskQueue, 0, len(runtime.Queues)),
-	}
-	for _, server := range runtime.Servers {
-		status.Servers = append(status.Servers, appservice.PlatformServer(server))
-	}
-	for _, queue := range runtime.Queues {
-		status.Queues = append(status.Queues, appservice.PlatformTaskQueue(queue))
-	}
-	return status, nil
+	return platformRuntimeFromAction(runtime), nil
 }
 
 // ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 func (o *directOperations) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformFailedTaskListInput) (appservice.PlatformFailedTaskList, error) {
 	output, err := o.platformFailedTasks.Execute(ctx, platformaction.FailedTaskListInput{Page: input.Page, PageSize: input.PageSize})
 	if err != nil {
-		return appservice.PlatformFailedTaskList{}, platformError(ctx, meta, err, i18n.ErrorPlatformRuntimeFailed, account, "")
+		return appservice.PlatformFailedTaskList{}, platformError(meta, err, i18n.ErrorPlatformRuntimeFailed)
 	}
 	tasks := make([]appservice.PlatformFailedTask, 0, len(output.Tasks))
 	for _, task := range output.Tasks {
@@ -335,6 +312,82 @@ func (o *directOperations) ListPlatformFailedTasks(ctx context.Context, meta app
 	return appservice.PlatformFailedTaskList{
 		Tasks: tasks, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total},
 	}, nil
+}
+
+// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (o *directOperations) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformDiagnostics, error) {
+	diagnostics, err := o.platformDiagnostics.Execute(ctx)
+	if err != nil {
+		return appservice.PlatformDiagnostics{}, platformError(meta, err, i18n.ErrorPlatformDiagnosticsFailed)
+	}
+	output := appservice.PlatformDiagnostics{
+		GeneratedAt: diagnostics.GeneratedAt, ExportedBy: o.instanceID,
+		Overview: platformOverviewFromAction(diagnostics.Overview), Runtime: platformRuntimeFromAction(diagnostics.Runtime),
+		Database:    appservice.PlatformDatabaseStatus(diagnostics.Database),
+		FailedTasks: make([]appservice.PlatformDiagnosticTask, 0, len(diagnostics.FailedTasks)),
+		AIProviders: make([]appservice.PlatformAIProviderSummary, 0, len(diagnostics.AIProviders)),
+	}
+	for _, task := range diagnostics.FailedTasks {
+		output.FailedTasks = append(output.FailedTasks, appservice.PlatformDiagnosticTask{
+			ID: task.ID, Action: task.ActionName, Queue: task.QueueName, WorkspaceID: task.OrganizationID, Retrying: task.Retrying,
+			Attempt: task.Attempt, MaxAttempts: task.MaxAttempts, Error: task.LastError, FailedAt: task.FailedAt,
+		})
+	}
+	for _, provider := range diagnostics.AIProviders {
+		output.AIProviders = append(output.AIProviders, platformAIProviderSummaryFromAction(provider))
+	}
+	slog.Info("平台诊断信息已导出", "account_id", account.Account.ID)
+	return output, nil
+}
+
+// platformOverviewFromAction 把平台概览转换为应用契约。
+func platformOverviewFromAction(overview platformaction.Overview) appservice.PlatformOverview {
+	trend := make([]appservice.PlatformDailyActivity, 0, len(overview.Trend))
+	for _, day := range overview.Trend {
+		trend = append(trend, appservice.PlatformDailyActivity{
+			Date: day.Date.Format(time.DateOnly), ActiveAccounts: day.ActiveAccounts, ActiveWorkspaces: day.ActiveWorkspaces,
+			NewAccounts: day.NewAccounts, NewWorkspaces: day.NewWorkspaces,
+		})
+	}
+	return appservice.PlatformOverview{
+		ServerID: overview.ServerID, InstalledAt: overview.InstalledAt, TimeZone: overview.TimeZone,
+		StatsRebuilding: overview.StatsRebuilding,
+		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
+		Last7Days: appservice.PlatformActivityWindow(overview.Last7Days), Last30Days: appservice.PlatformActivityWindow(overview.Last30Days),
+		Trend: trend, License: licenseFromAction(overview.License),
+		Capabilities: appservice.Capabilities{
+			WorkspaceLimit: overview.Capabilities.WorkspaceLimit, CustomBranding: overview.Capabilities.CustomBranding,
+		},
+	}
+}
+
+// platformRuntimeFromAction 把平台运行状态转换为应用契约。
+func platformRuntimeFromAction(runtime platformaction.RuntimeStatus) appservice.PlatformRuntimeStatus {
+	status := appservice.PlatformRuntimeStatus{
+		Servers:       make([]appservice.PlatformServer, 0, len(runtime.Servers)),
+		ObjectStorage: appservice.PlatformObjectStorageStatus(runtime.ObjectStorage),
+		Control:       appservice.PlatformControlStatus(runtime.Control),
+		Queues:        make([]appservice.PlatformTaskQueue, 0, len(runtime.Queues)),
+	}
+	for _, server := range runtime.Servers {
+		config := server.Config
+		status.Servers = append(status.Servers, appservice.PlatformServer{
+			ID: server.ID, StartedAt: server.StartedAt, HeartbeatAt: server.HeartbeatAt, Hostname: server.Hostname, Version: server.Version,
+			TasksNATSConnected: server.TasksNATSConnected, RealtimeNATSConnected: server.RealtimeNATSConnected, Online: server.Online,
+			Config: appservice.PlatformServerConfig{
+				DeploymentName: config.DeploymentName, PublicURL: config.PublicURL, Listen: config.Listen, TLSMode: config.TLSMode,
+				Database:         appservice.PlatformServerDatabaseConfig(config.Database),
+				NATS:             appservice.PlatformServerNATSConfig(config.NATS),
+				Storage:          appservice.PlatformServerStorageConfig(config.Storage),
+				SMTP:             appservice.PlatformServerSMTPConfig(config.SMTP),
+				ClientsDirectory: config.ClientsDir,
+			},
+		})
+	}
+	for _, queue := range runtime.Queues {
+		status.Queues = append(status.Queues, appservice.PlatformTaskQueue(queue))
+	}
+	return status
 }
 
 // platformWorkspaceFromAction 把平台工作区记录转换为应用契约。
@@ -371,19 +424,16 @@ func platformAccountFromAction(record platformaction.AccountRecord) appservice.P
 }
 
 // platformAccountResult 把平台账号修改结果转换为应用契约，成功时记录日志。
-func platformAccountResult(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, accountID string, record platformaction.AccountRecord, err error, message string) (appservice.PlatformAccount, error) {
+func platformAccountResult(meta appservice.RequestMeta, account *servermodels.AccountIdentity, accountID string, record platformaction.AccountRecord, err error, message string) (appservice.PlatformAccount, error) {
 	if err != nil {
-		return appservice.PlatformAccount{}, platformError(ctx, meta, err, i18n.ErrorPlatformAccountUpdateFailed, account, accountID)
+		return appservice.PlatformAccount{}, platformError(meta, err, i18n.ErrorPlatformAccountUpdateFailed)
 	}
 	slog.Info(message, "operator_account_id", account.Account.ID, "account_id", accountID)
 	return platformAccountFromAction(record), nil
 }
 
 // platformError 把平台管理操作的错误转换为本地化业务错误。
-func platformError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, account *servermodels.AccountIdentity, accountID string) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func platformError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		// 把平台管理校验错误码映射为本地化文案键。
 		keys := map[common.FieldCode]i18n.Key{
@@ -428,10 +478,5 @@ func platformError(ctx context.Context, meta appservice.RequestMeta, err error, 
 			return appservice.InvalidError(meta, key, nil)
 		}
 	}
-	attributes := []any{"account_id", account.Account.ID, "failure", failureKey, "error", err}
-	if accountID != "" {
-		attributes = append(attributes, "target_account_id", accountID)
-	}
-	slog.Warn("平台管理操作失败", attributes...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }

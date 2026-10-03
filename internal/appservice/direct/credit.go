@@ -39,7 +39,7 @@ func newCreditOps(db *bun.DB) creditOps {
 func (o *directOperations) GetCreditBalance(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.CreditBalance, error) {
 	balance, err := creditaction.GetBalance(ctx, o.creditDB, identity.Organization.ID)
 	if err != nil {
-		return appservice.CreditBalance{}, creditError(ctx, meta, err, i18n.ErrorCreditBalanceReadFailed, "organization_id", identity.Organization.ID)
+		return appservice.CreditBalance{}, creditError(meta, err, i18n.ErrorCreditBalanceReadFailed)
 	}
 	return creditBalanceFromAction(balance), nil
 }
@@ -48,7 +48,7 @@ func (o *directOperations) GetCreditBalance(ctx context.Context, meta appservice
 func (o *directOperations) ListCreditEntries(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.CreditEntryListInput) (appservice.CreditEntryList, error) {
 	list, err := creditaction.ListEntries(ctx, o.creditDB, identity.Organization.ID, input.Page, input.PageSize)
 	if err != nil {
-		return appservice.CreditEntryList{}, creditError(ctx, meta, err, i18n.ErrorCreditEntryListFailed, "organization_id", identity.Organization.ID)
+		return appservice.CreditEntryList{}, creditError(meta, err, i18n.ErrorCreditEntryListFailed)
 	}
 	return creditEntryListFromAction(list), nil
 }
@@ -57,7 +57,7 @@ func (o *directOperations) ListCreditEntries(ctx context.Context, meta appservic
 func (o *directOperations) UpdatePlatformDailyCreditGrant(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformDailyCreditGrantInput) (appservice.PlatformSettings, error) {
 	settings, err := o.updateDailyCreditGrant.Execute(ctx, account, input.DailyCreditGrant)
 	if err != nil {
-		return appservice.PlatformSettings{}, creditError(ctx, meta, err, i18n.ErrorPlatformSettingsUpdateFailed, "account_id", account.Account.ID)
+		return appservice.PlatformSettings{}, creditError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
 	}
 	slog.Info("每日赠送积分已修改", "account_id", account.Account.ID, "daily_credit_grant", settings.DailyCreditGrant)
 	return platformSettingsFromAction(settings), nil
@@ -67,7 +67,7 @@ func (o *directOperations) UpdatePlatformDailyCreditGrant(ctx context.Context, m
 func (o *directOperations) GetPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, workspaceID string) (appservice.CreditBalance, error) {
 	balance, err := o.workspaceCredits.Balance(ctx, workspaceID)
 	if err != nil {
-		return appservice.CreditBalance{}, creditError(ctx, meta, err, i18n.ErrorCreditBalanceReadFailed, "account_id", account.Account.ID, "workspace_id", workspaceID)
+		return appservice.CreditBalance{}, creditError(meta, err, i18n.ErrorCreditBalanceReadFailed)
 	}
 	return creditBalanceFromAction(balance), nil
 }
@@ -76,7 +76,7 @@ func (o *directOperations) GetPlatformWorkspaceCredits(ctx context.Context, meta
 func (o *directOperations) ListPlatformWorkspaceCreditEntries(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, workspaceID string, input appservice.CreditEntryListInput) (appservice.CreditEntryList, error) {
 	list, err := o.workspaceCredits.Entries(ctx, workspaceID, input.Page, input.PageSize)
 	if err != nil {
-		return appservice.CreditEntryList{}, creditError(ctx, meta, err, i18n.ErrorCreditEntryListFailed, "account_id", account.Account.ID, "workspace_id", workspaceID)
+		return appservice.CreditEntryList{}, creditError(meta, err, i18n.ErrorCreditEntryListFailed)
 	}
 	return creditEntryListFromAction(list), nil
 }
@@ -88,19 +88,19 @@ func (o *directOperations) AdjustPlatformWorkspaceCredits(ctx context.Context, m
 		return appservice.PlatformCreditAdjustment{}, appservice.InvalidError(meta, i18n.ErrorPlatformCreditNothingToDeduct, nil)
 	}
 	if err != nil {
-		return appservice.PlatformCreditAdjustment{}, creditError(ctx, meta, err, i18n.ErrorPlatformCreditAdjustFailed, "account_id", account.Account.ID, "workspace_id", workspaceID)
+		return appservice.PlatformCreditAdjustment{}, creditError(meta, err, i18n.ErrorPlatformCreditAdjustFailed)
 	}
 	slog.Info("工作区积分已调整", "account_id", account.Account.ID, "workspace_id", workspaceID, "amount", applied)
 	balance, err := o.workspaceCredits.Balance(ctx, workspaceID)
 	if err != nil {
-		return appservice.PlatformCreditAdjustment{}, creditError(ctx, meta, err, i18n.ErrorCreditBalanceReadFailed, "account_id", account.Account.ID, "workspace_id", workspaceID)
+		return appservice.PlatformCreditAdjustment{}, creditError(meta, err, i18n.ErrorCreditBalanceReadFailed)
 	}
 	return appservice.PlatformCreditAdjustment{Amount: applied, Balance: creditBalanceFromAction(balance)}, nil
 }
 
 // creditError 把积分操作的错误转换为本地化业务错误。
-func creditError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, attributes ...any) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func creditError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
@@ -120,8 +120,7 @@ func creditError(ctx context.Context, meta appservice.RequestMeta, err error, fa
 	case errors.Is(err, platformaction.ErrWorkspaceNotFound):
 		return appservice.NotFoundError(meta, i18n.ErrorPlatformWorkspaceNotFound)
 	}
-	slog.Warn("积分操作失败", append(attributes, "failure", failureKey, "error", err)...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // creditBalanceFromAction 把积分余额转换为应用契约。

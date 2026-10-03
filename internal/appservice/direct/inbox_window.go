@@ -18,7 +18,7 @@ func (o *directOperations) GetInboxContext(ctx context.Context, meta appservice.
 		AnchorID: input.AnchorID, AnchorCursor: input.AnchorCursor, BeforeLimit: input.BeforeLimit, AfterLimit: input.AfterLimit,
 	})
 	if err != nil {
-		return appservice.InboxContext{}, inboxReadError(ctx, meta, identity.Organization.ID, "锚点上下文", err)
+		return appservice.InboxContext{}, inboxReadError(meta, err)
 	}
 	// 锚点与窗口一起解析头像，筛选外但可读的锚点仅放在独立结果中。
 	summaries := result.Window.Conversations
@@ -52,7 +52,7 @@ func (o *directOperations) ReadInboxWindow(ctx context.Context, meta appservice.
 		StartCursor: input.StartCursor, EndCursor: input.EndCursor,
 	})
 	if err != nil {
-		return appservice.InboxWindow{}, inboxReadError(ctx, meta, identity.Organization.ID, "列表区间", err)
+		return appservice.InboxWindow{}, inboxReadError(meta, err)
 	}
 	conversations, err := o.inboxConversationsFromActions(ctx, meta, identity, window.Conversations)
 	if err != nil {

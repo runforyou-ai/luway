@@ -435,7 +435,7 @@ type Backend interface {
 	// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 	//appservice:route GET /platform/overview auth=admin
 	GetPlatformOverview(context.Context, RequestMeta) (PlatformOverview, error)
-	// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+	// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 	//appservice:route GET /platform/settings auth=admin
 	GetPlatformSettings(context.Context, RequestMeta) (PlatformSettings, error)
 	// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
@@ -447,7 +447,7 @@ type Backend interface {
 	// UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
 	//appservice:route PUT /platform/settings/daily-credit-grant auth=admin
 	UpdatePlatformDailyCreditGrant(context.Context, RequestMeta, PlatformDailyCreditGrantInput) (PlatformSettings, error)
-	// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+	// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 	//appservice:route PUT /platform/settings/telemetry auth=admin
 	UpdatePlatformTelemetry(context.Context, RequestMeta, PlatformTelemetryInput) (PlatformSettings, error)
 	// ListPlatformAccounts 返回平台内的账号。
@@ -498,6 +498,9 @@ type Backend interface {
 	// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 	//appservice:route GET /platform/runtime/failed-tasks auth=admin
 	ListPlatformFailedTasks(context.Context, RequestMeta, PlatformFailedTaskListInput) (PlatformFailedTaskList, error)
+	// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+	//appservice:route GET /platform/diagnostics auth=admin
+	GetPlatformDiagnostics(context.Context, RequestMeta) (PlatformDiagnostics, error)
 	// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
 	//appservice:route GET /platform/workspaces/:workspaceID/credits auth=admin
 	GetPlatformWorkspaceCredits(context.Context, RequestMeta, string) (CreditBalance, error)
@@ -924,6 +927,11 @@ type RealtimeConnector interface {
 // ImageSelector 由支持原生文件对话框的平台实现。
 type ImageSelector interface {
 	SelectImage(context.Context, RequestMeta) (ImageFile, error)
+}
+
+// FileSaver 由支持原生保存对话框的平台实现。
+type FileSaver interface {
+	SaveTextFile(context.Context, RequestMeta, TextFileInput) (bool, error)
 }
 
 // ConversationWindowOpener 由支持多窗口的平台实现，在独立窗口打开指定会话。

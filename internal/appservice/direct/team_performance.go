@@ -5,7 +5,6 @@ package direct
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	teamperformanceaction "github.com/runforyou-ai/luway/internal/actions/teamperformance"
 	"github.com/runforyou-ai/luway/internal/appservice"
@@ -42,7 +41,7 @@ func (o *directOperations) GetTeamPerformanceReport(ctx context.Context, meta ap
 	}
 	summary, err := o.teamPerformanceOverview.Execute(ctx, identity, scope)
 	if err != nil {
-		return appservice.TeamPerformanceReport{}, teamPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.TeamPerformanceReport{}, teamPerformanceError(meta, err)
 	}
 	return appservice.TeamPerformanceReport(*summary), nil
 }
@@ -55,7 +54,7 @@ func (o *directOperations) ListTeamPerformanceMembers(ctx context.Context, meta 
 	}
 	list, err := o.teamPerformanceMembers.Execute(ctx, identity, teamperformanceaction.ListInput{Input: scope, Page: input.Page, PageSize: input.PageSize})
 	if err != nil {
-		return appservice.TeamPerformanceMemberList{}, teamPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.TeamPerformanceMemberList{}, teamPerformanceError(meta, err)
 	}
 	avatarFileIDs := make([]*string, 0, len(list.Rows))
 	for _, row := range list.Rows {
@@ -63,7 +62,7 @@ func (o *directOperations) ListTeamPerformanceMembers(ctx context.Context, meta 
 	}
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, avatarFileIDs...)
 	if err != nil {
-		return appservice.TeamPerformanceMemberList{}, teamPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.TeamPerformanceMemberList{}, teamPerformanceError(meta, err)
 	}
 	rows := make([]appservice.TeamPerformanceMember, 0, len(list.Rows))
 	for _, row := range list.Rows {
@@ -86,7 +85,7 @@ func (o *directOperations) ListTeamPerformanceBreakdowns(ctx context.Context, me
 		Dimension: domain.ServiceReportDimension(input.Dimension),
 	})
 	if err != nil {
-		return appservice.TeamPerformanceBreakdownList{}, teamPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.TeamPerformanceBreakdownList{}, teamPerformanceError(meta, err)
 	}
 	rows := make([]appservice.TeamPerformanceBreakdown, 0, len(list.Rows))
 	for _, row := range list.Rows {
@@ -108,11 +107,11 @@ func (o *directOperations) ListTeamPerformanceIssues(ctx context.Context, meta a
 		Issue:     domain.ServiceIssueType(input.Issue),
 	})
 	if err != nil {
-		return appservice.ServiceIssueList{}, teamPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.ServiceIssueList{}, teamPerformanceError(meta, err)
 	}
 	output, err := o.serviceIssueList(ctx, identity, list)
 	if err != nil {
-		return appservice.ServiceIssueList{}, teamPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.ServiceIssueList{}, teamPerformanceError(meta, err)
 	}
 	return output, nil
 }
@@ -129,10 +128,9 @@ func teamPerformanceScope(meta appservice.RequestMeta, days int, channelID, team
 }
 
 // teamPerformanceError 把团队表现查询错误转换为结构化、本地化错误。
-func teamPerformanceError(meta appservice.RequestMeta, err error, organizationID string) error {
+func teamPerformanceError(meta appservice.RequestMeta, err error) error {
 	if errors.Is(err, teamperformanceaction.ErrPageSizeInvalid) || errors.Is(err, teamperformanceaction.ErrDimensionInvalid) || errors.Is(err, teamperformanceaction.ErrIssueInvalid) {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 	}
-	slog.Warn("读取团队表现报表失败", "organization_id", organizationID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorTeamPerformanceReportLoadFailed)
+	return appservice.FailedError(meta, i18n.ErrorTeamPerformanceReportLoadFailed, err)
 }

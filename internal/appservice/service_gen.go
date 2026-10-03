@@ -679,7 +679,7 @@ func (s *Service) GetPlatformOverview(ctx context.Context, meta RequestMeta) (Pl
 	return WithNormalizedSlices(s.backend.GetPlatformOverview(ctx, meta))
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (s *Service) GetPlatformSettings(ctx context.Context, meta RequestMeta) (PlatformSettings, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformSettings(ctx, meta))
 }
@@ -699,7 +699,7 @@ func (s *Service) UpdatePlatformDailyCreditGrant(ctx context.Context, meta Reque
 	return WithNormalizedSlices(s.backend.UpdatePlatformDailyCreditGrant(ctx, meta, input))
 }
 
-// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (s *Service) UpdatePlatformTelemetry(ctx context.Context, meta RequestMeta, input PlatformTelemetryInput) (PlatformSettings, error) {
 	return WithNormalizedSlices(s.backend.UpdatePlatformTelemetry(ctx, meta, input))
 }
@@ -782,6 +782,11 @@ func (s *Service) GetPlatformRuntimeStatus(ctx context.Context, meta RequestMeta
 // ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 func (s *Service) ListPlatformFailedTasks(ctx context.Context, meta RequestMeta, input PlatformFailedTaskListInput) (PlatformFailedTaskList, error) {
 	return WithNormalizedSlices(s.backend.ListPlatformFailedTasks(ctx, meta, input))
+}
+
+// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (s *Service) GetPlatformDiagnostics(ctx context.Context, meta RequestMeta) (PlatformDiagnostics, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformDiagnostics(ctx, meta))
 }
 
 // GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。

@@ -173,6 +173,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/platform/usage/workspaces", s.listPlatformWorkspaceUsage)
 	router.GET("/platform/runtime", s.getPlatformRuntimeStatus)
 	router.GET("/platform/runtime/failed-tasks", s.listPlatformFailedTasks)
+	router.GET("/platform/diagnostics", s.getPlatformDiagnostics)
 	router.GET("/platform/workspaces/:workspaceID/credits", s.getPlatformWorkspaceCredits)
 	router.GET("/platform/workspaces/:workspaceID/credits/entries", s.listPlatformWorkspaceCreditEntries)
 	router.POST("/platform/workspaces/:workspaceID/credits/adjustments", s.adjustPlatformWorkspaceCredits)
@@ -1418,7 +1419,7 @@ func (s *Service) getPlatformOverview(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// getPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (s *Service) getPlatformSettings(c *gin.Context) {
 	output, err := s.application.GetPlatformSettings(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1454,7 +1455,7 @@ func (s *Service) updatePlatformDailyCreditGrant(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// updatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (s *Service) updatePlatformTelemetry(c *gin.Context) {
 	var input appservice.PlatformTelemetryInput
 	if !bindJSON(c, &input) {
@@ -1585,6 +1586,12 @@ func (s *Service) listPlatformFailedTasks(c *gin.Context) {
 		return
 	}
 	output, err := s.application.ListPlatformFailedTasks(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (s *Service) getPlatformDiagnostics(c *gin.Context) {
+	output, err := s.application.GetPlatformDiagnostics(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 

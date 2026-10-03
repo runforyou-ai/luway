@@ -759,6 +759,13 @@ export function GetPlatformAIProvider(meta: $models.RequestMeta, providerID: str
 }
 
 /**
+ * GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+ */
+export function GetPlatformDiagnostics(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformDiagnostics> {
+    return $Call.ByID(3427737512, meta);
+}
+
+/**
  * GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
  */
 export function GetPlatformOverview(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformOverview> {
@@ -773,7 +780,7 @@ export function GetPlatformRuntimeStatus(meta: $models.RequestMeta): $Cancellabl
 }
 
 /**
- * GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+ * GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
  */
 export function GetPlatformSettings(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformSettings> {
     return $Call.ByID(3295853609, meta);
@@ -1697,6 +1704,13 @@ export function SaveTelegramChannelConnection(meta: $models.RequestMeta, channel
 }
 
 /**
+ * SaveTextFile 在原生端让用户选择保存位置并写入文本文件，用户取消时返回 false。
+ */
+export function SaveTextFile(meta: $models.RequestMeta, input: $models.TextFileInput): $CancellablePromise<boolean> {
+    return $Call.ByID(2280188581, meta, input);
+}
+
+/**
  * SearchInbox 按范围检索会话名称、消息正文与附件文件名、成员和外部联系人。
  */
 export function SearchInbox(meta: $models.RequestMeta, input: $models.InboxSearchInput): $CancellablePromise<$models.InboxSearchResult> {
@@ -2124,7 +2138,7 @@ export function UpdatePlatformSettings(meta: $models.RequestMeta, input: $models
 }
 
 /**
- * UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+ * UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
  */
 export function UpdatePlatformTelemetry(meta: $models.RequestMeta, input: $models.PlatformTelemetryInput): $CancellablePromise<$models.PlatformSettings> {
     return $Call.ByID(396298102, meta, input);

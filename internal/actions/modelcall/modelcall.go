@@ -195,7 +195,7 @@ func (c *call) finishAttempt(ctx context.Context, attemptID string, usage Usage,
 		Set("finished_at = now()").
 		Where("id = ?", attemptID).
 		Exec(context.WithoutCancel(ctx)); updateErr != nil {
-		slog.Error("记录模型上游尝试结果失败", "ai_model_call_id", c.id, "attempt_id", attemptID, "error", updateErr)
+		slog.Warn("记录模型上游尝试结果失败", "ai_model_call_id", c.id, "attempt_id", attemptID, "error", updateErr)
 	}
 }
 

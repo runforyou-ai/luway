@@ -53,17 +53,17 @@ func (o *directOperations) CreateFileUpload(ctx context.Context, meta appservice
 		ByteSize:    input.ByteSize,
 	})
 	if err != nil {
-		return appservice.FileUpload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCreateFailed)
+		return appservice.FileUpload{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 	}
 	contentURL, err := o.links.URL(domain.FileStorageBackend(record.StorageBackend), record.StorageKey)
 	if err != nil {
-		return appservice.FileUpload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCreateFailed)
+		return appservice.FileUpload{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 	}
 	if record.PartSize > 0 {
 		if record.StorageBackend == string(domain.FileStorageBackendS3) {
 			uploadID, err := serverfilecontent.CreateMultipart(ctx, o.s3, record.StorageKey, record.ContentType)
 			if err != nil {
-				return appservice.FileUpload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCreateFailed)
+				return appservice.FileUpload{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 			}
 			stored, err := o.createFileUpload.SetMultipartUpload(ctx, identity, record.ID, uploadID)
 			if err == nil && !stored {
@@ -74,14 +74,14 @@ func (o *directOperations) CreateFileUpload(ctx context.Context, meta appservice
 				if cleanupErr := serverfilecontent.AbortMultipart(context.WithoutCancel(ctx), o.s3, record.StorageKey, uploadID); cleanupErr != nil {
 					slog.Warn("清除未保存的分片会话失败", "file_id", record.ID, "error", cleanupErr)
 				}
-				return appservice.FileUpload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCreateFailed)
+				return appservice.FileUpload{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 			}
 		}
 		return appservice.FileUpload{File: fileFromModel(record, contentURL), PartSize: record.PartSize}, nil
 	}
 	request, err := o.fileUploadRequest(ctx, meta, record, contentURL)
 	if err != nil {
-		return appservice.FileUpload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCreateFailed)
+		return appservice.FileUpload{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 	}
 	return appservice.FileUpload{File: fileFromModel(record, contentURL), Request: request}, nil
 }
@@ -90,17 +90,17 @@ func (o *directOperations) CreateFileUpload(ctx context.Context, meta appservice
 func (o *directOperations) CompleteFileUpload(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, fileID string) (appservice.File, error) {
 	record, err := o.completeFileUpload.Execute(ctx, identity, fileID, o.finalizeFileContent)
 	if err != nil {
-		return appservice.File{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCompleteFailed)
+		return appservice.File{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCompleteFailed)
 	}
 	o.cleanupCompletedParts(record)
-	return o.completedFile(ctx, meta, record)
+	return o.completedFile(meta, record)
 }
 
 // completedFile 为已完成的上传生成文件地址并记录结果。
-func (o *directOperations) completedFile(ctx context.Context, meta appservice.RequestMeta, record *servermodels.File) (appservice.File, error) {
+func (o *directOperations) completedFile(meta appservice.RequestMeta, record *servermodels.File) (appservice.File, error) {
 	contentURL, err := o.links.URL(domain.FileStorageBackend(record.StorageBackend), record.StorageKey)
 	if err != nil {
-		return appservice.File{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCompleteFailed)
+		return appservice.File{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCompleteFailed)
 	}
 	slog.Info("文件上传已完成", "organization_id", record.OrganizationID, "file_id", record.ID, "storage_backend", record.StorageBackend)
 	return fileFromModel(record, contentURL), nil
@@ -138,8 +138,8 @@ func (o *directOperations) statFile(ctx context.Context, record *servermodels.Fi
 }
 
 // fileOperationError 转换文件校验和操作错误。
-func (o *directOperations) fileOperationError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func (o *directOperations) fileOperationError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
@@ -156,8 +156,7 @@ func (o *directOperations) fileOperationError(ctx context.Context, meta appservi
 	if errors.Is(err, fileaction.ErrFileNotFound) {
 		return appservice.NotFoundError(meta, i18n.ErrorFileNotFound)
 	}
-	slog.Warn("文件操作失败", "failure", failureKey, "error", err)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // fileFromModel 把存储文件转换为应用契约。

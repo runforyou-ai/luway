@@ -20,7 +20,7 @@ import (
 func (o *directOperations) ListContactFields(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ContactFieldList, error) {
 	fields, err := o.listContactFields.Execute(ctx, identity)
 	if err != nil {
-		return appservice.ContactFieldList{}, contactProfileError(ctx, meta, err, i18n.ErrorContactFieldListFailed, contactFieldValidationKeys)
+		return appservice.ContactFieldList{}, contactProfileError(meta, err, i18n.ErrorContactFieldListFailed, contactFieldValidationKeys)
 	}
 	result := appservice.ContactFieldList{Fields: make([]appservice.ContactField, 0, len(fields))}
 	for _, field := range fields {
@@ -33,7 +33,7 @@ func (o *directOperations) ListContactFields(ctx context.Context, meta appservic
 func (o *directOperations) CreateContactField(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ContactFieldInput) (appservice.ContactField, error) {
 	field, err := o.createContactField.Execute(ctx, identity, contactFieldInput(input))
 	if err != nil {
-		return appservice.ContactField{}, contactProfileError(ctx, meta, err, i18n.ErrorContactFieldCreateFailed, contactFieldValidationKeys)
+		return appservice.ContactField{}, contactProfileError(meta, err, i18n.ErrorContactFieldCreateFailed, contactFieldValidationKeys)
 	}
 	slog.Info("联系人字段已新增", "organization_id", identity.Organization.ID, "contact_field_id", field.ID)
 	return contactFieldFromAction(*field), nil
@@ -43,7 +43,7 @@ func (o *directOperations) CreateContactField(ctx context.Context, meta appservi
 func (o *directOperations) UpdateContactField(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, fieldID string, input appservice.ContactFieldInput) (appservice.ContactField, error) {
 	field, err := o.updateContactField.Execute(ctx, identity, fieldID, contactFieldInput(input))
 	if err != nil {
-		return appservice.ContactField{}, contactProfileError(ctx, meta, err, i18n.ErrorContactFieldUpdateFailed, contactFieldValidationKeys)
+		return appservice.ContactField{}, contactProfileError(meta, err, i18n.ErrorContactFieldUpdateFailed, contactFieldValidationKeys)
 	}
 	slog.Info("联系人字段已更新", "organization_id", identity.Organization.ID, "contact_field_id", fieldID)
 	return contactFieldFromAction(*field), nil
@@ -52,7 +52,7 @@ func (o *directOperations) UpdateContactField(ctx context.Context, meta appservi
 // DeleteContactField 删除联系人字段及其全部取值。
 func (o *directOperations) DeleteContactField(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, fieldID string) error {
 	if err := o.deleteContactField.Execute(ctx, identity, fieldID); err != nil {
-		return contactProfileError(ctx, meta, err, i18n.ErrorContactFieldDeleteFailed, contactFieldValidationKeys)
+		return contactProfileError(meta, err, i18n.ErrorContactFieldDeleteFailed, contactFieldValidationKeys)
 	}
 	slog.Info("联系人字段已删除", "organization_id", identity.Organization.ID, "contact_field_id", fieldID)
 	return nil
@@ -62,7 +62,7 @@ func (o *directOperations) DeleteContactField(ctx context.Context, meta appservi
 func (o *directOperations) ListContactTags(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ContactTagList, error) {
 	tags, err := o.listContactTags.Execute(ctx, identity)
 	if err != nil {
-		return appservice.ContactTagList{}, contactProfileError(ctx, meta, err, i18n.ErrorContactTagListFailed, contactTagValidationKeys)
+		return appservice.ContactTagList{}, contactProfileError(meta, err, i18n.ErrorContactTagListFailed, contactTagValidationKeys)
 	}
 	result := appservice.ContactTagList{Tags: make([]appservice.ContactTag, 0, len(tags))}
 	for _, tag := range tags {
@@ -75,7 +75,7 @@ func (o *directOperations) ListContactTags(ctx context.Context, meta appservice.
 func (o *directOperations) CreateContactTag(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ContactTagInput) (appservice.ContactTag, error) {
 	tag, err := o.createContactTag.Execute(ctx, identity, contactprofileaction.TagInput(input))
 	if err != nil {
-		return appservice.ContactTag{}, contactProfileError(ctx, meta, err, i18n.ErrorContactTagCreateFailed, contactTagValidationKeys)
+		return appservice.ContactTag{}, contactProfileError(meta, err, i18n.ErrorContactTagCreateFailed, contactTagValidationKeys)
 	}
 	slog.Info("联系人标签已新增", "organization_id", identity.Organization.ID, "contact_tag_id", tag.ID)
 	return appservice.ContactTag(*tag), nil
@@ -85,7 +85,7 @@ func (o *directOperations) CreateContactTag(ctx context.Context, meta appservice
 func (o *directOperations) UpdateContactTag(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, tagID string, input appservice.ContactTagInput) (appservice.ContactTag, error) {
 	tag, err := o.updateContactTag.Execute(ctx, identity, tagID, contactprofileaction.TagInput(input))
 	if err != nil {
-		return appservice.ContactTag{}, contactProfileError(ctx, meta, err, i18n.ErrorContactTagUpdateFailed, contactTagValidationKeys)
+		return appservice.ContactTag{}, contactProfileError(meta, err, i18n.ErrorContactTagUpdateFailed, contactTagValidationKeys)
 	}
 	slog.Info("联系人标签已更新", "organization_id", identity.Organization.ID, "contact_tag_id", tagID)
 	return appservice.ContactTag(*tag), nil
@@ -94,7 +94,7 @@ func (o *directOperations) UpdateContactTag(ctx context.Context, meta appservice
 // DeleteContactTag 删除联系人标签并从所有联系人上移除。
 func (o *directOperations) DeleteContactTag(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, tagID string) error {
 	if err := o.deleteContactTag.Execute(ctx, identity, tagID); err != nil {
-		return contactProfileError(ctx, meta, err, i18n.ErrorContactTagDeleteFailed, contactTagValidationKeys)
+		return contactProfileError(meta, err, i18n.ErrorContactTagDeleteFailed, contactTagValidationKeys)
 	}
 	slog.Info("联系人标签已删除", "organization_id", identity.Organization.ID, "contact_tag_id", tagID)
 	return nil
@@ -103,7 +103,7 @@ func (o *directOperations) DeleteContactTag(ctx context.Context, meta appservice
 // SetContactFieldValue 由客服填写或清空联系人字段。
 func (o *directOperations) SetContactFieldValue(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, contactID, fieldID string, input appservice.ContactFieldValueInput) error {
 	if err := o.setContactFieldValue.Execute(ctx, identity, contactID, fieldID, input.Value); err != nil {
-		return contactProfileError(ctx, meta, err, i18n.ErrorContactProfileUpdateFailed, contactFieldValidationKeys)
+		return contactProfileError(meta, err, i18n.ErrorContactProfileUpdateFailed, contactFieldValidationKeys)
 	}
 	return nil
 }
@@ -111,7 +111,7 @@ func (o *directOperations) SetContactFieldValue(ctx context.Context, meta appser
 // AddContactTag 由客服给联系人添加标签。
 func (o *directOperations) AddContactTag(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, contactID, tagID string) error {
 	if err := o.addContactTag.Execute(ctx, identity, contactID, tagID); err != nil {
-		return contactProfileError(ctx, meta, err, i18n.ErrorContactProfileUpdateFailed, contactTagValidationKeys)
+		return contactProfileError(meta, err, i18n.ErrorContactProfileUpdateFailed, contactTagValidationKeys)
 	}
 	return nil
 }
@@ -119,7 +119,7 @@ func (o *directOperations) AddContactTag(ctx context.Context, meta appservice.Re
 // RemoveContactTag 由客服移除联系人上的标签。
 func (o *directOperations) RemoveContactTag(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, contactID, tagID string) error {
 	if err := o.removeContactTag.Execute(ctx, identity, contactID, tagID); err != nil {
-		return contactProfileError(ctx, meta, err, i18n.ErrorContactProfileUpdateFailed, contactTagValidationKeys)
+		return contactProfileError(meta, err, i18n.ErrorContactProfileUpdateFailed, contactTagValidationKeys)
 	}
 	return nil
 }
@@ -148,10 +148,7 @@ var contactTagValidationKeys = map[common.FieldCode]i18n.Key{
 }
 
 // contactProfileError 把联系人字段、标签与档案操作错误转换为结构化、本地化错误。
-func contactProfileError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, validationKeys map[common.FieldCode]i18n.Key) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func contactProfileError(meta appservice.RequestMeta, err error, failureKey i18n.Key, validationKeys map[common.FieldCode]i18n.Key) error {
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, validationKeys))
 	}
@@ -167,8 +164,7 @@ func contactProfileError(ctx context.Context, meta appservice.RequestMeta, err e
 	case errors.Is(err, contactprofileaction.ErrSyncedFromSignedIdentity):
 		return appservice.ConflictError(meta, i18n.ErrorContactProfileSyncedFromSignedIdentity, "contact_profile_synced_from_signed_identity")
 	}
-	slog.Warn("联系人档案操作失败", "failure", failureKey, "error", err)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // contactFieldInput 把联系人字段契约输入转换为动作层输入。

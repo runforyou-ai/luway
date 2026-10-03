@@ -5,7 +5,6 @@ package direct
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/customerdelivery"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
@@ -38,6 +37,5 @@ func customerDeliveryError(meta appservice.RequestMeta, err error) error {
 	if errors.Is(err, deliveryaction.ErrConflict) {
 		return appservice.ConflictError(meta, i18n.ErrorCustomerDeliveryConflict, "delivery_state_conflict")
 	}
-	slog.Warn("客户消息投递操作失败", "error", err)
-	return appservice.FailedError(meta, i18n.ErrorCustomerDeliveryFailed)
+	return appservice.FailedError(meta, i18n.ErrorCustomerDeliveryFailed, err)
 }

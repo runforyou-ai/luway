@@ -60,6 +60,19 @@ func VerifyMigrationSources(ctx context.Context, db *sql.DB) error {
 	return goosecheck.VerifyApplied(ctx, db, goose.DialectPostgres, provider)
 }
 
+// MigrationVersion 返回数据库中已执行的最新迁移版本。
+func MigrationVersion(ctx context.Context, db *sql.DB) (int64, error) {
+	provider, err := newMigrationProvider(db)
+	if err != nil {
+		return 0, err
+	}
+	version, err := provider.GetDBVersion(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("read migration version: %w", err)
+	}
+	return version, nil
+}
+
 // newMigrationProvider 创建使用内嵌迁移文件、允许乱序执行的 PostgreSQL 迁移器。
 func newMigrationProvider(db *sql.DB, options ...goose.ProviderOption) (*goose.Provider, error) {
 	migrations, err := fs.Sub(migrationFiles, "migrations")

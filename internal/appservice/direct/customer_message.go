@@ -27,13 +27,13 @@ func (o *directOperations) SendServiceTextMessage(ctx context.Context, meta apps
 	if input.Translation != nil || input.Translate {
 		saved, err := o.sendServiceTextMessage.SavedTranslation(ctx, identity, input.ClientMessageID)
 		if err != nil {
-			return appservice.ConversationMessage{}, serviceTextMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+			return appservice.ConversationMessage{}, serviceTextMessageError(meta, err)
 		}
 		translation = saved
 	}
 	if translation == nil && input.Translation != nil {
 		if err := o.translator.ValidateReplyLanguage(ctx, identity, conversationID, input.Translation.Language); err != nil {
-			return appservice.ConversationMessage{}, translationError(ctx, meta, err, i18n.ErrorTranslationFailed, identity.Organization.ID, conversationID)
+			return appservice.ConversationMessage{}, translationError(meta, err, i18n.ErrorTranslationFailed)
 		}
 		translation = &servicesessionaction.OutgoingTranslation{
 			Language: input.Translation.Language, SourceLanguage: translationaction.ViewerLanguage(identity), Body: input.Translation.Body,
@@ -41,7 +41,7 @@ func (o *directOperations) SendServiceTextMessage(ctx context.Context, meta apps
 	} else if translation == nil && input.Translate {
 		translated, err := o.translator.TranslateReply(ctx, identity, conversationID, input.Body)
 		if err != nil {
-			return appservice.ConversationMessage{}, translationError(ctx, meta, err, i18n.ErrorTranslationFailed, identity.Organization.ID, conversationID)
+			return appservice.ConversationMessage{}, translationError(meta, err, i18n.ErrorTranslationFailed)
 		}
 		if translated != nil {
 			translation = &servicesessionaction.OutgoingTranslation{Language: translated.Language, SourceLanguage: translated.SourceLanguage, Body: translated.Body}
@@ -52,7 +52,7 @@ func (o *directOperations) SendServiceTextMessage(ctx context.Context, meta apps
 		Visibility: domain.MessageVisibility(input.Visibility), MentionIdentityIDs: input.MentionIdentityIDs, Translation: translation,
 	})
 	if err != nil {
-		return appservice.ConversationMessage{}, serviceTextMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationMessage{}, serviceTextMessageError(meta, err)
 	}
 	slog.Info("成员客户文本消息已保存",
 		"organization_id", identity.Organization.ID,
@@ -71,7 +71,7 @@ func (o *directOperations) SendServiceAttachmentMessage(ctx context.Context, met
 		ReplyToMessageID: input.ReplyToMessageID, ImageWidth: input.ImageWidth, ImageHeight: input.ImageHeight,
 	})
 	if err != nil {
-		return appservice.ConversationMessage{}, serviceTextMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationMessage{}, serviceTextMessageError(meta, err)
 	}
 	slog.Info("成员客户附件消息已保存",
 		"organization_id", identity.Organization.ID,
@@ -87,7 +87,7 @@ func (o *directOperations) SendServiceAttachmentMessage(ctx context.Context, met
 func (o *directOperations) ClaimServiceSession(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.ServiceSession, error) {
 	result, err := o.claimServiceSession.Execute(ctx, identity, conversationID)
 	if err != nil {
-		return appservice.ServiceSession{}, serviceSessionMutationError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ServiceSession{}, serviceSessionMutationError(meta, err)
 	}
 	return customerServiceSessionFromAction(result), nil
 }
@@ -99,7 +99,7 @@ func (o *directOperations) TransferServiceSession(ctx context.Context, meta apps
 		TeamID: input.TeamID, IdentityID: input.IdentityID,
 	})
 	if err != nil {
-		return appservice.ServiceSession{}, serviceSessionMutationError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ServiceSession{}, serviceSessionMutationError(meta, err)
 	}
 	return customerServiceSessionFromAction(result), nil
 }
@@ -108,7 +108,7 @@ func (o *directOperations) TransferServiceSession(ctx context.Context, meta apps
 func (o *directOperations) CloseServiceSession(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.ServiceSession, error) {
 	result, err := o.closeServiceSession.Execute(ctx, identity, conversationID)
 	if err != nil {
-		return appservice.ServiceSession{}, serviceSessionMutationError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ServiceSession{}, serviceSessionMutationError(meta, err)
 	}
 	return customerServiceSessionFromAction(result), nil
 }
@@ -117,7 +117,7 @@ func (o *directOperations) CloseServiceSession(ctx context.Context, meta appserv
 func (o *directOperations) ReopenServiceSession(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.ServiceSession, error) {
 	result, err := o.reopenServiceSession.Execute(ctx, identity, conversationID)
 	if err != nil {
-		return appservice.ServiceSession{}, serviceSessionMutationError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ServiceSession{}, serviceSessionMutationError(meta, err)
 	}
 	return customerServiceSessionFromAction(result), nil
 }
@@ -132,8 +132,8 @@ func customerServiceSessionFromAction(result servicesessionaction.ServiceSession
 }
 
 // serviceSessionMutationError 转换服务周期命令错误。
-func serviceSessionMutationError(ctx context.Context, meta appservice.RequestMeta, err error, organizationID, conversationID string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func serviceSessionMutationError(meta appservice.RequestMeta, err error) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, conversationaction.ErrConversationNotFound) {
@@ -158,15 +158,11 @@ func serviceSessionMutationError(ctx context.Context, meta appservice.RequestMet
 		}
 		return appservice.ConflictError(meta, messageKey, conflictError.Reason)
 	}
-	slog.Warn("客服处理周期操作失败", "organization_id", organizationID, "conversation_id", conversationID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorServiceSessionUpdateFailed)
+	return appservice.FailedError(meta, i18n.ErrorServiceSessionUpdateFailed, err)
 }
 
 // serviceTextMessageError 转换成员客户消息发送错误。
-func serviceTextMessageError(ctx context.Context, meta appservice.RequestMeta, err error, organizationID, conversationID string) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func serviceTextMessageError(meta appservice.RequestMeta, err error) error {
 	if errors.Is(err, identityaction.ErrInvalid) {
 		return appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
@@ -182,8 +178,7 @@ func serviceTextMessageError(ctx context.Context, meta appservice.RequestMeta, e
 	if conflictError, ok := errors.AsType[*conversationaction.ConflictError](err); ok {
 		return appservice.ConflictError(meta, customerReplyConflictMessageKey(conflictError.Reason), conflictError.Reason)
 	}
-	slog.Warn("发送成员客户消息失败", "organization_id", organizationID, "conversation_id", conversationID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorMessageSendFailed)
+	return appservice.FailedError(meta, i18n.ErrorMessageSendFailed, err)
 }
 
 // customerReplyConflictMessageKey 返回对客回复资格冲突的本地化文案键。

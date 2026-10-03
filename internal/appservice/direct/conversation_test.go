@@ -3,7 +3,6 @@
 package direct
 
 import (
-	"context"
 	"errors"
 	"testing"
 
@@ -37,7 +36,7 @@ func TestServiceTextMessageErrorMapsConflicts(t *testing.T) {
 		{reason: conversationaction.ConflictReasonChannelOutboundUnsupported, message: "当前消息渠道暂不支持回复。"},
 	}
 	for _, test := range tests {
-		err := serviceTextMessageError(context.Background(), appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, &conversationaction.ConflictError{Reason: test.reason}, "organization-1", "conversation-1")
+		err := serviceTextMessageError(appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, &conversationaction.ConflictError{Reason: test.reason})
 		var apiError *appservice.Error
 		if !errors.As(err, &apiError) || apiError.Kind != appservice.ErrorKindConflict || apiError.Reason != test.reason || apiError.Message != test.message {
 			t.Fatalf("error = %#v", err)
@@ -62,7 +61,7 @@ func TestMessageCursorPreservesSequence(t *testing.T) {
 
 // TestCustomerMessageErrorMapsFileNotFound 验证附件文件无效时对外返回文件未找到，而不是笼统的发送失败。
 func TestCustomerMessageErrorMapsFileNotFound(t *testing.T) {
-	err := serviceTextMessageError(context.Background(), appservice.RequestMeta{}, fileaction.ErrFileNotFound, "org", "conversation")
+	err := serviceTextMessageError(appservice.RequestMeta{}, fileaction.ErrFileNotFound)
 	applicationError, ok := errors.AsType[*appservice.Error](err)
 	if !ok || applicationError.Kind != appservice.ErrorKindNotFound {
 		t.Fatalf("mapped error = %#v", err)

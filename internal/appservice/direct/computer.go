@@ -5,11 +5,9 @@ package direct
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	computeraction "github.com/runforyou-ai/luway/internal/actions/computer"
 	"github.com/runforyou-ai/luway/internal/appservice"
-	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -50,7 +48,8 @@ type ComputerSession struct {
 }
 
 // AuthenticateComputer 校验执行器事件流请求携带的电脑凭据并返回电脑会话。
-func (b *Backend) AuthenticateComputer(ctx context.Context, meta appservice.RequestMeta) (ComputerSession, error) {
+func (b *Backend) AuthenticateComputer(ctx context.Context, meta appservice.RequestMeta) (_ ComputerSession, err error) {
+	defer settle(ctx, "AuthenticateComputer", &err, internalError(meta))
 	computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
 		return ComputerSession{}, err
@@ -59,8 +58,9 @@ func (b *Backend) AuthenticateComputer(ctx context.Context, meta appservice.Requ
 }
 
 // TouchComputer 记录电脑在线，电脑已撤销时返回电脑凭据失效错误。
-func (b *Backend) TouchComputer(ctx context.Context, session ComputerSession) error {
-	err := b.ops.touchComputer.Execute(ctx, computeraction.Identity{OrganizationID: session.OrganizationID, ComputerID: session.ComputerID})
+func (b *Backend) TouchComputer(ctx context.Context, session ComputerSession) (err error) {
+	defer settle(ctx, "TouchComputer", &err, internalError(appservice.RequestMeta{}))
+	err = b.ops.touchComputer.Execute(ctx, computeraction.Identity{OrganizationID: session.OrganizationID, ComputerID: session.ComputerID})
 	if errors.Is(err, computeraction.ErrCredentialInvalid) {
 		return appservice.SessionError(appservice.RequestMeta{}, appservice.SessionStateLogin, i18n.ErrorComputerCredentialInvalid)
 	}
@@ -74,11 +74,7 @@ func (o *directOperations) authenticateComputer(ctx context.Context, meta appser
 		return computeraction.Identity{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorComputerCredentialInvalid)
 	}
 	if err != nil {
-		if ctx.Err() != nil {
-			return computeraction.Identity{}, ctx.Err()
-		}
-		slog.Warn("电脑认证失败", "error", err)
-		return computeraction.Identity{}, appservice.FailedError(meta, i18n.ErrorComputerRequestFailed)
+		return computeraction.Identity{}, appservice.FailedError(meta, i18n.ErrorComputerRequestFailed, err)
 	}
 	return computer, nil
 }
@@ -89,7 +85,7 @@ func (o *directOperations) RegisterComputer(ctx context.Context, meta appservice
 		InstallID: input.InstallID, Name: input.Name, Platform: domain.ComputerPlatform(input.Platform),
 	})
 	if err != nil {
-		return appservice.ComputerRegistration{}, o.computerError(ctx, meta, err, i18n.ErrorComputerRegisterFailed, identity.Organization.ID)
+		return appservice.ComputerRegistration{}, o.computerError(meta, err, i18n.ErrorComputerRegisterFailed)
 	}
 	return appservice.ComputerRegistration{Computer: computerFromAction(registration.Record), Credential: registration.Credential}, nil
 }
@@ -98,7 +94,7 @@ func (o *directOperations) RegisterComputer(ctx context.Context, meta appservice
 func (o *directOperations) ListComputers(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ComputerList, error) {
 	records, err := o.listComputers.Execute(ctx, identity)
 	if err != nil {
-		return appservice.ComputerList{}, o.computerError(ctx, meta, err, i18n.ErrorComputerListFailed, identity.Organization.ID)
+		return appservice.ComputerList{}, o.computerError(meta, err, i18n.ErrorComputerListFailed)
 	}
 	computers := make([]appservice.Computer, 0, len(records))
 	for _, record := range records {
@@ -110,7 +106,7 @@ func (o *directOperations) ListComputers(ctx context.Context, meta appservice.Re
 // RevokeComputer 撤销当前成员的电脑。
 func (o *directOperations) RevokeComputer(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, computerID string) error {
 	if err := o.revokeComputer.Execute(ctx, identity, computerID); err != nil {
-		return o.computerError(ctx, meta, err, i18n.ErrorComputerRevokeFailed, identity.Organization.ID, "computer_id", computerID)
+		return o.computerError(meta, err, i18n.ErrorComputerRevokeFailed)
 	}
 	return nil
 }
@@ -120,7 +116,7 @@ func (o *directOperations) ReportComputerCapabilities(ctx context.Context, meta 
 	if err := o.reportCapabilities.Execute(ctx, computer, computeraction.CapabilitiesInput{
 		Capabilities: input.Capabilities, ExecutorVersion: input.ExecutorVersion, MaxConcurrency: input.MaxConcurrency,
 	}); err != nil {
-		return o.computerRequestError(ctx, meta, err, computer)
+		return o.computerRequestError(meta, err)
 	}
 	return nil
 }
@@ -129,7 +125,7 @@ func (o *directOperations) ReportComputerCapabilities(ctx context.Context, meta 
 func (o *directOperations) ClaimComputerOperations(ctx context.Context, meta appservice.RequestMeta, computer computeraction.Identity, input appservice.ComputerClaimInput) (appservice.ComputerOperationList, error) {
 	claimed, err := o.computerOperations.Claim(ctx, computer, input.Limit, input.Running)
 	if err != nil {
-		return appservice.ComputerOperationList{}, o.computerRequestError(ctx, meta, err, computer)
+		return appservice.ComputerOperationList{}, o.computerRequestError(meta, err)
 	}
 	output := appservice.ComputerOperationList{Operations: make([]appservice.ComputerOperationItem, 0, len(claimed.Operations)), Abort: claimed.Abort}
 	for _, operation := range claimed.Operations {
@@ -141,36 +137,25 @@ func (o *directOperations) ClaimComputerOperations(ctx context.Context, meta app
 // CompleteComputerOperation 记录本电脑执行一次操作的结果。
 func (o *directOperations) CompleteComputerOperation(ctx context.Context, meta appservice.RequestMeta, computer computeraction.Identity, operationID string, input appservice.ComputerOutcomeInput) error {
 	if err := o.computerOperations.Complete(ctx, computer, operationID, input.Outcome); err != nil {
-		return o.computerRequestError(ctx, meta, err, computer)
+		return o.computerRequestError(meta, err)
 	}
 	return nil
 }
 
-// computerError 转换电脑管理操作错误。电脑注册信息由执行器上报，校验失败按注册失败收敛并记录字段原因码。
-func (o *directOperations) computerError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID string, attributes ...any) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+// computerError 转换电脑管理操作错误。电脑注册信息由执行器上报，校验失败按注册失败收敛。
+func (o *directOperations) computerError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, computeraction.ErrNotFound) {
 		return appservice.NotFoundError(meta, i18n.ErrorComputerNotFound)
 	}
-	logAttributes := []any{"organization_id", organizationID, "failure", failureKey}
-	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
-		logAttributes = append(logAttributes, "fields", validationError.Fields)
-	} else {
-		logAttributes = append(logAttributes, "error", err)
-	}
-	slog.Warn("电脑操作失败", append(logAttributes, attributes...)...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // computerRequestError 转换执行器请求的错误。
-func (o *directOperations) computerRequestError(ctx context.Context, meta appservice.RequestMeta, err error, computer computeraction.Identity) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
-	slog.Warn("执行器请求失败", "organization_id", computer.OrganizationID, "computer_id", computer.ComputerID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorComputerRequestFailed)
+func (o *directOperations) computerRequestError(meta appservice.RequestMeta, err error) error {
+	return appservice.FailedError(meta, i18n.ErrorComputerRequestFailed, err)
 }
 
 // computerFromAction 转换电脑输出。

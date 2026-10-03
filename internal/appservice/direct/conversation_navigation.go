@@ -15,7 +15,7 @@ import (
 func (o *directOperations) GetConversationMessageContext(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID, messageID string) (appservice.ConversationMessageList, error) {
 	history, err := o.listConversationMessages.Execute(ctx, identity, conversationaction.ConversationMessageHistoryInput{ConversationID: conversationID, AroundMessageID: messageID})
 	if err != nil {
-		return appservice.ConversationMessageList{}, conversationMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationMessageList{}, conversationMessageError(meta, err)
 	}
 	return o.conversationMessageListFromAction(ctx, meta, identity, conversationID, history)
 }
@@ -24,7 +24,7 @@ func (o *directOperations) GetConversationMessageContext(ctx context.Context, me
 func (o *directOperations) GetConversationNavigationState(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.ConversationNavigationState, error) {
 	state, err := o.conversationNavigation.Execute(ctx, identity, conversationID)
 	if err != nil {
-		return appservice.ConversationNavigationState{}, conversationMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationNavigationState{}, conversationMessageError(meta, err)
 	}
 	return appservice.ConversationNavigationState{PendingMentionCount: state.PendingMentionCount, ReviewedThroughMessageID: state.ReviewedThroughMessageID, ReviewedThroughSequence: strconv.FormatInt(state.ReviewedThroughSequence, 10), LatestMessageID: state.LatestMessageID, LatestSequence: strconv.FormatInt(state.LatestSequence, 10)}, nil
 }
@@ -33,7 +33,7 @@ func (o *directOperations) GetConversationNavigationState(ctx context.Context, m
 func (o *directOperations) ListPendingConversationMentions(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.PendingConversationMentions, error) {
 	pending, err := o.pendingConversationMentions.Execute(ctx, identity, conversationID)
 	if err != nil {
-		return appservice.PendingConversationMentions{}, conversationMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.PendingConversationMentions{}, conversationMessageError(meta, err)
 	}
 	return appservice.PendingConversationMentions{MessageIDs: pending.MessageIDs, LastTargetSequence: messageSeqString(pending.LastTargetSequence)}, nil
 }
@@ -42,7 +42,7 @@ func (o *directOperations) ListPendingConversationMentions(ctx context.Context, 
 func (o *directOperations) MarkConversationMentionReviewed(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string, input appservice.MarkConversationMentionReviewedInput) (appservice.ConversationMentionReview, error) {
 	result, err := o.reviewConversationMention.Execute(ctx, identity, conversationID, input.MessageID)
 	if err != nil {
-		return appservice.ConversationMentionReview{}, conversationMessageError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationMentionReview{}, conversationMessageError(meta, err)
 	}
 	return appservice.ConversationMentionReview{ReviewedThroughMessageID: result.ReviewedThroughMessageID, ReviewedThroughSequence: strconv.FormatInt(result.ReviewedThroughSequence, 10), Outcome: appservice.ConversationMentionReviewOutcome(result.Outcome)}, nil
 }

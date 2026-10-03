@@ -72,7 +72,7 @@ func newKnowledgeOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, documentQue
 func (o *directOperations) RetrieveKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, knowledgeBaseID string, input appservice.KnowledgeRetrievalInput) (appservice.KnowledgeRetrievalResult, error) {
 	records, err := o.retrieval.Retrieve(ctx, identity, knowledgeBaseID, input.Query)
 	if err != nil {
-		return appservice.KnowledgeRetrievalResult{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeRetrievalFailed, identity.Organization.ID, knowledgeBaseID)
+		return appservice.KnowledgeRetrievalResult{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeRetrievalFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	result := appservice.KnowledgeRetrievalResult{Records: make([]appservice.KnowledgeRetrievalRecord, 0, len(records))}
 	for _, record := range records {
@@ -89,7 +89,7 @@ func (o *directOperations) RetrieveKnowledgeBase(ctx context.Context, meta appse
 func (o *directOperations) ListKnowledgeBases(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.KnowledgeBaseList, error) {
 	records, err := o.listKnowledgeBases.Execute(ctx, identity)
 	if err != nil {
-		return appservice.KnowledgeBaseList{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeBaseListFailed, identity.Organization.ID, "")
+		return appservice.KnowledgeBaseList{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeBaseListFailed, identity.Organization.ID, "")
 	}
 	knowledgeBases := make([]appservice.KnowledgeBase, 0, len(records))
 	for _, record := range records {
@@ -102,7 +102,7 @@ func (o *directOperations) ListKnowledgeBases(ctx context.Context, meta appservi
 func (o *directOperations) GetKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, knowledgeBaseID string) (appservice.KnowledgeBase, error) {
 	record, err := o.getKnowledgeBase.Execute(ctx, identity, knowledgeBaseID)
 	if err != nil {
-		return appservice.KnowledgeBase{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeBaseReadFailed, identity.Organization.ID, knowledgeBaseID)
+		return appservice.KnowledgeBase{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeBaseReadFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	return knowledgeBaseFromAction(*record), nil
 }
@@ -111,7 +111,7 @@ func (o *directOperations) GetKnowledgeBase(ctx context.Context, meta appservice
 func (o *directOperations) ListKnowledgeBaseAgents(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, knowledgeBaseID string) (appservice.KnowledgeBaseAgentList, error) {
 	agents, err := o.listBaseAgents.Execute(ctx, identity, knowledgeBaseID)
 	if err != nil {
-		return appservice.KnowledgeBaseAgentList{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeBaseReadFailed, identity.Organization.ID, knowledgeBaseID)
+		return appservice.KnowledgeBaseAgentList{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeBaseReadFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	result := appservice.KnowledgeBaseAgentList{Agents: make([]appservice.KnowledgeBaseAgent, 0, len(agents))}
 	for _, agent := range agents {
@@ -133,7 +133,7 @@ func (o *directOperations) CreateKnowledgeBase(ctx context.Context, meta appserv
 		RerankModelID:           input.RerankModelID,
 	})
 	if err != nil {
-		return appservice.KnowledgeBase{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeBaseCreateFailed, identity.Organization.ID, "")
+		return appservice.KnowledgeBase{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeBaseCreateFailed, identity.Organization.ID, "")
 	}
 	slog.Info("知识库创建成功", "organization_id", identity.Organization.ID, "knowledge_base_id", record.ID, "category", record.Category)
 	return knowledgeBaseFromAction(*record), nil
@@ -152,7 +152,7 @@ func (o *directOperations) UpdateKnowledgeBase(ctx context.Context, meta appserv
 		RerankModelID:           input.RerankModelID,
 	})
 	if err != nil {
-		return appservice.KnowledgeBase{}, o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeBaseUpdateFailed, identity.Organization.ID, knowledgeBaseID)
+		return appservice.KnowledgeBase{}, o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeBaseUpdateFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	slog.Info("知识库保存成功", "organization_id", identity.Organization.ID, "knowledge_base_id", record.ID, "category", record.Category)
 	return knowledgeBaseFromAction(*record), nil
@@ -161,15 +161,15 @@ func (o *directOperations) UpdateKnowledgeBase(ctx context.Context, meta appserv
 // DeleteKnowledgeBase 删除企业知识库。
 func (o *directOperations) DeleteKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, knowledgeBaseID string) error {
 	if err := o.deleteKnowledgeBase.Execute(ctx, identity, knowledgeBaseID); err != nil {
-		return o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeBaseDeleteFailed, identity.Organization.ID, knowledgeBaseID)
+		return o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeBaseDeleteFailed, identity.Organization.ID, knowledgeBaseID)
 	}
 	slog.Info("知识库删除成功", "organization_id", identity.Organization.ID, "knowledge_base_id", knowledgeBaseID)
 	return nil
 }
 
 // knowledgeBaseError 转换知识库领域错误。
-func (o *directOperations) knowledgeBaseError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID, knowledgeBaseID string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func (o *directOperations) knowledgeBaseError(meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID, knowledgeBaseID string) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
@@ -229,12 +229,7 @@ func (o *directOperations) knowledgeBaseError(ctx context.Context, meta appservi
 	if errors.Is(err, knowledgebaseaction.ErrNotFound) {
 		return appservice.NotFoundError(meta, i18n.ErrorKnowledgeBaseNotFound)
 	}
-	attributes := []any{"organization_id", organizationID, "failure", failureKey, "error", err}
-	if knowledgeBaseID != "" {
-		attributes = append(attributes, "knowledge_base_id", knowledgeBaseID)
-	}
-	slog.Warn("知识库操作失败", attributes...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // knowledgeBaseFromAction 转换知识库契约。

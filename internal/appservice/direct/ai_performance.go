@@ -5,7 +5,6 @@ package direct
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	aiperformanceaction "github.com/runforyou-ai/luway/internal/actions/aiperformance"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
@@ -43,7 +42,7 @@ func (o *directOperations) GetAIPerformanceReport(ctx context.Context, meta apps
 	}
 	overview, err := o.aiPerformanceOverview.Execute(ctx, identity, aiperformanceaction.Input{Days: input.Days, ChannelID: input.ChannelID, Agents: agents})
 	if err != nil {
-		return appservice.AIPerformanceReport{}, aiPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.AIPerformanceReport{}, aiPerformanceError(meta, err)
 	}
 	output := appservice.AIPerformanceReport{
 		Summary:           appservice.AIPerformanceSummary(overview.Summary),
@@ -67,7 +66,7 @@ func (o *directOperations) ListAIPerformanceBreakdowns(ctx context.Context, meta
 		Dimension: domain.ServiceReportDimension(input.Dimension), Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
-		return appservice.AIPerformanceBreakdownList{}, aiPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.AIPerformanceBreakdownList{}, aiPerformanceError(meta, err)
 	}
 	rows := make([]appservice.AIPerformanceBreakdown, 0, len(list.Rows))
 	for _, row := range list.Rows {
@@ -87,11 +86,11 @@ func (o *directOperations) ListAIPerformanceIssues(ctx context.Context, meta app
 		Issue: domain.ServiceIssueType(input.Issue), Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
-		return appservice.ServiceIssueList{}, aiPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.ServiceIssueList{}, aiPerformanceError(meta, err)
 	}
 	output, err := o.serviceIssueList(ctx, identity, list)
 	if err != nil {
-		return appservice.ServiceIssueList{}, aiPerformanceError(meta, err, identity.Organization.ID)
+		return appservice.ServiceIssueList{}, aiPerformanceError(meta, err)
 	}
 	return output, nil
 }
@@ -103,7 +102,7 @@ func (o *directOperations) ListAgentServiceSessions(ctx context.Context, meta ap
 	}
 	list, err := o.agentServiceSessionsList.Execute(ctx, identity, aiperformanceaction.ServiceSessionListInput{AgentID: agentID, Page: input.Page, PageSize: input.PageSize})
 	if err != nil {
-		return appservice.AgentServiceSessionList{}, agentServiceSessionsError(meta, err, identity.Organization.ID, agentID)
+		return appservice.AgentServiceSessionList{}, agentServiceSessionsError(meta, err)
 	}
 	avatarFileIDs := make([]*string, 0, len(list.Sessions))
 	for _, session := range list.Sessions {
@@ -111,7 +110,7 @@ func (o *directOperations) ListAgentServiceSessions(ctx context.Context, meta ap
 	}
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, avatarFileIDs...)
 	if err != nil {
-		return appservice.AgentServiceSessionList{}, agentServiceSessionsError(meta, err, identity.Organization.ID, agentID)
+		return appservice.AgentServiceSessionList{}, agentServiceSessionsError(meta, err)
 	}
 	sessions := make([]appservice.AgentServiceSession, 0, len(list.Sessions))
 	for _, session := range list.Sessions {
@@ -143,19 +142,17 @@ func reportAgentScope(meta appservice.RequestMeta, identity *servermodels.Identi
 }
 
 // agentServiceSessionsError 把服务记录查询错误转换为结构化、本地化错误。
-func agentServiceSessionsError(meta appservice.RequestMeta, err error, organizationID, agentID string) error {
+func agentServiceSessionsError(meta appservice.RequestMeta, err error) error {
 	if errors.Is(err, aiperformanceaction.ErrPageSizeInvalid) {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 	}
-	slog.Warn("读取 AI 员工服务记录失败", "organization_id", organizationID, "agent_id", agentID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorAgentServiceSessionsLoadFailed)
+	return appservice.FailedError(meta, i18n.ErrorAgentServiceSessionsLoadFailed, err)
 }
 
 // aiPerformanceError 把报表查询错误转换为结构化、本地化错误。
-func aiPerformanceError(meta appservice.RequestMeta, err error, organizationID string) error {
+func aiPerformanceError(meta appservice.RequestMeta, err error) error {
 	if errors.Is(err, aiperformanceaction.ErrPageSizeInvalid) || errors.Is(err, aiperformanceaction.ErrDimensionInvalid) || errors.Is(err, aiperformanceaction.ErrIssueInvalid) {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 	}
-	slog.Warn("读取 AI 表现报表失败", "organization_id", organizationID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorAIPerformanceReportLoadFailed)
+	return appservice.FailedError(meta, i18n.ErrorAIPerformanceReportLoadFailed, err)
 }

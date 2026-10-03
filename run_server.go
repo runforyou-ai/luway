@@ -28,6 +28,8 @@ import (
 
 // run 解析服务端运行参数并启动 HTTP 服务。
 func run(arguments []string) error {
+	// 服务端日志以文本格式写到标准错误输出，启动后再接入错误上报。
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, nil)))
 	flags := flag.NewFlagSet(brand.Build().Slug+"-server", flag.ContinueOnError)
 	flags.SetOutput(os.Stderr)
 	configPath := flags.String("config", "", "显式指定 YAML 配置文件")
