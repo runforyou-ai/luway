@@ -64,6 +64,7 @@ type FilePartUploadInput struct {
 
 // FileDownload 定义附件的即时下载地址。
 type FileDownload struct {
+	// PreviewURL 只对浏览器可内嵌展示的图片返回。
 	PreviewURL string `json:"previewUrl"`
 	URL        string `json:"url"`
 }

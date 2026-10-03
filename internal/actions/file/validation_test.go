@@ -22,12 +22,15 @@ func TestNormalizeUploadInput(t *testing.T) {
 	if key := storageKey("org", "file", normalized.FileName, normalized.ContentType); key != "organizations/org/files/file.png" {
 		t.Fatalf("storage key = %q", key)
 	}
-	// 扩展名优先取原始文件名的单段扩展名，不合规时按内容类型补全，最后回落为 .bin。
+	// 可内嵌展示的图片按内容类型确定扩展名，其余文件优先取原始文件名的单段扩展名，不合规时按内容类型补全，最后回落为 .bin。
 	for _, item := range []struct{ name, contentType, want string }{
 		{"memo.md", "text/markdown", "organizations/org/files/file.md"},
 		{"Report.PDF", "application/pdf", "organizations/org/files/file.pdf"},
 		{"archive.tar.gz", "application/gzip", "organizations/org/files/file.gz"},
 		{"photo", "image/jpeg", "organizations/org/files/file.jpg"},
+		{"page.html", "image/png", "organizations/org/files/file.png"},
+		{"photo.jpeg", "image/jpeg", "organizations/org/files/file.jpg"},
+		{"page.html", "text/html", "organizations/org/files/file.html"},
 		{"note.a b", "image/webp", "organizations/org/files/file.webp"},
 		{"README", "text/plain", "organizations/org/files/file.txt"},
 		{"方案", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "organizations/org/files/file.docx"},

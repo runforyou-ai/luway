@@ -9,13 +9,12 @@ import (
 	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
-// RequestMetaFromHTTP 从请求头提取 Bearer 令牌、目标工作区、语言和设备编号，构造应用服务请求元数据。
+// RequestMetaFromHTTP 从请求头提取 Bearer 令牌、目标工作区和语言，构造应用服务请求元数据。
 func RequestMetaFromHTTP(header http.Header) RequestMeta {
 	return RequestMeta{
 		Token:       BearerToken(header.Get("Authorization")),
 		WorkspaceID: strings.TrimSpace(header.Get(WorkspaceHeader)),
 		Locale:      Locale(header.Get("Accept-Language")),
-		DeviceID:    strings.TrimSpace(header.Get(DeviceHeader)),
 	}
 }
 

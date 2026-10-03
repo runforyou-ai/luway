@@ -45,20 +45,20 @@ type Capabilities struct {
 	CustomBranding bool `json:"customBranding"`
 }
 
-// PlatformOverview 定义服务器标识、安装时间、规模、活跃情况、授权状态和当前生效的平台能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
+// PlatformOverview 定义服务器标识、安装时间、规模、活跃情况、授权状态和当前生效的平台能力；活跃与新增按 TimeZone 划分日期，StatsRebuilding 表示正在按新时区重建。
 type PlatformOverview struct {
-	ServerID           string                  `json:"serverId"`
-	InstalledAt        time.Time               `json:"installedAt"`
-	StatisticsTimeZone string                  `json:"statisticsTimeZone"`
-	StatsRebuilding    bool                    `json:"statsRebuilding"`
-	AccountCount       int                     `json:"accountCount"`
-	WorkspaceCount     int                     `json:"workspaceCount"`
-	MemberCount        int                     `json:"memberCount"`
-	Last7Days          PlatformActivityWindow  `json:"last7Days"`
-	Last30Days         PlatformActivityWindow  `json:"last30Days"`
-	Trend              []PlatformDailyActivity `json:"trend"`
-	License            License                 `json:"license"`
-	Capabilities       Capabilities            `json:"capabilities"`
+	ServerID        string                  `json:"serverId"`
+	InstalledAt     time.Time               `json:"installedAt"`
+	TimeZone        string                  `json:"timeZone"`
+	StatsRebuilding bool                    `json:"statsRebuilding"`
+	AccountCount    int                     `json:"accountCount"`
+	WorkspaceCount  int                     `json:"workspaceCount"`
+	MemberCount     int                     `json:"memberCount"`
+	Last7Days       PlatformActivityWindow  `json:"last7Days"`
+	Last30Days      PlatformActivityWindow  `json:"last30Days"`
+	Trend           []PlatformDailyActivity `json:"trend"`
+	License         License                 `json:"license"`
+	Capabilities    Capabilities            `json:"capabilities"`
 }
 
 // License 定义服务器标识、授权状态、授权编号、客户、签发与到期时间、授权码授予的能力，以及与 control 同步时查不到本服务器授权的起始时间；未激活时只有服务器标识、状态和免费能力。
@@ -100,12 +100,13 @@ type PlatformDailyActivity struct {
 	NewWorkspaces    int    `json:"newWorkspaces"`
 }
 
-// PlatformSettings 定义平台注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
+// PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 type PlatformSettings struct {
 	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy"`
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
-	StatisticsTimeZone      string                  `json:"statisticsTimeZone"`
+	TimeZone                string                  `json:"timeZone"`
 	TelemetryEnabled        bool                    `json:"telemetryEnabled"`
+	DailyCreditGrant        int64                   `json:"dailyCreditGrant"`
 }
 
 // PlatformPoliciesInput 定义平台注册策略和工作区创建策略的修改值。
@@ -114,14 +115,14 @@ type PlatformPoliciesInput struct {
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
 }
 
-// PlatformTelemetryInput 定义运行指标上报开关的修改值。
+// PlatformTelemetryInput 定义运行指标与错误上报开关的修改值。
 type PlatformTelemetryInput struct {
 	TelemetryEnabled bool `json:"telemetryEnabled"`
 }
 
-// PlatformStatisticsTimeZoneInput 定义运营数据统计时区的修改值。
-type PlatformStatisticsTimeZoneInput struct {
-	StatisticsTimeZone string `json:"statisticsTimeZone"`
+// PlatformTimeZoneInput 定义平台时区的修改值。
+type PlatformTimeZoneInput struct {
+	TimeZone string `json:"timeZone"`
 }
 
 // PlatformAccountListInput 定义平台账号列表的筛选与分页条件，Status 缺省为有效账号。
@@ -177,7 +178,7 @@ type PlatformWorkspace struct {
 	MemberCount      int             `json:"memberCount"`
 	AIEmployeeCount  int             `json:"aiEmployeeCount"`
 	ChannelCount     int             `json:"channelCount"`
-	DeviceCount      int             `json:"deviceCount"`
+	ComputerCount    int             `json:"computerCount"`
 	HasPlatformAdmin bool            `json:"hasPlatformAdmin"`
 	StorageBytes     int64           `json:"storageBytes"`
 	LastActiveOn     *string         `json:"lastActiveOn"`

@@ -822,9 +822,9 @@ func (b *Backend) ResumePersonalAgent(ctx context.Context, meta appservice.Reque
 }
 
 // MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentDeviceInput) (appservice.PersonalAgent, error) {
+func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentComputerInput) (appservice.PersonalAgent, error) {
 	var output appservice.PersonalAgent
-	err := b.do(ctx, meta, http.MethodPut, "/personal-agents/"+url.PathEscape(agentID)+"/device", nil, input, &output)
+	err := b.do(ctx, meta, http.MethodPut, "/personal-agents/"+url.PathEscape(agentID)+"/computer", nil, input, &output)
 	return output, err
 }
 
@@ -922,7 +922,7 @@ func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.Reque
 	return output, err
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
 	err := b.do(ctx, meta, http.MethodGet, "/platform/settings", nil, nil, &output)
@@ -936,14 +936,21 @@ func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.Re
 	return output, err
 }
 
-// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStatisticsTimeZoneInput) (appservice.PlatformSettings, error) {
+// UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+func (b *Backend) UpdatePlatformTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTimeZoneInput) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
-	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/statistics-time-zone", nil, input, &output)
+	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/time-zone", nil, input, &output)
 	return output, err
 }
 
-// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
+func (b *Backend) UpdatePlatformDailyCreditGrant(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformDailyCreditGrantInput) (appservice.PlatformSettings, error) {
+	var output appservice.PlatformSettings
+	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/daily-credit-grant", nil, input, &output)
+	return output, err
+}
+
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (b *Backend) UpdatePlatformTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTelemetryInput) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
 	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/telemetry", nil, input, &output)
@@ -1066,6 +1073,27 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 func (b *Backend) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformDiagnostics, error) {
 	var output appservice.PlatformDiagnostics
 	err := b.do(ctx, meta, http.MethodGet, "/platform/diagnostics", nil, nil, &output)
+	return output, err
+}
+
+// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
+func (b *Backend) GetPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.CreditBalance, error) {
+	var output appservice.CreditBalance
+	err := b.do(ctx, meta, http.MethodGet, "/platform/workspaces/"+url.PathEscape(workspaceID)+"/credits", nil, nil, &output)
+	return output, err
+}
+
+// ListPlatformWorkspaceCreditEntries 返回工作区的积分流水。
+func (b *Backend) ListPlatformWorkspaceCreditEntries(ctx context.Context, meta appservice.RequestMeta, workspaceID string, input appservice.CreditEntryListInput) (appservice.CreditEntryList, error) {
+	var output appservice.CreditEntryList
+	err := b.do(ctx, meta, http.MethodGet, "/platform/workspaces/"+url.PathEscape(workspaceID)+"/credits/entries", encodeCreditEntryListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// AdjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
+func (b *Backend) AdjustPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string, input appservice.PlatformCreditAdjustmentInput) (appservice.PlatformCreditAdjustment, error) {
+	var output appservice.PlatformCreditAdjustment
+	err := b.do(ctx, meta, http.MethodPost, "/platform/workspaces/"+url.PathEscape(workspaceID)+"/credits/adjustments", nil, input, &output)
 	return output, err
 }
 
@@ -1510,6 +1538,20 @@ func (b *Backend) ListAIModelOptions(ctx context.Context, meta appservice.Reques
 	return output, err
 }
 
+// GetCreditBalance 返回当前工作区的可用积分与今天的每日赠送。
+func (b *Backend) GetCreditBalance(ctx context.Context, meta appservice.RequestMeta) (appservice.CreditBalance, error) {
+	var output appservice.CreditBalance
+	err := b.do(ctx, meta, http.MethodGet, "/credits", nil, nil, &output)
+	return output, err
+}
+
+// ListCreditEntries 返回当前工作区的积分流水。
+func (b *Backend) ListCreditEntries(ctx context.Context, meta appservice.RequestMeta, input appservice.CreditEntryListInput) (appservice.CreditEntryList, error) {
+	var output appservice.CreditEntryList
+	err := b.do(ctx, meta, http.MethodGet, "/credits/entries", encodeCreditEntryListInputQuery(input), nil, &output)
+	return output, err
+}
+
 // ListAIProviders 返回当前企业的模型服务供应商列表。
 func (b *Backend) ListAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.AIProviderList, error) {
 	var output appservice.AIProviderList
@@ -1887,23 +1929,23 @@ func (b *Backend) DismissKnowledgeGap(ctx context.Context, meta appservice.Reque
 	return b.do(ctx, meta, http.MethodPost, "/knowledge-gaps/"+url.PathEscape(gapID)+"/dismiss", nil, nil, nil)
 }
 
-// RegisterDevice 注册当前用户的本机设备。
-func (b *Backend) RegisterDevice(ctx context.Context, meta appservice.RequestMeta, input appservice.DeviceRegistrationInput) (appservice.Device, error) {
-	var output appservice.Device
-	err := b.do(ctx, meta, http.MethodPost, "/devices", nil, input, &output)
+// RegisterComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+func (b *Backend) RegisterComputer(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerRegistrationInput) (appservice.ComputerRegistration, error) {
+	var output appservice.ComputerRegistration
+	err := b.do(ctx, meta, http.MethodPost, "/computers", nil, input, &output)
 	return output, err
 }
 
-// ListDevices 返回当前用户已注册的设备。
-func (b *Backend) ListDevices(ctx context.Context, meta appservice.RequestMeta) (appservice.DeviceList, error) {
-	var output appservice.DeviceList
-	err := b.do(ctx, meta, http.MethodGet, "/devices", nil, nil, &output)
+// ListComputers 返回当前成员未撤销的电脑。
+func (b *Backend) ListComputers(ctx context.Context, meta appservice.RequestMeta) (appservice.ComputerList, error) {
+	var output appservice.ComputerList
+	err := b.do(ctx, meta, http.MethodGet, "/computers", nil, nil, &output)
 	return output, err
 }
 
-// RevokeDevice 撤销当前用户的设备。
-func (b *Backend) RevokeDevice(ctx context.Context, meta appservice.RequestMeta, deviceID string) error {
-	return b.do(ctx, meta, http.MethodDelete, "/devices/"+url.PathEscape(deviceID), nil, nil, nil)
+// RevokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+func (b *Backend) RevokeComputer(ctx context.Context, meta appservice.RequestMeta, computerID string) error {
+	return b.do(ctx, meta, http.MethodDelete, "/computers/"+url.PathEscape(computerID), nil, nil, nil)
 }
 
 // encodeAIPerformanceBreakdownInputQuery 将 appservice.AIPerformanceBreakdownInput 编码为查询参数。
@@ -2014,6 +2056,14 @@ func encodeConversationMessageWindowInputQuery(input appservice.ConversationMess
 	query := url.Values{}
 	setQuery(query, "start", input.Start)
 	setQuery(query, "end", input.End)
+	return query
+}
+
+// encodeCreditEntryListInputQuery 将 appservice.CreditEntryListInput 编码为查询参数。
+func encodeCreditEntryListInputQuery(input appservice.CreditEntryListInput) url.Values {
+	query := url.Values{}
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
 	return query
 }
 

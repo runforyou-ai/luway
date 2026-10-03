@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { useCreditFormat } from "@/hooks/use-credit-format"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useResource } from "@/hooks/use-resource"
 
@@ -24,8 +25,8 @@ const statusVariants: Record<AIModelCallStatusId, "success" | "warning" | "destr
 
 /** 按状态显示调用或上游尝试的状态徽标。 */
 export function PlatformModelCallStatus({ status }: { status: AIModelCallStatusId }) {
-  const { t } = useTranslation("platform")
-  return <StatusBadge variant={statusVariants[status]}>{t(`platformCalls.statuses.${status}`)}</StatusBadge>
+  const { t } = useTranslation(["platform", "common"])
+  return <StatusBadge variant={statusVariants[status]}>{t(`common:aiModels.callStatuses.${status}`)}</StatusBadge>
 }
 
 /** 返回开始到结束的秒数，进行中的调用返回空。 */
@@ -34,9 +35,10 @@ function durationSeconds(createdAt: string, finishedAt: string | null) {
   return ((Date.parse(finishedAt) - Date.parse(createdAt)) / 1000).toFixed(1)
 }
 
-/** 按调用编号打开侧栏，callId 为空时关闭；展示调用归属、用量、失败原因与按顺序排列的上游尝试。 */
+/** 按调用编号打开侧栏，callId 为空时关闭；展示调用归属、用量、扣除积分、失败原因与按顺序排列的上游尝试。 */
 export function PlatformModelCallSheet({ callId, onClose }: { callId: string; onClose: () => void }) {
-  const { t } = useTranslation("platform")
+  const { t } = useTranslation(["platform", "common"])
+  const credit = useCreditFormat()
   const { formatDateTime } = useDateTime()
   // 打开时重新读取，调用进行中时定时刷新直到结束。
   const detail = useResource(resourceKeys.platformAIModelCall(callId), (signal) => getPlatformAIModelCall(callId, signal), {
@@ -68,7 +70,7 @@ export function PlatformModelCallSheet({ callId, onClose }: { callId: string; on
                     <dt className="text-muted-foreground">{t("platformCalls.sheet.workspace")}</dt>
                     <dd className="min-w-0 break-words">{data.call.workspaceName}</dd>
                     <dt className="text-muted-foreground">{t("platformCalls.sheet.usage")}</dt>
-                    <dd>{t(`platformCalls.usages.${data.call.usage}`)}</dd>
+                    <dd>{t(`common:aiModels.usages.${data.call.usage}`)}</dd>
                     <dt className="text-muted-foreground">{t("platformCalls.sheet.actor")}</dt>
                     <dd>{t(`platformCalls.actors.${data.call.actor}`)}</dd>
                     {duration !== null ? (
@@ -84,6 +86,17 @@ export function PlatformModelCallSheet({ callId, onClose }: { callId: string; on
                         cached: data.call.cachedInputTokens.toLocaleString(),
                         output: data.call.outputTokens.toLocaleString(),
                       })}
+                    </dd>
+                    <dt className="text-muted-foreground">
+                      {t(data.call.status === AIModelCallStatus.AIModelCallStatusRunning ? "platformCalls.sheet.reserved" : "platformCalls.sheet.credits")}
+                    </dt>
+                    <dd className="tabular-nums">
+                      {data.call.creditShortfall > 0
+                        ? t("platformCalls.sheet.creditsWithShortfall", {
+                            credits: credit.amount(data.call.credits),
+                            shortfall: credit.amount(data.call.creditShortfall),
+                          })
+                        : credit.amount(data.call.credits)}
                     </dd>
                     {data.call.errorMessage ? (
                       <>
@@ -107,7 +120,7 @@ export function PlatformModelCallSheet({ callId, onClose }: { callId: string; on
                             </span>
                           </div>
                           <p className="pl-7 text-xs text-muted-foreground tabular-nums">
-                            {t("platformCalls.tokens", {
+                            {t("common:aiModels.tokens", {
                               input: attempt.inputTokens.toLocaleString(),
                               output: attempt.outputTokens.toLocaleString(),
                             })}

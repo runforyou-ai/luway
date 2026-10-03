@@ -1,6 +1,6 @@
 /** 个人 AI 员工新建与编辑表单。 */
 import { useEffect, useMemo, type ReactNode } from "react"
-import { Controller, useForm, useWatch, type Control } from "react-hook-form"
+import { Controller, useForm, type Control } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
@@ -10,7 +10,6 @@ import {
   createPersonalAgent,
   updatePersonalAgent,
   type PersonalAgentDetailData,
-  type LocalAgentKindId,
   type ServiceAudience,
 } from "@/api"
 import { FormActions } from "@/components/form/form-actions"
@@ -23,7 +22,6 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { NativeSelect } from "@/components/ui/native-select"
 import { Textarea } from "@/components/ui/textarea"
 import { AgentKnowledgeField } from "@/components/agent-fields/agent-knowledge-field"
 import { AgentMCPField } from "@/components/agent-fields/agent-mcp-field"
@@ -31,7 +29,6 @@ import { AgentModelField } from "@/components/agent-fields/agent-model-field"
 import { usePersonalAgentInvalidator } from "@/hooks/use-personal-agent-invalidator"
 import { AgentServiceAudiencesField } from "@/features/agents/agent-service-audiences-field"
 import { useAgentAvatarUpload, type AgentAvatarUpload, type AgentCreateDraft } from "@/features/agents/agent-form"
-import { localAgentName } from "@/lib/local-agent-name"
 import {
   createPersonalAgentSchema,
   type PersonalAgentFormValues,
@@ -42,7 +39,7 @@ import { requestErrorMessage } from "@/lib/form-errors"
 import { recoverSession } from "@/lib/session-navigation"
 import { zodResolver } from "@/lib/zod-resolver"
 
-const personalAgentErrorFields = ["displayName", "modelId", "localAgent", "systemInstruction", "knowledgeBaseIds", "mcpServerIds"]
+const personalAgentErrorFields = ["displayName", "modelId", "systemInstruction", "knowledgeBaseIds", "mcpServerIds"]
 
 /** 创建个人 AI 员工表单的校验规则。 */
 function usePersonalAgentSchema() {
@@ -59,19 +56,8 @@ function usePersonalAgentSchema() {
   )
 }
 
-/** 把表单值转换为个人 AI 员工的资料、执行配置与企业 MCP 服务输入；由本机 Agent 完成时只提交其种类与指令。 */
+/** 把表单值转换为个人 AI 员工的资料、执行配置与企业 MCP 服务输入。 */
 function personalAgentInput(values: PersonalAgentFormValues, avatarFileId: string) {
-  if (values.localAgent) {
-    return {
-      displayName: values.displayName,
-      avatarFileId,
-      execution: {
-        mode: AgentExecutionMode.AgentExecutionModeLocalAgent,
-        localAgent: { kind: values.localAgent as LocalAgentKindId, systemInstruction: values.systemInstruction },
-      },
-      mcpServerIds: [],
-    }
-  }
   return {
     displayName: values.displayName,
     avatarFileId,
@@ -87,11 +73,10 @@ function personalAgentInput(values: PersonalAgentFormValues, avatarFileId: strin
   }
 }
 
-/** 在本机创建仅服务自己的 AI 员工，执行电脑固定为当前电脑；服务对象改为客户或员工时把所选对象与已填内容交给 onServiceAudiencesChange 切换表单，头像上传状态由创建页共享。 */
+/** 在本机创建仅服务自己的 AI 员工，使用的电脑固定为当前电脑；服务对象改为客户或员工时把所选对象与已填内容交给 onServiceAudiencesChange 切换表单，头像上传状态由创建页共享。 */
 export function PersonalAgentCreateForm({
-  deviceID,
-  deviceName,
-  localAgents,
+  computerID,
+  computerName,
   draft,
   draftDirty,
   avatar,
@@ -99,9 +84,8 @@ export function PersonalAgentCreateForm({
   onSaved,
   onCancel,
 }: {
-  deviceID: string
-  deviceName: string
-  localAgents: LocalAgentKindId[]
+  computerID: string
+  computerName: string
   draft: AgentCreateDraft
   draftDirty: boolean
   avatar: AgentAvatarUpload
@@ -116,7 +100,7 @@ export function PersonalAgentCreateForm({
   const form = useForm<PersonalAgentFormValues>({
     resolver: zodResolver(schema),
     shouldUseNativeValidation: true,
-    defaultValues: { ...draft, localAgent: "", mcpServerIds: [] },
+    defaultValues: { ...draft, mcpServerIds: [] },
   })
   const { mounted, dirty } = useFormLifetime(form.formState.isDirty || avatar.pending !== null || draftDirty)
 
@@ -136,7 +120,7 @@ export function PersonalAgentCreateForm({
     const avatarFileId = await avatar.ensureUploaded()
     if (avatarFileId === null) return
     try {
-      await createPersonalAgent({ ...personalAgentInput(values, avatarFileId), deviceId: deviceID })
+      await createPersonalAgent({ ...personalAgentInput(values, avatarFileId), computerId: computerID })
       void invalidate()
       if (!mounted.current) return
       toast.success(t("form.created"))
@@ -159,8 +143,7 @@ export function PersonalAgentCreateForm({
         avatarURL={avatar.pending?.previewURL}
         avatarLoading={avatar.pending?.status === "uploading"}
         onAvatarSelect={avatar.select}
-        deviceName={deviceName}
-        localAgents={localAgents}
+        computerName={computerName}
         leading={
           <AgentServiceAudiencesField
             value={[]}
@@ -188,24 +171,13 @@ export function PersonalAgentEditForm({
   const schema = usePersonalAgentSchema()
   const { personalAgent: agent, execution } = detail
   const values = useMemo<PersonalAgentFormValues>(
-    () =>
-      execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent
-        ? {
-            displayName: agent.displayName,
-            modelId: "",
-            localAgent: execution.localAgent.kind,
-            systemInstruction: execution.localAgent.systemInstruction,
-            knowledgeBaseIds: [],
-            mcpServerIds: [],
-          }
-        : {
-            displayName: agent.displayName,
-            modelId: execution.managed.model.id,
-            localAgent: "",
-            systemInstruction: execution.managed.systemInstruction,
-            knowledgeBaseIds: execution.managed.knowledgeBaseIds,
-            mcpServerIds: execution.mcpServerIds,
-          },
+    () => ({
+      displayName: agent.displayName,
+      modelId: execution.managed.model.id,
+      systemInstruction: execution.managed.systemInstruction,
+      knowledgeBaseIds: execution.managed.knowledgeBaseIds,
+      mcpServerIds: execution.mcpServerIds,
+    }),
     [agent.displayName, execution],
   )
   const form = useForm<PersonalAgentFormValues>({
@@ -255,22 +227,20 @@ export function PersonalAgentEditForm({
           // 头像不在表单值中，选择后立即排队保存。
           saveNow(true)
         }}
-        deviceName={agent.device.name}
-        localAgents={agent.device.localAgents}
+        computerName={agent.computer.name}
       />
     </form>
   )
 }
 
-/** 渲染个人 AI 员工的头像、名称、完成方式、对话模型、指令、知识库、企业 MCP 服务与只读的执行电脑；由本机 Agent 完成时不显示模型、知识库与企业 MCP 服务。 */
+/** 渲染个人 AI 员工的头像、名称、对话模型、指令、知识库、企业 MCP 服务与只读的使用电脑。 */
 function PersonalAgentFields({
   control,
   disabled,
   avatarURL,
   avatarLoading,
   onAvatarSelect,
-  deviceName,
-  localAgents,
+  computerName,
   leading,
 }: {
   control: Control<PersonalAgentFormValues>
@@ -278,16 +248,10 @@ function PersonalAgentFields({
   avatarURL?: string
   avatarLoading: boolean
   onAvatarSelect: (file: File) => void
-  deviceName: string
-  localAgents: LocalAgentKindId[]
+  computerName: string
   leading?: ReactNode
 }) {
   const { t } = useTranslation(["agents", "contacts"])
-  const localAgent = useWatch({ control, name: "localAgent" })
-  // 已选的本机 Agent 不再可用时仍列出，便于改回由个人 AI 员工自己完成。
-  const localAgentOptions = localAgent && !localAgents.includes(localAgent as LocalAgentKindId)
-    ? [...localAgents, localAgent as LocalAgentKindId]
-    : localAgents
   return (
     <FieldGroup>
       {leading}
@@ -309,27 +273,7 @@ function PersonalAgentFields({
         label={t("form.name")}
         disabled={disabled}
       />
-      {localAgentOptions.length > 0 ? (
-        <Controller
-          name="localAgent"
-          control={control}
-          render={({ field }) => (
-            <Field>
-              <FieldLabel htmlFor="agent-executor">{t("personal.form.executor")}</FieldLabel>
-              <NativeSelect {...field} id="agent-executor" disabled={disabled}>
-                <option value="">{t("personal.form.executorSelf")}</option>
-                {localAgentOptions.map((kind) => (
-                  <option key={kind} value={kind}>
-                    {t("personal.form.executorLocalAgent", { name: localAgentName(kind) })}
-                  </option>
-                ))}
-              </NativeSelect>
-              <FieldDescription>{t("personal.form.executorHelp")}</FieldDescription>
-            </Field>
-          )}
-        />
-      ) : null}
-      {localAgent ? null : <AgentModelField control={control} name="modelId" disabled={disabled} />}
+      <AgentModelField control={control} name="modelId" disabled={disabled} />
       <Controller
         name="systemInstruction"
         control={control}
@@ -346,40 +290,36 @@ function PersonalAgentFields({
           </Field>
         )}
       />
-      {localAgent ? null : (
-        <Controller
-          name="knowledgeBaseIds"
-          control={control}
-          render={({ field }) => (
-            <Field>
-              <FieldLabel>{t("execution.knowledgeBases")}</FieldLabel>
-              <AgentKnowledgeField value={field.value} onChange={field.onChange} disabled={disabled} />
-            </Field>
-          )}
-        />
-      )}
-      {localAgent ? null : (
-        <Controller
-          name="mcpServerIds"
-          control={control}
-          render={({ field }) => (
-            <Field>
-              <FieldLabel>{t("mcp.services")}</FieldLabel>
-              <AgentMCPField
-                value={field.value}
-                onChange={field.onChange}
-                disabled={disabled}
-                allowCustomerScoped={false}
-              />
-              <FieldDescription>{t("personal.form.mcpHelp")}</FieldDescription>
-            </Field>
-          )}
-        />
-      )}
+      <Controller
+        name="knowledgeBaseIds"
+        control={control}
+        render={({ field }) => (
+          <Field>
+            <FieldLabel>{t("execution.knowledgeBases")}</FieldLabel>
+            <AgentKnowledgeField value={field.value} onChange={field.onChange} disabled={disabled} />
+          </Field>
+        )}
+      />
+      <Controller
+        name="mcpServerIds"
+        control={control}
+        render={({ field }) => (
+          <Field>
+            <FieldLabel>{t("mcp.services")}</FieldLabel>
+            <AgentMCPField
+              value={field.value}
+              onChange={field.onChange}
+              disabled={disabled}
+              allowCustomerScoped={false}
+            />
+            <FieldDescription>{t("personal.form.mcpHelp")}</FieldDescription>
+          </Field>
+        )}
+      />
       <Field>
-        <FieldLabel htmlFor="agent-device">{t("personal.form.device")}</FieldLabel>
-        <Input id="agent-device" value={deviceName} readOnly disabled />
-        <FieldDescription>{t("personal.form.deviceHelp")}</FieldDescription>
+        <FieldLabel htmlFor="agent-computer">{t("personal.form.computer")}</FieldLabel>
+        <Input id="agent-computer" value={computerName} readOnly disabled />
+        <FieldDescription>{t("personal.form.computerHelp")}</FieldDescription>
       </Field>
     </FieldGroup>
   )

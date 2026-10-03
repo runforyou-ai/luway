@@ -53,19 +53,19 @@ func removeGroupPersonalAgents(ctx context.Context, tx bun.Tx, coordinator Group
 	return removed, cancelledRunIDs, nil
 }
 
-// ensurePersonalAgentsReachable 校验被点名的个人 AI 员工可以接收新请求，按已禁用、绑定电脑已撤销、已暂停的顺序返回冲突，与在线状态的优先级一致；其他 AI 员工不受影响。
+// ensurePersonalAgentsReachable 校验被点名的个人 AI 员工可以接收新请求，按已禁用、电脑已撤销、已暂停的顺序返回冲突，与在线状态的优先级一致；其他 AI 员工不受影响。
 func ensurePersonalAgentsReachable(ctx context.Context, db bun.IDB, organizationID string, identityIDs []string) error {
 	var blocked struct {
 		Inactive bool `bun:"inactive"`
 		Unbound  bool `bun:"unbound"`
 	}
 	err := db.NewSelect().TableExpr("agents AS a").
-		ColumnExpr("a.status <> ? AS inactive, d.revoked_at IS NOT NULL AS unbound", domain.IdentityStatusActive).
-		Join("JOIN devices AS d ON d.organization_id = a.organization_id AND d.id = a.device_id").
+		ColumnExpr("a.status <> ? AS inactive, cmp.revoked_at IS NOT NULL AS unbound", domain.IdentityStatusActive).
+		Join("JOIN computers AS cmp ON cmp.organization_id = a.organization_id AND cmp.id = a.computer_id").
 		Where("a.organization_id = ? AND a.identity_id IN (?)", organizationID, bun.In(identityIDs)).
 		Where("? = ANY(a.service_audiences)", domain.ServiceAudiencePersonal).
-		Where("a.status <> ? OR a.paused_at IS NOT NULL OR d.revoked_at IS NOT NULL", domain.IdentityStatusActive).
-		OrderExpr("a.status <> ? DESC, d.revoked_at IS NOT NULL DESC", domain.IdentityStatusActive).
+		Where("a.status <> ? OR a.paused_at IS NOT NULL OR cmp.revoked_at IS NOT NULL", domain.IdentityStatusActive).
+		OrderExpr("a.status <> ? DESC, cmp.revoked_at IS NOT NULL DESC", domain.IdentityStatusActive).
 		Limit(1).
 		Scan(ctx, &blocked)
 	if errors.Is(err, sql.ErrNoRows) {

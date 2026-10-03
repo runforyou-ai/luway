@@ -48,7 +48,7 @@ func TestWebTools(t *testing.T) {
 	runtime := &EinoRuntime{}
 	tools, release, err := runtime.assembleTools(context.Background(), RunRequest{
 		Assignment: Assignment{Scene: SceneAgentChat}, WebSearch: search, WebFetch: fetch,
-	}, nil, workspaceTools{})
+	}, nil, computerToolset{})
 	if err != nil {
 		t.Fatal(err)
 	}

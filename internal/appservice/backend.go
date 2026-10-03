@@ -391,8 +391,8 @@ type Backend interface {
 	//appservice:route POST /personal-agents/:agentID/resume
 	ResumePersonalAgent(context.Context, RequestMeta, string) (PersonalAgent, error)
 	// MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-	//appservice:route PUT /personal-agents/:agentID/device
-	MovePersonalAgent(context.Context, RequestMeta, string, PersonalAgentDeviceInput) (PersonalAgent, error)
+	//appservice:route PUT /personal-agents/:agentID/computer
+	MovePersonalAgent(context.Context, RequestMeta, string, PersonalAgentComputerInput) (PersonalAgent, error)
 	// DeactivatePersonalAgent 停用个人 AI 员工。
 	//appservice:route POST /personal-agents/:agentID/deactivate
 	DeactivatePersonalAgent(context.Context, RequestMeta, string) (PersonalAgent, error)
@@ -435,16 +435,19 @@ type Backend interface {
 	// GetPlatformOverview 返回服务器标识、规模、活跃趋势、授权状态和平台能力。
 	//appservice:route GET /platform/overview auth=admin
 	GetPlatformOverview(context.Context, RequestMeta) (PlatformOverview, error)
-	// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+	// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 	//appservice:route GET /platform/settings auth=admin
 	GetPlatformSettings(context.Context, RequestMeta) (PlatformSettings, error)
 	// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
 	//appservice:route PUT /platform/settings auth=admin
 	UpdatePlatformSettings(context.Context, RequestMeta, PlatformPoliciesInput) (PlatformSettings, error)
-	// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-	//appservice:route PUT /platform/settings/statistics-time-zone auth=admin
-	UpdatePlatformStatisticsTimeZone(context.Context, RequestMeta, PlatformStatisticsTimeZoneInput) (PlatformSettings, error)
-	// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+	// UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+	//appservice:route PUT /platform/settings/time-zone auth=admin
+	UpdatePlatformTimeZone(context.Context, RequestMeta, PlatformTimeZoneInput) (PlatformSettings, error)
+	// UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
+	//appservice:route PUT /platform/settings/daily-credit-grant auth=admin
+	UpdatePlatformDailyCreditGrant(context.Context, RequestMeta, PlatformDailyCreditGrantInput) (PlatformSettings, error)
+	// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 	//appservice:route PUT /platform/settings/telemetry auth=admin
 	UpdatePlatformTelemetry(context.Context, RequestMeta, PlatformTelemetryInput) (PlatformSettings, error)
 	// ListPlatformAccounts 返回平台内的账号。
@@ -498,6 +501,15 @@ type Backend interface {
 	// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
 	//appservice:route GET /platform/diagnostics auth=admin
 	GetPlatformDiagnostics(context.Context, RequestMeta) (PlatformDiagnostics, error)
+	// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
+	//appservice:route GET /platform/workspaces/:workspaceID/credits auth=admin
+	GetPlatformWorkspaceCredits(context.Context, RequestMeta, string) (CreditBalance, error)
+	// ListPlatformWorkspaceCreditEntries 返回工作区的积分流水。
+	//appservice:route GET /platform/workspaces/:workspaceID/credits/entries auth=admin
+	ListPlatformWorkspaceCreditEntries(context.Context, RequestMeta, string, CreditEntryListInput) (CreditEntryList, error)
+	// AdjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
+	//appservice:route POST /platform/workspaces/:workspaceID/credits/adjustments status=201 auth=admin
+	AdjustPlatformWorkspaceCredits(context.Context, RequestMeta, string, PlatformCreditAdjustmentInput) (PlatformCreditAdjustment, error)
 	// ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 	//appservice:route GET /platform/model-providers auth=admin
 	ListPlatformAIProviders(context.Context, RequestMeta) (PlatformAIProviderList, error)
@@ -700,6 +712,12 @@ type Backend interface {
 	// ListAIModelOptions 返回当前工作区满足指定用途的模型。
 	//appservice:route GET /ai-models query=usage
 	ListAIModelOptions(context.Context, RequestMeta, AIModelUsage) (AIModelOptionList, error)
+	// GetCreditBalance 返回当前工作区的可用积分与今天的每日赠送。
+	//appservice:route GET /credits
+	GetCreditBalance(context.Context, RequestMeta) (CreditBalance, error)
+	// ListCreditEntries 返回当前工作区的积分流水。
+	//appservice:route GET /credits/entries
+	ListCreditEntries(context.Context, RequestMeta, CreditEntryListInput) (CreditEntryList, error)
 	// ListAIProviders 返回当前企业的模型服务供应商列表。
 	//appservice:route GET /settings/model-services
 	ListAIProviders(context.Context, RequestMeta) (AIProviderList, error)
@@ -873,15 +891,15 @@ type Backend interface {
 	//appservice:route POST /knowledge-gaps/:gapID/dismiss
 	DismissKnowledgeGap(context.Context, RequestMeta, string) error
 
-	// RegisterDevice 注册当前用户的本机设备。
-	//appservice:route POST /devices
-	RegisterDevice(context.Context, RequestMeta, DeviceRegistrationInput) (Device, error)
-	// ListDevices 返回当前用户已注册的设备。
-	//appservice:route GET /devices
-	ListDevices(context.Context, RequestMeta) (DeviceList, error)
-	// RevokeDevice 撤销当前用户的设备。
-	//appservice:route DELETE /devices/:deviceID
-	RevokeDevice(context.Context, RequestMeta, string) error
+	// RegisterComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+	//appservice:route POST /computers
+	RegisterComputer(context.Context, RequestMeta, ComputerRegistrationInput) (ComputerRegistration, error)
+	// ListComputers 返回当前成员未撤销的电脑。
+	//appservice:route GET /computers
+	ListComputers(context.Context, RequestMeta) (ComputerList, error)
+	// RevokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+	//appservice:route DELETE /computers/:computerID
+	RevokeComputer(context.Context, RequestMeta, string) error
 }
 
 // WorkspaceInstaller 由服务端 Backend 实现，用于首次安装。
@@ -921,9 +939,9 @@ type ConversationWindowOpener interface {
 	OpenConversationWindow(context.Context, RequestMeta, ConversationWindowInput) error
 }
 
-// LocalDeviceReporter 由把本机注册为设备的原生端实现，报告设备注册状态与 Agent 运行环境的准备状态。
-type LocalDeviceReporter interface {
-	CurrentDevice(context.Context, RequestMeta) (LocalDevice, error)
+// LocalComputerReporter 由把本机注册为电脑的原生端实现，报告电脑注册状态与运行环境的准备状态。
+type LocalComputerReporter interface {
+	CurrentComputer(context.Context, RequestMeta) (LocalComputer, error)
 }
 
 // LocalEnvironmentManager 由为个人 AI 员工提供本机运行环境、本地 MCP 服务与技能的原生端实现。
@@ -933,7 +951,9 @@ type LocalEnvironmentManager interface {
 	UninstallLocalToolchain(context.Context, RequestMeta) error
 	InstallLocalToolchain(context.Context, RequestMeta) error
 	OpenLocalToolchainFolder(context.Context, RequestMeta) error
+	AddLocalMCPServer(context.Context, RequestMeta, LocalMCPServerInput) error
 	RemoveLocalMCPServer(context.Context, RequestMeta, string) error
+	InstallLocalSkill(context.Context, RequestMeta, LocalSkillInstallInput) error
 	RemoveLocalSkill(context.Context, RequestMeta, string) error
 }
 

@@ -25,18 +25,18 @@ type PersonalAgentInput struct {
 	MCPServerIDs []string            `json:"mcpServerIds"`
 }
 
-// CreatePersonalAgentInput 定义新建个人 AI 员工的资料、执行配置、企业 MCP 服务与要绑定的本机电脑，avatarFileId 为空时不设置头像。
+// CreatePersonalAgentInput 定义新建个人 AI 员工的资料、执行配置、企业 MCP 服务与使用的电脑，avatarFileId 为空时不设置头像。
 type CreatePersonalAgentInput struct {
 	DisplayName  string              `json:"displayName"`
 	AvatarFileID string              `json:"avatarFileId"`
 	Execution    AgentExecutionInput `json:"execution"`
 	MCPServerIDs []string            `json:"mcpServerIds"`
-	DeviceID     string              `json:"deviceId"`
+	ComputerID   string              `json:"computerId"`
 }
 
-// PersonalAgentDeviceInput 定义个人 AI 员工要换到的电脑。
-type PersonalAgentDeviceInput struct {
-	DeviceID string `json:"deviceId"`
+// PersonalAgentComputerInput 定义个人 AI 员工要换到的电脑。
+type PersonalAgentComputerInput struct {
+	ComputerID string `json:"computerId"`
 }
 
 // PersonalAgentResponsible 定义个人 AI 员工负责人的摘要。
@@ -46,11 +46,10 @@ type PersonalAgentResponsible struct {
 	DisplayName string `json:"displayName"`
 }
 
-// PersonalAgentDevice 定义个人 AI 员工绑定电脑的摘要，LocalAgents 是该电脑上报的已安装且可用的本机 Agent。
-type PersonalAgentDevice struct {
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	LocalAgents []LocalAgentKind `json:"localAgents"`
+// PersonalAgentComputer 定义个人 AI 员工使用的电脑的摘要。
+type PersonalAgentComputer struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // PersonalAgent 定义个人 AI 员工信息。
@@ -60,7 +59,7 @@ type PersonalAgent struct {
 	DisplayName string                   `json:"displayName"`
 	AvatarURL   string                   `json:"avatarUrl"`
 	Responsible PersonalAgentResponsible `json:"responsible"`
-	Device      PersonalAgentDevice      `json:"device"`
+	Computer    PersonalAgentComputer    `json:"computer"`
 	Status      UserStatus               `json:"status"`
 	Presence    PersonalAgentPresence    `json:"presence"`
 	Execution   AgentExecutionSummary    `json:"execution"`

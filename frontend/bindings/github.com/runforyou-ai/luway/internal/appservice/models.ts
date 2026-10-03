@@ -55,7 +55,7 @@ export enum AIModelInputModality {
 };
 
 /**
- * AIModelOption 定义模型选择器中的模型；工作区模型带所属供应商，平台模型的 Provider 为空。
+ * AIModelOption 定义模型选择器中的模型；工作区模型带所属供应商，平台模型带积分价格，另一项为空。
  */
 export interface AIModelOption {
     "id": string;
@@ -64,6 +64,7 @@ export interface AIModelOption {
     "type": AIModelType;
     "inputModalities": AIModelInputModality[] | null;
     "provider": AIModelOptionProvider | null;
+    "price": CreditPrice | null;
 }
 
 /**
@@ -623,16 +624,14 @@ export interface AgentExecution {
     "revisionId": string;
     "mode": AgentExecutionMode;
     "managed"?: AgentManagedExecution | null;
-    "localAgent"?: AgentLocalAgentExecution | null;
 }
 
 /**
- * AgentExecutionInput 定义执行配置输入，按执行方式填写 managed 或 localAgent；localAgent 只用于个人 AI 员工。
+ * AgentExecutionInput 定义执行配置输入，按执行方式填写 managed。
  */
 export interface AgentExecutionInput {
     "mode": AgentExecutionMode;
     "managed"?: AgentManagedExecutionInput | null;
-    "localAgent"?: AgentLocalAgentExecutionInput | null;
 }
 
 /**
@@ -645,7 +644,6 @@ export enum AgentExecutionMode {
     $zero = "",
 
     AgentExecutionModeManaged = "managed",
-    AgentExecutionModeLocalAgent = "local_agent",
 };
 
 /**
@@ -655,7 +653,6 @@ export interface AgentExecutionSummary {
     "revisionId": string;
     "mode": AgentExecutionMode;
     "managed"?: AgentManagedExecutionSummary | null;
-    "localAgent"?: AgentLocalAgentExecutionSummary | null;
 }
 
 /**
@@ -743,35 +740,12 @@ export interface AgentListItem {
 }
 
 /**
- * AgentListPersonalItem 定义个人 AI 员工目录项的绑定电脑与在线状态。
+ * AgentListPersonalItem 定义个人 AI 员工目录项使用的电脑与在线状态。
  */
 export interface AgentListPersonalItem {
-    "deviceId": string;
-    "deviceName": string;
+    "computerId": string;
+    "computerName": string;
     "presence": PersonalAgentPresence;
-}
-
-/**
- * AgentLocalAgentExecution 定义由本机 Agent 执行的配置。
- */
-export interface AgentLocalAgentExecution {
-    "kind": LocalAgentKind;
-    "systemInstruction": string;
-}
-
-/**
- * AgentLocalAgentExecutionInput 定义由本机 Agent 执行的配置输入。
- */
-export interface AgentLocalAgentExecutionInput {
-    "kind": LocalAgentKind;
-    "systemInstruction": string;
-}
-
-/**
- * AgentLocalAgentExecutionSummary 定义由本机 Agent 执行的配置摘要。
- */
-export interface AgentLocalAgentExecutionSummary {
-    "kind": LocalAgentKind;
 }
 
 /**
@@ -1254,6 +1228,56 @@ export interface ColleagueListInput {
 }
 
 /**
+ * Computer 定义成员注册到工作区的电脑，Online 表示执行器当前在线。
+ */
+export interface Computer {
+    "id": string;
+    "name": string;
+    "platform": ComputerPlatform;
+    "online": boolean;
+    "lastSeenAt": string | null;
+    "createdAt": string;
+}
+
+/**
+ * ComputerList 定义当前成员的电脑列表。
+ */
+export interface ComputerList {
+    "computers": Computer[] | null;
+}
+
+/**
+ * ComputerPlatform 定义电脑的操作系统平台。
+ */
+export enum ComputerPlatform {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    ComputerPlatformMacOS = "macos",
+    ComputerPlatformWindows = "windows",
+    ComputerPlatformLinux = "linux",
+};
+
+/**
+ * ComputerRegistration 定义注册结果：电脑与执行器连接服务端使用的电脑凭据，凭据只在注册时返回一次。
+ */
+export interface ComputerRegistration {
+    "computer": Computer;
+    "credential": string;
+}
+
+/**
+ * ComputerRegistrationInput 定义执行器注册电脑时上报的本机信息。
+ */
+export interface ComputerRegistrationInput {
+    "installId": string;
+    "name": string;
+    "platform": ComputerPlatform;
+}
+
+/**
  * ConnectReason 表示原生端已保存服务器仍进入连接页的原因。
  */
 export enum ConnectReason {
@@ -1611,16 +1635,6 @@ export interface ConversationAgentRun {
     "errorCode": string | null;
     "lastError": string | null;
     "process": ConversationAgentProcess | null;
-
-    /**
-     * ExecutionDeviceID 是执行该运行的设备编号，服务端执行时为空。
-     */
-    "executionDeviceId": string | null;
-
-    /**
-     * ExecutionDeviceName 是执行该运行的设备名称，服务端执行时为空。
-     */
-    "executionDeviceName": string | null;
 }
 
 /**
@@ -2123,14 +2137,80 @@ export interface CreateMessageChannelInput {
 }
 
 /**
- * CreatePersonalAgentInput 定义新建个人 AI 员工的资料、执行配置、企业 MCP 服务与要绑定的本机电脑，avatarFileId 为空时不设置头像。
+ * CreatePersonalAgentInput 定义新建个人 AI 员工的资料、执行配置、企业 MCP 服务与使用的电脑，avatarFileId 为空时不设置头像。
  */
 export interface CreatePersonalAgentInput {
     "displayName": string;
     "avatarFileId": string;
     "execution": AgentExecutionInput;
     "mcpServerIds": string[] | null;
-    "deviceId": string;
+    "computerId": string;
+}
+
+/**
+ * CreditBalance 定义工作区可用积分与今天的每日赠送；今天没有发放每日赠送时 DailyGrantExpiresAt 为空。
+ */
+export interface CreditBalance {
+    "available": number;
+    "dailyGrant": number;
+    "dailyGrantRemaining": number;
+    "dailyGrantExpiresAt": string | null;
+}
+
+/**
+ * CreditEntry 定义积分流水中的一个业务事件：入账为正数，扣除为负数；模型调用一次一条，进行中时为当前预占积分，模型字段只对模型调用有值，备注只对平台管理员调整有值。
+ */
+export interface CreditEntry {
+    "id": string;
+    "kind": CreditEntryKind;
+    "occurredAt": string;
+    "amount": number;
+    "note": string;
+    "modelName": string;
+    "modelUsage": AIModelUsage;
+    "callStatus": AIModelCallStatus;
+    "inputTokens": number;
+    "outputTokens": number;
+}
+
+/**
+ * CreditEntryKind 表示积分流水的业务事件类型。
+ */
+export enum CreditEntryKind {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    CreditEntryKindDailyGrant = "daily_grant",
+    CreditEntryKindAdjustment = "adjustment",
+    CreditEntryKindModelCall = "model_call",
+    CreditEntryKindExpiration = "expiration",
+};
+
+/**
+ * CreditEntryList 定义积分流水分页结果。
+ */
+export interface CreditEntryList {
+    "entries": CreditEntry[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * CreditEntryListInput 定义积分流水的分页条件。
+ */
+export interface CreditEntryListInput {
+    "page": number;
+    "pageSize": number;
+}
+
+/**
+ * CreditPrice 定义平台模型的积分价格：每百万输入 Token、每百万输出 Token 与每次调用的积分。
+ */
+export interface CreditPrice {
+    "input": number;
+    "output": number;
+    "request": number;
 }
 
 /**
@@ -2283,48 +2363,6 @@ export interface CustomerVisit {
 }
 
 /**
- * Device 定义成员注册到企业的本机设备，LocalAgents 是设备上报的已安装且可用的本机 Agent。
- */
-export interface Device {
-    "id": string;
-    "name": string;
-    "platform": DevicePlatform;
-    "localAgents": LocalAgentKind[] | null;
-    "createdAt": string;
-    "updatedAt": string;
-}
-
-/**
- * DeviceList 定义当前用户的设备列表。
- */
-export interface DeviceList {
-    "devices": Device[] | null;
-}
-
-/**
- * DevicePlatform 定义注册设备的运行平台。
- */
-export enum DevicePlatform {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    DevicePlatformMacOS = "macos",
-    DevicePlatformWindows = "windows",
-    DevicePlatformLinux = "linux",
-};
-
-/**
- * DeviceRegistrationInput 定义设备注册上报的本机信息。
- */
-export interface DeviceRegistrationInput {
-    "installId": string;
-    "name": string;
-    "platform": DevicePlatform;
-}
-
-/**
  * DirectConversationLookup 定义按目标身份查找单聊的结果。
  */
 export interface DirectConversationLookup {
@@ -2373,6 +2411,9 @@ export interface File {
  * FileDownload 定义附件的即时下载地址。
  */
 export interface FileDownload {
+    /**
+     * PreviewURL 只对浏览器可内嵌展示的图片返回。
+     */
     "previewUrl": string;
     "url": string;
 }
@@ -3630,22 +3671,10 @@ export interface LoadInboxInput {
 }
 
 /**
- * LocalAgentKind 表示经 ACP 驱动的本机 Agent 种类。
+ * LocalComputer 定义本机在当前工作区的电脑注册状态与运行环境，电脑编号为空表示尚未注册；不作为电脑执行操作的平台运行环境为空。
  */
-export enum LocalAgentKind {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    LocalAgentKindCodex = "codex",
-};
-
-/**
- * LocalDevice 定义本机在当前企业服务器上的设备注册状态与 Agent 运行环境，设备编号为空表示尚未注册；不执行 Agent 运行的平台运行环境为空。
- */
-export interface LocalDevice {
-    "deviceId": string;
+export interface LocalComputer {
+    "computerId": string;
     "toolchain": LocalToolchain | null;
 }
 
@@ -3671,6 +3700,19 @@ export interface LocalMCPServer {
     "command": string;
     "args": string[] | null;
     "url": string;
+}
+
+/**
+ * LocalMCPServerInput 定义添加到这台电脑的本地 MCP 服务：本地进程给出启动命令、参数与环境变量，SSE 与 Streamable HTTP 服务给出地址与请求头。
+ */
+export interface LocalMCPServerInput {
+    "name": string;
+    "type": LocalMCPServerType;
+    "command": string;
+    "args": string[] | null;
+    "env": { [_ in string]?: string } | null;
+    "url": string;
+    "headers": { [_ in string]?: string } | null;
 }
 
 /**
@@ -3706,6 +3748,14 @@ export interface LocalSkill {
     "description": string;
     "source": LocalSkillSource;
     "location": string;
+}
+
+/**
+ * LocalSkillInstallInput 定义要安装到这台电脑的技能来源，来源含多个技能时按 Name 选择。
+ */
+export interface LocalSkillInstallInput {
+    "source": string;
+    "name": string;
 }
 
 /**
@@ -4196,11 +4246,26 @@ export interface PersonalAgent {
     "displayName": string;
     "avatarUrl": string;
     "responsible": PersonalAgentResponsible;
-    "device": PersonalAgentDevice;
+    "computer": PersonalAgentComputer;
     "status": UserStatus;
     "presence": PersonalAgentPresence;
     "execution": AgentExecutionSummary;
     "createdAt": string;
+}
+
+/**
+ * PersonalAgentComputer 定义个人 AI 员工使用的电脑的摘要。
+ */
+export interface PersonalAgentComputer {
+    "id": string;
+    "name": string;
+}
+
+/**
+ * PersonalAgentComputerInput 定义个人 AI 员工要换到的电脑。
+ */
+export interface PersonalAgentComputerInput {
+    "computerId": string;
 }
 
 /**
@@ -4209,22 +4274,6 @@ export interface PersonalAgent {
 export interface PersonalAgentDetail {
     "personalAgent": PersonalAgent;
     "execution": AgentExecution;
-}
-
-/**
- * PersonalAgentDevice 定义个人 AI 员工绑定电脑的摘要，LocalAgents 是该电脑上报的已安装且可用的本机 Agent。
- */
-export interface PersonalAgentDevice {
-    "id": string;
-    "name": string;
-    "localAgents": LocalAgentKind[] | null;
-}
-
-/**
- * PersonalAgentDeviceInput 定义个人 AI 员工要换到的电脑。
- */
-export interface PersonalAgentDeviceInput {
-    "deviceId": string;
 }
 
 /**
@@ -4270,7 +4319,7 @@ export interface PersonalAgentResponsible {
 }
 
 /**
- * PlatformAIModel 定义平台模型的属性与按尝试顺序排列的来源。
+ * PlatformAIModel 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价。
  */
 export interface PlatformAIModel {
     "id": string;
@@ -4279,11 +4328,12 @@ export interface PlatformAIModel {
     "inputModalities": AIModelInputModality[] | null;
     "contextWindow": number;
     "maxOutputTokens": number;
+    "price": CreditPrice | null;
     "routes": PlatformAIModelRoute[] | null;
 }
 
 /**
- * PlatformAIModelCall 定义一次平台模型调用及其归属工作区。
+ * PlatformAIModelCall 定义一次平台模型调用及其归属工作区；Credits 进行中为预占积分，结束后为实际扣除积分，CreditShortfall 为余额不足未能补扣的积分。
  */
 export interface PlatformAIModelCall {
     "id": string;
@@ -4301,6 +4351,8 @@ export interface PlatformAIModelCall {
     "outputTokens": number;
     "errorMessage": string;
     "attemptCount": number;
+    "credits": number;
+    "creditShortfall": number;
 }
 
 /**
@@ -4347,7 +4399,7 @@ export interface PlatformAIModelCallListInput {
 }
 
 /**
- * PlatformAIModelInput 定义平台模型的属性与按尝试顺序排列的来源。
+ * PlatformAIModelInput 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价，工作区不可使用。
  */
 export interface PlatformAIModelInput {
     "name": string;
@@ -4355,6 +4407,7 @@ export interface PlatformAIModelInput {
     "inputModalities": AIModelInputModality[] | null;
     "contextWindow": number;
     "maxOutputTokens": number;
+    "price": CreditPrice | null;
     "routes": PlatformAIModelRouteInput[] | null;
 }
 
@@ -4494,6 +4547,22 @@ export interface PlatformControlStatus {
 }
 
 /**
+ * PlatformCreditAdjustment 定义积分调整结果：实际变动积分与调整后的余额，扣减最多扣到余额为 0。
+ */
+export interface PlatformCreditAdjustment {
+    "amount": number;
+    "balance": CreditBalance;
+}
+
+/**
+ * PlatformCreditAdjustmentInput 定义平台管理员对工作区积分的调整：正数为增加，负数为扣减。
+ */
+export interface PlatformCreditAdjustmentInput {
+    "amount": number;
+    "note": string;
+}
+
+/**
  * PlatformDailyActivity 定义一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数，Date 为 YYYY-MM-DD。
  */
 export interface PlatformDailyActivity {
@@ -4502,6 +4571,13 @@ export interface PlatformDailyActivity {
     "activeWorkspaces": number;
     "newAccounts": number;
     "newWorkspaces": number;
+}
+
+/**
+ * PlatformDailyCreditGrantInput 定义每日赠送积分的修改值，0 表示不赠送。
+ */
+export interface PlatformDailyCreditGrantInput {
+    "dailyCreditGrant": number;
 }
 
 /**
@@ -4581,12 +4657,12 @@ export interface PlatformObjectStorageStatus {
 }
 
 /**
- * PlatformOverview 定义服务器标识、安装时间、规模、活跃情况、授权状态和当前生效的平台能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
+ * PlatformOverview 定义服务器标识、安装时间、规模、活跃情况、授权状态和当前生效的平台能力；活跃与新增按 TimeZone 划分日期，StatsRebuilding 表示正在按新时区重建。
  */
 export interface PlatformOverview {
     "serverId": string;
     "installedAt": string;
-    "statisticsTimeZone": string;
+    "timeZone": string;
     "statsRebuilding": boolean;
     "accountCount": number;
     "workspaceCount": number;
@@ -4690,20 +4766,14 @@ export interface PlatformServerStorageConfig {
 }
 
 /**
- * PlatformSettings 定义平台注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
+ * PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
  */
 export interface PlatformSettings {
     "registrationPolicy": RegistrationPolicy;
     "workspaceCreationPolicy": WorkspaceCreationPolicy;
-    "statisticsTimeZone": string;
+    "timeZone": string;
     "telemetryEnabled": boolean;
-}
-
-/**
- * PlatformStatisticsTimeZoneInput 定义运营数据统计时区的修改值。
- */
-export interface PlatformStatisticsTimeZoneInput {
-    "statisticsTimeZone": string;
+    "dailyCreditGrant": number;
 }
 
 /**
@@ -4721,10 +4791,17 @@ export interface PlatformTaskQueue {
 }
 
 /**
- * PlatformTelemetryInput 定义运行指标上报开关的修改值。
+ * PlatformTelemetryInput 定义运行指标与错误上报开关的修改值。
  */
 export interface PlatformTelemetryInput {
     "telemetryEnabled": boolean;
+}
+
+/**
+ * PlatformTimeZoneInput 定义平台时区的修改值。
+ */
+export interface PlatformTimeZoneInput {
+    "timeZone": string;
 }
 
 /**
@@ -4783,7 +4860,7 @@ export interface PlatformWorkspace {
     "memberCount": number;
     "aiEmployeeCount": number;
     "channelCount": number;
-    "deviceCount": number;
+    "computerCount": number;
     "hasPlatformAdmin": boolean;
     "storageBytes": number;
     "lastActiveOn": string | null;
@@ -4920,8 +4997,7 @@ export enum RegistrationPolicy {
 };
 
 /**
- * RequestMeta 携带一次应用服务调用的认证、目标工作区和本地化信息；WorkspaceID 经 WorkspaceHeader 传输，
- * DeviceID 只由原生端设备进程设置，经 DeviceHeader 传输。
+ * RequestMeta 携带一次应用服务调用的认证、目标工作区和本地化信息；WorkspaceID 经 WorkspaceHeader 传输。
  */
 export interface RequestMeta {
     "token": string;

@@ -81,27 +81,36 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 	// 模型拒绝多模态输入后，直传附件与本机图片读取一并关闭。
 	mediaEnabled := &atomic.Bool{}
 	mediaEnabled.Store(true)
+	// 主 Agent 与子 Agent 共用本次运行读取或写入后的文件内容摘要。
+	var savedVersions FileVersions
+	if restored != nil {
+		savedVersions = restored.FileVersions
+	}
+	versions := newFileVersions(savedVersions)
+	if request.Resume != nil {
+		versions.restoreOutcomes(request.Resume.Blocks)
+	}
 	// 有效配置包含委派工具时，委派与 fork 模式的技能使用同一个子 Agent 工厂。
 	var delegation *subagentFactory
 	var skillHub skill.TypedAgentHub[*schema.AgenticMessage]
 	if slices.Contains(request.Assignment.Tools, subagentToolName) {
-		delegation = &subagentFactory{runtime: r, request: request, mediaEnabled: mediaEnabled, maxIterations: maxIterations, recorder: recorder}
+		delegation = &subagentFactory{runtime: r, request: request, mediaEnabled: mediaEnabled, maxIterations: maxIterations, recorder: recorder, versions: versions}
 		skillHub = delegation
 	}
-	workspace, err := newWorkspaceTools(ctx, request, mediaEnabled, skillHub)
+	computer, err := newComputerToolset(ctx, request, versions, skillHub)
 	if err != nil {
 		return RunResult{}, err
 	}
-	tools, releaseSessions, err := r.assembleTools(ctx, request, terminal, workspace)
+	tools, releaseSessions, err := r.assembleTools(ctx, request, terminal, computer)
 	if err != nil {
 		return RunResult{}, err
 	}
 	defer releaseSessions()
 	if delegation != nil {
-		delegation.tools = slices.DeleteFunc(slices.Clone(tools), func(item tool.BaseTool) bool { return slices.Contains(workspace.tools, item) })
+		delegation.tools = slices.DeleteFunc(slices.Clone(tools), func(item tool.BaseTool) bool { return slices.Contains(computer.tools, item) })
 	}
 	// 登记工具特性，框架中间件注册的工具按名称登记。
-	frameworkTools := slices.Concat(workspace.names, planToolNames, []string{offloadedResultToolName, skillToolName})
+	frameworkTools := slices.Concat(planToolNames, []string{offloadedResultToolName, skillToolName})
 	if err := registerToolTraits(ctx, recorder.traits, tools, frameworkTools, delegation != nil); err != nil {
 		return RunResult{}, err
 	}
@@ -177,7 +186,7 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 	assembly, err := r.buildAgent(ctx, agentSpec{
 		name: request.Assignment.AgentName, instruction: request.Assignment.Instruction,
 		request: request, maxIterations: maxIterations, mediaEnabled: mediaEnabled,
-		workspace: workspace, tools: tools, toolMiddlewares: toolMiddlewares,
+		computer: computer, tools: tools, toolMiddlewares: toolMiddlewares,
 		observer: recorder, evidenceTools: evidenceTools, guard: guard, extra: handlers,
 		patchResults: func(callID string) (string, bool) {
 			result, ok := resumed[callID]
@@ -194,7 +203,7 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed InputFee
 	execution := &einoExecution{
 		inputs: &turnInputs{feed: feed, holdPreempt: terminal.handoffFixed}, recorder: recorder, terminal: terminal, gate: gate, guard: guard, summarizer: assembly.summarizer,
 		maxTurns: request.MaxTurns, contextWindow: window, media: media, mediaEnabled: mediaEnabled,
-		plans: plans, offloaded: assembly.offloaded, usage: func() Usage {
+		plans: plans, offloaded: assembly.offloaded, versions: versions, usage: func() Usage {
 			total := assembly.auxiliaryUsage()
 			total.merge(selection.usage)
 			if delegation != nil {
@@ -245,8 +254,8 @@ type agentSpec struct {
 	request         RunRequest
 	maxIterations   int
 	mediaEnabled    *atomic.Bool
-	workspace       workspaceTools
-	tools           []tool.BaseTool // 已包含本机工具的全部工具。
+	computer        computerToolset
+	tools           []tool.BaseTool // 已包含电脑工具的全部工具。
 	toolMiddlewares []compose.ToolMiddleware
 	observer        adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]   // 中间件链首，观察每次模型输出。
 	evidenceTools   []string                                                    // 结果不参与清理的依据来源工具。
@@ -286,7 +295,7 @@ func (r *EinoRuntime) buildAgent(ctx context.Context, spec agentSpec) (*agentAss
 		return nil, err
 	}
 	var intactTools []string
-	if slices.Contains(spec.workspace.names, skillToolName) {
+	if spec.computer.skills != nil {
 		intactTools = append(intactTools, skillToolName)
 	}
 	reductionHandlers, offloaded, err := newContextReductionHandlers(ctx, ContextWindowTokens(modelConfig), spec.evidenceTools, intactTools)
@@ -304,7 +313,9 @@ func (r *EinoRuntime) buildAgent(ctx context.Context, spec agentSpec) (*agentAss
 	}
 	handlers := append([]adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]{spec.observer}, reductionHandlers...)
 	handlers = append(handlers, &toolArgumentsNormalizer{}, patch, assembly.summarizer, spec.guard)
-	handlers = append(handlers, spec.workspace.middlewares...)
+	if spec.computer.skills != nil {
+		handlers = append(handlers, spec.computer.skills)
+	}
 	handlers = append(handlers, spec.extra...)
 	assembly.agent, err = adk.NewTypedChatModelAgent(ctx, &adk.TypedChatModelAgentConfig[*schema.AgenticMessage]{
 		Name: spec.name, Description: spec.description, Instruction: spec.instruction, Model: chatModel,
@@ -391,8 +402,8 @@ func (m *modelRetry) shouldRetry(ctx context.Context, attempt *adk.TypedRetryCon
 
 // assembleTools 按场景与请求装配本次运行的工具：Runtime 基础工具只在内部场景注册，终止工具只在客服场景注册，MCP 工具在内置工具之后按服务顺序连接，跳过名称与已注册工具重复的工具。
 // 工具集合由本次运行注入的依赖决定，调用方必须让注入的依赖与有效配置中的工具清单一致。
-func (r *EinoRuntime) assembleTools(ctx context.Context, request RunRequest, terminal *terminalTools, workspace workspaceTools) ([]tool.BaseTool, func(), error) {
-	tools := make([]tool.BaseTool, 0, len(r.tools)+6+len(workspace.tools))
+func (r *EinoRuntime) assembleTools(ctx context.Context, request RunRequest, terminal *terminalTools, computer computerToolset) ([]tool.BaseTool, func(), error) {
+	tools := make([]tool.BaseTool, 0, len(r.tools)+6+len(computer.tools))
 	if !request.Assignment.Scene.Service() {
 		tools = append(tools, r.tools...)
 	}
@@ -427,14 +438,11 @@ func (r *EinoRuntime) assembleTools(ctx context.Context, request RunRequest, ter
 	if terminal != nil {
 		tools = append(tools, terminal.tools()...)
 	}
-	tools = append(tools, workspace.tools...)
+	tools = append(tools, computer.tools...)
 	release := func() {}
 	if len(request.MCPConnections) > 0 {
 		// 收齐本次运行的内置工具名称，MCP 工具重名时由 openMCPTools 跳过。
-		registered := map[string]struct{}{offloadedResultToolName: {}}
-		for _, name := range workspace.names {
-			registered[name] = struct{}{}
-		}
+		registered := map[string]struct{}{offloadedResultToolName: {}, skillToolName: {}}
 		for _, existing := range tools {
 			info, err := existing.Info(ctx)
 			if err != nil {
@@ -470,6 +478,7 @@ type einoExecution struct {
 	finished      bool
 	plans         *planStore
 	offloaded     *offloadStore
+	versions      *fileVersions            // 本次运行读取或写入后的文件内容摘要。
 	usage         func() Usage             // 返回对话模型以外的累计用量。
 	saveMu        sync.Mutex               // 串行保存安全点，并行工具各自结束时依次写入。
 	context       []*schema.AgenticMessage // 最近一次模型输出定稿时的模型上下文，不含系统指令。
@@ -732,7 +741,7 @@ func (e *einoExecution) save(ctx context.Context) error {
 	state := checkpoint{
 		Messages: e.context, Seen: e.history.seen, MediaCount: e.history.mediaCount, MediaBytes: e.history.mediaBytes,
 		ClaimedSeq: claimedSeq, Turns: e.turns, MediaEnabled: e.mediaEnabled.Load(), KeepFromID: e.summarizer.keptFrom(),
-		Iterations: e.guard.spent(), Terminal: e.terminal.export(), Offloaded: e.offloaded.snapshot(), Usage: usage,
+		Iterations: e.guard.spent(), Terminal: e.terminal.export(), Offloaded: e.offloaded.snapshot(), FileVersions: e.versions.snapshot(), Usage: usage,
 	}
 	state.Evidence, state.Grounded = e.gate.export()
 	if e.plans != nil {

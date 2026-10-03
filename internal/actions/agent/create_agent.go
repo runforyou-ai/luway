@@ -41,7 +41,7 @@ func (a *CreateAgentAction) Execute(ctx context.Context, identity *servermodels.
 	if err != nil {
 		return nil, err
 	}
-	executionInput, err := normalizeExecutionInput(input.Execution, false)
+	executionInput, err := normalizeExecutionInput(input.Execution)
 	if err != nil {
 		return nil, err
 	}

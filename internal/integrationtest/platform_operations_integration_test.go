@@ -19,7 +19,7 @@ import (
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 )
 
-// TestPlatformOperationsData 验证运营数据从消息推导活跃账号与活跃工作区，汇总可重复执行，平台概览与工作区列表按统计时区读取汇总结果。
+// TestPlatformOperationsData 验证运营数据从消息推导活跃账号与活跃工作区，汇总可重复执行，平台概览与工作区列表按平台时区读取汇总结果。
 func TestPlatformOperationsData(t *testing.T) {
 	t.Parallel()
 	db := openEmptyDatabase(t)
@@ -42,11 +42,11 @@ func TestPlatformOperationsData(t *testing.T) {
 	}
 	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: appservice.LocaleChineseSimplified}
 	settings, err := backend.GetPlatformSettings(ctx, adminMeta)
-	if err != nil || settings.StatisticsTimeZone != "Asia/Shanghai" {
+	if err != nil || settings.TimeZone != "Asia/Shanghai" {
 		t.Fatalf("settings = %#v, err = %v", settings, err)
 	}
-	_, err = backend.UpdatePlatformStatisticsTimeZone(ctx, adminMeta, appservice.PlatformStatisticsTimeZoneInput{StatisticsTimeZone: "Mars/Olympus"})
-	requireFieldError(t, err, "statisticsTimeZone", i18n.FieldTimeZoneInvalid)
+	_, err = backend.UpdatePlatformTimeZone(ctx, adminMeta, appservice.PlatformTimeZoneInput{TimeZone: "Mars/Olympus"})
+	requireFieldError(t, err, "timeZone", i18n.FieldTimeZoneInvalid)
 
 	workspaces, err := backend.ListWorkspaces(ctx, adminMeta)
 	if err != nil || len(workspaces.Items) != 1 || workspaces.Items[0].Status != appservice.WorkspaceStatusActive {
@@ -79,7 +79,7 @@ func TestPlatformOperationsData(t *testing.T) {
 	}
 	shanghai, _ := time.LoadLocation("Asia/Shanghai")
 	today := time.Now().In(shanghai).Format(time.DateOnly)
-	if overview.StatisticsTimeZone != "Asia/Shanghai" || overview.AccountCount != 2 || overview.WorkspaceCount != 2 || overview.MemberCount != 3 ||
+	if overview.TimeZone != "Asia/Shanghai" || overview.AccountCount != 2 || overview.WorkspaceCount != 2 || overview.MemberCount != 3 ||
 		overview.Last7Days.ActiveAccounts != 1 || overview.Last7Days.ActiveWorkspaces != 1 ||
 		overview.Last30Days.NewAccounts != 2 || overview.Last30Days.NewWorkspaces != 2 || len(overview.Trend) != 30 {
 		t.Fatalf("overview = %#v", overview)
@@ -100,7 +100,7 @@ func TestPlatformOperationsData(t *testing.T) {
 	_, err = backend.ListPlatformWorkspaces(ctx, adminMeta, appservice.PlatformWorkspaceListInput{Sort: "name"})
 	requireFieldError(t, err, "sort", i18n.FieldPlatformQueryInvalid)
 
-	// 修改统计时区后从安装日起按新时区重建：同一条消息只计入新时区的一天，没有消息支撑的历史活跃被清除。
+	// 修改平台时区后从安装日起按新时区重建：同一条消息只计入新时区的一天，没有消息支撑的历史活跃被清除。
 	if _, err := db.NewRaw("INSERT INTO account_daily_activities (organization_id, activity_date, account_id) VALUES (?, current_date - 10, ?)",
 		workspaceID, admin.Account.ID).Exec(ctx); err != nil {
 		t.Fatal(err)
@@ -108,14 +108,14 @@ func TestPlatformOperationsData(t *testing.T) {
 	if _, err := db.NewRaw("UPDATE platforms SET created_at = now() - interval '20 days'").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	// 修改统计时区只更新时区，注册策略保持不变。
+	// 修改平台时区只更新时区，注册策略保持不变。
 	if _, err := backend.UpdatePlatformSettings(ctx, adminMeta, appservice.PlatformPoliciesInput{
 		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: settings.WorkspaceCreationPolicy,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if updated, err := backend.UpdatePlatformStatisticsTimeZone(ctx, adminMeta, appservice.PlatformStatisticsTimeZoneInput{StatisticsTimeZone: "Pacific/Pago_Pago"}); err != nil ||
-		updated.StatisticsTimeZone != "Pacific/Pago_Pago" || updated.RegistrationPolicy != appservice.RegistrationPolicyOpen {
+	if updated, err := backend.UpdatePlatformTimeZone(ctx, adminMeta, appservice.PlatformTimeZoneInput{TimeZone: "Pacific/Pago_Pago"}); err != nil ||
+		updated.TimeZone != "Pacific/Pago_Pago" || updated.RegistrationPolicy != appservice.RegistrationPolicyOpen {
 		t.Fatalf("updated settings = %#v, err = %v", updated, err)
 	}
 	rebuilds, err := db.NewSelect().TableExpr("task_runs").
@@ -129,7 +129,7 @@ func TestPlatformOperationsData(t *testing.T) {
 	if err := aggregate.Execute(ctx, platformaction.AggregateStatsInput{}); err != nil {
 		t.Fatal(err)
 	}
-	if rebuilt, err := backend.GetPlatformOverview(ctx, adminMeta); err != nil || rebuilt.StatsRebuilding || rebuilt.StatisticsTimeZone != "Pacific/Pago_Pago" {
+	if rebuilt, err := backend.GetPlatformOverview(ctx, adminMeta); err != nil || rebuilt.StatsRebuilding || rebuilt.TimeZone != "Pacific/Pago_Pago" {
 		t.Fatalf("overview after rebuild = %#v, err = %v", rebuilt, err)
 	}
 	pagoPago, _ := time.LoadLocation("Pacific/Pago_Pago")

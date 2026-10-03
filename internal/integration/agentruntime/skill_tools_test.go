@@ -5,15 +5,14 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/cloudwego/eino/components/model"
-	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/localskill"
 )
 
@@ -74,12 +73,18 @@ func TestSkillLoadingSurvivesSummary(t *testing.T) {
 		return assistantReply("检查完了")
 	}}
 	chatModel := &summaryModel{AgenticModel: main}
+	skills := testSkills(t)
+	listed, err := skills.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	computer := &fakeComputer{skills: skills}
 	runtime := &EinoRuntime{}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, err := runtime.Run(ctx, RunRequest{
 		RunID: "skill-run", Assignment: Assignment{AgentName: "小码", Tools: []string{skillToolName}, Model: AssignmentModel{ContextWindow: 4000}},
-		Models: fixedModels(chatModel), Workspace: &imageWorkspace{}, Skills: testSkills(t), MaxTurns: 2,
+		Models: fixedModels(chatModel), Computer: computer, ComputerCapabilities: domain.ComputerCapabilities{Skills: computerSkills(listed)}, MaxTurns: 2,
 	}, feed)
 	if err != nil || result.Content != "检查完了" {
 		t.Fatalf("result = %+v, err = %v", result, err)
@@ -111,41 +116,36 @@ func TestSkillLoadingSurvivesSummary(t *testing.T) {
 	}
 }
 
-// TestInstallAndRemoveSkillTools 验证安装工具从本机文件夹安装技能且当前运行即可加载，删除工具只删除个人 AI 员工安装的技能。
-func TestInstallAndRemoveSkillTools(t *testing.T) {
-	ctx := context.Background()
+// TestSkillBackendLoadsFromComputer 验证技能目录取自电脑上报的能力，加载经电脑读取且不挂起运行，名称不存在时列出可用技能，托管运行环境下补充依赖安装方式。
+func TestSkillBackendLoadsFromComputer(t *testing.T) {
 	skills := testSkills(t)
-	source := filepath.Join(t.TempDir(), "pdf")
-	if err := os.MkdirAll(source, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(source, localskill.FileName), []byte("---\nname: pdf\ndescription: 处理 PDF\n---\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	_, tools, err := newSkillTools(ctx, RunRequest{Assignment: Assignment{Tools: LocalTools()}, Skills: skills}, nil)
-	if err != nil || len(tools) != 2 {
-		t.Fatalf("tools = %d, err = %v", len(tools), err)
-	}
-	result, err := tools[0].(tool.InvokableTool).InvokableRun(ctx, `{"source":`+strconv.Quote(source)+`}`)
-	if err != nil || !strings.Contains(result, "已安装技能 pdf") {
-		t.Fatalf("install = %q, err = %v", result, err)
-	}
-	// 运行中新安装的技能可以加载，名称不存在时列出可用技能；托管运行环境下补充依赖安装方式。
-	backend := &skillBackend{skills: skills, managed: true, loaded: make(map[string][32]byte)}
-	loaded, err := backend.Get(ctx, "pdf")
+	listed, err := skills.List(context.Background())
 	if err != nil {
-		t.Fatalf("新安装的技能无法加载: %v", err)
+		t.Fatal(err)
 	}
-	if content, _ := backend.content(ctx, loaded, `{"skill":"pdf"}`); !strings.Contains(content, "uv run --with") {
+	computer := &fakeComputer{skills: skills}
+	backend := &skillBackend{computer: computer, skills: computerSkills(listed), managed: true, loaded: make(map[string][32]byte), files: make(map[string][]string)}
+	ctx := context.WithValue(context.Background(), toolCallContextKey{}, toolCallMetadata{CallID: "s1", RecordID: "r1", Suspendable: true})
+	loaded, err := backend.Get(ctx, "xlsx")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(computer.suspends) != 1 || computer.suspends[0] {
+		t.Fatalf("suspends = %v", computer.suspends)
+	}
+	if content, _ := backend.content(ctx, loaded, `{"skill":"xlsx"}`); !strings.Contains(content, "uv run --with") || !strings.Contains(content, "<file>scripts/recalc.py</file>") {
 		t.Fatalf("content = %q", content)
 	}
-	if _, err := backend.Get(ctx, "missing"); err == nil || !strings.Contains(err.Error(), "pdf、xlsx") {
+	if _, err := backend.Get(ctx, "missing"); err == nil || !strings.Contains(err.Error(), "xlsx") {
 		t.Fatalf("未知技能的错误应列出可用技能: %v", err)
 	}
-	if _, err := tools[1].(tool.InvokableTool).InvokableRun(ctx, `{"name":"missing"}`); err == nil {
-		t.Fatal("删除不存在的技能应返回错误")
+}
+
+// computerSkills 把技能存储中的技能转换为电脑上报的技能目录。
+func computerSkills(skills []localskill.Skill) []domain.ComputerSkill {
+	output := make([]domain.ComputerSkill, 0, len(skills))
+	for _, skill := range skills {
+		output = append(output, domain.ComputerSkill{Name: skill.Name, Description: skill.Description, Dir: skill.Dir, Fork: skill.Fork})
 	}
-	if result, err := tools[1].(tool.InvokableTool).InvokableRun(ctx, `{"name":"pdf"}`); err != nil || !strings.Contains(result, "已删除") {
-		t.Fatalf("remove = %q, err = %v", result, err)
-	}
+	return output
 }

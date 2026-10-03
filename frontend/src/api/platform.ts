@@ -20,7 +20,7 @@ import {
   SuspendPlatformWorkspace,
   SyncLicense,
   UpdatePlatformSettings,
-  UpdatePlatformStatisticsTimeZone,
+  UpdatePlatformTimeZone,
   UpdatePlatformTelemetry,
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
@@ -55,14 +55,14 @@ export const activateLicenseOnline = bind(ActivateLicenseOnline)
 /** 立即向授权服务登记服务器并拉取最新授权。 */
 export const syncLicense = bind(SyncLicense)
 
-/** 读取平台注册策略、工作区创建策略、统计时区和运行指标上报开关。 */
+/** 读取平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。 */
 export const getPlatformSettings = bind(GetPlatformSettings)
 
 /** 修改平台注册策略和工作区创建策略。 */
 export const updatePlatformSettings = bind(UpdatePlatformSettings)
 
-/** 修改运营数据统计时区，服务端按新时区在后台重建运营数据。 */
-export const updatePlatformStatisticsTimeZone = bind(UpdatePlatformStatisticsTimeZone)
+/** 修改平台时区，服务端按新时区在后台重建运营数据。 */
+export const updatePlatformTimeZone = bind(UpdatePlatformTimeZone)
 
 /** 开启或关闭运行指标上报。 */
 export const updatePlatformTelemetry = bind(UpdatePlatformTelemetry)

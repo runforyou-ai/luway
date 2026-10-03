@@ -33,7 +33,6 @@ type realtimeClient struct {
 	// emit 把事件投递给指定窗口，窗口标识为空时投递给全部窗口。
 	emit    func(owner, name string, data any)
 	caller  func(context.Context) string
-	local   LocalRunStreams
 	mu      sync.Mutex
 	windows map[string]*windowStreams
 }
@@ -87,16 +86,6 @@ func (b *Backend) DisconnectRealtime(_ context.Context, _ appservice.RequestMeta
 func (b *Backend) ConnectAgentRunStream(ctx context.Context, meta appservice.RequestMeta, runID string) (appservice.RealtimeConnection, error) {
 	owner := b.realtime.owner(ctx)
 	generation := b.realtime.generation(owner)
-	// 运行在本机执行时经企业服务器校验阅读资格后直接读取本机过程流。
-	if b.realtime.runsLocally(runID) {
-		if err := b.AuthorizeAgentRunStreamAccess(ctx, meta, runID); err != nil {
-			return appservice.RealtimeConnection{}, err
-		}
-		if session, ok := b.realtime.startLocalRun(owner, generation, runID); ok {
-			slog.Info("本机运行过程流已建立", "connection_id", session.id, "window", owner, "agent_run_id", runID)
-			return appservice.RealtimeConnection{ConnectionID: session.id}, nil
-		}
-	}
 	response, cancel, err := b.openEventStream(ctx, meta, "/realtime/runs/"+runID)
 	if err != nil {
 		return appservice.RealtimeConnection{}, err
@@ -136,27 +125,6 @@ func (b *Backend) DisconnectWorkspaceActivity(_ context.Context, _ appservice.Re
 // ReleaseWindow 在前端窗口关闭后结束该窗口的全部实时事件流并删除其登记，window 是窗口标识。
 func (b *Backend) ReleaseWindow(window string) {
 	b.realtime.closeWindow(window)
-}
-
-// OpenDeviceEventStream 以本机设备身份建立设备事件流，返回事件流响应体，关闭返回值即结束事件流；meta 必须携带设备编号。
-func (b *Backend) OpenDeviceEventStream(ctx context.Context, meta appservice.RequestMeta) (io.ReadCloser, error) {
-	response, cancel, err := b.openEventStream(ctx, meta, "/realtime/device")
-	if err != nil {
-		return nil, err
-	}
-	return deviceEventStream{ReadCloser: response.Body, cancel: cancel}, nil
-}
-
-// deviceEventStream 是设备事件流响应体，关闭时一并取消请求。
-type deviceEventStream struct {
-	io.ReadCloser
-	cancel context.CancelFunc
-}
-
-// Close 取消事件流请求并关闭响应体。
-func (s deviceEventStream) Close() error {
-	s.cancel()
-	return s.ReadCloser.Close()
 }
 
 // staleEventStream 关闭建立期间已被整体断开的事件流，由前端按新凭据重新请求。
@@ -232,7 +200,7 @@ func (b *Backend) openEventStream(ctx context.Context, meta appservice.RequestMe
 	request, err := http.NewRequestWithContext(streamCtx, http.MethodGet, remoteEndpoint(state.baseURL, path, ""), nil)
 	if err != nil {
 		cancel()
-		return nil, nil, appservice.FailedError(meta, i18n.ErrorRemoteRequestCreateFailed)
+		return nil, nil, appservice.FailedError(meta, i18n.ErrorRemoteRequestCreateFailed, err)
 	}
 	request.Header.Set("Accept", "text/event-stream")
 	request.Header.Set("Accept-Language", string(meta.Locale))
@@ -240,9 +208,6 @@ func (b *Backend) openEventStream(ctx context.Context, meta appservice.RequestMe
 	request.Header.Set("Authorization", "Bearer "+credential.Token)
 	if meta.WorkspaceID != "" {
 		request.Header.Set(appservice.WorkspaceHeader, meta.WorkspaceID)
-	}
-	if meta.DeviceID != "" {
-		request.Header.Set(appservice.DeviceHeader, meta.DeviceID)
 	}
 	// 事件流是长响应，使用不设整体超时的客户端，只限制等待响应头的时间。
 	connectTimer := time.AfterFunc(realtimeConnectTimeout, cancel)

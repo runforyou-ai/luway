@@ -57,3 +57,30 @@ func TestLocalObjectServiceServesFinalObjects(t *testing.T) {
 		t.Fatalf("missing response = %d, cache control %q", missing.Code, missing.Header().Get("Cache-Control"))
 	}
 }
+
+// TestLocalObjectServiceForcesSafeContentType 验证只有可内嵌展示的图片按图片类型输出，其余文件一律按附件下载并在沙箱中打开，多段范围请求不改写内容类型。
+func TestLocalObjectServiceForcesSafeContentType(t *testing.T) {
+	store, err := serverfilecontent.NewLocalStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range []struct{ extension, contentType, disposition string }{
+		{".png", "image/png", ""},
+		{".html", "application/octet-stream", "attachment"},
+		{".svg", "application/octet-stream", "attachment"},
+	} {
+		storageKey := "organizations/00000000-0000-0000-0000-000000000001/files/00000000-0000-0000-0000-000000000002" + item.extension
+		if err := store.Save(context.Background(), storageKey, strings.NewReader("<script>alert(1)</script>"), 25); err != nil {
+			t.Fatal(err)
+		}
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/"+storageKey, nil)
+		request.Header.Set("Range", "bytes=0-1,3-4")
+		NewLocalObjectService(nil, store).ServeHTTP(response, request)
+		header := response.Header()
+		if response.Code != http.StatusOK || header.Get("Content-Type") != item.contentType || header.Get("Content-Disposition") != item.disposition ||
+			header.Get("Content-Security-Policy") != "sandbox" || header.Get("X-Content-Type-Options") != "nosniff" {
+			t.Fatalf("%s response = %d %v", item.extension, response.Code, header)
+		}
+	}
+}

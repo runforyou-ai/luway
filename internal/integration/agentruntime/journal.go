@@ -58,7 +58,16 @@ type checkpoint struct {
 	Grounded     bool
 	PlanFiles    map[string]string
 	Offloaded    map[string]string // 转存的大体积工具结果，按文件路径索引。
+	FileVersions FileVersions      // 本次运行读取或写入后电脑上文件内容的摘要。
 	Usage        Usage
+}
+
+// FileVersions 是电脑上文件内容摘要的可编码形式：摘要按绝对路径索引，别名把模型给出的路径映射到绝对路径，
+// Awaiting 记录挂起时仍在等待电脑结果的文件调用编号及其路径，恢复时以送达的结果补登摘要。
+type FileVersions struct {
+	Hashes   map[string]string
+	Aliases  map[string]string
+	Awaiting map[string]string
 }
 
 // terminalState 是终止工具在安全点的纠正额度与已登记意图。

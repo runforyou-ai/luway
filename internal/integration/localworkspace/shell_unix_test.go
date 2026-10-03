@@ -13,52 +13,76 @@ import (
 	"syscall"
 	"testing"
 	"time"
-
-	"github.com/cloudwego/eino/adk/filesystem"
 )
 
-// TestExecute 验证命令在默认文件夹中执行，合并输出并返回退出码。
-func TestExecute(t *testing.T) {
-	backend, root, _ := newTestWorkspace(t)
-	result, err := backend.Execute(context.Background(), &filesystem.ExecuteRequest{Command: "pwd; echo err >&2; exit 3"})
+// TestRun 验证命令在默认文件夹中执行，合并输出并注明非零退出码。
+func TestRun(t *testing.T) {
+	root := t.TempDir()
+	workspace := New(root, Environment{})
+	output, err := workspace.Run(context.Background(), "pwd; echo err >&2; exit 3")
 	if err != nil {
 		t.Fatal(err)
 	}
 	resolved, _ := filepath.EvalSymlinks(root)
-	inRoot := strings.Contains(result.Output, root) || strings.Contains(result.Output, resolved)
-	if result.ExitCode == nil || *result.ExitCode != 3 || !inRoot || !strings.Contains(result.Output, "err") || result.TimedOut {
-		t.Fatalf("result=%+v", result)
+	inRoot := strings.Contains(output, root) || strings.Contains(output, resolved)
+	if !inRoot || !strings.Contains(output, "err") || !strings.Contains(output, "[命令以退出码 3 结束]") {
+		t.Fatalf("output=%q", output)
+	}
+	if output, err := workspace.Run(context.Background(), "true"); err != nil || output != "[命令执行成功，没有输出]" {
+		t.Fatalf("empty output=%q err=%v", output, err)
 	}
 }
 
-// TestExecuteTerminatesProcessGroup 验证超时、取消与命令结束都终止命令启动的整个进程组。
-func TestExecuteTerminatesProcessGroup(t *testing.T) {
-	backend, root, _ := newTestWorkspace(t)
+// TestRunTerminatesProcessGroup 验证超时、取消与命令结束都终止命令启动的整个进程组。
+func TestRunTerminatesProcessGroup(t *testing.T) {
+	root := t.TempDir()
+	workspace := New(root, Environment{})
 	marker := filepath.Join(root, "survivor")
 	// 后台子进程在 1 秒后写入标记文件，进程组被终止时不会写入。
 	background := "(sleep 1; touch " + marker + ") > /dev/null 2>&1 &"
-	timeout := 200 * time.Millisecond
+	workspace.timeout = 200 * time.Millisecond
 	started := time.Now()
-	result, err := backend.Execute(context.Background(), &filesystem.ExecuteRequest{Command: background + " sleep 30", Timeout: &timeout})
-	if err != nil || !result.TimedOut || time.Since(started) > 5*time.Second {
-		t.Fatalf("timeout result=%+v err=%v elapsed=%v", result, err, time.Since(started))
+	output, err := workspace.Run(context.Background(), background+" sleep 30")
+	if err != nil || !strings.Contains(output, "[命令超时，已终止]") || time.Since(started) > 5*time.Second {
+		t.Fatalf("timeout output=%q err=%v elapsed=%v", output, err, time.Since(started))
 	}
+	workspace.timeout = CommandTimeout
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
-	if _, err := backend.Execute(ctx, &filesystem.ExecuteRequest{Command: background + " sleep 30"}); err == nil {
+	if _, err := workspace.Run(ctx, background+" sleep 30"); err == nil {
 		t.Fatal("cancelled command returned no error")
 	}
-	if result, err := backend.Execute(context.Background(), &filesystem.ExecuteRequest{Command: background + " echo done"}); err != nil || !strings.Contains(result.Output, "done") {
-		t.Fatalf("finished result=%+v err=%v", result, err)
+	if output, err := workspace.Run(context.Background(), background+" echo done"); err != nil || !strings.Contains(output, "done") {
+		t.Fatalf("finished output=%q err=%v", output, err)
 	}
 	// 后台进程继承输出管道时，主进程退出后同样立即终止。
 	inherited := "(sleep 1; touch " + marker + ") & echo parent_done"
-	if result, err := backend.Execute(context.Background(), &filesystem.ExecuteRequest{Command: inherited}); err != nil || !strings.Contains(result.Output, "parent_done") {
-		t.Fatalf("inherited result=%+v err=%v", result, err)
+	if output, err := workspace.Run(context.Background(), inherited); err != nil || !strings.Contains(output, "parent_done") {
+		t.Fatalf("inherited output=%q err=%v", output, err)
 	}
 	time.Sleep(1500 * time.Millisecond)
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatalf("background process survived: %v", err)
+	}
+}
+
+// TestReadNamedPipe 验证命名管道不会被读取，调用立即返回。
+func TestReadNamedPipe(t *testing.T) {
+	root := t.TempDir()
+	if err := syscall.Mkfifo(filepath.Join(root, "pipe"), 0o644); err != nil {
+		t.Skipf("mkfifo unavailable: %v", err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		if _, err := New(root, Environment{}).ReadText("pipe", 0, 0); err == nil {
+			t.Error("read named pipe succeeded")
+		}
+	}()
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("reading named pipe blocked")
 	}
 }
 
@@ -82,41 +106,6 @@ func TestReadLoginEnvironment(t *testing.T) {
 	time.Sleep(1500 * time.Millisecond)
 	if _, err := os.Stat(marker); !os.IsNotExist(err) {
 		t.Fatalf("profile background process survived: %v", err)
-	}
-}
-
-// TestCancelledQueuedOperations 验证命令执行期间排队的文件改动在运行取消后跳过执行。
-func TestCancelledQueuedOperations(t *testing.T) {
-	backend, root, _ := newTestWorkspace(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	executed := make(chan struct{})
-	go func() {
-		defer close(executed)
-		_, _ = backend.Execute(ctx, &filesystem.ExecuteRequest{Command: "sleep 30"})
-	}()
-	time.Sleep(300 * time.Millisecond)
-	errs := make(chan error, 3)
-	go func() { errs <- backend.Write(ctx, &filesystem.WriteRequest{FilePath: "queued.txt", Content: "x"}) }()
-	go func() {
-		errs <- backend.Edit(ctx, &filesystem.EditRequest{FilePath: "README.md", OldString: "Demo", NewString: "changed"})
-	}()
-	go func() { errs <- backend.Delete(ctx, "web/app.ts") }()
-	time.Sleep(100 * time.Millisecond)
-	cancel()
-	<-executed
-	for range 3 {
-		if err := <-errs; err == nil {
-			t.Fatal("queued operation ran after cancel")
-		}
-	}
-	if _, err := os.Stat(filepath.Join(root, "queued.txt")); !os.IsNotExist(err) {
-		t.Fatalf("queued write applied: %v", err)
-	}
-	if content, _ := os.ReadFile(filepath.Join(root, "README.md")); strings.Contains(string(content), "changed") {
-		t.Fatal("queued edit applied")
-	}
-	if _, err := os.Stat(filepath.Join(root, "web", "app.ts")); err != nil {
-		t.Fatalf("queued delete applied: %v", err)
 	}
 }
 

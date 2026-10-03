@@ -4,10 +4,9 @@ import { useTranslation } from "react-i18next"
 import { Link, useNavigate } from "react-router"
 
 import {
-  AgentExecutionMode,
   PersonalAgentPresence,
   UserStatus,
-  currentDevice,
+  currentComputer,
   deactivateAgent,
   deactivatePersonalAgent,
   listAgents,
@@ -44,7 +43,6 @@ import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { usePagedResource, useResource } from "@/hooks/use-resource"
 import { useReturnLink } from "@/hooks/use-return-to"
-import { localAgentName } from "@/lib/local-agent-name"
 import { personalAgentPresenceLabel } from "@/lib/personal-agent-presence"
 import { optionalWailsEnum } from "@/lib/wails-enum"
 
@@ -72,10 +70,10 @@ export function AgentListPage() {
     invalidateKeys: (agent) => personalAgentResourceKeys(agent.id),
     logLabel: "修改个人 AI 员工状态",
   })
-  const { data: local } = useResource(resourceKeys.currentDevice(), () => currentDevice())
-  const localDeviceID = local?.deviceId ?? ""
+  const { data: local } = useResource(resourceKeys.currentComputer(), () => currentComputer())
+  const localComputerID = local?.computerId ?? ""
   const move = useConfirmedAction<AgentListItemData>({
-    action: (agent) => movePersonalAgent(agent.id, localDeviceID),
+    action: (agent) => movePersonalAgent(agent.id, localComputerID),
     invalidateKeys: (agent) => personalAgentResourceKeys(agent.id),
     successMessage: () => t("personal.move.done"),
     errorMessage: () => t("personal.move.error"),
@@ -100,11 +98,11 @@ export function AgentListPage() {
     const paused = personal.presence === PersonalAgentPresence.PersonalAgentPresencePaused
     return [
       // 换到这台电脑只在桌面端出现。
-      ...(localDeviceID
+      ...(localComputerID
         ? [{
             key: "move",
             label: t("personal.actions.move"),
-            disabled: personal.deviceId === localDeviceID && !unbound,
+            disabled: personal.computerId === localComputerID && !unbound,
             onSelect: () => move.select(agent),
           }]
         : []),
@@ -177,7 +175,7 @@ export function AgentListPage() {
                   secondary={agent.personal ? t("form.audiences.personal") : undefined}
                   description={
                     agent.personal
-                      ? [personalAgentPresenceLabel(agent.personal.presence, t), agent.personal.deviceName]
+                      ? [personalAgentPresenceLabel(agent.personal.presence, t), agent.personal.computerName]
                           .filter(Boolean)
                           .join(" · ")
                       : undefined
@@ -191,9 +189,7 @@ export function AgentListPage() {
               cellClassName: "max-w-xs text-muted-foreground",
               cell: (agent) => (
                 <span className="block truncate">
-                  {agent.execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent
-                    ? t("personal.form.executorLocalAgent", { name: localAgentName(agent.execution.localAgent.kind) })
-                    : aiModelLabel(agent.execution.managed.model)}
+                  {aiModelLabel(agent.execution.managed.model)}
                 </span>
               ),
             },

@@ -32,10 +32,10 @@ func (r *typingRecorder) last() (bool, int) {
 	return r.events[len(r.events)-1], len(r.events)
 }
 
-// TestRunTypingConcurrentClose 验证并发重复停止只发布一次停止输入，停止后不可再续期。
+// TestRunTypingConcurrentClose 验证并发重复停止只发布一次停止输入。
 func TestRunTypingConcurrentClose(t *testing.T) {
 	recorder := &typingRecorder{}
-	typing := startRunTyping(context.Background(), recorder.publish, time.Time{}, time.Hour)
+	typing := startRunTyping(context.Background(), recorder.publish, time.Hour)
 	var wg sync.WaitGroup
 	for range 8 {
 		wg.Add(1)
@@ -48,29 +48,21 @@ func TestRunTypingConcurrentClose(t *testing.T) {
 	if active, count := recorder.last(); active || count != 2 {
 		t.Fatalf("events=%v", recorder.events)
 	}
-	if typing.extend(time.Now().Add(time.Hour)) {
-		t.Fatal("extended closed typing")
-	}
 }
 
-// TestRunTypingDeadline 验证截止时间到达后发布停止输入并拒绝续期，续期可推迟截止时间。
-func TestRunTypingDeadline(t *testing.T) {
+// TestRunTypingContextDone 验证运行 context 结束后发布停止输入。
+func TestRunTypingContextDone(t *testing.T) {
 	recorder := &typingRecorder{}
-	typing := startRunTyping(context.Background(), recorder.publish, time.Now().Add(30*time.Millisecond), 10*time.Millisecond)
-	if !typing.extend(time.Now().Add(80 * time.Millisecond)) {
-		t.Fatal("extend before deadline failed")
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	typing := startRunTyping(ctx, recorder.publish, 10*time.Millisecond)
+	cancel()
 	select {
 	case <-typing.done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("typing did not stop at deadline")
+		t.Fatal("typing did not stop after context done")
 	}
-	active, count := recorder.last()
-	if active || count < 3 {
+	if active, _ := recorder.last(); active {
 		t.Fatalf("events=%v", recorder.events)
-	}
-	if typing.extend(time.Now().Add(time.Hour)) {
-		t.Fatal("extended expired typing")
 	}
 	typing.close()
 }

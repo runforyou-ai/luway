@@ -54,7 +54,7 @@ For the storage each workspace uses, see [Accounts and workspaces](/docs/en/guid
 
 - Active account: an account that sent a message or handled a customer conversation (replied, took over, closed, or transferred it) that day. An account in several workspaces counts once at the platform level.
 - Active workspace: a workspace with an active member, or with customer messages or AI employee replies that day.
-- Activity and new records are split into days by the **statistics time zone**. You change it on the Platform overview page. After a change, all history is recounted in the new time zone, and the page shows that it is recounting until it finishes.
+- Activity and new records are split into days by the **platform time zone**. You change it on the Platform overview page. After a change, all history is recounted in the new time zone, and the page shows that it is recounting until it finishes. Daily credit grants also follow dates in the platform time zone; see [Credits](/docs/en/guide/admin/credits/).
 - Activity is summarized every 10 minutes, so recent actions may appear a little later.
 - Business usage counts service sessions by the time they ended and platform model calls by the time they started, across active and suspended workspaces.
 - Usage data contains only counts, durations, and statuses. It never includes message content, customer profiles, or credentials.

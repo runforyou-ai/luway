@@ -207,7 +207,7 @@ func (r *Runtime) triggerOneSchedule(ctx context.Context) (bool, error) {
 		if err != nil {
 			// 解析失败时后推 next_run_at 并提交事务；直接返回错误会导致回滚，
 			// 这条坏计划每个轮询周期都会被重新认领，阻塞其后所有到期计划。
-			slog.Error("解析存量定时计划失败，已后推下次运行时间",
+			slog.Warn("解析存量定时计划失败，已后推下次运行时间",
 				"schedule_key", record.ScheduleKey, "error", err)
 			if _, deferErr := tx.NewRaw(`
 				UPDATE task_schedules

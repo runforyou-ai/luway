@@ -42,7 +42,7 @@ export const resourceKeys = {
   platformOverview: () => ["platform-overview"],
   /** 授权状态。 */
   license: () => ["license"],
-  /** 平台注册策略、工作区创建策略和统计时区。 */
+  /** 平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。 */
   platformSettings: () => ["platform-settings"],
   /** 平台账号列表，可带筛选分页参数。 */
   platformAccounts: (parameters?: KeyParameters) => listKey("platform-accounts", parameters),
@@ -70,6 +70,11 @@ export const resourceKeys = {
   platformAIModelCalls: (parameters?: KeyParameters) => listKey("platform-ai-model-calls", parameters),
   /** 单次平台模型调用及其上游尝试。 */
   platformAIModelCall: (id?: string) => itemKey("platform-ai-model-call", id),
+  /** 平台管理员查看的工作区积分余额。 */
+  platformWorkspaceCredits: (workspaceId?: string) => itemKey("platform-workspace-credits", workspaceId),
+  /** 平台管理员查看的工作区积分流水，按工作区与分页参数标识。 */
+  platformWorkspaceCreditEntries: (workspaceId?: string, parameters?: KeyParameters) =>
+    scopedListKey("platform-workspace-credit-entries", workspaceId, parameters),
   /** 当前账号在当前工作区中的成员身份、所属工作区和用户偏好。 */
   identity: () => ["identity"],
   /** 服务会话发起人的资料，随会话内容变化重读。 */
@@ -172,16 +177,20 @@ export const resourceKeys = {
   aiProvider: (id?: string) => itemKey("ai-provider", id),
   /** 满足指定用途的可选模型，按用途区分。 */
   aiModelOptions: (usage: string) => ["ai-model-options", usage],
+  /** 当前工作区的积分余额。 */
+  creditBalance: () => ["credit-balance"],
+  /** 当前工作区的积分流水，按分页参数标识。 */
+  creditEntries: (parameters?: KeyParameters) => listKey("credit-entries", parameters),
   /** AI 员工配置使用的 MCP 服务摘要。 */
   agentMCPServerOptions: () => ["agent-mcp-server-options"],
   /** MCP 服务列表。 */
   mcpServers: () => ["mcp-servers"],
   /** 单个 MCP 服务。 */
   mcpServer: (id?: string) => itemKey("mcp-server", id),
-  /** 当前用户已注册的设备列表。 */
-  devices: () => ["devices"],
-  /** 本机在当前企业服务器上的设备注册状态。 */
-  currentDevice: () => ["current-device"],
+  /** 当前成员已注册的电脑列表。 */
+  computers: () => ["computers"],
+  /** 本机在当前工作区的电脑注册状态。 */
+  currentComputer: () => ["current-computer"],
   localEnvironment: () => ["local-environment"],
   /** 当前企业的客服工作时间。 */
   businessHours: () => ["business-hours"],
@@ -321,5 +330,7 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.platformAIModel()[0],
   resourceKeys.platformAIModelCalls()[0],
   resourceKeys.platformAIModelCall()[0],
+  resourceKeys.platformWorkspaceCredits()[0],
+  resourceKeys.platformWorkspaceCreditEntries()[0],
   resourceKeys.serverURL()[0],
 ])

@@ -48,7 +48,7 @@ func NewRateWebsiteServiceSessionAction(db *bun.DB, enqueuer servertask.TxEnqueu
 	return &RateWebsiteServiceSessionAction{db: db, enqueuer: enqueuer}
 }
 
-// Execute 在会话锁内写入周期评价并追加仅成员可见的评价事件，AI 员工关闭的周期评价为未解决时登记待补知识；每个周期只能评价一次，周期须处于关闭状态。
+// Execute 在会话锁内写入周期评价并追加仅成员可见的评价事件，AI 员工关闭的周期评价为未解决时登记待补知识；渠道须开启评价，每个周期只能评价一次，周期须处于关闭状态。
 func (a *RateWebsiteServiceSessionAction) Execute(ctx context.Context, input WebsiteServiceSessionRatingInput) (VisitorRating, error) {
 	input.Comment = strings.TrimSpace(input.Comment)
 	fields := map[string]conversationaction.ValidationCode{}
@@ -70,6 +70,13 @@ func (a *RateWebsiteServiceSessionAction) Execute(ctx context.Context, input Web
 	channel, err := loadWebsiteChannel(ctx, a.db, input.ChannelID)
 	if err != nil {
 		return VisitorRating{}, err
+	}
+	setting, err := loadWebsiteChannelSetting(ctx, a.db, channel)
+	if err != nil {
+		return VisitorRating{}, err
+	}
+	if !setting.RatingEnabled {
+		return VisitorRating{}, &conversationaction.ConflictError{Reason: ConflictReasonServiceSessionNotRateable}
 	}
 	visitor, found, err := loadWebsiteVisitorIdentity(ctx, a.db, channel, input.ExternalID)
 	if err != nil {

@@ -20,28 +20,16 @@ export function agentToolLabel(tool: string, t: TFunction<"common">) {
       return t("agentTools.resolveConversation")
     case "mcp":
       return t("agentTools.mcp")
-    case "ls":
-      return t("agentTools.listFolder")
     case "read_file":
       return t("agentTools.readFile")
-    case "glob":
-      return t("agentTools.findFiles")
-    case "grep":
-      return t("agentTools.searchFiles")
     case "write_file":
       return t("agentTools.writeFile")
     case "edit_file":
       return t("agentTools.editFile")
-    case "delete_file":
-      return t("agentTools.deleteFile")
     case "execute":
       return t("agentTools.runCommand")
     case "skill":
       return t("agentTools.useSkill")
-    case "install_skill":
-      return t("agentTools.installSkill")
-    case "remove_skill":
-      return t("agentTools.removeSkill")
     case "agent":
       return t("agentTools.delegate")
     default:

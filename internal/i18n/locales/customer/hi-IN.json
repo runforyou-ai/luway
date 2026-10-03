@@ -99,6 +99,7 @@
   "visitor_error.rating_comment_too_long": "यह टिप्पणी बहुत लंबी है। इसे छोटा करके फिर से भेजें।",
   "visitor_error.file_invalid": "यह फ़ाइल नहीं भेजी जा सकती। कोई दूसरी फ़ाइल चुनें।",
   "visitor_error.attachment_too_large": "यह फ़ाइल भेजने के लिए बहुत बड़ी है।",
+  "visitor_error.attachments_disabled": "इस चैट में फ़ाइलें नहीं भेजी जा सकतीं।",
   "visitor_error.chat_unavailable": "यह चैट अभी उपलब्ध नहीं है।",
   "visitor_error.conversation_not_found": "यह बातचीत नहीं मिली।",
   "visitor_error.reply_target_invalid": "इस संदेश का जवाब नहीं दिया जा सकता।",
@@ -107,5 +108,6 @@
   "visitor_error.load_failed": "चैट लोड नहीं हो सकी। फिर से कोशिश करें।",
   "visitor_error.send_failed": "संदेश नहीं भेजा जा सका। फिर से कोशिश करें।",
   "visitor_error.upload_failed": "फ़ाइल अपलोड नहीं हो सकी। फिर से कोशिश करें।",
-  "visitor_error.rate_failed": "आपकी रेटिंग सबमिट नहीं हो सकी। फिर से कोशिश करें।"
+  "visitor_error.rate_failed": "आपकी रेटिंग सबमिट नहीं हो सकी। फिर से कोशिश करें।",
+  "visitor_error.internal": "सेवा अभी उपलब्ध नहीं है। कुछ देर बाद फिर से कोशिश करें।"
 }

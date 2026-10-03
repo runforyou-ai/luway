@@ -65,11 +65,7 @@ func (o *directOperations) InstallationStatus(ctx context.Context, meta appservi
 	settings, err := o.platformSettings.Execute(ctx)
 	installed := !errors.Is(err, platformaction.ErrNotInstalled)
 	if err != nil && installed {
-		if ctx.Err() != nil {
-			return appservice.InstallationStatus{}, ctx.Err()
-		}
-		slog.Warn("读取安装状态失败", "error", err)
-		return appservice.InstallationStatus{}, appservice.FailedError(meta, i18n.ErrorInstallationStatusReadFailed)
+		return appservice.InstallationStatus{}, appservice.FailedError(meta, i18n.ErrorInstallationStatusReadFailed, err)
 	}
 	current := brand.Current()
 	return appservice.InstallationStatus{
@@ -98,11 +94,7 @@ func (o *directOperations) InstallWorkspace(ctx context.Context, meta appservice
 		return appservice.Auth{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAlreadyInitialized).WithStatus(http.StatusConflict)
 	}
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.Auth{}, ctx.Err()
-		}
-		slog.Warn("首次安装失败", "error", err)
-		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorInstallationFailed)
+		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorInstallationFailed, err)
 	}
 	slog.Info("首次安装完成", "organization_id", output.Identity.Organization.ID, "account_id", output.Identity.Account.ID)
 	return authFromSession(output.Session), nil
@@ -115,11 +107,7 @@ func (o *directOperations) Login(ctx context.Context, meta appservice.RequestMet
 		return appservice.Auth{}, appservice.InvalidError(meta, i18n.ErrorInvalidCredentials, nil)
 	}
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.Auth{}, ctx.Err()
-		}
-		slog.Warn("账号登录失败", "error", err)
-		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorLoginFailed)
+		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorLoginFailed, err)
 	}
 	slog.Info("账号登录成功", "account_id", output.Account.ID)
 	return authFromSession(output), nil
@@ -150,11 +138,7 @@ func (o *directOperations) Register(ctx context.Context, meta appservice.Request
 		return appservice.Auth{}, appservice.SessionError(meta, appservice.SessionStateSetup, i18n.ErrorInstallationRequired)
 	}
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.Auth{}, ctx.Err()
-		}
-		slog.Warn("注册账号失败", "error", err)
-		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorRegistrationFailed)
+		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorRegistrationFailed, err)
 	}
 	slog.Info("账号注册成功", "account_id", output.Account.ID)
 	return authFromSession(output), nil
@@ -163,11 +147,7 @@ func (o *directOperations) Register(ctx context.Context, meta appservice.Request
 // Logout 删除当前登录会话。
 func (o *directOperations) Logout(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) error {
 	if err := o.logout.Execute(ctx, account); err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		slog.Warn("删除登录会话失败", "account_id", account.Account.ID, "error", err)
-		return appservice.FailedError(meta, i18n.ErrorLogoutFailed)
+		return appservice.FailedError(meta, i18n.ErrorLogoutFailed, err)
 	}
 	slog.Info("账号退出登录", "account_id", account.Account.ID)
 	return nil
@@ -191,11 +171,7 @@ func (o *directOperations) ChangePassword(ctx context.Context, meta appservice.R
 		return appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
 	if err != nil {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		slog.Warn("修改密码失败", "account_id", account.Account.ID, "error", err)
-		return appservice.FailedError(meta, i18n.ErrorPasswordUpdateFailed)
+		return appservice.FailedError(meta, i18n.ErrorPasswordUpdateFailed, err)
 	}
 	slog.Info("密码修改成功", "account_id", account.Account.ID)
 	return nil
@@ -204,11 +180,7 @@ func (o *directOperations) ChangePassword(ctx context.Context, meta appservice.R
 // ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
 func (o *directOperations) ListWorkspaces(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.WorkspaceList, error) {
 	failed := func(err error) (appservice.WorkspaceList, error) {
-		if ctx.Err() != nil {
-			return appservice.WorkspaceList{}, ctx.Err()
-		}
-		slog.Warn("读取工作区列表失败", "account_id", account.Account.ID, "error", err)
-		return appservice.WorkspaceList{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed)
+		return appservice.WorkspaceList{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed, err)
 	}
 	workspaces, err := o.listWorkspaces.Execute(ctx, account)
 	if err != nil {
@@ -238,11 +210,7 @@ func (o *directOperations) CreateWorkspace(ctx context.Context, meta appservice.
 		return appservice.Workspace{}, appservice.ConflictError(meta, i18n.ErrorWorkspaceLimitReached, "workspace_limit_reached")
 	}
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.Workspace{}, ctx.Err()
-		}
-		slog.Warn("创建工作区失败", "account_id", account.Account.ID, "error", err)
-		return appservice.Workspace{}, appservice.FailedError(meta, i18n.ErrorWorkspaceCreateFailed)
+		return appservice.Workspace{}, appservice.FailedError(meta, i18n.ErrorWorkspaceCreateFailed, err)
 	}
 	slog.Info("工作区已创建", "organization_id", workspace.ID, "account_id", account.Account.ID)
 	return appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug, Status: appservice.WorkspaceStatus(workspace.Status)}, nil
@@ -252,8 +220,7 @@ func (o *directOperations) CreateWorkspace(ctx context.Context, meta appservice.
 func (o *directOperations) LoadIdentity(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.Identity, error) {
 	output, err := o.identityFromModel(ctx, identity)
 	if err != nil {
-		slog.Warn("读取当前成员头像失败", "organization_id", identity.Organization.ID, "user_id", identity.User.ID, "error", err)
-		return appservice.Identity{}, appservice.FailedError(meta, i18n.ErrorUserReadFailed)
+		return appservice.Identity{}, appservice.FailedError(meta, i18n.ErrorUserReadFailed, err)
 	}
 	return output, nil
 }
@@ -292,11 +259,7 @@ func workspaceFieldKeys(fields map[string]common.FieldCode) map[string]i18n.Key 
 // ListWorkspaceAttention 逐个读取账号有效成员身份所在工作区的提醒数量；已暂停或读取期间失去成员身份的工作区不返回。
 func (o *directOperations) ListWorkspaceAttention(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.WorkspaceAttentionList, error) {
 	failed := func(err error) (appservice.WorkspaceAttentionList, error) {
-		if ctx.Err() != nil {
-			return appservice.WorkspaceAttentionList{}, ctx.Err()
-		}
-		slog.Warn("读取各工作区提醒数量失败", "account_id", account.Account.ID, "error", err)
-		return appservice.WorkspaceAttentionList{}, appservice.FailedError(meta, i18n.ErrorInboxLoadFailed)
+		return appservice.WorkspaceAttentionList{}, appservice.FailedError(meta, i18n.ErrorInboxLoadFailed, err)
 	}
 	workspaces, err := o.listWorkspaces.Execute(ctx, account)
 	if err != nil {

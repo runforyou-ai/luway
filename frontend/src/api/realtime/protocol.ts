@@ -126,7 +126,7 @@ export type RealtimeServerFrame =
       operations: RunStreamOperation[]
     }
   | { type: "run_stream_ended"; runId: string }
-  | { type: "device_work_advanced"; deviceId: string; workSeq: bigint }
+  | { type: "computer_work" }
   | { type: "agent_memory_changed"; agentId: string }
   | {
       type: "workspace_activity"
@@ -267,8 +267,8 @@ function decodeServerData(type: string, data: FrameData): RealtimeServerFrame | 
       }
     case "run_stream_ended":
       return { type, runId: readString(data, "runId") }
-    case "device_work_advanced":
-      return { type, deviceId: readString(data, "deviceId"), workSeq: readInt64(data, "workSeq") }
+    case "computer_work":
+      return { type }
     case "agent_memory_changed":
       return { type, agentId: readString(data, "agentId") }
     case "workspace_activity":

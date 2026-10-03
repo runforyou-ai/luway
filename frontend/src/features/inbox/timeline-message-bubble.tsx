@@ -418,7 +418,7 @@ function MessageBubbleContent({
       >
         {agentNotice ? (
           <span className={agentError ? "text-destructive" : "text-muted-foreground"}>
-            {t(agentError ? (message.agentErrorCode === "local_agent_auth_required" ? "agentRunLocalAgentLoginRequired" : "agentRunFailed") : "agentReplyStopped")}
+            {t(agentError ? "agentRunFailed" : "agentReplyStopped")}
           </span>
         ) : message.attachment ? (
           <ConversationAttachment retryDisabled={retryFailedMessageDisabled} body={body} attachment={message.attachment} conversationID={conversationID} messageID={message.persistedMessageID ?? message.id}

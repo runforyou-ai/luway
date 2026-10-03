@@ -140,6 +140,7 @@ type WebsiteVisitorAttachmentMessageInput struct {
 
 // WebsiteVisitorAttachmentLinks 定义访客附件的预览与下载地址，内容未就绪时两者为空。
 type WebsiteVisitorAttachmentLinks struct {
+	// PreviewURL 只对浏览器可内嵌展示的图片返回。
 	PreviewURL  string `json:"previewUrl"`
 	DownloadURL string `json:"downloadUrl"`
 }

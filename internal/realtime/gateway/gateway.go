@@ -29,8 +29,8 @@ const Path = "/api/realtime"
 // WorkspacesPath 是工作区动态事件流路径：只凭账号登录会话建立，下发本人在各工作区中的变化。
 const WorkspacesPath = "/api/realtime/workspaces"
 
-// DevicePath 是本机设备事件流路径：凭登录会话与设备编号建立，只下发该设备的工作水位。
-const DevicePath = "/api/realtime/device"
+// ComputerPath 是执行器事件流路径：凭电脑凭据建立，只下发该电脑的待执行操作通知，连接期间按心跳间隔记录电脑在线。
+const ComputerPath = "/api/realtime/computer"
 
 // RunPath 是运行过程流路径前缀，其后是运行编号。
 const RunPath = "/api/realtime/runs/"
@@ -52,8 +52,10 @@ type MemberBackend interface {
 	AuthenticateMember(ctx context.Context, meta appservice.RequestMeta) (direct.MemberSession, error)
 	// AuthenticateAccountMembers 校验账号登录令牌并返回账号会话及其全部有效成员身份，令牌无效或账号不可用时返回登录会话错误。
 	AuthenticateAccountMembers(ctx context.Context, meta appservice.RequestMeta) (direct.AccountMembersSession, error)
-	// AuthenticateDevice 校验登录令牌与请求携带的本人未撤销设备并返回成员会话。
-	AuthenticateDevice(ctx context.Context, meta appservice.RequestMeta) (direct.MemberSession, error)
+	// AuthenticateComputer 校验请求携带的电脑凭据并返回电脑会话，凭据无效或电脑已撤销时返回登录会话错误。
+	AuthenticateComputer(ctx context.Context, meta appservice.RequestMeta) (direct.ComputerSession, error)
+	// TouchComputer 记录电脑在线，电脑已撤销时返回错误。
+	TouchComputer(ctx context.Context, session direct.ComputerSession) error
 	// MemberSyncHeads 返回指定成员会话的同步探针值。
 	MemberSyncHeads(ctx context.Context, session direct.MemberSession) (appservice.SyncHeads, error)
 	// AuthorizeAgentRunStream 校验指定成员会话对运行所属会话的阅读资格，并返回运行所属会话编号。
@@ -104,8 +106,8 @@ var workspaceActivityKinds = map[protocol.Type]bool{
 	protocol.TypeServiceAttention: true, protocol.TypeIdentityProfileChanged: true,
 }
 
-// deviceFrameTypes 是设备事件流可下发的事件。
-var deviceFrameTypes = []protocol.Type{protocol.TypeServerHello, protocol.TypeDeviceWorkAdvanced}
+// computerFrameTypes 是执行器事件流可下发的事件。
+var computerFrameTypes = []protocol.Type{protocol.TypeServerHello, protocol.TypeComputerWork}
 
 // visitorFrameTypes 是网站访客事件流可下发的公开事件。
 var visitorFrameTypes = []protocol.Type{protocol.TypeVisitorHello, protocol.TypeConversationChanged, protocol.TypeVisitorTyping, protocol.TypeReceptionChanged}
@@ -115,8 +117,6 @@ type streamRoute struct {
 	subjects       []string
 	allowed        []protocol.Type
 	tokenSessionID string
-	// deviceID 是事件流携带的已认证设备编号，只有该设备的工作水位通知会下发。
-	deviceID string
 	// workspaces 按受众 Subject 记录所属工作区，非空表示工作区动态事件流：变更通知按工作区转为工作区动态事件。
 	workspaces map[string]string
 	// expiresAt 是事件流授权的绝对到期时间，零值表示只受最长存活时间约束。
@@ -124,6 +124,8 @@ type streamRoute struct {
 	attributes []any
 	// greet 在受众订阅生效后复核授权并返回首个事件。
 	greet func(ctx context.Context, connectionID string) (protocol.Frame, error)
+	// heartbeat 非空时在事件流存续期间按心跳间隔执行，返回错误即结束事件流。
+	heartbeat func(ctx context.Context) error
 }
 
 // Gateway 管理本节点的实时事件流与受众订阅。
@@ -182,7 +184,7 @@ func (g *Gateway) Start(connection *nats.Conn) {
 	slog.Info("实时网关已启动", "namespace", g.namespace, "path", Path)
 }
 
-// Middleware 在 Wails 资源服务之前处理成员、设备、工作区动态事件流与运行过程流请求，其余请求交给下一个处理器。
+// Middleware 在 Wails 资源服务之前处理成员、执行器、工作区动态事件流与运行过程流请求，其余请求交给下一个处理器。
 func (g *Gateway) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method == http.MethodGet {
@@ -193,17 +195,17 @@ func (g *Gateway) Middleware(next http.Handler) http.Handler {
 				})
 				return
 			}
-			if request.URL.Path == DevicePath {
+			if request.URL.Path == ComputerPath {
 				meta := appservice.RequestMetaFromHTTP(request.Header)
 				g.stream(writer, request, meta, func(ctx context.Context) (streamRoute, error) {
-					return g.deviceRoute(ctx, meta)
+					return g.computerRoute(ctx, meta)
 				})
 				return
 			}
 			if request.URL.Path == WorkspacesPath {
 				// 工作区动态事件流只凭账号会话建立，忽略请求携带的目标工作区。
 				meta := appservice.RequestMetaFromHTTP(request.Header)
-				meta.WorkspaceID, meta.DeviceID = "", ""
+				meta.WorkspaceID = ""
 				g.stream(writer, request, meta, func(ctx context.Context) (streamRoute, error) {
 					return g.workspacesRoute(ctx, meta)
 				})
@@ -289,25 +291,25 @@ func (g *Gateway) memberRoute(ctx context.Context, meta appservice.RequestMeta) 
 	}, nil
 }
 
-// deviceRoute 认证登录令牌与请求携带的本人设备，只订阅本人用户受众，下发该设备的工作水位与登录会话撤销。
-func (g *Gateway) deviceRoute(ctx context.Context, meta appservice.RequestMeta) (streamRoute, error) {
-	identity, err := g.backend.AuthenticateDevice(ctx, meta)
+// computerRoute 认证电脑凭据，只订阅该电脑受众，下发待执行操作通知与电脑撤销，连接期间记录电脑在线。
+func (g *Gateway) computerRoute(ctx context.Context, meta appservice.RequestMeta) (streamRoute, error) {
+	session, err := g.backend.AuthenticateComputer(ctx, meta)
 	if err != nil {
 		return streamRoute{}, err
 	}
 	return streamRoute{
-		subjects:       []string{realtime.Subject(g.namespace, identity.OrganizationID, realtime.AudienceUser, identity.UserID)},
-		allowed:        deviceFrameTypes,
-		tokenSessionID: identity.SessionID,
-		deviceID:       meta.DeviceID,
-		expiresAt:      identity.ExpiresAt,
-		attributes:     []any{"organization_id", identity.OrganizationID, "user_id", identity.UserID, "device_id", meta.DeviceID},
+		subjects:   []string{realtime.Subject(g.namespace, session.OrganizationID, realtime.AudienceComputer, session.ComputerID)},
+		allowed:    computerFrameTypes,
+		attributes: []any{"organization_id", session.OrganizationID, "computer_id", session.ComputerID},
 		greet: func(ctx context.Context, connectionID string) (protocol.Frame, error) {
-			// 订阅生效后再次校验登录会话与设备，设备重连后按 ServerHello 比较一次工作水位。
-			if _, err := g.backend.AuthenticateDevice(ctx, meta); err != nil {
+			// 订阅生效后记录在线，之后提交的撤销经受众通知送达；执行器收到 ServerHello 后领取一次待执行操作。
+			if err := g.backend.TouchComputer(ctx, session); err != nil {
 				return nil, err
 			}
 			return protocol.ServerHello{ConnectionID: connectionID}, nil
+		},
+		heartbeat: func(ctx context.Context) error {
+			return g.backend.TouchComputer(ctx, session)
 		},
 	}, nil
 }
@@ -439,6 +441,26 @@ func (g *Gateway) stream(writer http.ResponseWriter, request *http.Request, meta
 	})
 	defer expiry.Stop()
 	slog.Info("实时事件流已就绪", append(attributes, "lifetime", lifetime)...)
+	if route.heartbeat != nil {
+		go func() {
+			ticker := time.NewTicker(g.options.PingInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+				}
+				if err := route.heartbeat(ctx); err != nil {
+					if ctx.Err() == nil {
+						slog.Warn("实时事件流心跳失败，结束事件流", append(attributes, "error", err)...)
+						current.close(true)
+					}
+					return
+				}
+			}
+		}()
+	}
 	current.run(ctx, writer, controller)
 	slog.Info("实时事件流已结束", attributes...)
 }
@@ -606,8 +628,8 @@ func (g *Gateway) deliver(subject string, data []byte) {
 		frame = protocol.PinOrderChanged{Version: payload.Version}
 	case realtime.KindServiceAttention:
 		frame = protocol.ServiceAttention{ConversationID: payload.ConversationID, ServiceSessionID: payload.ServiceSessionID, Reason: payload.AttentionReason}
-	case realtime.KindDeviceWorkAdvanced:
-		frame = protocol.DeviceWorkAdvanced{DeviceID: payload.DeviceID, WorkSeq: payload.Version}
+	case realtime.KindComputerWork:
+		frame = protocol.ComputerWork{}
 	case realtime.KindAgentMemoryChanged:
 		frame = protocol.AgentMemoryChanged{AgentID: payload.AgentID}
 	case realtime.KindSessionLoggedOut:
@@ -617,7 +639,7 @@ func (g *Gateway) deliver(subject string, data []byte) {
 			}
 		}
 		return
-	case realtime.KindUserDisabled, realtime.KindWorkspaceStatusChanged, realtime.KindChannelDisabled, realtime.KindCustomerIdentityRevoked:
+	case realtime.KindUserDisabled, realtime.KindWorkspaceStatusChanged, realtime.KindChannelDisabled, realtime.KindCustomerIdentityRevoked, realtime.KindComputerRevoked:
 		for _, current := range targets {
 			current.revoke(payload.Kind)
 		}
@@ -628,10 +650,6 @@ func (g *Gateway) deliver(subject string, data []byte) {
 	// 变更通知只发给成员事件流；运行过程流在所属会话失权时结束，其余通知与它无关。
 	for _, current := range targets {
 		if member, ok := current.(*connection); ok {
-			// 设备工作水位只发给携带该设备身份的事件流。
-			if payload.Kind == realtime.KindDeviceWorkAdvanced && member.deviceID != payload.DeviceID {
-				continue
-			}
 			// 工作区动态事件流把本人在各工作区的变更通知标上工作区后下发。
 			if member.workspaces != nil {
 				if activity, ok := workspaceActivity(member.workspaces[subject], frame); ok {
