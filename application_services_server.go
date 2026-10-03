@@ -10,9 +10,9 @@ import (
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice"
@@ -81,11 +81,11 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	executeAgentRun := agentrunaction.NewExecuteAction(db, tasks, agentRuntime, modelInvoker, agentAttachments, knowledgeRetrieval, emailSender)
 	serviceReplySuggestions := agentrunaction.NewGenerateServiceReplySuggestionsAction(db, agentRuntime, modelInvoker, agentAttachments)
 	telegramAPI := telegramintegration.NewClient(connectiontest.NewHTTPClient())
-	// control 客户端用部署实例的身份签名请求，在线授权与指标上报共用。
+	// control 客户端用服务器的身份签名请求，在线授权与指标上报共用。
 	controlClient := control.New(control.BaseURL, buildinfo.Version, func(ctx context.Context) (control.Identity, error) {
-		return deploymentaction.ControlIdentity(ctx, db)
+		return platformaction.ControlIdentity(ctx, db)
 	})
-	onlineLicense := deploymentaction.NewOnlineLicenseAction(db, license.PublicKeys(), controlClient)
+	onlineLicense := platformaction.NewOnlineLicenseAction(db, license.PublicKeys(), controlClient)
 	if err := registerServerTasks(serverTaskDeps{
 		db: db, maintenanceDB: appStorage.MaintenanceDB(), tasks: tasks, publicURL: config.Server.PublicURL, localFiles: localFiles, fileS3: fileS3, fileReader: fileReader,
 		emailSender: emailSender, agentRuntime: agentRuntime, modelInvoker: modelInvoker, agentSchedule: agentRunScheduler, agentRun: executeAgentRun, telegramAPI: telegramAPI,
@@ -94,7 +94,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		return nil, nil, err
 	}
 
-	// 产品文档按部署状态过滤页面：当前部署未配对商业服务。
+	// 产品文档按平台状态过滤页面：当前平台未配对商业服务。
 	productDocs, err := productdocs.Load(docs.Content, productdocs.Conditions{})
 	if err != nil {
 		return nil, nil, err

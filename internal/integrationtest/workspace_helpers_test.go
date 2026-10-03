@@ -41,11 +41,11 @@ type installedWorkspace struct {
 	Token    string
 }
 
-// installWorkspace 创建管理员账号和标识随机的工作区并签发登录会话；首次安装在每个部署只能执行一次，测试统一用它建立独立工作区。
+// installWorkspace 创建管理员账号和标识随机的工作区并签发登录会话；首次安装在每个平台只能执行一次，测试统一用它建立独立工作区。
 func installWorkspace(t testing.TB, db *bun.DB, spec workspaceSpec) installedWorkspace {
 	t.Helper()
 	ctx := context.Background()
-	ensureTestDeployment(t, db)
+	ensureTestPlatform(t, db)
 	if spec.Locale == "" {
 		spec.Locale = domain.LocaleChineseSimplified
 	}
@@ -82,18 +82,18 @@ func installWorkspace(t testing.TB, db *bun.DB, spec workspaceSpec) installedWor
 	return resolveMemberSession(t, db, organizationID, token)
 }
 
-// ensureTestDeployment 在共享测试库中写入部署实例行，注册仅限受邀、工作区仅部署管理员可创建；已存在时保留原行。
-func ensureTestDeployment(t testing.TB, db *bun.DB) {
+// ensureTestPlatform 在共享测试库中写入平台行，注册仅限受邀、工作区仅平台管理员可创建；已存在时保留原行。
+func ensureTestPlatform(t testing.TB, db *bun.DB) {
 	t.Helper()
-	if _, err := db.NewInsert().Model(&servermodels.Deployment{
+	if _, err := db.NewInsert().Model(&servermodels.Platform{
 		RegistrationPolicy:      string(domain.RegistrationPolicyInvitationOnly),
-		WorkspaceCreationPolicy: string(domain.WorkspaceCreationPolicyDeploymentAdmin),
+		WorkspaceCreationPolicy: string(domain.WorkspaceCreationPolicyPlatformAdmin),
 	}).Column("registration_policy", "workspace_creation_policy").On("CONFLICT DO NOTHING").Exec(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 }
 
-// addAccountWorkspace 为登录令牌所属账号直接创建一个标识随机的工作区，账号成为首位管理员成员；不经过部署创建策略与工作区上限。
+// addAccountWorkspace 为登录令牌所属账号直接创建一个标识随机的工作区，账号成为首位管理员成员；不经过平台创建策略与工作区上限。
 func addAccountWorkspace(t testing.TB, db *bun.DB, token, name string) *servermodels.Identity {
 	t.Helper()
 	ctx := context.Background()

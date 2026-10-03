@@ -76,7 +76,7 @@ export async function logout() {
   await invoke(Logout, meta)
 }
 
-/** 完成首次安装，创建部署管理员和第一个工作区并建立登录会话。 */
+/** 完成首次安装，创建平台管理员和第一个工作区并建立登录会话。 */
 export async function install(
   input: Omit<InstallWorkspaceInput, "locale" | "timeZone">,
 ) {

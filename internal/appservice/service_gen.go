@@ -9,7 +9,7 @@ func (s *Service) InstallationStatus(ctx context.Context, meta RequestMeta) (Ins
 	return WithNormalizedSlices(s.backend.InstallationStatus(ctx, meta))
 }
 
-// GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+// GetProductDocPage 返回当前平台可见的产品文档页面正文，供应用内帮助显示。
 func (s *Service) GetProductDocPage(ctx context.Context, meta RequestMeta, input ProductDocPageInput) (ProductDocPage, error) {
 	return WithNormalizedSlices(s.backend.GetProductDocPage(ctx, meta, input))
 }
@@ -674,92 +674,92 @@ func (s *Service) AcceptInvitation(ctx context.Context, meta RequestMeta, input 
 	return WithNormalizedSlices(s.backend.AcceptInvitation(ctx, meta, input))
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
-func (s *Service) GetDeploymentOverview(ctx context.Context, meta RequestMeta) (DeploymentOverview, error) {
-	return WithNormalizedSlices(s.backend.GetDeploymentOverview(ctx, meta))
+// GetPlatformOverview 返回服务器标识、服务端版本、规模、活跃趋势和平台能力。
+func (s *Service) GetPlatformOverview(ctx context.Context, meta RequestMeta) (PlatformOverview, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformOverview(ctx, meta))
 }
 
-// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
-func (s *Service) GetDeploymentSettings(ctx context.Context, meta RequestMeta) (DeploymentSettings, error) {
-	return WithNormalizedSlices(s.backend.GetDeploymentSettings(ctx, meta))
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+func (s *Service) GetPlatformSettings(ctx context.Context, meta RequestMeta) (PlatformSettings, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformSettings(ctx, meta))
 }
 
-// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
-func (s *Service) UpdateDeploymentSettings(ctx context.Context, meta RequestMeta, input DeploymentPoliciesInput) (DeploymentSettings, error) {
-	return WithNormalizedSlices(s.backend.UpdateDeploymentSettings(ctx, meta, input))
+// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
+func (s *Service) UpdatePlatformSettings(ctx context.Context, meta RequestMeta, input PlatformPoliciesInput) (PlatformSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdatePlatformSettings(ctx, meta, input))
 }
 
-// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (s *Service) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta RequestMeta, input DeploymentStatisticsTimeZoneInput) (DeploymentSettings, error) {
-	return WithNormalizedSlices(s.backend.UpdateDeploymentStatisticsTimeZone(ctx, meta, input))
+// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (s *Service) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta RequestMeta, input PlatformStatisticsTimeZoneInput) (PlatformSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdatePlatformStatisticsTimeZone(ctx, meta, input))
 }
 
-// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
-func (s *Service) UpdateDeploymentTelemetry(ctx context.Context, meta RequestMeta, input DeploymentTelemetryInput) (DeploymentSettings, error) {
-	return WithNormalizedSlices(s.backend.UpdateDeploymentTelemetry(ctx, meta, input))
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+func (s *Service) UpdatePlatformTelemetry(ctx context.Context, meta RequestMeta, input PlatformTelemetryInput) (PlatformSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdatePlatformTelemetry(ctx, meta, input))
 }
 
-// ListDeploymentAccounts 返回部署内的账号。
-func (s *Service) ListDeploymentAccounts(ctx context.Context, meta RequestMeta, input DeploymentAccountListInput) (DeploymentAccountList, error) {
-	return WithNormalizedSlices(s.backend.ListDeploymentAccounts(ctx, meta, input))
+// ListPlatformAccounts 返回平台内的账号。
+func (s *Service) ListPlatformAccounts(ctx context.Context, meta RequestMeta, input PlatformAccountListInput) (PlatformAccountList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformAccounts(ctx, meta, input))
 }
 
-// DeactivateDeploymentAccount 停用其他账号并使其登录会话失效。
-func (s *Service) DeactivateDeploymentAccount(ctx context.Context, meta RequestMeta, accountID string) (DeploymentAccount, error) {
-	return WithNormalizedSlices(s.backend.DeactivateDeploymentAccount(ctx, meta, accountID))
+// DeactivatePlatformAccount 停用其他账号并使其登录会话失效。
+func (s *Service) DeactivatePlatformAccount(ctx context.Context, meta RequestMeta, accountID string) (PlatformAccount, error) {
+	return WithNormalizedSlices(s.backend.DeactivatePlatformAccount(ctx, meta, accountID))
 }
 
-// ReactivateDeploymentAccount 恢复已停用的其他账号。
-func (s *Service) ReactivateDeploymentAccount(ctx context.Context, meta RequestMeta, accountID string) (DeploymentAccount, error) {
-	return WithNormalizedSlices(s.backend.ReactivateDeploymentAccount(ctx, meta, accountID))
+// ReactivatePlatformAccount 恢复已停用的其他账号。
+func (s *Service) ReactivatePlatformAccount(ctx context.Context, meta RequestMeta, accountID string) (PlatformAccount, error) {
+	return WithNormalizedSlices(s.backend.ReactivatePlatformAccount(ctx, meta, accountID))
 }
 
-// GrantDeploymentAdmin 把其他账号设为部署管理员。
-func (s *Service) GrantDeploymentAdmin(ctx context.Context, meta RequestMeta, accountID string) (DeploymentAccount, error) {
-	return WithNormalizedSlices(s.backend.GrantDeploymentAdmin(ctx, meta, accountID))
+// GrantPlatformAdmin 把其他账号设为平台管理员。
+func (s *Service) GrantPlatformAdmin(ctx context.Context, meta RequestMeta, accountID string) (PlatformAccount, error) {
+	return WithNormalizedSlices(s.backend.GrantPlatformAdmin(ctx, meta, accountID))
 }
 
-// RevokeDeploymentAdmin 撤销其他账号的部署管理员身份。
-func (s *Service) RevokeDeploymentAdmin(ctx context.Context, meta RequestMeta, accountID string) (DeploymentAccount, error) {
-	return WithNormalizedSlices(s.backend.RevokeDeploymentAdmin(ctx, meta, accountID))
+// RevokePlatformAdmin 撤销其他账号的平台管理员身份。
+func (s *Service) RevokePlatformAdmin(ctx context.Context, meta RequestMeta, accountID string) (PlatformAccount, error) {
+	return WithNormalizedSlices(s.backend.RevokePlatformAdmin(ctx, meta, accountID))
 }
 
-// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
-func (s *Service) ListDeploymentWorkspaces(ctx context.Context, meta RequestMeta, input DeploymentWorkspaceListInput) (DeploymentWorkspaceList, error) {
-	return WithNormalizedSlices(s.backend.ListDeploymentWorkspaces(ctx, meta, input))
+// ListPlatformWorkspaces 返回平台内的全部工作区及其状态和当前规模。
+func (s *Service) ListPlatformWorkspaces(ctx context.Context, meta RequestMeta, input PlatformWorkspaceListInput) (PlatformWorkspaceList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformWorkspaces(ctx, meta, input))
 }
 
-// GetInstanceLicense 返回实例标识与实例授权状态。
-func (s *Service) GetInstanceLicense(ctx context.Context, meta RequestMeta) (InstanceLicense, error) {
-	return WithNormalizedSlices(s.backend.GetInstanceLicense(ctx, meta))
+// GetLicense 返回服务器标识与授权状态。
+func (s *Service) GetLicense(ctx context.Context, meta RequestMeta) (License, error) {
+	return WithNormalizedSlices(s.backend.GetLicense(ctx, meta))
 }
 
-// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
-func (s *Service) ActivateInstanceLicense(ctx context.Context, meta RequestMeta, input ActivateInstanceLicenseInput) (InstanceLicense, error) {
-	return WithNormalizedSlices(s.backend.ActivateInstanceLicense(ctx, meta, input))
+// ActivateLicense 用 control 签发的授权码离线激活或替换授权。
+func (s *Service) ActivateLicense(ctx context.Context, meta RequestMeta, input ActivateLicenseInput) (License, error) {
+	return WithNormalizedSlices(s.backend.ActivateLicense(ctx, meta, input))
 }
 
-// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
-func (s *Service) ActivateInstanceLicenseOnline(ctx context.Context, meta RequestMeta, input ActivateInstanceLicenseOnlineInput) (InstanceLicense, error) {
-	return WithNormalizedSlices(s.backend.ActivateInstanceLicenseOnline(ctx, meta, input))
+// ActivateLicenseOnline 用激活码经 control 在线激活授权。
+func (s *Service) ActivateLicenseOnline(ctx context.Context, meta RequestMeta, input ActivateLicenseOnlineInput) (License, error) {
+	return WithNormalizedSlices(s.backend.ActivateLicenseOnline(ctx, meta, input))
 }
 
-// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
-func (s *Service) SyncInstanceLicense(ctx context.Context, meta RequestMeta) (InstanceLicense, error) {
-	return WithNormalizedSlices(s.backend.SyncInstanceLicense(ctx, meta))
+// SyncLicense 立即向 control 登记服务器并拉取最新授权。
+func (s *Service) SyncLicense(ctx context.Context, meta RequestMeta) (License, error) {
+	return WithNormalizedSlices(s.backend.SyncLicense(ctx, meta))
 }
 
-// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
-func (s *Service) SuspendDeploymentWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (DeploymentWorkspace, error) {
-	return WithNormalizedSlices(s.backend.SuspendDeploymentWorkspace(ctx, meta, workspaceID))
+// SuspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+func (s *Service) SuspendPlatformWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (PlatformWorkspace, error) {
+	return WithNormalizedSlices(s.backend.SuspendPlatformWorkspace(ctx, meta, workspaceID))
 }
 
-// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
-func (s *Service) ResumeDeploymentWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (DeploymentWorkspace, error) {
-	return WithNormalizedSlices(s.backend.ResumeDeploymentWorkspace(ctx, meta, workspaceID))
+// ResumePlatformWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+func (s *Service) ResumePlatformWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (PlatformWorkspace, error) {
+	return WithNormalizedSlices(s.backend.ResumePlatformWorkspace(ctx, meta, workspaceID))
 }
 
-// ListPlatformAIProviders 返回部署的平台供应商。
+// ListPlatformAIProviders 返回平台供应商。
 func (s *Service) ListPlatformAIProviders(ctx context.Context, meta RequestMeta) (PlatformAIProviderList, error) {
 	return WithNormalizedSlices(s.backend.ListPlatformAIProviders(ctx, meta))
 }
@@ -789,7 +789,7 @@ func (s *Service) DeletePlatformAIProvider(ctx context.Context, meta RequestMeta
 	return s.backend.DeletePlatformAIProvider(ctx, meta, providerID)
 }
 
-// ListPlatformAIModels 返回部署的平台模型目录。
+// ListPlatformAIModels 返回平台模型目录。
 func (s *Service) ListPlatformAIModels(ctx context.Context, meta RequestMeta) (PlatformAIModelList, error) {
 	return WithNormalizedSlices(s.backend.ListPlatformAIModels(ctx, meta))
 }

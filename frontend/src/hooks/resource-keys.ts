@@ -36,25 +36,25 @@ export const resourceKeys = {
   invitations: () => ["invitations"],
   /** 按令牌读取的邀请预览。 */
   invitationPreview: (token?: string) => itemKey("invitation-preview", token),
-  /** 部署的安装状态与注册开关。 */
+  /** 平台的安装状态与注册开关。 */
   installationStatus: () => ["installation-status"],
-  /** 部署概况。 */
-  deploymentOverview: () => ["deployment-overview"],
-  /** 实例授权状态。 */
-  instanceLicense: () => ["instance-license"],
-  /** 部署注册策略、工作区创建策略和统计时区。 */
-  deploymentSettings: () => ["deployment-settings"],
-  /** 部署账号列表，可带筛选分页参数。 */
-  deploymentAccounts: (parameters?: KeyParameters) => listKey("deployment-accounts", parameters),
-  /** 部署工作区列表，可带筛选分页参数。 */
-  deploymentWorkspaces: (parameters?: KeyParameters) => listKey("deployment-workspaces", parameters),
-  /** 部署的平台供应商列表。 */
+  /** 平台概览。 */
+  platformOverview: () => ["platform-overview"],
+  /** 授权状态。 */
+  license: () => ["license"],
+  /** 平台注册策略、工作区创建策略和统计时区。 */
+  platformSettings: () => ["platform-settings"],
+  /** 平台账号列表，可带筛选分页参数。 */
+  platformAccounts: (parameters?: KeyParameters) => listKey("platform-accounts", parameters),
+  /** 平台工作区列表，可带筛选分页参数。 */
+  platformWorkspaces: (parameters?: KeyParameters) => listKey("platform-workspaces", parameters),
+  /** 平台供应商列表。 */
   platformAIProviders: () => ["platform-ai-providers"],
   /** 单个平台供应商。 */
   platformAIProvider: (id?: string) => itemKey("platform-ai-provider", id),
   /** 平台供应商可提供的模型。 */
   platformAIProviderModels: (id?: string) => itemKey("platform-ai-provider-models", id),
-  /** 部署的平台模型目录。 */
+  /** 平台模型目录。 */
   platformAIModels: () => ["platform-ai-models"],
   /** 单个平台模型。 */
   platformAIModel: (id?: string) => itemKey("platform-ai-model", id),
@@ -295,11 +295,11 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.workspaces()[0],
   resourceKeys.workspaceAttention()[0],
   resourceKeys.installationStatus()[0],
-  resourceKeys.deploymentOverview()[0],
-  resourceKeys.instanceLicense()[0],
-  resourceKeys.deploymentSettings()[0],
-  resourceKeys.deploymentAccounts()[0],
-  resourceKeys.deploymentWorkspaces()[0],
+  resourceKeys.platformOverview()[0],
+  resourceKeys.license()[0],
+  resourceKeys.platformSettings()[0],
+  resourceKeys.platformAccounts()[0],
+  resourceKeys.platformWorkspaces()[0],
   resourceKeys.platformAIProviders()[0],
   resourceKeys.platformAIProvider()[0],
   resourceKeys.platformAIProviderModels()[0],

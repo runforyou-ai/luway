@@ -3,7 +3,7 @@ title: License activation
 order: 1
 ---
 
-Activate and maintain the instance license on your server.
+Activate and maintain the license on your server.
 
 This page is being written.
 
@@ -13,4 +13,4 @@ This page is being written.
 
 ## License refresh
 
-## Instance migration
+## Server migration

@@ -3,7 +3,7 @@ title: Platform model service
 order: 5
 ---
 
-Deployment admins can set up models for the whole deployment. Every workspace can select them directly without connecting its own model providers. Find these pages under **Settings → Deployment**: **Platform models**, **Platform providers**, and **Model calls**.
+Platform admins can set up models for the whole platform. Every workspace can select them directly without connecting its own model providers. Find these pages under **Settings → Platform**: **Platform models**, **Platform providers**, and **Model calls**.
 
 ## Providers
 
@@ -13,7 +13,7 @@ Platform providers are the model providers that actually serve platform models, 
 2. Enter a name, API key, and API URL. You can click **Test connection** first to confirm the configuration works.
 3. After saving, the provider can be used as a source of platform models.
 
-Only deployment admins can see a platform provider's key and URL. Workspace members can't. A provider that is still a source of a platform model can't be deleted. Remove that source from the platform model first.
+Only platform admins can see a platform provider's key and URL. Workspace members can't. A provider that is still a source of a platform model can't be deleted. Remove that source from the platform model first.
 
 ## Model catalog
 

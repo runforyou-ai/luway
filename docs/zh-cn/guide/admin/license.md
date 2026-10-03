@@ -1,5 +1,5 @@
 ---
-title: 实例授权
+title: 授权
 order: 3
 ---
 

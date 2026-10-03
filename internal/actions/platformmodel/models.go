@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -28,7 +28,7 @@ var specFieldCodes = map[string]ValidationCode{
 	"maxOutputTokens": ValidationMaxOutputTokensInvalid,
 }
 
-// ListQuery 读取部署的平台模型目录。
+// ListQuery 读取平台模型目录。
 type ListQuery struct{ db *bun.DB }
 
 // NewListQuery 创建平台模型目录查询。
@@ -84,7 +84,7 @@ func (a *CreateAction) Execute(ctx context.Context, operator *servermodels.Accou
 	}
 	var modelID string
 	err := a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		if err := deploymentaction.LockAdmin(ctx, tx, operator); err != nil {
+		if err := platformaction.LockAdmin(ctx, tx, operator); err != nil {
 			return err
 		}
 		record, err := modelRecord(input.Spec)
@@ -124,13 +124,13 @@ func (a *UpdateAction) Execute(ctx context.Context, operator *servermodels.Accou
 		return nil, &common.FieldError{Fields: fields}
 	}
 	err := a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		if err := deploymentaction.LockAdmin(ctx, tx, operator); err != nil {
+		if err := platformaction.LockAdmin(ctx, tx, operator); err != nil {
 			return err
 		}
 		if err := lockModel(ctx, tx, modelID); err != nil {
 			return err
 		}
-		references, err := aimodel.DeploymentReferences(ctx, tx, []string{modelID})
+		references, err := aimodel.PlatformReferences(ctx, tx, []string{modelID})
 		if err != nil {
 			return err
 		}
@@ -174,13 +174,13 @@ func NewDeleteAction(db *bun.DB) *DeleteAction {
 // Execute 删除没有被工作区业务配置引用的平台模型及其来源，仍被引用时返回 ErrInUse。
 func (a *DeleteAction) Execute(ctx context.Context, operator *servermodels.AccountIdentity, modelID string) error {
 	err := a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		if err := deploymentaction.LockAdmin(ctx, tx, operator); err != nil {
+		if err := platformaction.LockAdmin(ctx, tx, operator); err != nil {
 			return err
 		}
 		if err := lockModel(ctx, tx, modelID); err != nil {
 			return err
 		}
-		references, err := aimodel.DeploymentReferences(ctx, tx, []string{modelID})
+		references, err := aimodel.PlatformReferences(ctx, tx, []string{modelID})
 		if err != nil {
 			return err
 		}

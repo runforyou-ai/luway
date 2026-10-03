@@ -12,7 +12,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 )
 
-// deviceMCPIdleTimeout 是设备运行的企业 MCP 连接无调用后保留的时长，覆盖模型多轮生成之间的间隔；运行在其他实例结束时由它兜底关闭。
+// deviceMCPIdleTimeout 是设备运行的企业 MCP 连接无调用后保留的时长，覆盖模型多轮生成之间的间隔；运行在其他服务器结束时由它兜底关闭。
 const deviceMCPIdleTimeout = 5 * time.Minute
 
 // errDeviceMCPReleased 表示运行的企业 MCP 连接已随运行结束释放。

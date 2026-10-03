@@ -33,7 +33,7 @@ func organizationFromModel(organization servermodels.Organization) appservice.Or
 func accountFromModel(account servermodels.Account) appservice.Account {
 	return appservice.Account{
 		ID: account.ID, Email: account.Email, DisplayName: account.DisplayName, Locale: appservice.Locale(account.Locale),
-		TimeZone: account.TimeZone, IsDeploymentAdmin: account.IsDeploymentAdmin,
+		TimeZone: account.TimeZone, IsPlatformAdmin: account.IsPlatformAdmin,
 	}
 }
 

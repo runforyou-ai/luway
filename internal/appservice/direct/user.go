@@ -268,8 +268,8 @@ func (o *directOperations) userMutationError(ctx context.Context, meta appservic
 	if errors.Is(err, useraction.ErrLastActiveAdministrator) {
 		return appservice.InvalidError(meta, i18n.ErrorUserLastActiveAdministrator, nil)
 	}
-	if errors.Is(err, useraction.ErrDeploymentAdmin) {
-		return appservice.InvalidError(meta, i18n.ErrorUserDeploymentAdmin, nil)
+	if errors.Is(err, useraction.ErrPlatformAdmin) {
+		return appservice.InvalidError(meta, i18n.ErrorUserPlatformAdmin, nil)
 	}
 	attributes := []any{"organization_id", organizationID, "failure", failureKey, "error", err}
 	if userID != "" {

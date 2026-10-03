@@ -20,7 +20,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// TestPlatformModels 验证部署管理员维护平台供应商与多来源平台模型，工作区按模型名称选用并按来源顺序调用，调用记录只对部署管理员展示平台模型调用，被引用的模型与仍是来源的供应商不能删除。
+// TestPlatformModels 验证平台管理员维护平台供应商与多来源平台模型，工作区按模型名称选用并按来源顺序调用，调用记录只对平台管理员展示平台模型调用，被引用的模型与仍是来源的供应商不能删除。
 func TestPlatformModels(t *testing.T) {
 	t.Parallel()
 	db := openEmptyDatabase(t)
@@ -49,9 +49,9 @@ func TestPlatformModels(t *testing.T) {
 	member := loginMember(t, db, owner.Organization.ID, memberEmail, "password123")
 	memberMeta := appservice.RequestMeta{Token: member.Token, WorkspaceID: owner.Organization.ID, Locale: appservice.LocaleChineseSimplified}
 
-	// 平台模型服务只对部署管理员开放。
+	// 平台模型服务只对平台管理员开放。
 	_, err = backend.ListPlatformAIModels(ctx, memberMeta)
-	requireLocalizedError(t, err, i18n.ErrorDeploymentAdminRequired)
+	requireLocalizedError(t, err, i18n.ErrorPlatformAdminRequired)
 
 	primary, err := backend.CreatePlatformAIProvider(ctx, adminMeta, appservice.PlatformAIProviderInput{
 		Brand: appservice.AIProviderBrandOpenRouter, Name: "主来源", CredentialType: appservice.AIProviderCredentialTypeAPIKey,

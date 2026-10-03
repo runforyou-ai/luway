@@ -78,7 +78,7 @@ type directOperations struct {
 	translationOps
 	webSearchOps
 	invitationOps
-	deploymentOps
+	platformOps
 	platformModelOps
 	productDocsOps
 }
@@ -126,14 +126,14 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
-		deploymentOps:      newDeploymentOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control),
+		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control),
 		platformModelOps:   newPlatformModelOps(db, modelProviderRegistry),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}
 	return &Backend{ops: ops}
 }
 
-// InstallWorkspace 完成首次安装并返回部署管理员的登录会话。
+// InstallWorkspace 完成首次安装并返回平台管理员的登录会话。
 func (b *Backend) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (appservice.Auth, error) {
 	return b.ops.InstallWorkspace(ctx, meta, input)
 }
@@ -209,15 +209,15 @@ func (g sessionGuard) authenticateAccount(ctx context.Context, meta appservice.R
 	return account, nil
 }
 
-// authenticateAdmin 校验登录会话并确认当前账号是部署管理员。
+// authenticateAdmin 校验登录会话并确认当前账号是平台管理员。
 func (g sessionGuard) authenticateAdmin(ctx context.Context, meta appservice.RequestMeta) (*servermodels.AccountIdentity, error) {
 	account, err := g.authenticateAccount(ctx, meta)
 	if err != nil {
 		return nil, err
 	}
-	if !account.Account.IsDeploymentAdmin {
-		slog.Info("非部署管理员调用部署管理接口", "account_id", account.Account.ID)
-		return nil, appservice.ForbiddenError(meta, i18n.ErrorDeploymentAdminRequired)
+	if !account.Account.IsPlatformAdmin {
+		slog.Info("非平台管理员调用平台管理接口", "account_id", account.Account.ID)
+		return nil, appservice.ForbiddenError(meta, i18n.ErrorPlatformAdminRequired)
 	}
 	return account, nil
 }
@@ -246,7 +246,7 @@ func (g sessionGuard) authenticate(ctx context.Context, meta appservice.RequestM
 	return identity, nil
 }
 
-// loginRequired 返回需要登录的会话错误；部署尚未完成首次安装时返回初始化入口。
+// loginRequired 返回需要登录的会话错误；平台尚未完成首次安装时返回初始化入口。
 func (g sessionGuard) loginRequired(ctx context.Context, meta appservice.RequestMeta) error {
 	installed, err := g.installationStatus.Execute(ctx)
 	if err != nil {

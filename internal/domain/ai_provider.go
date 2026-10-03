@@ -69,7 +69,7 @@ const (
 	AIModelTypeDecision  AIModelType = "decision"
 )
 
-// AIModelScope 定义模型范围：平台模型由部署提供并对全部工作区可用，工作区模型只属于所在工作区。
+// AIModelScope 定义模型范围：平台模型由平台提供并对全部工作区可用，工作区模型只属于所在工作区。
 type AIModelScope string
 
 const (

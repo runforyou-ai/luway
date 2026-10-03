@@ -85,7 +85,7 @@ const updatePlatformAIModelBound = bind(UpdatePlatformAIModel)
 const listPlatformAIModelCallsBound = bind(ListPlatformAIModelCalls)
 const getPlatformAIModelCallBound = bind(GetPlatformAIModelCall)
 
-/** 读取部署的平台供应商。 */
+/** 读取平台供应商。 */
 export function listPlatformAIProviders(signal?: AbortSignal) {
   return listPlatformAIProvidersBound(signal).then(
     (output) => output.providers as PlatformAIProviderSummaryData[],
@@ -117,7 +117,7 @@ export function updatePlatformAIProvider(providerId: string, input: PlatformAIPr
 /** 删除不是任何平台模型来源的平台供应商。 */
 export const deletePlatformAIProvider = bind(DeletePlatformAIProvider)
 
-/** 读取部署的平台模型目录。 */
+/** 读取平台模型目录。 */
 export function listPlatformAIModels(signal?: AbortSignal) {
   return listPlatformAIModelsBound(signal).then((output) => output.models as PlatformAIModelData[])
 }

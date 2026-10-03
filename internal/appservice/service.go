@@ -90,7 +90,7 @@ func New(backend Backend, options ...Option) *Service {
 	return service
 }
 
-// InstallWorkspace 完成首次安装并返回部署管理员的登录会话。
+// InstallWorkspace 完成首次安装并返回平台管理员的登录会话。
 func (s *Service) InstallWorkspace(ctx context.Context, meta RequestMeta, input InstallWorkspaceInput) (Auth, error) {
 	installer, ok := s.backend.(WorkspaceInstaller)
 	if !ok {

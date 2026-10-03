@@ -3,7 +3,7 @@ title: Accounts and workspaces
 order: 2
 ---
 
-Manage accounts, workspaces, and sign-up and creation policies in the deployment.
+Manage accounts, workspaces, and sign-up and creation policies on the platform.
 
 This page is being written.
 

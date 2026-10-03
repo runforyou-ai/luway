@@ -1,13 +1,13 @@
 ---
-title: Deployment overview
+title: Platform overview
 order: 1
 ---
 
-Deployment administrators review usage data for the deployment.
+Platform administrators review usage data for the platform.
 
 This page is being written.
 
-## Open deployment administration
+## Open platform administration
 
 ## Accounts and workspaces
 

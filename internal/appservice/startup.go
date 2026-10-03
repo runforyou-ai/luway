@@ -7,14 +7,14 @@ import (
 	"github.com/runforyou-ai/luway/internal/common/brand"
 )
 
-// LoadStartup 根据部署安装状态返回初始化、服务器连接或就绪入口和界面品牌；登录与工作区选择由后续身份加载决定。
+// LoadStartup 根据平台安装状态返回初始化、服务器连接或就绪入口和界面品牌；登录与工作区选择由后续身份加载决定。
 func (s *Service) LoadStartup(ctx context.Context, meta RequestMeta) (Startup, error) {
 	var startup Startup
 	var err error
 	if connector, ok := s.backend.(ServerConnector); ok {
 		startup, err = s.loadNativeStartup(ctx, meta, connector)
 	} else {
-		// 部署尚无账号时进入初始化页。
+		// 平台尚无账号时进入初始化页。
 		status, statusErr := s.backend.InstallationStatus(ctx, meta)
 		if statusErr != nil {
 			return Startup{}, statusErr

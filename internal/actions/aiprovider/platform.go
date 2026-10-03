@@ -8,7 +8,7 @@ import (
 	"errors"
 	"fmt"
 
-	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
@@ -47,7 +47,7 @@ type PlatformSummary struct {
 	ModelCount int                    `bun:"model_count"`
 }
 
-// ListPlatformQuery 读取部署的平台供应商。
+// ListPlatformQuery 读取平台供应商。
 type ListPlatformQuery struct{ db *bun.DB }
 
 // NewListPlatformQuery 创建平台供应商列表查询。
@@ -108,7 +108,7 @@ func (a *CreatePlatformAction) Execute(ctx context.Context, operator *servermode
 		APIKey: connection.APIKey, APIURL: connection.APIURL,
 	}
 	err := a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		if err := deploymentaction.LockAdmin(ctx, tx, operator); err != nil {
+		if err := platformaction.LockAdmin(ctx, tx, operator); err != nil {
 			return err
 		}
 		_, err := tx.NewInsert().Model(&provider).
@@ -139,7 +139,7 @@ func NewUpdatePlatformAction(db *bun.DB) *UpdatePlatformAction {
 func (a *UpdatePlatformAction) Execute(ctx context.Context, operator *servermodels.AccountIdentity, providerID string, input PlatformInput) (*PlatformRecord, error) {
 	var provider *servermodels.AIProvider
 	err := a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		if err := deploymentaction.LockAdmin(ctx, tx, operator); err != nil {
+		if err := platformaction.LockAdmin(ctx, tx, operator); err != nil {
 			return err
 		}
 		current, err := loadPlatformProvider(ctx, tx, providerID, true)
@@ -188,7 +188,7 @@ func NewDeletePlatformAction(db *bun.DB) *DeletePlatformAction {
 // Execute 删除不是任何平台模型来源的平台供应商，仍是来源时返回 ErrPlatformInUse。
 func (a *DeletePlatformAction) Execute(ctx context.Context, operator *servermodels.AccountIdentity, providerID string) error {
 	err := a.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		if err := deploymentaction.LockAdmin(ctx, tx, operator); err != nil {
+		if err := platformaction.LockAdmin(ctx, tx, operator); err != nil {
 			return err
 		}
 		provider, err := loadPlatformProvider(ctx, tx, providerID, true)

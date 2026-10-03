@@ -12,7 +12,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 )
 
-// GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+// GetProductDocPage 返回当前平台可见的产品文档页面正文，供应用内帮助显示。
 func (b *Backend) GetProductDocPage(ctx context.Context, meta appservice.RequestMeta, input appservice.ProductDocPageInput) (appservice.ProductDocPage, error) {
 	var output appservice.ProductDocPage
 	err := b.do(ctx, meta, http.MethodGet, "/product-docs/page", encodeProductDocPageInputQuery(input), nil, &output)
@@ -915,209 +915,209 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return output, err
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
-func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentOverview, error) {
-	var output appservice.DeploymentOverview
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/overview", nil, nil, &output)
+// GetPlatformOverview 返回服务器标识、服务端版本、规模、活跃趋势和平台能力。
+func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformOverview, error) {
+	var output appservice.PlatformOverview
+	err := b.do(ctx, meta, http.MethodGet, "/platform/overview", nil, nil, &output)
 	return output, err
 }
 
-// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
-func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentSettings, error) {
-	var output appservice.DeploymentSettings
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/settings", nil, nil, &output)
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformSettings, error) {
+	var output appservice.PlatformSettings
+	err := b.do(ctx, meta, http.MethodGet, "/platform/settings", nil, nil, &output)
 	return output, err
 }
 
-// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
-func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentPoliciesInput) (appservice.DeploymentSettings, error) {
-	var output appservice.DeploymentSettings
-	err := b.do(ctx, meta, http.MethodPut, "/deployment/settings", nil, input, &output)
+// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
+func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformPoliciesInput) (appservice.PlatformSettings, error) {
+	var output appservice.PlatformSettings
+	err := b.do(ctx, meta, http.MethodPut, "/platform/settings", nil, input, &output)
 	return output, err
 }
 
-// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (b *Backend) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentStatisticsTimeZoneInput) (appservice.DeploymentSettings, error) {
-	var output appservice.DeploymentSettings
-	err := b.do(ctx, meta, http.MethodPut, "/deployment/settings/statistics-time-zone", nil, input, &output)
+// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStatisticsTimeZoneInput) (appservice.PlatformSettings, error) {
+	var output appservice.PlatformSettings
+	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/statistics-time-zone", nil, input, &output)
 	return output, err
 }
 
-// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
-func (b *Backend) UpdateDeploymentTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentTelemetryInput) (appservice.DeploymentSettings, error) {
-	var output appservice.DeploymentSettings
-	err := b.do(ctx, meta, http.MethodPut, "/deployment/settings/telemetry", nil, input, &output)
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+func (b *Backend) UpdatePlatformTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTelemetryInput) (appservice.PlatformSettings, error) {
+	var output appservice.PlatformSettings
+	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/telemetry", nil, input, &output)
 	return output, err
 }
 
-// ListDeploymentAccounts 返回部署内的账号。
-func (b *Backend) ListDeploymentAccounts(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentAccountListInput) (appservice.DeploymentAccountList, error) {
-	var output appservice.DeploymentAccountList
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/accounts", encodeDeploymentAccountListInputQuery(input), nil, &output)
+// ListPlatformAccounts 返回平台内的账号。
+func (b *Backend) ListPlatformAccounts(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAccountListInput) (appservice.PlatformAccountList, error) {
+	var output appservice.PlatformAccountList
+	err := b.do(ctx, meta, http.MethodGet, "/platform/accounts", encodePlatformAccountListInputQuery(input), nil, &output)
 	return output, err
 }
 
-// DeactivateDeploymentAccount 停用其他账号并使其登录会话失效。
-func (b *Backend) DeactivateDeploymentAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
-	var output appservice.DeploymentAccount
-	err := b.do(ctx, meta, http.MethodPost, "/deployment/accounts/"+url.PathEscape(accountID)+"/deactivate", nil, nil, &output)
+// DeactivatePlatformAccount 停用其他账号并使其登录会话失效。
+func (b *Backend) DeactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
+	var output appservice.PlatformAccount
+	err := b.do(ctx, meta, http.MethodPost, "/platform/accounts/"+url.PathEscape(accountID)+"/deactivate", nil, nil, &output)
 	return output, err
 }
 
-// ReactivateDeploymentAccount 恢复已停用的其他账号。
-func (b *Backend) ReactivateDeploymentAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
-	var output appservice.DeploymentAccount
-	err := b.do(ctx, meta, http.MethodPost, "/deployment/accounts/"+url.PathEscape(accountID)+"/reactivate", nil, nil, &output)
+// ReactivatePlatformAccount 恢复已停用的其他账号。
+func (b *Backend) ReactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
+	var output appservice.PlatformAccount
+	err := b.do(ctx, meta, http.MethodPost, "/platform/accounts/"+url.PathEscape(accountID)+"/reactivate", nil, nil, &output)
 	return output, err
 }
 
-// GrantDeploymentAdmin 把其他账号设为部署管理员。
-func (b *Backend) GrantDeploymentAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
-	var output appservice.DeploymentAccount
-	err := b.do(ctx, meta, http.MethodPost, "/deployment/accounts/"+url.PathEscape(accountID)+"/admin", nil, nil, &output)
+// GrantPlatformAdmin 把其他账号设为平台管理员。
+func (b *Backend) GrantPlatformAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
+	var output appservice.PlatformAccount
+	err := b.do(ctx, meta, http.MethodPost, "/platform/accounts/"+url.PathEscape(accountID)+"/admin", nil, nil, &output)
 	return output, err
 }
 
-// RevokeDeploymentAdmin 撤销其他账号的部署管理员身份。
-func (b *Backend) RevokeDeploymentAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.DeploymentAccount, error) {
-	var output appservice.DeploymentAccount
-	err := b.do(ctx, meta, http.MethodDelete, "/deployment/accounts/"+url.PathEscape(accountID)+"/admin", nil, nil, &output)
+// RevokePlatformAdmin 撤销其他账号的平台管理员身份。
+func (b *Backend) RevokePlatformAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
+	var output appservice.PlatformAccount
+	err := b.do(ctx, meta, http.MethodDelete, "/platform/accounts/"+url.PathEscape(accountID)+"/admin", nil, nil, &output)
 	return output, err
 }
 
-// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
-func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentWorkspaceListInput) (appservice.DeploymentWorkspaceList, error) {
-	var output appservice.DeploymentWorkspaceList
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/workspaces", encodeDeploymentWorkspaceListInputQuery(input), nil, &output)
+// ListPlatformWorkspaces 返回平台内的全部工作区及其状态和当前规模。
+func (b *Backend) ListPlatformWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceListInput) (appservice.PlatformWorkspaceList, error) {
+	var output appservice.PlatformWorkspaceList
+	err := b.do(ctx, meta, http.MethodGet, "/platform/workspaces", encodePlatformWorkspaceListInputQuery(input), nil, &output)
 	return output, err
 }
 
-// GetInstanceLicense 返回实例标识与实例授权状态。
-func (b *Backend) GetInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
-	var output appservice.InstanceLicense
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/license", nil, nil, &output)
+// GetLicense 返回服务器标识与授权状态。
+func (b *Backend) GetLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.License, error) {
+	var output appservice.License
+	err := b.do(ctx, meta, http.MethodGet, "/platform/license", nil, nil, &output)
 	return output, err
 }
 
-// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
-func (b *Backend) ActivateInstanceLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseInput) (appservice.InstanceLicense, error) {
-	var output appservice.InstanceLicense
-	err := b.do(ctx, meta, http.MethodPut, "/deployment/license", nil, input, &output)
+// ActivateLicense 用 control 签发的授权码离线激活或替换授权。
+func (b *Backend) ActivateLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateLicenseInput) (appservice.License, error) {
+	var output appservice.License
+	err := b.do(ctx, meta, http.MethodPut, "/platform/license", nil, input, &output)
 	return output, err
 }
 
-// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
-func (b *Backend) ActivateInstanceLicenseOnline(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseOnlineInput) (appservice.InstanceLicense, error) {
-	var output appservice.InstanceLicense
-	err := b.do(ctx, meta, http.MethodPost, "/deployment/license/activations", nil, input, &output)
+// ActivateLicenseOnline 用激活码经 control 在线激活授权。
+func (b *Backend) ActivateLicenseOnline(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateLicenseOnlineInput) (appservice.License, error) {
+	var output appservice.License
+	err := b.do(ctx, meta, http.MethodPost, "/platform/license/activations", nil, input, &output)
 	return output, err
 }
 
-// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
-func (b *Backend) SyncInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
-	var output appservice.InstanceLicense
-	err := b.do(ctx, meta, http.MethodPost, "/deployment/license/sync", nil, nil, &output)
+// SyncLicense 立即向 control 登记服务器并拉取最新授权。
+func (b *Backend) SyncLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.License, error) {
+	var output appservice.License
+	err := b.do(ctx, meta, http.MethodPost, "/platform/license/sync", nil, nil, &output)
 	return output, err
 }
 
-// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
-func (b *Backend) SuspendDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
-	var output appservice.DeploymentWorkspace
-	err := b.do(ctx, meta, http.MethodPost, "/deployment/workspaces/"+url.PathEscape(workspaceID)+"/suspend", nil, nil, &output)
+// SuspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+func (b *Backend) SuspendPlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.PlatformWorkspace, error) {
+	var output appservice.PlatformWorkspace
+	err := b.do(ctx, meta, http.MethodPost, "/platform/workspaces/"+url.PathEscape(workspaceID)+"/suspend", nil, nil, &output)
 	return output, err
 }
 
-// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
-func (b *Backend) ResumeDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
-	var output appservice.DeploymentWorkspace
-	err := b.do(ctx, meta, http.MethodPost, "/deployment/workspaces/"+url.PathEscape(workspaceID)+"/resume", nil, nil, &output)
+// ResumePlatformWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.PlatformWorkspace, error) {
+	var output appservice.PlatformWorkspace
+	err := b.do(ctx, meta, http.MethodPost, "/platform/workspaces/"+url.PathEscape(workspaceID)+"/resume", nil, nil, &output)
 	return output, err
 }
 
-// ListPlatformAIProviders 返回部署的平台供应商。
+// ListPlatformAIProviders 返回平台供应商。
 func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIProviderList, error) {
 	var output appservice.PlatformAIProviderList
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-providers", nil, nil, &output)
+	err := b.do(ctx, meta, http.MethodGet, "/platform/model-providers", nil, nil, &output)
 	return output, err
 }
 
 // GetPlatformAIProvider 返回平台供应商详情。
 func (b *Backend) GetPlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) (appservice.PlatformAIProvider, error) {
 	var output appservice.PlatformAIProvider
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-providers/"+url.PathEscape(providerID), nil, nil, &output)
+	err := b.do(ctx, meta, http.MethodGet, "/platform/model-providers/"+url.PathEscape(providerID), nil, nil, &output)
 	return output, err
 }
 
 // ListPlatformAIProviderModels 返回平台供应商可提供的模型。
 func (b *Backend) ListPlatformAIProviderModels(ctx context.Context, meta appservice.RequestMeta, providerID string) (appservice.AIProviderModelList, error) {
 	var output appservice.AIProviderModelList
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-providers/"+url.PathEscape(providerID)+"/models", nil, nil, &output)
+	err := b.do(ctx, meta, http.MethodGet, "/platform/model-providers/"+url.PathEscape(providerID)+"/models", nil, nil, &output)
 	return output, err
 }
 
 // CreatePlatformAIProvider 创建平台供应商。
 func (b *Backend) CreatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIProviderInput) (appservice.PlatformAIProvider, error) {
 	var output appservice.PlatformAIProvider
-	err := b.do(ctx, meta, http.MethodPost, "/deployment/platform-model-providers", nil, input, &output)
+	err := b.do(ctx, meta, http.MethodPost, "/platform/model-providers", nil, input, &output)
 	return output, err
 }
 
 // UpdatePlatformAIProvider 修改平台供应商。
 func (b *Backend) UpdatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string, input appservice.PlatformAIProviderUpdateInput) (appservice.PlatformAIProvider, error) {
 	var output appservice.PlatformAIProvider
-	err := b.do(ctx, meta, http.MethodPut, "/deployment/platform-model-providers/"+url.PathEscape(providerID), nil, input, &output)
+	err := b.do(ctx, meta, http.MethodPut, "/platform/model-providers/"+url.PathEscape(providerID), nil, input, &output)
 	return output, err
 }
 
 // DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
 func (b *Backend) DeletePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) error {
-	return b.do(ctx, meta, http.MethodDelete, "/deployment/platform-model-providers/"+url.PathEscape(providerID), nil, nil, nil)
+	return b.do(ctx, meta, http.MethodDelete, "/platform/model-providers/"+url.PathEscape(providerID), nil, nil, nil)
 }
 
-// ListPlatformAIModels 返回部署的平台模型目录。
+// ListPlatformAIModels 返回平台模型目录。
 func (b *Backend) ListPlatformAIModels(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIModelList, error) {
 	var output appservice.PlatformAIModelList
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-models", nil, nil, &output)
+	err := b.do(ctx, meta, http.MethodGet, "/platform/models", nil, nil, &output)
 	return output, err
 }
 
 // GetPlatformAIModel 返回平台模型详情。
 func (b *Backend) GetPlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) (appservice.PlatformAIModel, error) {
 	var output appservice.PlatformAIModel
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-models/"+url.PathEscape(modelID), nil, nil, &output)
+	err := b.do(ctx, meta, http.MethodGet, "/platform/models/"+url.PathEscape(modelID), nil, nil, &output)
 	return output, err
 }
 
 // CreatePlatformAIModel 创建对全部工作区可用的平台模型。
 func (b *Backend) CreatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
 	var output appservice.PlatformAIModel
-	err := b.do(ctx, meta, http.MethodPost, "/deployment/platform-models", nil, input, &output)
+	err := b.do(ctx, meta, http.MethodPost, "/platform/models", nil, input, &output)
 	return output, err
 }
 
 // UpdatePlatformAIModel 修改平台模型的属性与来源。
 func (b *Backend) UpdatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
 	var output appservice.PlatformAIModel
-	err := b.do(ctx, meta, http.MethodPut, "/deployment/platform-models/"+url.PathEscape(modelID), nil, input, &output)
+	err := b.do(ctx, meta, http.MethodPut, "/platform/models/"+url.PathEscape(modelID), nil, input, &output)
 	return output, err
 }
 
 // DeletePlatformAIModel 删除没有被工作区引用的平台模型。
 func (b *Backend) DeletePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) error {
-	return b.do(ctx, meta, http.MethodDelete, "/deployment/platform-models/"+url.PathEscape(modelID), nil, nil, nil)
+	return b.do(ctx, meta, http.MethodDelete, "/platform/models/"+url.PathEscape(modelID), nil, nil, nil)
 }
 
 // ListPlatformAIModelCalls 返回平台模型调用记录。
 func (b *Backend) ListPlatformAIModelCalls(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelCallListInput) (appservice.PlatformAIModelCallList, error) {
 	var output appservice.PlatformAIModelCallList
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-calls", encodePlatformAIModelCallListInputQuery(input), nil, &output)
+	err := b.do(ctx, meta, http.MethodGet, "/platform/model-calls", encodePlatformAIModelCallListInputQuery(input), nil, &output)
 	return output, err
 }
 
 // GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
 func (b *Backend) GetPlatformAIModelCall(ctx context.Context, meta appservice.RequestMeta, callID string) (appservice.PlatformAIModelCallDetail, error) {
 	var output appservice.PlatformAIModelCallDetail
-	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-calls/"+url.PathEscape(callID), nil, nil, &output)
+	err := b.do(ctx, meta, http.MethodGet, "/platform/model-calls/"+url.PathEscape(callID), nil, nil, &output)
 	return output, err
 }
 
@@ -1982,27 +1982,6 @@ func encodeConversationMessageWindowInputQuery(input appservice.ConversationMess
 	return query
 }
 
-// encodeDeploymentAccountListInputQuery 将 appservice.DeploymentAccountListInput 编码为查询参数。
-func encodeDeploymentAccountListInputQuery(input appservice.DeploymentAccountListInput) url.Values {
-	query := url.Values{}
-	setQuery(query, "query", input.Query)
-	setQuery(query, "status", string(input.Status))
-	setPositiveQuery(query, "page", input.Page)
-	setPositiveQuery(query, "pageSize", input.PageSize)
-	return query
-}
-
-// encodeDeploymentWorkspaceListInputQuery 将 appservice.DeploymentWorkspaceListInput 编码为查询参数。
-func encodeDeploymentWorkspaceListInputQuery(input appservice.DeploymentWorkspaceListInput) url.Values {
-	query := url.Values{}
-	setQuery(query, "query", input.Query)
-	setQuery(query, "status", string(input.Status))
-	setQuery(query, "sort", string(input.Sort))
-	setPositiveQuery(query, "page", input.Page)
-	setPositiveQuery(query, "pageSize", input.PageSize)
-	return query
-}
-
 // encodeInboxSearchInputQuery 将 appservice.InboxSearchInput 编码为查询参数。
 func encodeInboxSearchInputQuery(input appservice.InboxSearchInput) url.Values {
 	query := url.Values{}
@@ -2101,6 +2080,27 @@ func encodePlatformAIModelCallListInputQuery(input appservice.PlatformAIModelCal
 	setQuery(query, "modelId", input.ModelID)
 	setQuery(query, "status", string(input.Status))
 	setQuery(query, "query", input.Query)
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodePlatformAccountListInputQuery 将 appservice.PlatformAccountListInput 编码为查询参数。
+func encodePlatformAccountListInputQuery(input appservice.PlatformAccountListInput) url.Values {
+	query := url.Values{}
+	setQuery(query, "query", input.Query)
+	setQuery(query, "status", string(input.Status))
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodePlatformWorkspaceListInputQuery 将 appservice.PlatformWorkspaceListInput 编码为查询参数。
+func encodePlatformWorkspaceListInputQuery(input appservice.PlatformWorkspaceListInput) url.Values {
+	query := url.Values{}
+	setQuery(query, "query", input.Query)
+	setQuery(query, "status", string(input.Status))
+	setQuery(query, "sort", string(input.Sort))
 	setPositiveQuery(query, "page", input.Page)
 	setPositiveQuery(query, "pageSize", input.PageSize)
 	return query

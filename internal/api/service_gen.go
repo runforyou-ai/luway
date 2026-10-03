@@ -151,36 +151,36 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.DELETE("/invitations/:invitationID", s.revokeInvitation)
 	router.POST("/invitation-previews", s.previewInvitation)
 	router.POST("/invitation-acceptances", s.acceptInvitation)
-	router.GET("/deployment/overview", s.getDeploymentOverview)
-	router.GET("/deployment/settings", s.getDeploymentSettings)
-	router.PUT("/deployment/settings", s.updateDeploymentSettings)
-	router.PUT("/deployment/settings/statistics-time-zone", s.updateDeploymentStatisticsTimeZone)
-	router.PUT("/deployment/settings/telemetry", s.updateDeploymentTelemetry)
-	router.GET("/deployment/accounts", s.listDeploymentAccounts)
-	router.POST("/deployment/accounts/:accountID/deactivate", s.deactivateDeploymentAccount)
-	router.POST("/deployment/accounts/:accountID/reactivate", s.reactivateDeploymentAccount)
-	router.POST("/deployment/accounts/:accountID/admin", s.grantDeploymentAdmin)
-	router.DELETE("/deployment/accounts/:accountID/admin", s.revokeDeploymentAdmin)
-	router.GET("/deployment/workspaces", s.listDeploymentWorkspaces)
-	router.GET("/deployment/license", s.getInstanceLicense)
-	router.PUT("/deployment/license", s.activateInstanceLicense)
-	router.POST("/deployment/license/activations", s.activateInstanceLicenseOnline)
-	router.POST("/deployment/license/sync", s.syncInstanceLicense)
-	router.POST("/deployment/workspaces/:workspaceID/suspend", s.suspendDeploymentWorkspace)
-	router.POST("/deployment/workspaces/:workspaceID/resume", s.resumeDeploymentWorkspace)
-	router.GET("/deployment/platform-model-providers", s.listPlatformAIProviders)
-	router.GET("/deployment/platform-model-providers/:providerID", s.getPlatformAIProvider)
-	router.GET("/deployment/platform-model-providers/:providerID/models", s.listPlatformAIProviderModels)
-	router.POST("/deployment/platform-model-providers", s.createPlatformAIProvider)
-	router.PUT("/deployment/platform-model-providers/:providerID", s.updatePlatformAIProvider)
-	router.DELETE("/deployment/platform-model-providers/:providerID", s.deletePlatformAIProvider)
-	router.GET("/deployment/platform-models", s.listPlatformAIModels)
-	router.GET("/deployment/platform-models/:modelID", s.getPlatformAIModel)
-	router.POST("/deployment/platform-models", s.createPlatformAIModel)
-	router.PUT("/deployment/platform-models/:modelID", s.updatePlatformAIModel)
-	router.DELETE("/deployment/platform-models/:modelID", s.deletePlatformAIModel)
-	router.GET("/deployment/platform-model-calls", s.listPlatformAIModelCalls)
-	router.GET("/deployment/platform-model-calls/:callID", s.getPlatformAIModelCall)
+	router.GET("/platform/overview", s.getPlatformOverview)
+	router.GET("/platform/settings", s.getPlatformSettings)
+	router.PUT("/platform/settings", s.updatePlatformSettings)
+	router.PUT("/platform/settings/statistics-time-zone", s.updatePlatformStatisticsTimeZone)
+	router.PUT("/platform/settings/telemetry", s.updatePlatformTelemetry)
+	router.GET("/platform/accounts", s.listPlatformAccounts)
+	router.POST("/platform/accounts/:accountID/deactivate", s.deactivatePlatformAccount)
+	router.POST("/platform/accounts/:accountID/reactivate", s.reactivatePlatformAccount)
+	router.POST("/platform/accounts/:accountID/admin", s.grantPlatformAdmin)
+	router.DELETE("/platform/accounts/:accountID/admin", s.revokePlatformAdmin)
+	router.GET("/platform/workspaces", s.listPlatformWorkspaces)
+	router.GET("/platform/license", s.getLicense)
+	router.PUT("/platform/license", s.activateLicense)
+	router.POST("/platform/license/activations", s.activateLicenseOnline)
+	router.POST("/platform/license/sync", s.syncLicense)
+	router.POST("/platform/workspaces/:workspaceID/suspend", s.suspendPlatformWorkspace)
+	router.POST("/platform/workspaces/:workspaceID/resume", s.resumePlatformWorkspace)
+	router.GET("/platform/model-providers", s.listPlatformAIProviders)
+	router.GET("/platform/model-providers/:providerID", s.getPlatformAIProvider)
+	router.GET("/platform/model-providers/:providerID/models", s.listPlatformAIProviderModels)
+	router.POST("/platform/model-providers", s.createPlatformAIProvider)
+	router.PUT("/platform/model-providers/:providerID", s.updatePlatformAIProvider)
+	router.DELETE("/platform/model-providers/:providerID", s.deletePlatformAIProvider)
+	router.GET("/platform/models", s.listPlatformAIModels)
+	router.GET("/platform/models/:modelID", s.getPlatformAIModel)
+	router.POST("/platform/models", s.createPlatformAIModel)
+	router.PUT("/platform/models/:modelID", s.updatePlatformAIModel)
+	router.DELETE("/platform/models/:modelID", s.deletePlatformAIModel)
+	router.GET("/platform/model-calls", s.listPlatformAIModelCalls)
+	router.GET("/platform/model-calls/:callID", s.getPlatformAIModelCall)
 	router.PUT("/users/:userID", s.updateUser)
 	router.PATCH("/roles/assignments", s.updateRoleAssignments)
 	router.POST("/users/:userID/deactivate", s.deactivateUser)
@@ -303,7 +303,7 @@ func (s *Service) installationStatus(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。
+// getProductDocPage 返回当前平台可见的产品文档页面正文，供应用内帮助显示。
 func (s *Service) getProductDocPage(c *gin.Context) {
 	input, ok := bindProductDocPageInputQuery(c)
 	if !ok {
@@ -323,7 +323,7 @@ func (s *Service) login(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// register 在部署开放注册或持有效邀请时注册本地账号并建立登录会话。
+// register 在平台开放注册或持有效邀请时注册本地账号并建立登录会话。
 func (s *Service) register(c *gin.Context) {
 	var input appservice.RegisterInput
 	if !bindJSON(c, &input) {
@@ -1402,137 +1402,137 @@ func (s *Service) acceptInvitation(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
-func (s *Service) getDeploymentOverview(c *gin.Context) {
-	output, err := s.application.GetDeploymentOverview(c.Request.Context(), requestMeta(c))
+// getPlatformOverview 返回服务器标识、服务端版本、规模、活跃趋势和平台能力。
+func (s *Service) getPlatformOverview(c *gin.Context) {
+	output, err := s.application.GetPlatformOverview(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
-func (s *Service) getDeploymentSettings(c *gin.Context) {
-	output, err := s.application.GetDeploymentSettings(c.Request.Context(), requestMeta(c))
+// getPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+func (s *Service) getPlatformSettings(c *gin.Context) {
+	output, err := s.application.GetPlatformSettings(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updateDeploymentSettings 修改部署注册策略和工作区创建策略。
-func (s *Service) updateDeploymentSettings(c *gin.Context) {
-	var input appservice.DeploymentPoliciesInput
+// updatePlatformSettings 修改平台注册策略和工作区创建策略。
+func (s *Service) updatePlatformSettings(c *gin.Context) {
+	var input appservice.PlatformPoliciesInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.UpdateDeploymentSettings(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.UpdatePlatformSettings(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (s *Service) updateDeploymentStatisticsTimeZone(c *gin.Context) {
-	var input appservice.DeploymentStatisticsTimeZoneInput
+// updatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (s *Service) updatePlatformStatisticsTimeZone(c *gin.Context) {
+	var input appservice.PlatformStatisticsTimeZoneInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.UpdateDeploymentStatisticsTimeZone(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.UpdatePlatformStatisticsTimeZone(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
-func (s *Service) updateDeploymentTelemetry(c *gin.Context) {
-	var input appservice.DeploymentTelemetryInput
+// updatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+func (s *Service) updatePlatformTelemetry(c *gin.Context) {
+	var input appservice.PlatformTelemetryInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.UpdateDeploymentTelemetry(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.UpdatePlatformTelemetry(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listDeploymentAccounts 返回部署内的账号。
-func (s *Service) listDeploymentAccounts(c *gin.Context) {
-	input, ok := bindDeploymentAccountListInputQuery(c)
+// listPlatformAccounts 返回平台内的账号。
+func (s *Service) listPlatformAccounts(c *gin.Context) {
+	input, ok := bindPlatformAccountListInputQuery(c)
 	if !ok {
 		return
 	}
-	output, err := s.application.ListDeploymentAccounts(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.ListPlatformAccounts(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// deactivateDeploymentAccount 停用其他账号并使其登录会话失效。
-func (s *Service) deactivateDeploymentAccount(c *gin.Context) {
-	output, err := s.application.DeactivateDeploymentAccount(c.Request.Context(), requestMeta(c), c.Param("accountID"))
+// deactivatePlatformAccount 停用其他账号并使其登录会话失效。
+func (s *Service) deactivatePlatformAccount(c *gin.Context) {
+	output, err := s.application.DeactivatePlatformAccount(c.Request.Context(), requestMeta(c), c.Param("accountID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// reactivateDeploymentAccount 恢复已停用的其他账号。
-func (s *Service) reactivateDeploymentAccount(c *gin.Context) {
-	output, err := s.application.ReactivateDeploymentAccount(c.Request.Context(), requestMeta(c), c.Param("accountID"))
+// reactivatePlatformAccount 恢复已停用的其他账号。
+func (s *Service) reactivatePlatformAccount(c *gin.Context) {
+	output, err := s.application.ReactivatePlatformAccount(c.Request.Context(), requestMeta(c), c.Param("accountID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// grantDeploymentAdmin 把其他账号设为部署管理员。
-func (s *Service) grantDeploymentAdmin(c *gin.Context) {
-	output, err := s.application.GrantDeploymentAdmin(c.Request.Context(), requestMeta(c), c.Param("accountID"))
+// grantPlatformAdmin 把其他账号设为平台管理员。
+func (s *Service) grantPlatformAdmin(c *gin.Context) {
+	output, err := s.application.GrantPlatformAdmin(c.Request.Context(), requestMeta(c), c.Param("accountID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// revokeDeploymentAdmin 撤销其他账号的部署管理员身份。
-func (s *Service) revokeDeploymentAdmin(c *gin.Context) {
-	output, err := s.application.RevokeDeploymentAdmin(c.Request.Context(), requestMeta(c), c.Param("accountID"))
+// revokePlatformAdmin 撤销其他账号的平台管理员身份。
+func (s *Service) revokePlatformAdmin(c *gin.Context) {
+	output, err := s.application.RevokePlatformAdmin(c.Request.Context(), requestMeta(c), c.Param("accountID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
-func (s *Service) listDeploymentWorkspaces(c *gin.Context) {
-	input, ok := bindDeploymentWorkspaceListInputQuery(c)
+// listPlatformWorkspaces 返回平台内的全部工作区及其状态和当前规模。
+func (s *Service) listPlatformWorkspaces(c *gin.Context) {
+	input, ok := bindPlatformWorkspaceListInputQuery(c)
 	if !ok {
 		return
 	}
-	output, err := s.application.ListDeploymentWorkspaces(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.ListPlatformWorkspaces(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getInstanceLicense 返回实例标识与实例授权状态。
-func (s *Service) getInstanceLicense(c *gin.Context) {
-	output, err := s.application.GetInstanceLicense(c.Request.Context(), requestMeta(c))
+// getLicense 返回服务器标识与授权状态。
+func (s *Service) getLicense(c *gin.Context) {
+	output, err := s.application.GetLicense(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// activateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
-func (s *Service) activateInstanceLicense(c *gin.Context) {
-	var input appservice.ActivateInstanceLicenseInput
+// activateLicense 用 control 签发的授权码离线激活或替换授权。
+func (s *Service) activateLicense(c *gin.Context) {
+	var input appservice.ActivateLicenseInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.ActivateInstanceLicense(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.ActivateLicense(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// activateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
-func (s *Service) activateInstanceLicenseOnline(c *gin.Context) {
-	var input appservice.ActivateInstanceLicenseOnlineInput
+// activateLicenseOnline 用激活码经 control 在线激活授权。
+func (s *Service) activateLicenseOnline(c *gin.Context) {
+	var input appservice.ActivateLicenseOnlineInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.ActivateInstanceLicenseOnline(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.ActivateLicenseOnline(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// syncInstanceLicense 立即向 control 登记实例并拉取最新授权。
-func (s *Service) syncInstanceLicense(c *gin.Context) {
-	output, err := s.application.SyncInstanceLicense(c.Request.Context(), requestMeta(c))
+// syncLicense 立即向 control 登记服务器并拉取最新授权。
+func (s *Service) syncLicense(c *gin.Context) {
+	output, err := s.application.SyncLicense(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// suspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
-func (s *Service) suspendDeploymentWorkspace(c *gin.Context) {
-	output, err := s.application.SuspendDeploymentWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
+// suspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+func (s *Service) suspendPlatformWorkspace(c *gin.Context) {
+	output, err := s.application.SuspendPlatformWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// resumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
-func (s *Service) resumeDeploymentWorkspace(c *gin.Context) {
-	output, err := s.application.ResumeDeploymentWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
+// resumePlatformWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+func (s *Service) resumePlatformWorkspace(c *gin.Context) {
+	output, err := s.application.ResumePlatformWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listPlatformAIProviders 返回部署的平台供应商。
+// listPlatformAIProviders 返回平台供应商。
 func (s *Service) listPlatformAIProviders(c *gin.Context) {
 	output, err := s.application.ListPlatformAIProviders(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1575,7 +1575,7 @@ func (s *Service) deletePlatformAIProvider(c *gin.Context) {
 	writeEmpty(c, s.application.DeletePlatformAIProvider(c.Request.Context(), requestMeta(c), c.Param("providerID")))
 }
 
-// listPlatformAIModels 返回部署的平台模型目录。
+// listPlatformAIModels 返回平台模型目录。
 func (s *Service) listPlatformAIModels(c *gin.Context) {
 	output, err := s.application.ListPlatformAIModels(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -2713,43 +2713,6 @@ func bindConversationMessageWindowInputQuery(c *gin.Context) (appservice.Convers
 	}, true
 }
 
-// bindDeploymentAccountListInputQuery 从查询参数解析 appservice.DeploymentAccountListInput。
-func bindDeploymentAccountListInputQuery(c *gin.Context) (appservice.DeploymentAccountListInput, bool) {
-	page, ok := positiveQueryInteger(c, "page", 1)
-	if !ok {
-		return appservice.DeploymentAccountListInput{}, false
-	}
-	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
-	if !ok {
-		return appservice.DeploymentAccountListInput{}, false
-	}
-	return appservice.DeploymentAccountListInput{
-		Query:    c.Query("query"),
-		Status:   appservice.AccountStatus(c.DefaultQuery("status", "active")),
-		Page:     page,
-		PageSize: pageSize,
-	}, true
-}
-
-// bindDeploymentWorkspaceListInputQuery 从查询参数解析 appservice.DeploymentWorkspaceListInput。
-func bindDeploymentWorkspaceListInputQuery(c *gin.Context) (appservice.DeploymentWorkspaceListInput, bool) {
-	page, ok := positiveQueryInteger(c, "page", 1)
-	if !ok {
-		return appservice.DeploymentWorkspaceListInput{}, false
-	}
-	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
-	if !ok {
-		return appservice.DeploymentWorkspaceListInput{}, false
-	}
-	return appservice.DeploymentWorkspaceListInput{
-		Query:    c.Query("query"),
-		Status:   appservice.WorkspaceStatus(c.Query("status")),
-		Sort:     appservice.DeploymentWorkspaceSort(c.DefaultQuery("sort", "created_at")),
-		Page:     page,
-		PageSize: pageSize,
-	}, true
-}
-
 // bindInboxSearchInputQuery 从查询参数解析 appservice.InboxSearchInput。
 func bindInboxSearchInputQuery(c *gin.Context) (appservice.InboxSearchInput, bool) {
 	return appservice.InboxSearchInput{
@@ -2900,6 +2863,43 @@ func bindPlatformAIModelCallListInputQuery(c *gin.Context) (appservice.PlatformA
 		ModelID:  c.Query("modelId"),
 		Status:   appservice.AIModelCallStatus(c.Query("status")),
 		Query:    c.Query("query"),
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindPlatformAccountListInputQuery 从查询参数解析 appservice.PlatformAccountListInput。
+func bindPlatformAccountListInputQuery(c *gin.Context) (appservice.PlatformAccountListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.PlatformAccountListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.PlatformAccountListInput{}, false
+	}
+	return appservice.PlatformAccountListInput{
+		Query:    c.Query("query"),
+		Status:   appservice.AccountStatus(c.DefaultQuery("status", "active")),
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindPlatformWorkspaceListInputQuery 从查询参数解析 appservice.PlatformWorkspaceListInput。
+func bindPlatformWorkspaceListInputQuery(c *gin.Context) (appservice.PlatformWorkspaceListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.PlatformWorkspaceListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.PlatformWorkspaceListInput{}, false
+	}
+	return appservice.PlatformWorkspaceListInput{
+		Query:    c.Query("query"),
+		Status:   appservice.WorkspaceStatus(c.Query("status")),
+		Sort:     appservice.PlatformWorkspaceSort(c.DefaultQuery("sort", "created_at")),
 		Page:     page,
 		PageSize: pageSize,
 	}, true

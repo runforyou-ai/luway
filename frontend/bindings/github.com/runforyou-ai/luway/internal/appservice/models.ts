@@ -83,7 +83,7 @@ export interface AIModelOptionProvider {
 }
 
 /**
- * AIModelScope 表示模型范围：平台模型由部署提供，工作区模型由工作区自行配置。
+ * AIModelScope 表示模型范围：平台模型由平台提供，工作区模型由工作区自行配置。
  */
 export enum AIModelScope {
     /**
@@ -364,11 +364,11 @@ export interface Account {
     "displayName": string;
     "locale": Locale;
     "timeZone": string;
-    "isDeploymentAdmin": boolean;
+    "isPlatformAdmin": boolean;
 }
 
 /**
- * AccountStatus 表示部署内登录账号的状态。
+ * AccountStatus 表示平台内登录账号的状态。
  */
 export enum AccountStatus {
     /**
@@ -381,16 +381,16 @@ export enum AccountStatus {
 };
 
 /**
- * ActivateInstanceLicenseInput 定义部署管理员粘贴的授权码。
+ * ActivateLicenseInput 定义平台管理员粘贴的授权码。
  */
-export interface ActivateInstanceLicenseInput {
+export interface ActivateLicenseInput {
     "licenseCode": string;
 }
 
 /**
- * ActivateInstanceLicenseOnlineInput 定义部署管理员输入的激活码。
+ * ActivateLicenseOnlineInput 定义平台管理员输入的激活码。
  */
-export interface ActivateInstanceLicenseOnlineInput {
+export interface ActivateLicenseOnlineInput {
     "activationCode": string;
 }
 
@@ -1123,6 +1123,14 @@ export interface BusinessHoursOverride {
 export interface BusinessHoursPeriod {
     "start": string;
     "end": string;
+}
+
+/**
+ * Capabilities 定义平台当前生效的能力；WorkspaceLimit 为 0 表示不限工作区数量。
+ */
+export interface Capabilities {
+    "workspaceLimit": number;
+    "customBranding": boolean;
 }
 
 /**
@@ -2257,160 +2265,6 @@ export interface CustomerVisit {
 }
 
 /**
- * DeploymentAccount 定义部署账号列表中的一个账号及其加入的工作区数量。
- */
-export interface DeploymentAccount {
-    "id": string;
-    "email": string;
-    "displayName": string;
-    "status": AccountStatus;
-    "isDeploymentAdmin": boolean;
-    "workspaceCount": number;
-    "createdAt": string;
-}
-
-/**
- * DeploymentAccountList 定义部署账号分页结果。
- */
-export interface DeploymentAccountList {
-    "accounts": DeploymentAccount[] | null;
-    "page": PageInfo;
-}
-
-/**
- * DeploymentAccountListInput 定义部署账号列表的筛选与分页条件，Status 缺省为有效账号。
- */
-export interface DeploymentAccountListInput {
-    "query": string;
-    "status": AccountStatus;
-    "page": number;
-    "pageSize": number;
-}
-
-/**
- * DeploymentActivityWindow 定义截至今天若干天内去重后的活跃账号数和活跃工作区数，以及新增账号数和新增工作区数。
- */
-export interface DeploymentActivityWindow {
-    "activeAccounts": number;
-    "activeWorkspaces": number;
-    "newAccounts": number;
-    "newWorkspaces": number;
-}
-
-/**
- * DeploymentDailyActivity 定义一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数，Date 为 YYYY-MM-DD。
- */
-export interface DeploymentDailyActivity {
-    "date": string;
-    "activeAccounts": number;
-    "activeWorkspaces": number;
-    "newAccounts": number;
-    "newWorkspaces": number;
-}
-
-/**
- * DeploymentOverview 定义部署实例标识、服务端版本、安装时间、规模、活跃情况和实例能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
- */
-export interface DeploymentOverview {
-    "instanceId": string;
-    "version": string;
-    "installedAt": string;
-    "statisticsTimeZone": string;
-    "statsRebuilding": boolean;
-    "accountCount": number;
-    "workspaceCount": number;
-    "memberCount": number;
-    "last7Days": DeploymentActivityWindow;
-    "last30Days": DeploymentActivityWindow;
-    "trend": DeploymentDailyActivity[] | null;
-    "capabilities": InstanceCapabilities;
-}
-
-/**
- * DeploymentPoliciesInput 定义部署注册策略和工作区创建策略的修改值。
- */
-export interface DeploymentPoliciesInput {
-    "registrationPolicy": RegistrationPolicy;
-    "workspaceCreationPolicy": WorkspaceCreationPolicy;
-}
-
-/**
- * DeploymentSettings 定义部署注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
- */
-export interface DeploymentSettings {
-    "registrationPolicy": RegistrationPolicy;
-    "workspaceCreationPolicy": WorkspaceCreationPolicy;
-    "statisticsTimeZone": string;
-    "telemetryEnabled": boolean;
-}
-
-/**
- * DeploymentStatisticsTimeZoneInput 定义运营数据统计时区的修改值。
- */
-export interface DeploymentStatisticsTimeZoneInput {
-    "statisticsTimeZone": string;
-}
-
-/**
- * DeploymentTelemetryInput 定义运行指标上报开关的修改值。
- */
-export interface DeploymentTelemetryInput {
-    "telemetryEnabled": boolean;
-}
-
-/**
- * DeploymentWorkspace 定义部署工作区列表中的一个工作区、状态与当前规模；HasDeploymentAdmin 表示有有效部署管理员成员，此时不能暂停；LastActiveOn 为最近有活跃的日期 YYYY-MM-DD，从未活跃时为空。
- */
-export interface DeploymentWorkspace {
-    "id": string;
-    "name": string;
-    "slug": string;
-    "status": WorkspaceStatus;
-    "memberCount": number;
-    "aiEmployeeCount": number;
-    "channelCount": number;
-    "deviceCount": number;
-    "hasDeploymentAdmin": boolean;
-    "storageBytes": number;
-    "lastActiveOn": string | null;
-    "createdAt": string;
-}
-
-/**
- * DeploymentWorkspaceList 定义部署工作区分页结果。
- */
-export interface DeploymentWorkspaceList {
-    "workspaces": DeploymentWorkspace[] | null;
-    "page": PageInfo;
-}
-
-/**
- * DeploymentWorkspaceListInput 定义部署工作区列表的关键词、状态、排序与分页条件；Status 为空表示全部状态，Sort 缺省按创建时间。
- */
-export interface DeploymentWorkspaceListInput {
-    "query": string;
-    "status": WorkspaceStatus;
-    "sort": DeploymentWorkspaceSort;
-    "page": number;
-    "pageSize": number;
-}
-
-/**
- * DeploymentWorkspaceSort 表示部署工作区列表的排序方式，均为降序。
- */
-export enum DeploymentWorkspaceSort {
-    /**
-     * The Go zero value for the underlying type of the enum.
-     */
-    $zero = "",
-
-    DeploymentWorkspaceSortCreatedAt = "created_at",
-    DeploymentWorkspaceSortLastActive = "last_active",
-    DeploymentWorkspaceSortMemberCount = "member_count",
-    DeploymentWorkspaceSortStorage = "storage",
-};
-
-/**
  * Device 定义成员注册到企业的本机设备，LocalAgents 是设备上报的已安装且可用的本机 Agent。
  */
 export interface Device {
@@ -3122,7 +2976,7 @@ export interface InboxWindowInput {
 }
 
 /**
- * InstallWorkspaceInput 定义首次安装输入：部署管理员账号和第一个工作区。
+ * InstallWorkspaceInput 定义首次安装输入：平台管理员账号和第一个工作区。
  */
 export interface InstallWorkspaceInput {
     "workspaceName": string;
@@ -3135,34 +2989,13 @@ export interface InstallWorkspaceInput {
 }
 
 /**
- * InstallationStatus 定义部署名称、部署是否已完成首次安装、注册策略是否开放注册和部署使用的产品品牌。
+ * InstallationStatus 定义部署名称、平台是否已完成首次安装、注册策略是否开放注册和平台使用的产品品牌。
  */
 export interface InstallationStatus {
     "deploymentName": string;
     "installed": boolean;
     "registrationOpen": boolean;
     "brand": Brand;
-}
-
-/**
- * InstanceCapabilities 定义部署实例当前生效的能力；WorkspaceLimit 为 0 表示不限工作区数量。
- */
-export interface InstanceCapabilities {
-    "workspaceLimit": number;
-    "customBranding": boolean;
-}
-
-/**
- * InstanceLicense 定义实例标识、实例授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有实例标识、状态和免费能力。
- */
-export interface InstanceLicense {
-    "instanceId": string;
-    "status": LicenseStatus;
-    "licenseId": string;
-    "customer": string;
-    "issuedAt": string | null;
-    "expiresAt": string | null;
-    "capabilities": InstanceCapabilities;
 }
 
 /**
@@ -3726,7 +3559,20 @@ export interface KnowledgeWebDocumentInput {
 }
 
 /**
- * LicenseStatus 表示实例授权状态。
+ * License 定义服务器标识、授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有服务器标识、状态和免费能力。
+ */
+export interface License {
+    "serverId": string;
+    "status": LicenseStatus;
+    "licenseId": string;
+    "customer": string;
+    "issuedAt": string | null;
+    "expiresAt": string | null;
+    "capabilities": Capabilities;
+}
+
+/**
+ * LicenseStatus 表示授权状态。
  */
 export enum LicenseStatus {
     /**
@@ -4572,6 +4418,160 @@ export interface PlatformAIProviderUpdateInput {
 }
 
 /**
+ * PlatformAccount 定义平台账号列表中的一个账号及其加入的工作区数量。
+ */
+export interface PlatformAccount {
+    "id": string;
+    "email": string;
+    "displayName": string;
+    "status": AccountStatus;
+    "isPlatformAdmin": boolean;
+    "workspaceCount": number;
+    "createdAt": string;
+}
+
+/**
+ * PlatformAccountList 定义平台账号分页结果。
+ */
+export interface PlatformAccountList {
+    "accounts": PlatformAccount[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * PlatformAccountListInput 定义平台账号列表的筛选与分页条件，Status 缺省为有效账号。
+ */
+export interface PlatformAccountListInput {
+    "query": string;
+    "status": AccountStatus;
+    "page": number;
+    "pageSize": number;
+}
+
+/**
+ * PlatformActivityWindow 定义截至今天若干天内去重后的活跃账号数和活跃工作区数，以及新增账号数和新增工作区数。
+ */
+export interface PlatformActivityWindow {
+    "activeAccounts": number;
+    "activeWorkspaces": number;
+    "newAccounts": number;
+    "newWorkspaces": number;
+}
+
+/**
+ * PlatformDailyActivity 定义一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数，Date 为 YYYY-MM-DD。
+ */
+export interface PlatformDailyActivity {
+    "date": string;
+    "activeAccounts": number;
+    "activeWorkspaces": number;
+    "newAccounts": number;
+    "newWorkspaces": number;
+}
+
+/**
+ * PlatformOverview 定义服务器标识、服务端版本、安装时间、规模、活跃情况和平台能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
+ */
+export interface PlatformOverview {
+    "serverId": string;
+    "version": string;
+    "installedAt": string;
+    "statisticsTimeZone": string;
+    "statsRebuilding": boolean;
+    "accountCount": number;
+    "workspaceCount": number;
+    "memberCount": number;
+    "last7Days": PlatformActivityWindow;
+    "last30Days": PlatformActivityWindow;
+    "trend": PlatformDailyActivity[] | null;
+    "capabilities": Capabilities;
+}
+
+/**
+ * PlatformPoliciesInput 定义平台注册策略和工作区创建策略的修改值。
+ */
+export interface PlatformPoliciesInput {
+    "registrationPolicy": RegistrationPolicy;
+    "workspaceCreationPolicy": WorkspaceCreationPolicy;
+}
+
+/**
+ * PlatformSettings 定义平台注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
+ */
+export interface PlatformSettings {
+    "registrationPolicy": RegistrationPolicy;
+    "workspaceCreationPolicy": WorkspaceCreationPolicy;
+    "statisticsTimeZone": string;
+    "telemetryEnabled": boolean;
+}
+
+/**
+ * PlatformStatisticsTimeZoneInput 定义运营数据统计时区的修改值。
+ */
+export interface PlatformStatisticsTimeZoneInput {
+    "statisticsTimeZone": string;
+}
+
+/**
+ * PlatformTelemetryInput 定义运行指标上报开关的修改值。
+ */
+export interface PlatformTelemetryInput {
+    "telemetryEnabled": boolean;
+}
+
+/**
+ * PlatformWorkspace 定义平台工作区列表中的一个工作区、状态与当前规模；HasPlatformAdmin 表示有有效平台管理员成员，此时不能暂停；LastActiveOn 为最近有活跃的日期 YYYY-MM-DD，从未活跃时为空。
+ */
+export interface PlatformWorkspace {
+    "id": string;
+    "name": string;
+    "slug": string;
+    "status": WorkspaceStatus;
+    "memberCount": number;
+    "aiEmployeeCount": number;
+    "channelCount": number;
+    "deviceCount": number;
+    "hasPlatformAdmin": boolean;
+    "storageBytes": number;
+    "lastActiveOn": string | null;
+    "createdAt": string;
+}
+
+/**
+ * PlatformWorkspaceList 定义平台工作区分页结果。
+ */
+export interface PlatformWorkspaceList {
+    "workspaces": PlatformWorkspace[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * PlatformWorkspaceListInput 定义平台工作区列表的关键词、状态、排序与分页条件；Status 为空表示全部状态，Sort 缺省按创建时间。
+ */
+export interface PlatformWorkspaceListInput {
+    "query": string;
+    "status": WorkspaceStatus;
+    "sort": PlatformWorkspaceSort;
+    "page": number;
+    "pageSize": number;
+}
+
+/**
+ * PlatformWorkspaceSort 表示平台工作区列表的排序方式，均为降序。
+ */
+export enum PlatformWorkspaceSort {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    PlatformWorkspaceSortCreatedAt = "created_at",
+    PlatformWorkspaceSortLastActive = "last_active",
+    PlatformWorkspaceSortMemberCount = "member_count",
+    PlatformWorkspaceSortStorage = "storage",
+};
+
+/**
  * ProductDocPage 定义文档页面的标题、渲染后的正文 HTML 与完整文档中的访问路径。
  */
 export interface ProductDocPage {
@@ -4613,7 +4613,7 @@ export interface RealtimeConnection {
 }
 
 /**
- * RegisterInput 定义注册本地账号的输入；InvitationToken 非空时按邀请注册，部署未开放注册也可注册受邀邮箱。
+ * RegisterInput 定义注册本地账号的输入；InvitationToken 非空时按邀请注册，平台未开放注册也可注册受邀邮箱。
  */
 export interface RegisterInput {
     "displayName": string;
@@ -4625,7 +4625,7 @@ export interface RegisterInput {
 }
 
 /**
- * RegistrationPolicy 表示部署的账号注册策略。
+ * RegistrationPolicy 表示平台的账号注册策略。
  */
 export enum RegistrationPolicy {
     /**
@@ -6047,7 +6047,7 @@ export interface WorkspaceAttentionList {
 }
 
 /**
- * WorkspaceCreationPolicy 表示部署内可以创建工作区的账号范围。
+ * WorkspaceCreationPolicy 表示平台内可以创建工作区的账号范围。
  */
 export enum WorkspaceCreationPolicy {
     /**
@@ -6056,7 +6056,7 @@ export enum WorkspaceCreationPolicy {
     $zero = "",
 
     WorkspaceCreationPolicyAnyAccount = "any_account",
-    WorkspaceCreationPolicyDeploymentAdmin = "deployment_admin",
+    WorkspaceCreationPolicyPlatformAdmin = "platform_admin",
 };
 
 /**
@@ -6068,7 +6068,7 @@ export interface WorkspaceInput {
 }
 
 /**
- * WorkspaceList 定义账号可进入的全部工作区；CanCreate 表示部署创建策略和实例工作区上限是否允许账号再创建工作区。
+ * WorkspaceList 定义账号可进入的全部工作区；CanCreate 表示平台创建策略和平台工作区上限是否允许账号再创建工作区。
  */
 export interface WorkspaceList {
     "items": Workspace[] | null;
@@ -6076,7 +6076,7 @@ export interface WorkspaceList {
 }
 
 /**
- * WorkspaceStatus 表示工作区状态：active 正常，suspended 已被部署管理员暂停。
+ * WorkspaceStatus 表示工作区状态：active 正常，suspended 已被平台管理员暂停。
  */
 export enum WorkspaceStatus {
     /**
