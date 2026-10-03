@@ -125,11 +125,17 @@ func newInboxPaginationFixture(t *testing.T) inboxPaginationFixture {
 			t.Fatal(err)
 		}
 	}
-	// 批量造数后刷新数据库统计信息。
-	if _, err := f.db.ExecContext(ctx, "ANALYZE"); err != nil {
+	// 批量造数后刷新收件箱相关表的统计信息。
+	analyzeInboxTables(ctx, t, f.db)
+	return f
+}
+
+// analyzeInboxTables 按固定顺序刷新收件箱查询相关表的统计信息。
+func analyzeInboxTables(ctx context.Context, t *testing.T, db *bun.DB) {
+	t.Helper()
+	if _, err := db.ExecContext(ctx, "ANALYZE organization_identities, chat_subjects, conversations, conversation_participants, conversation_user_states, messages"); err != nil {
 		t.Fatal(err)
 	}
-	return f
 }
 
 // TestInboxPagination 验证全量 SQL 顺序、各筛选、重复请求和页外未读总数。
