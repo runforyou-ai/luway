@@ -3579,7 +3579,7 @@ export interface KnowledgeWebDocumentInput {
 }
 
 /**
- * License 定义服务器标识、授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有服务器标识、状态和免费能力。
+ * License 定义服务器标识、授权状态、授权编号、客户、签发与到期时间、授权码授予的能力，以及与 control 同步时查不到本服务器授权的起始时间；未激活时只有服务器标识、状态和免费能力。
  */
 export interface License {
     "serverId": string;
@@ -3589,6 +3589,7 @@ export interface License {
     "issuedAt": string | null;
     "expiresAt": string | null;
     "capabilities": Capabilities;
+    "controlMissingAt": string | null;
 }
 
 /**

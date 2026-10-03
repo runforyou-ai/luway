@@ -28,15 +28,16 @@ var (
 	ErrLicenseSuperseded = errors.New("license code is not newer than the current license")
 )
 
-// License 定义服务器标识与授权状态；Capabilities 是授权码授予的能力，授权到期后平台按免费取值运行。
+// License 定义服务器标识与授权状态；Capabilities 是授权码授予的能力，授权到期后平台按免费取值运行；ControlMissingAt 是与 control 同步时查不到本服务器授权的起始时间。
 type License struct {
-	ServerID     string
-	Status       domain.LicenseStatus
-	LicenseID    string
-	Customer     string
-	IssuedAt     time.Time
-	ExpiresAt    time.Time
-	Capabilities domain.Capabilities
+	ServerID         string
+	Status           domain.LicenseStatus
+	LicenseID        string
+	Customer         string
+	IssuedAt         time.Time
+	ExpiresAt        time.Time
+	Capabilities     domain.Capabilities
+	ControlMissingAt *time.Time
 }
 
 // Capabilities 返回平台当前生效的能力；未激活授权或授权到期时按免费取值执行。
@@ -93,7 +94,7 @@ func licenseFromModel(record *servermodels.License, now time.Time) (License, err
 	return License{
 		ServerID: record.ServerID, Status: status, LicenseID: record.LicenseID, Customer: record.Customer,
 		IssuedAt: record.IssuedAt, ExpiresAt: record.ExpiresAt,
-		Capabilities: capabilitiesFromLicense(granted),
+		Capabilities: capabilitiesFromLicense(granted), ControlMissingAt: record.ControlMissingAt,
 	}, nil
 }
 
@@ -154,7 +155,7 @@ func (a *ActivateLicenseAction) Execute(ctx context.Context, operator *servermod
 	return storeLicense(ctx, a.db, operator, claims)
 }
 
-// storeLicense 在事务内校验服务器标识与授权期限后保存授权：首次激活或签发时间晚于当前授权时写入，与当前授权码相同时原样返回，其余返回 ErrLicenseSuperseded；operator 非空时先确认其仍是有效平台管理员；完成后按新授权应用部署品牌。
+// storeLicense 在事务内校验服务器标识与授权期限后保存授权：首次激活或签发时间晚于当前授权时写入，与当前授权码相同时原样返回，其余返回 ErrLicenseSuperseded；写入时清空 control 中查不到授权的记录；operator 非空时先确认其仍是有效平台管理员；完成后按新授权应用部署品牌。
 func storeLicense(ctx context.Context, db *bun.DB, operator *servermodels.AccountIdentity, claims license.Claims) (License, error) {
 	capabilities, err := json.Marshal(claims.Capabilities)
 	if err != nil {
@@ -197,6 +198,7 @@ func storeLicense(ctx context.Context, db *bun.DB, operator *servermodels.Accoun
 		record.Capabilities = capabilities
 		record.IssuedAt = claims.IssuedAt
 		record.ExpiresAt = claims.ExpiresAt
+		record.ControlMissingAt = nil
 		if _, err := tx.NewInsert().Model(record).
 			Column("server_id", "license_id", "customer", "license_code", "capabilities", "issued_at", "expires_at").
 			On("CONFLICT (server_id) DO UPDATE").
@@ -206,6 +208,7 @@ func storeLicense(ctx context.Context, db *bun.DB, operator *servermodels.Accoun
 			Set("capabilities = EXCLUDED.capabilities").
 			Set("issued_at = EXCLUDED.issued_at").
 			Set("expires_at = EXCLUDED.expires_at").
+			Set("control_missing_at = NULL").
 			Set("updated_at = now()").
 			Returning("created_at, updated_at").
 			Exec(ctx); err != nil {

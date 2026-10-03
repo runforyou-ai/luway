@@ -108,7 +108,7 @@ func (a *OnlineLicenseAction) Activate(ctx context.Context, operator *servermode
 	return output, nil
 }
 
-// Sync 由平台管理员立即向 control 登记服务器并拉取授权；control 没有授权、授权码已到期或不晚于本地授权时，本地授权有效则返回本地授权。
+// Sync 由平台管理员立即向 control 登记服务器并拉取授权；control 没有授权时只要本地有授权即返回本地授权，control 的授权码已到期或不晚于本地授权时本地授权有效则返回本地授权。
 func (a *OnlineLicenseAction) Sync(ctx context.Context, operator *servermodels.AccountIdentity) (License, error) {
 	code, err := a.fetch(ctx)
 	var output License
@@ -128,7 +128,7 @@ func (a *OnlineLicenseAction) Sync(ctx context.Context, operator *servermodels.A
 	if queryErr != nil {
 		return License{}, queryErr
 	}
-	if current.Status == domain.LicenseStatusActive {
+	if current.Status == domain.LicenseStatusActive || (errors.Is(err, ErrLicenseNotIssued) && current.Status != domain.LicenseStatusNone) {
 		return current, nil
 	}
 	return License{}, err
@@ -168,26 +168,47 @@ func (a *OnlineLicenseAction) record(ctx context.Context, syncErr error) error {
 	return nil
 }
 
-// fetch 登记服务器后拉取 control 中本服务器当前的授权码。
+// fetch 登记服务器后拉取 control 中本服务器当前的授权码；control 中查不到授权时在本地授权上记录首次查不到的时间。
 func (a *OnlineLicenseAction) fetch(ctx context.Context) (string, error) {
 	if err := a.control.Register(ctx); err != nil {
 		return "", controlError(err)
 	}
 	code, err := a.control.License(ctx)
+	if errors.Is(err, control.ErrLicenseNotFound) {
+		if _, updateErr := a.db.NewUpdate().Model((*servermodels.License)(nil)).
+			Set("control_missing_at = now()").
+			Where("server_id = (SELECT pf.server_id FROM platforms AS pf LIMIT 1)").
+			Where("control_missing_at IS NULL").
+			Exec(ctx); updateErr != nil {
+			return "", updateErr
+		}
+	}
 	if err != nil {
 		return "", controlError(err)
 	}
 	return code, nil
 }
 
-// store 验签 control 返回的授权码并保存，授权码不晚于当前授权时返回当前授权。
+// store 验签 control 返回的授权码并保存，授权码不晚于当前授权时返回当前授权；授权码属于本服务器时清空 control 中查不到授权的记录。
 func (a *OnlineLicenseAction) store(ctx context.Context, operator *servermodels.AccountIdentity, code string) (License, error) {
 	claims, err := license.Parse(code, a.keys)
 	if err != nil {
 		return License{}, fmt.Errorf("%w: %w", ErrLicenseInvalid, err)
 	}
 	output, err := storeLicense(ctx, a.db, operator, claims)
-	if errors.Is(err, ErrLicenseSuperseded) {
+	superseded := errors.Is(err, ErrLicenseSuperseded)
+	// 授权码已保存、不晚于当前授权或已到期时都表明 control 中有本服务器的授权。
+	if err == nil || superseded || errors.Is(err, ErrLicenseExpired) {
+		if _, updateErr := a.db.NewUpdate().Model((*servermodels.License)(nil)).
+			Set("control_missing_at = NULL").
+			Where("server_id = ?", claims.ServerID).
+			Where("control_missing_at IS NOT NULL").
+			Exec(ctx); updateErr != nil {
+			return License{}, updateErr
+		}
+		output.ControlMissingAt = nil
+	}
+	if superseded {
 		return NewLicenseQuery(a.db).Execute(ctx)
 	}
 	return output, err

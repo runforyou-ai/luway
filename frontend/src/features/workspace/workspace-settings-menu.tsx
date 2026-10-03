@@ -12,6 +12,7 @@ import {
   ChevronLeftIcon,
   CircleUserRoundIcon,
   GaugeIcon,
+  HeartPulseIcon,
   KeyRoundIcon,
   LayoutGridIcon,
   LockKeyholeIcon,
@@ -195,17 +196,10 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/platform/runtime"
-            icon={ActivityIcon}
+            to="/settings/platform/workspaces"
+            icon={LayoutGridIcon}
           >
-            {t("navigation.platformRuntime")}
-          </PagePaneLink>
-          <PagePaneLink
-            collapsed={collapsed}
-            to="/settings/platform/license"
-            icon={KeyRoundIcon}
-          >
-            {t("navigation.platformLicense")}
+            {t("navigation.platformWorkspaces")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
@@ -216,24 +210,10 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
-            to="/settings/platform/workspaces"
-            icon={LayoutGridIcon}
-          >
-            {t("navigation.platformWorkspaces")}
-          </PagePaneLink>
-          <PagePaneLink
-            collapsed={collapsed}
             to="/settings/platform/registration"
             icon={UserPlusIcon}
           >
             {t("navigation.platformRegistration")}
-          </PagePaneLink>
-          <PagePaneLink
-            collapsed={collapsed}
-            to="/settings/platform/models"
-            icon={BrainCircuitIcon}
-          >
-            {t("navigation.platformModels")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
@@ -244,10 +224,31 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
+            to="/settings/platform/models"
+            icon={BrainCircuitIcon}
+          >
+            {t("navigation.platformModels")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
             to="/settings/platform/model-calls"
             icon={ActivityIcon}
           >
             {t("navigation.platformCalls")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/runtime"
+            icon={HeartPulseIcon}
+          >
+            {t("navigation.platformRuntime")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/license"
+            icon={KeyRoundIcon}
+          >
+            {t("navigation.platformLicense")}
           </PagePaneLink>
         </PagePaneGroup>
       ) : null}
