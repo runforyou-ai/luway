@@ -28,7 +28,7 @@
 {{end}}
 <header class="site-header">
   <a class="site-brand" href="{{.HomePath}}"><img src="/favicon.png" alt="" width="24" height="24">{{.SiteTitle}}</a>
-  <nav class="site-nav"><a href="{{.SiteHomePath}}">{{.Labels.home}}</a></nav>
+  <nav class="site-nav"><a href="{{.SiteHomePath}}">{{.Labels.home}}</a><a href="{{.DownloadPath}}">{{.Labels.download}}</a></nav>
   <form class="docs-search" action="{{.SearchPath}}" method="get" role="search">
     <input type="search" name="q" value="{{with .Search}}{{.Query}}{{end}}" aria-label="{{.Labels.search}}">
   </form>
@@ -40,7 +40,8 @@
 <script>{{.Script}}</script>
 <details class="docs-mobile-nav">
   <summary>{{.Labels.menu}}</summary>
-  <a class="docs-mobile-home" href="{{.SiteHomePath}}">{{.Labels.home}}</a>
+  <a class="docs-mobile-site" href="{{.SiteHomePath}}">{{.Labels.home}}</a>
+  <a class="docs-mobile-site" href="{{.DownloadPath}}">{{.Labels.download}}</a>
   {{template "nav" .}}
 </details>
 <div class="docs-shell">

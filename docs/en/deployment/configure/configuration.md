@@ -23,6 +23,12 @@ This page is being written.
 
 ## Storage
 
+## Clients
+
+| Field | Environment variable | Default | Description |
+| --- | --- | --- | --- |
+| `clients.directory` | `CLIENTS_DIRECTORY` | `data/clients` | Directory holding client installers and their index `clients.json`. See [Client distribution](/docs/en/deployment/operate/client-distribution/) |
+
 ## Email
 
 ## Branding

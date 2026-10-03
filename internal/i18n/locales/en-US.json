@@ -759,5 +759,14 @@
   "site.self_host_action": "Read the deployment guide",
   "site.closing_title": "Get started with {{.Product}}",
   "site.closing_body": "Sign in to your workspace, or read the docs to learn more.",
+  "site.download": "Download",
+  "site.download_title": "Download apps",
+  "site.download_body": "Install the desktop app and connect to this server to use {{.Product}}.",
+  "site.download_version": "Version {{.Version}}",
+  "site.download_current": "This device",
+  "site.download_unavailable": "Not available on this server",
+  "site.download_coming_soon": "Coming soon",
+  "site.download_mac_universal": "Apple silicon and Intel",
+  "site.download_web": "You can also use it in your browser without installing anything.",
   "error.product_doc_not_found": "The documentation page doesn't exist."
 }
