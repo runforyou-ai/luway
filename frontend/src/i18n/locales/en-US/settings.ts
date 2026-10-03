@@ -34,6 +34,7 @@ const settings = {
     platformProviders: "Platform providers",
     platformCalls: "Model calls",
     platformCredits: "Credits",
+    platformCommerce: "Commerce",
   },
   profile: {
     title: "Profile",
@@ -95,7 +96,9 @@ const settings = {
         daily_grant: "Daily grant",
         adjustment: "Platform adjustment",
         model_call: "Model call",
-        expiration: "Grant expired",
+        expiration: "Credits expired",
+        purchase: "Top-up",
+        refund: "Top-up refunded",
       },
     },
   },

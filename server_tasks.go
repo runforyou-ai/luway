@@ -9,6 +9,7 @@ import (
 	agentevaluationaction "github.com/runforyou-ai/luway/internal/actions/agentevaluation"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	commerceaction "github.com/runforyou-ai/luway/internal/actions/commerce"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/customerdelivery"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
@@ -50,6 +51,7 @@ type serverTaskDeps struct {
 	agentRun      *agentrunaction.ExecuteAction
 	telegramAPI   *telegramintegration.Client
 	onlineLicense *platformaction.OnlineLicenseAction
+	syncCommerce  *commerceaction.SyncChangesAction
 }
 
 // registerServerTasks 注册服务端全部后台任务处理器与定时计划。
@@ -150,6 +152,14 @@ func registerServerTasks(deps serverTaskDeps) error {
 		return err
 	}
 
+	// 商业服务变更源在服务端每次启动时与之后每分钟读取一次，收到通知时另行投递读取。
+	if err := registry.RegisterJSON(commerceaction.SyncChangesActionName, deps.syncCommerce.Execute); err != nil {
+		return err
+	}
+	deps.tasks.RegisterSchedule(maintenanceSchedule(commerceaction.SyncChangesScheduleKey, commerceaction.SyncChangesActionName, "@every 1m"))
+	if _, err := deps.tasks.Enqueue(context.Background(), commerceaction.SyncChangesActionName, commerceaction.SyncChangesInput{}, commerceaction.SyncChangesEnqueueOptions); err != nil {
+		return err
+	}
 	cleanup := maintenanceSchedule(filemaintenance.CleanupScheduleKey, filemaintenance.ScanExpiredActionName, "@hourly")
 	cleanup.Payload, cleanup.MaxAttempts = filemaintenance.ScanExpiredInput{}, 5
 	deps.tasks.RegisterSchedule(cleanup)

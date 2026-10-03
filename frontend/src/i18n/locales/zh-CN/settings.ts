@@ -34,6 +34,7 @@ const settings = {
     platformProviders: "平台供应商",
     platformCalls: "模型调用",
     platformCredits: "积分",
+    platformCommerce: "商业服务",
   },
   profile: {
     title: "个人资料",
@@ -94,7 +95,9 @@ const settings = {
         daily_grant: "每日赠送",
         adjustment: "平台调整",
         model_call: "模型调用",
-        expiration: "赠送过期",
+        expiration: "积分过期",
+        purchase: "充值",
+        refund: "充值退款",
       },
     },
   },

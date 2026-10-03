@@ -1027,6 +1027,32 @@ func (b *Backend) SyncLicense(ctx context.Context, meta appservice.RequestMeta) 
 	return output, err
 }
 
+// GetCommercePairing 返回平台与商业服务的配对状态。
+func (b *Backend) GetCommercePairing(ctx context.Context, meta appservice.RequestMeta) (appservice.CommercePairing, error) {
+	var output appservice.CommercePairing
+	err := b.do(ctx, meta, http.MethodGet, "/platform/commerce", nil, nil, &output)
+	return output, err
+}
+
+// PairCommerce 用商业服务生成的配对码完成配对，替换现有配对并从头读取商业服务变更。
+func (b *Backend) PairCommerce(ctx context.Context, meta appservice.RequestMeta, input appservice.PairCommerceInput) (appservice.CommercePairing, error) {
+	var output appservice.CommercePairing
+	err := b.do(ctx, meta, http.MethodPut, "/platform/commerce", nil, input, &output)
+	return output, err
+}
+
+// UnpairCommerce 解除与商业服务的配对并删除已应用的工作区权益。
+func (b *Backend) UnpairCommerce(ctx context.Context, meta appservice.RequestMeta) error {
+	return b.do(ctx, meta, http.MethodDelete, "/platform/commerce", nil, nil, nil)
+}
+
+// SyncCommerce 立即读取商业服务的变更。
+func (b *Backend) SyncCommerce(ctx context.Context, meta appservice.RequestMeta) (appservice.CommercePairing, error) {
+	var output appservice.CommercePairing
+	err := b.do(ctx, meta, http.MethodPost, "/platform/commerce/sync", nil, nil, &output)
+	return output, err
+}
+
 // SuspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 func (b *Backend) SuspendPlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.PlatformWorkspace, error) {
 	var output appservice.PlatformWorkspace

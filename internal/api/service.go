@@ -22,14 +22,15 @@ type WebsiteVisitorRealtime interface {
 
 // Service 是企业服务端对外提供的 Gin HTTP 适配器。
 type Service struct {
-	application         *appservice.Service
-	deviceRuns          appservice.DeviceRunBackend
-	deviceModels        DeviceModelGateway
-	deviceAttachments   DeviceRunAttachmentReader
-	websiteVisitor      *appservice.WebsiteVisitorService
-	visitorRealtime     WebsiteVisitorRealtime
-	telegramWebhook     TelegramWebhookReceiver
-	trustForwardedProto bool
+	application           *appservice.Service
+	deviceRuns            appservice.DeviceRunBackend
+	deviceModels          DeviceModelGateway
+	deviceAttachments     DeviceRunAttachmentReader
+	websiteVisitor        *appservice.WebsiteVisitorService
+	visitorRealtime       WebsiteVisitorRealtime
+	telegramWebhook       TelegramWebhookReceiver
+	commerceNotifications CommerceNotificationReceiver
+	trustForwardedProto   bool
 	// visitorCountryHeader 是可信反向代理写入访客国家代码的请求头名称，为空时不采集。
 	visitorCountryHeader string
 	router               *gin.Engine
@@ -65,6 +66,13 @@ func WithDeviceRuns(backend appservice.DeviceRunBackend) ServiceOption {
 func WithTelegramWebhook(receiver TelegramWebhookReceiver) ServiceOption {
 	return func(service *Service) {
 		service.telegramWebhook = receiver
+	}
+}
+
+// WithCommerceNotifications 注入商业服务变更通知接收能力。
+func WithCommerceNotifications(receiver CommerceNotificationReceiver) ServiceOption {
+	return func(service *Service) {
+		service.commerceNotifications = receiver
 	}
 }
 
@@ -106,6 +114,10 @@ func NewService(application *appservice.Service, options ...ServiceOption) *Serv
 	// 注册通过渠道密钥认证的 Telegram 回调。
 	if service.telegramWebhook != nil {
 		router.POST("/public/telegram-channels/:channelID/webhook", service.receiveTelegramWebhook)
+	}
+	// 注册以商业服务签名认证的变更通知。
+	if service.commerceNotifications != nil {
+		router.POST("/integrations/commerce/notify", service.receiveCommerceNotification)
 	}
 
 	service.router = router

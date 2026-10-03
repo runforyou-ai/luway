@@ -15,6 +15,7 @@ import {
   GaugeIcon,
   HeartPulseIcon,
   KeyRoundIcon,
+  StoreIcon,
   LayoutGridIcon,
   LockKeyholeIcon,
   HardDriveIcon,
@@ -264,6 +265,13 @@ export function WorkspaceSettingsMenu({
             icon={KeyRoundIcon}
           >
             {t("navigation.platformLicense")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/commerce"
+            icon={StoreIcon}
+          >
+            {t("navigation.platformCommerce")}
           </PagePaneLink>
         </PagePaneGroup>
       ) : null}

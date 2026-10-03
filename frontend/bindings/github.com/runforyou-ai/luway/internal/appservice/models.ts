@@ -1255,6 +1255,34 @@ export interface ColleagueListInput {
 }
 
 /**
+ * CommercePairing 定义平台与商业服务的配对状态；未配对时只有 Paired 为 false，最近一次读取成功时 Failure 为空。
+ */
+export interface CommercePairing {
+    "paired": boolean;
+    "url": string;
+    "serviceId": string;
+    "pairedAt": string | null;
+    "syncedAt": string | null;
+    "failedAt": string | null;
+    "failure": CommerceSyncFailure | null;
+}
+
+/**
+ * CommerceSyncFailure 表示最近一次读取商业服务变更失败的原因。
+ */
+export enum CommerceSyncFailure {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    CommerceSyncFailureUnavailable = "unavailable",
+    CommerceSyncFailureNotPaired = "not_paired",
+    CommerceSyncFailureInvalidData = "invalid_data",
+    CommerceSyncFailureFailed = "failed",
+};
+
+/**
  * ConnectReason 表示原生端已保存服务器仍进入连接页的原因。
  */
 export enum ConnectReason {
@@ -2173,6 +2201,8 @@ export enum CreditEntryKind {
     CreditEntryKindAdjustment = "adjustment",
     CreditEntryKindModelCall = "model_call",
     CreditEntryKindExpiration = "expiration",
+    CreditEntryKindPurchase = "purchase",
+    CreditEntryKindRefund = "refund",
 };
 
 /**
@@ -4188,6 +4218,13 @@ export interface PageInfo {
     "number": number;
     "size": number;
     "total": number;
+}
+
+/**
+ * PairCommerceInput 定义平台管理员粘贴的商业服务配对码。
+ */
+export interface PairCommerceInput {
+    "pairingCode": string;
 }
 
 /**

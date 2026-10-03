@@ -167,6 +167,10 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.PUT("/platform/license", s.activateLicense)
 	router.POST("/platform/license/activations", s.activateLicenseOnline)
 	router.POST("/platform/license/sync", s.syncLicense)
+	router.GET("/platform/commerce", s.getCommercePairing)
+	router.PUT("/platform/commerce", s.pairCommerce)
+	router.DELETE("/platform/commerce", s.unpairCommerce)
+	router.POST("/platform/commerce/sync", s.syncCommerce)
 	router.POST("/platform/workspaces/:workspaceID/suspend", s.suspendPlatformWorkspace)
 	router.POST("/platform/workspaces/:workspaceID/resume", s.resumePlatformWorkspace)
 	router.GET("/platform/usage", s.getPlatformUsage)
@@ -1537,6 +1541,33 @@ func (s *Service) activateLicenseOnline(c *gin.Context) {
 // syncLicense 立即向 control 登记服务器并拉取最新授权。
 func (s *Service) syncLicense(c *gin.Context) {
 	output, err := s.application.SyncLicense(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getCommercePairing 返回平台与商业服务的配对状态。
+func (s *Service) getCommercePairing(c *gin.Context) {
+	output, err := s.application.GetCommercePairing(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// pairCommerce 用商业服务生成的配对码完成配对，替换现有配对并从头读取商业服务变更。
+func (s *Service) pairCommerce(c *gin.Context) {
+	var input appservice.PairCommerceInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.PairCommerce(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// unpairCommerce 解除与商业服务的配对并删除已应用的工作区权益。
+func (s *Service) unpairCommerce(c *gin.Context) {
+	writeEmpty(c, s.application.UnpairCommerce(c.Request.Context(), requestMeta(c)))
+}
+
+// syncCommerce 立即读取商业服务的变更。
+func (s *Service) syncCommerce(c *gin.Context) {
+	output, err := s.application.SyncCommerce(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 

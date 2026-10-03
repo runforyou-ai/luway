@@ -72,6 +72,10 @@ var adminBackendMethods = map[string]bool{
 	"ActivateLicense":                    true,
 	"ActivateLicenseOnline":              true,
 	"SyncLicense":                        true,
+	"GetCommercePairing":                 true,
+	"PairCommerce":                       true,
+	"UnpairCommerce":                     true,
+	"SyncCommerce":                       true,
 	"UpdatePlatformTelemetry":            true,
 }
 

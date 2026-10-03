@@ -11,6 +11,7 @@ import (
 	"github.com/runforyou-ai/luway/docs"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	commerceaction "github.com/runforyou-ai/luway/internal/actions/commerce"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
@@ -26,6 +27,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/ingress"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/commerce"
 	"github.com/runforyou-ai/luway/internal/integration/control"
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
 	"github.com/runforyou-ai/luway/internal/productdocs"
@@ -89,10 +91,14 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		return platformaction.ControlIdentity(ctx, db)
 	})
 	onlineLicense := platformaction.NewOnlineLicenseAction(db, license.PublicKeys(), controlClient)
+	// 商业服务客户端用同一服务器身份签名请求，配对与变更同步共用。
+	commerceClient := commerce.New(func(ctx context.Context) (commerce.Identity, error) {
+		return commerceaction.Identity(ctx, db)
+	})
 	if err := registerServerTasks(serverTaskDeps{
 		db: db, maintenanceDB: appStorage.MaintenanceDB(), tasks: tasks, publicURL: config.Server.PublicURL, localFiles: localFiles, fileS3: fileS3, fileReader: fileReader,
 		emailSender: emailSender, agentRuntime: agentRuntime, modelInvoker: modelInvoker, agentSchedule: agentRunScheduler, agentRun: executeAgentRun, telegramAPI: telegramAPI,
-		onlineLicense: onlineLicense,
+		onlineLicense: onlineLicense, syncCommerce: commerceaction.NewSyncChangesAction(db, commerceClient),
 	}); err != nil {
 		return nil, nil, err
 	}
@@ -111,6 +117,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	deployment := directDeploymentConfig(config, emailSender)
 	deployment.ProductDocs = productDocs
 	deployment.Control = controlClient
+	deployment.Commerce = commerceClient
 	translator := translationaction.NewTranslator(db, agentRuntime, modelInvoker)
 	directBackend := direct.New(db, deployment, localFiles, fileS3, agentRunScheduler, executeAgentRun, tasks, serviceReplySuggestions, translator, knowledgeRetrieval)
 	boundService := appservice.New(directBackend)
@@ -129,6 +136,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		api.WithWebsiteVisitor(websiteVisitorService, config.TLS.Mode != "off", config.Server.VisitorCountryHeader),
 		api.WithWebsiteVisitorRealtime(realtimeGateway),
 		api.WithTelegramWebhook(telegramWebhook),
+		api.WithCommerceNotifications(commerceaction.NewReceiveNotificationAction(db, tasks)),
 	)
 	publicLookup := channelaction.NewGetPublicWebsiteChannelQuery(db).Execute
 	hostname, err := os.Hostname()

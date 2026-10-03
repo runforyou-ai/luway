@@ -1510,6 +1510,45 @@ func (b *Backend) SyncLicense(ctx context.Context, meta appservice.RequestMeta) 
 	return b.ops.SyncLicense(ctx, meta, account)
 }
 
+// GetCommercePairing 返回平台与商业服务的配对状态。
+func (b *Backend) GetCommercePairing(ctx context.Context, meta appservice.RequestMeta) (appservice.CommercePairing, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.CommercePairing
+		return zero, err
+	}
+	return b.ops.GetCommercePairing(ctx, meta, account)
+}
+
+// PairCommerce 用商业服务生成的配对码完成配对，替换现有配对并从头读取商业服务变更。
+func (b *Backend) PairCommerce(ctx context.Context, meta appservice.RequestMeta, input appservice.PairCommerceInput) (appservice.CommercePairing, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.CommercePairing
+		return zero, err
+	}
+	return b.ops.PairCommerce(ctx, meta, account, input)
+}
+
+// UnpairCommerce 解除与商业服务的配对并删除已应用的工作区权益。
+func (b *Backend) UnpairCommerce(ctx context.Context, meta appservice.RequestMeta) error {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		return err
+	}
+	return b.ops.UnpairCommerce(ctx, meta, account)
+}
+
+// SyncCommerce 立即读取商业服务的变更。
+func (b *Backend) SyncCommerce(ctx context.Context, meta appservice.RequestMeta) (appservice.CommercePairing, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.CommercePairing
+		return zero, err
+	}
+	return b.ops.SyncCommerce(ctx, meta, account)
+}
+
 // SuspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 func (b *Backend) SuspendPlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.PlatformWorkspace, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)

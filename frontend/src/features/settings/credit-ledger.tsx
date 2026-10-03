@@ -1,5 +1,5 @@
 /** 积分余额概览与积分流水表格，工作区积分页与平台管理员查看工作区积分时共用。 */
-import { GiftIcon, HandCoinsIcon, HourglassIcon, SparklesIcon, type LucideIcon } from "lucide-react"
+import { GiftIcon, HandCoinsIcon, HourglassIcon, SparklesIcon, Undo2Icon, WalletIcon, type LucideIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { AIModelCallStatus, CreditEntryKind, type CreditBalance, type CreditEntryData } from "@/api"
@@ -16,6 +16,8 @@ const entryIcons: Record<CreditEntryData["kind"], LucideIcon> = {
   [CreditEntryKind.CreditEntryKindAdjustment]: HandCoinsIcon,
   [CreditEntryKind.CreditEntryKindModelCall]: SparklesIcon,
   [CreditEntryKind.CreditEntryKindExpiration]: HourglassIcon,
+  [CreditEntryKind.CreditEntryKindPurchase]: WalletIcon,
+  [CreditEntryKind.CreditEntryKindRefund]: Undo2Icon,
 }
 
 /** 展示可用积分与今天的每日赠送剩余及清零时间。 */

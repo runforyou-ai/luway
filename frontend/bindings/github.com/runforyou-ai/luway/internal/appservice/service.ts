@@ -591,6 +591,13 @@ export function GetBusinessHours(meta: $models.RequestMeta): $CancellablePromise
 }
 
 /**
+ * GetCommercePairing 返回平台与商业服务的配对状态。
+ */
+export function GetCommercePairing(meta: $models.RequestMeta): $CancellablePromise<$models.CommercePairing> {
+    return $Call.ByID(1721485524, meta);
+}
+
+/**
  * GetContact 返回联系人详情。
  */
 export function GetContact(meta: $models.RequestMeta, contactID: string): $CancellablePromise<$models.Contact> {
@@ -1403,6 +1410,13 @@ export function OpenLocalToolchainFolder(meta: $models.RequestMeta): $Cancellabl
 }
 
 /**
+ * PairCommerce 用商业服务生成的配对码完成配对，替换现有配对并从头读取商业服务变更。
+ */
+export function PairCommerce(meta: $models.RequestMeta, input: $models.PairCommerceInput): $CancellablePromise<$models.CommercePairing> {
+    return $Call.ByID(1389219778, meta, input);
+}
+
+/**
  * PausePersonalAgent 暂停当前成员负责的个人 AI 员工。
  */
 export function PausePersonalAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.PersonalAgent> {
@@ -1823,6 +1837,13 @@ export function SuspendPlatformWorkspace(meta: $models.RequestMeta, workspaceID:
 }
 
 /**
+ * SyncCommerce 立即读取商业服务的变更。
+ */
+export function SyncCommerce(meta: $models.RequestMeta): $CancellablePromise<$models.CommercePairing> {
+    return $Call.ByID(1717820209, meta);
+}
+
+/**
  * SyncLicense 立即向 control 登记服务器并拉取最新授权。
  */
 export function SyncLicense(meta: $models.RequestMeta): $CancellablePromise<$models.License> {
@@ -1904,6 +1925,13 @@ export function TranslateConversationMessages(meta: $models.RequestMeta, convers
  */
 export function UninstallLocalToolchain(meta: $models.RequestMeta): $CancellablePromise<void> {
     return $Call.ByID(3748726543, meta);
+}
+
+/**
+ * UnpairCommerce 解除与商业服务的配对并删除已应用的工作区权益。
+ */
+export function UnpairCommerce(meta: $models.RequestMeta): $CancellablePromise<void> {
+    return $Call.ByID(1511698361, meta);
 }
 
 /**
