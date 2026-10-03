@@ -12,6 +12,13 @@ const connection = {
   connectionError: "无法连接到该服务器，请检查地址后重试。",
   savedServerUnreachable: "暂时无法连接到 {{host}}，请检查网络后重试。",
   serverNotInstalled: "{{host}} 尚未完成初始化，请先在浏览器中打开该地址完成安装。",
+  serverOutdated: "{{host}} 的服务器版本过旧，请联系管理员升级服务器。",
+  upgrade: {
+    title: "需要升级客户端",
+    description: "{{host}} 要求使用更新版本的客户端，请下载安装后重新打开。",
+    download: "下载新版本",
+    changeServer: "更换服务器",
+  },
   clientLink: {
     title: "在客户端中使用",
     description: "客户端打开后自动填入当前服务器，确认即可连接。",

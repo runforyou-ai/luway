@@ -333,6 +333,8 @@ const (
 	ErrorServerConnectionSaveFailed              Key = "error.server_connection_save_failed"
 	ErrorServerConnectionRequired                Key = "error.server_connection_required"
 	ErrorServerInitializationRequired            Key = "error.server_initialization_required"
+	ErrorServerOutdated                          Key = "error.server_outdated"
+	ErrorClientUpgradeRequired                   Key = "error.client_upgrade_required"
 	ErrorRemoteRequestCreateFailed               Key = "error.remote_request_create_failed"
 	ErrorServerConnectionFailed                  Key = "error.server_connection_failed"
 	ErrorInboxCursorInvalid                      Key = "error.inbox_cursor_invalid"

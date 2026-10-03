@@ -9,15 +9,16 @@ import { WorkspaceEntry } from "@/features/account/workspace-entry"
 import { WorkspaceListPage } from "@/features/account/workspace-list-page"
 import { LoginPage } from "@/features/auth/login-page"
 import { SetupPage } from "@/features/installation/setup-page"
+import { ClientUpgradePage } from "@/features/server-connection/client-upgrade-page"
 import { ServerConnectionPage } from "@/features/server-connection/server-connection-page"
 import { WorkspaceGate } from "@/features/workspace/workspace-gate"
 import { navigateToHashPath } from "@/lib/workspace-route"
 import type { AppPlatform } from "@/platform/app-platform"
 
 // 账号级页面的路径，工作区路由器内出现这些地址时转交根路由器。
-const accountPaths = ["/login", "/register", "/setup", "/connect", "/workspaces", "/workspaces/new", "/invitations/:token"]
+const accountPaths = ["/login", "/register", "/setup", "/connect", "/upgrade", "/workspaces", "/workspaces/new", "/invitations/:token"]
 
-/** 渲染登录、注册、首次安装、服务器连接、工作区列表、创建工作区和邀请页；其余地址进入最近使用的工作区。 */
+/** 渲染登录、注册、首次安装、服务器连接、客户端升级、工作区列表、创建工作区和邀请页；其余地址进入最近使用的工作区。 */
 export function AccountRoutes({ platform }: { platform: AppPlatform }) {
   const native = platform !== "web"
   return (
@@ -26,6 +27,7 @@ export function AccountRoutes({ platform }: { platform: AppPlatform }) {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/setup" element={native ? <Navigate to="/connect" replace /> : <SetupPage />} />
       {native ? <Route path="/connect" element={<ServerConnectionPage />} /> : null}
+      {native ? <Route path="/upgrade" element={<ClientUpgradePage />} /> : null}
       <Route path="/workspaces" element={<WorkspaceListPage />} />
       <Route path="/workspaces/new" element={<WorkspaceCreatePage />} />
       <Route path="/invitations/:token" element={<InvitationPage />} />

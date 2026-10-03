@@ -32,6 +32,8 @@ export function sessionPath(state: string) {
       return "/connect"
     case SessionState.SessionStateWorkspace:
       return "/workspaces"
+    case SessionState.SessionStateUpgrade:
+      return "/upgrade"
     default:
       return null
   }

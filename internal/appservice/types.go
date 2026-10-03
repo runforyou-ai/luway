@@ -37,6 +37,8 @@ const (
 	SessionStateSetup     SessionState = "setup"
 	SessionStateConnect   SessionState = "connect"
 	SessionStateWorkspace SessionState = "workspace"
+	// SessionStateUpgrade 表示原生端接口版本低于服务器接受的最低版本，需要升级客户端。
+	SessionStateUpgrade SessionState = "upgrade"
 )
 
 // ErrorKind 表示业务失败种类。
@@ -69,6 +71,8 @@ const (
 	ConnectReasonUnreachable ConnectReason = "unreachable"
 	// ConnectReasonNotInstalled 表示已保存的服务器尚未完成首次安装。
 	ConnectReasonNotInstalled ConnectReason = "not_installed"
+	// ConnectReasonServerOutdated 表示已保存的服务器接口版本低于原生端要求的最低版本。
+	ConnectReasonServerOutdated ConnectReason = "server_outdated"
 )
 
 // Startup 表示应用启动入口和界面使用的产品品牌；原生端已保存服务器仍进入连接页时 ConnectReason 说明原因。
@@ -103,12 +107,14 @@ type RequestMeta struct {
 	DeviceID    string `json:"-"`
 }
 
-// InstallationStatus 定义部署名称、部署是否已完成首次安装、注册策略是否开放注册和部署使用的产品品牌。
+// InstallationStatus 定义部署名称、部署是否已完成首次安装、注册策略是否开放注册、部署使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。
 type InstallationStatus struct {
-	DeploymentName   string `json:"deploymentName"`
-	Installed        bool   `json:"installed"`
-	RegistrationOpen bool   `json:"registrationOpen"`
-	Brand            Brand  `json:"brand"`
+	DeploymentName      string `json:"deploymentName"`
+	Installed           bool   `json:"installed"`
+	RegistrationOpen    bool   `json:"registrationOpen"`
+	Brand               Brand  `json:"brand"`
+	APIVersion          int    `json:"apiVersion"`
+	MinClientAPIVersion int    `json:"minClientApiVersion"`
 }
 
 // ProductDocPageInput 定义要读取的文档语言目录（zh-cn 或 en）与页面路径，首页路径为空字符串。

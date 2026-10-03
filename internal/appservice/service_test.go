@@ -3,7 +3,11 @@ package appservice
 import (
 	"context"
 	"errors"
+	"net/http"
+	"strconv"
 	"testing"
+
+	"github.com/runforyou-ai/luway/internal/common/brand"
 )
 
 type stubBackend struct {
@@ -88,15 +92,24 @@ type startupBackend struct {
 	installed        bool
 	registrationOpen bool
 	statusErr        error
+	serverOutdated   bool
+	clientOutdated   bool
 	identityCalls    int
 }
 
-// InstallationStatus 返回测试指定的安装状态。
+// InstallationStatus 返回测试指定的安装状态，接口版本按测试指定的过旧一方设置。
 func (b *startupBackend) InstallationStatus(context.Context, RequestMeta) (InstallationStatus, error) {
 	if b.statusErr != nil {
 		return InstallationStatus{}, b.statusErr
 	}
-	return InstallationStatus{Installed: b.installed, RegistrationOpen: b.registrationOpen}, nil
+	status := InstallationStatus{Installed: b.installed, RegistrationOpen: b.registrationOpen, APIVersion: APIVersion, MinClientAPIVersion: MinClientAPIVersion}
+	if b.serverOutdated {
+		status.APIVersion = MinServerAPIVersion - 1
+	}
+	if b.clientOutdated {
+		status.MinClientAPIVersion = APIVersion + 1
+	}
+	return status, nil
 }
 
 // LoadIdentity 返回空身份并累计调用次数。
@@ -170,6 +183,43 @@ func TestLoadStartupResolvesNativeEntry(t *testing.T) {
 	}
 	if backend.identityCalls != 0 {
 		t.Fatalf("native startup identity calls = %d, want 0", backend.identityCalls)
+	}
+}
+
+// TestLoadStartupChecksNativeAPIVersion 验证原生端服务器接口版本过旧时进入连接页并说明原因，本端接口版本过旧时进入升级页并使用构建品牌。
+func TestLoadStartupChecksNativeAPIVersion(t *testing.T) {
+	backend := &nativeStartupBackend{
+		startupBackend: &startupBackend{installed: true, serverOutdated: true},
+		serverURL:      "https://app.example.com",
+	}
+	startup, err := New(backend).LoadStartup(context.Background(), RequestMeta{})
+	if err != nil || startup.State != SessionStateConnect || startup.ConnectReason != ConnectReasonServerOutdated {
+		t.Fatalf("outdated server startup = %+v, err = %v", startup, err)
+	}
+
+	backend.serverOutdated, backend.clientOutdated = false, true
+	startup, err = New(backend).LoadStartup(context.Background(), RequestMeta{})
+	if err != nil || startup.State != SessionStateUpgrade || startup.Brand.LinkScheme != brand.Build().Slug {
+		t.Fatalf("outdated client startup = %+v, err = %v", startup, err)
+	}
+}
+
+// TestRequestClientOutdated 验证只有声明了低于最低版本或无法解析的原生端接口版本请求头时判定为过旧。
+func TestRequestClientOutdated(t *testing.T) {
+	cases := map[string]bool{
+		"":                                    false,
+		strconv.Itoa(MinClientAPIVersion):     false,
+		strconv.Itoa(MinClientAPIVersion - 1): true,
+		"abc":                                 true,
+	}
+	for value, want := range cases {
+		header := http.Header{}
+		if value != "" {
+			header.Set(ClientAPIVersionHeader, value)
+		}
+		if got := RequestClientOutdated(header); got != want {
+			t.Errorf("header %q outdated = %v, want %v", value, got, want)
+		}
 	}
 }
 

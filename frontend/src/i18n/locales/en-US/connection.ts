@@ -13,6 +13,13 @@ const connection = {
     "Could not connect to this server. Check the address and try again.",
   savedServerUnreachable: "Can't reach {{host}} right now. Check your network and try again.",
   serverNotInstalled: "{{host}} hasn't been set up yet. Open this address in a browser to finish setup first.",
+  serverOutdated: "The server at {{host}} is out of date. Ask your administrator to update it.",
+  upgrade: {
+    title: "Update required",
+    description: "{{host}} requires a newer version of this app. Download and install it, then open the app again.",
+    download: "Download new version",
+    changeServer: "Change server",
+  },
   clientLink: {
     title: "Use in the app",
     description: "The app opens with this server filled in. Confirm to connect.",

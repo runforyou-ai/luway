@@ -18,7 +18,7 @@ import "context"
 // 交给业务实现，业务实现不重复处理认证。只需要登录账号的方法标记 auth=account，
 // 只允许部署管理员调用的部署级管理方法标记 auth=admin，无需登录的方法标记 auth=public。
 type Backend interface {
-	// InstallationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
+	// InstallationStatus 返回部署名称、首次安装状态、是否开放注册、产品品牌和接口版本。
 	//appservice:route GET /installation/status auth=public manual=proxy
 	InstallationStatus(context.Context, RequestMeta) (InstallationStatus, error)
 	// GetProductDocPage 返回当前部署可见的产品文档页面正文，供应用内帮助显示。

@@ -3,6 +3,8 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/runforyou-ai/luway/docs"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
@@ -33,7 +35,7 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// applicationServices 组装服务端入口、业务服务和后台任务，并返回处理实时事件流的资源中间件。
+// applicationServices 组装服务端入口、业务服务和后台任务，并返回检查原生端接口版本、处理实时事件流的资源中间件。
 func applicationServices(appStorage *serverstorage.Store, config serverconfig.Config) ([]application.Service, application.Middleware, error) {
 	db := appStorage.DB()
 	// 为 HTTPS 入口提供部署地址和证书缓存。
@@ -131,7 +133,11 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewServiceWithOptions(publicweb.NewChatService(publicLookup), application.ServiceOptions{Route: "/chat/"}),
 		application.NewServiceWithOptions(productDocsService, application.ServiceOptions{Route: "/docs"}),
 	}
-	return services, realtimeGateway.Middleware, nil
+	// 先拦截接口版本过旧的原生端请求，再处理实时事件流。
+	middleware := func(next http.Handler) http.Handler {
+		return api.ClientVersionMiddleware(realtimeGateway.Middleware(next))
+	}
+	return services, middleware, nil
 }
 
 // fileContentS3Config 把部署级对象存储配置转换为文件内容层配置。
