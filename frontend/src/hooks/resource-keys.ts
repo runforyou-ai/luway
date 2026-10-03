@@ -107,6 +107,8 @@ export const resourceKeys = {
     ),
   /** 按运行编号读取的 AI 运行过程详情。 */
   agentRunProcess: (runId?: string) => itemKey("agent-run-process", runId),
+  /** 按运行编号读取的挂起中 AI 运行已保存过程，恢复后会继续变化。 */
+  agentRunWaitingProcess: (runId?: string) => itemKey("agent-run-waiting-process", runId),
   /** 当前群聊的提及进度。 */
   conversationNavigation: (conversationId?: string) =>
     itemKey("conversation-navigation", conversationId),

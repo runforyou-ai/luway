@@ -64,6 +64,13 @@ func loadMCPServers(ctx context.Context, db bun.IDB, organizationID, revisionID 
 		server := agentruntime.MCPServer{Source: agentruntime.MCPSourceOrganization, ID: service.ID, Name: service.Name, Config: mcpintegration.Config{
 			URL: service.URL, ServerType: service.ServerType, AuthorizationToken: service.AuthorizationToken,
 		}}
+		// 管理员标记为查询的工具可重新执行且没有外部副作用。
+		for name, purpose := range service.ToolPurposes {
+			if purpose == domain.MCPToolPurposeQuery {
+				server.QueryTools = append(server.QueryTools, name)
+			}
+		}
+		slices.Sort(server.QueryTools)
 		if !mount.Service {
 			if !service.CustomerScoped {
 				loaded.Servers = append(loaded.Servers, server)

@@ -13,6 +13,8 @@ export function agentRunStatusLabel(
       return t("agentRunQueued")
     case AgentRunStatus.AgentRunStatusRunning:
       return t("agentRunRunning")
+    case AgentRunStatus.AgentRunStatusWaiting:
+      return t("agentRunAwaitingResult")
     case AgentRunStatus.AgentRunStatusFailed:
       return t("agentRunFailed")
     default:

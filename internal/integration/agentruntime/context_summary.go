@@ -11,7 +11,6 @@ import (
 	"sync"
 
 	"github.com/cloudwego/eino/adk"
-	"github.com/cloudwego/eino/adk/middlewares/patchtoolcalls"
 	"github.com/cloudwego/eino/adk/middlewares/summarization"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
@@ -242,17 +241,6 @@ func toolCalls(message *schema.AgenticMessage) []*schema.FunctionToolCall {
 		}
 	}
 	return calls
-}
-
-// newToolCallPatchHandler 创建工具调用修补中间件：没有结果的调用补上取消说明，没有对应调用或重复的结果从模型输入中移除。
-func newToolCallPatchHandler(ctx context.Context) (adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage], error) {
-	handler, err := patchtoolcalls.NewTyped[*schema.AgenticMessage](ctx, &patchtoolcalls.Config{
-		RemoveOrphanResults: true, RemoveDuplicateResults: true,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create tool call patch middleware: %w", err)
-	}
-	return handler, nil
 }
 
 // usageRecordingModel 在模型调用返回时累计其用量，用于摘要生成等不经过主循环的调用。

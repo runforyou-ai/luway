@@ -99,6 +99,48 @@ func TestAgentCallbacksFenceTaskAttempts(t *testing.T) {
 	}
 }
 
+// TestAgentCallbacksRespectRunOwner 验证运行已登记由其他任务执行时，当前任务的开始执行与最终失败都不改变运行。
+func TestAgentCallbacksRespectRunOwner(t *testing.T) {
+	ctx, db, tasks := servertask.NewExecutionRuntimeForTest(t)
+	run := seedAgentExecution(t, ctx, db)
+	if err := tasks.Registry().RegisterJSON(agentrunaction.RunActionName, func(context.Context, agentrunaction.RunInput) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	taskID, err := tasks.Enqueue(ctx, agentrunaction.RunActionName, agentrunaction.RunInput{RunID: run.ID}, servertask.EnqueueOptions{MaxAttempts: 3})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = db.NewDelete().Model((*servermodels.TaskOutbox)(nil)).Where("task_run_id = ?", taskID).Exec(context.Background())
+		_, _ = db.NewDelete().Model((*servermodels.TaskRun)(nil)).Where("id = ?", taskID).Exec(context.Background())
+	})
+	var current servermodels.TaskRun
+	if err := db.NewUpdate().Model(&current).
+		Set("status = 'running'").Set("attempt = 1").Set("worker_id = 'current-worker'").
+		Set("lease_expires_at = now() + interval '1 hour'").Where("id = ?", taskID).Returning("*").Scan(ctx); err != nil {
+		t.Fatal(err)
+	}
+	executor := agentrunaction.NewExecuteAction(db, tasks, nil, modelcall.New(db, modelcall.DefaultUpstreams()), agentrunaction.NewAttachmentReader(db, nil, serverfilecontent.NewLinks("http", "")), nil, nil)
+	// 恢复投递后排队等待的运行与执行中的运行，都只由登记的任务处理。
+	for _, status := range []domain.AgentRunStatus{domain.AgentRunStatusQueued, domain.AgentRunStatusRunning} {
+		owner := uuid.NewV7().String()
+		if _, err := db.NewUpdate().Model((*servermodels.AgentRun)(nil)).
+			Set("status = ?", status).Set("task_run_id = ?", owner).Set("started_at = now()").
+			Where("id = ?", run.ID).Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if err := executor.Execute(servertask.WithExecutionForTest(ctx, &current, false, false), agentrunaction.RunInput{RunID: run.ID}); err != nil {
+			t.Fatal(err)
+		}
+		if err := executor.FinalizeFailure(servertask.WithExecutionForTest(ctx, &current, true, false), agentrunaction.RunInput{RunID: run.ID}, errors.New("stale task failed")); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.NewSelect().Model(&run).WherePK().Scan(ctx); err != nil || run.Status != string(status) || run.TaskRunID == nil || *run.TaskRunID != owner {
+			t.Fatalf("%s run owned by another task changed: %+v err=%v", status, run, err)
+		}
+	}
+}
+
 // seedAgentExecution 构造 AI 会话、参与关系和单条待消费输入。
 func seedAgentExecution(t *testing.T, ctx context.Context, db *bun.DB) servermodels.AgentRun {
 	t.Helper()

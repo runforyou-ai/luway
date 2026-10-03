@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
+	"sync"
 	"unicode"
 
 	"github.com/cloudwego/eino/adk"
@@ -43,9 +45,44 @@ func ContextWindowTokens(model ModelConfig) int {
 	return defaultContextWindowTokens
 }
 
-// newContextReductionHandlers 创建大工具结果转存和上下文清理中间件，转存内容存活到本次运行结束；keepTools 中工具的结果不参与清理，intactTools 中工具的结果既不转存也不清理。
-func newContextReductionHandlers(ctx context.Context, window int, keepTools, intactTools []string) ([]adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage], error) {
-	backend := filesystem.NewInMemoryBackend()
+// offloadStore 在运行内存中保存转存的工具结果，并记录写入的文件以便保存与恢复。
+type offloadStore struct {
+	*filesystem.InMemoryBackend
+	mu    sync.Mutex
+	files map[string]string
+}
+
+// Write 写入转存文件并记录其内容。
+func (s *offloadStore) Write(ctx context.Context, req *filesystem.WriteRequest) error {
+	if err := s.InMemoryBackend.Write(ctx, req); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.files[req.FilePath] = req.Content
+	return nil
+}
+
+// snapshot 返回已转存文件的副本。
+func (s *offloadStore) snapshot() map[string]string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return maps.Clone(s.files)
+}
+
+// restore 写回已保存的转存文件。
+func (s *offloadStore) restore(ctx context.Context, files map[string]string) error {
+	for path, content := range files {
+		if err := s.Write(ctx, &filesystem.WriteRequest{FilePath: path, Content: content}); err != nil {
+			return fmt.Errorf("restore offloaded tool result %s: %w", path, err)
+		}
+	}
+	return nil
+}
+
+// newContextReductionHandlers 创建大工具结果转存和上下文清理中间件并返回转存存储，转存内容存活到本次运行结束；keepTools 中工具的结果不参与清理，intactTools 中工具的结果既不转存也不清理。
+func newContextReductionHandlers(ctx context.Context, window int, keepTools, intactTools []string) ([]adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage], *offloadStore, error) {
+	backend := &offloadStore{InMemoryBackend: filesystem.NewInMemoryBackend(), files: make(map[string]string)}
 	disabled := &fsmiddleware.ToolConfig{Disable: true}
 	description := "读取本次运行中因结果过大而转存的工具输出，file_path 使用转存提示中给出的路径。"
 	readTool, err := fsmiddleware.NewTyped[*schema.AgenticMessage](ctx, &fsmiddleware.MiddlewareConfig{
@@ -58,7 +95,7 @@ func newContextReductionHandlers(ctx context.Context, window int, keepTools, int
 		GrepToolConfig:      disabled,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create offloaded tool result read middleware: %w", err)
+		return nil, nil, fmt.Errorf("create offloaded tool result read middleware: %w", err)
 	}
 	clearTokens := int64(window) * contextClearWindowPercent / 100
 	offloadBytes := offloadThresholdBytes(window)
@@ -90,9 +127,9 @@ func newContextReductionHandlers(ctx context.Context, window int, keepTools, int
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create context reduction middleware: %w", err)
+		return nil, nil, fmt.Errorf("create context reduction middleware: %w", err)
 	}
-	return []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]{readTool, reduce}, nil
+	return []adk.TypedChatModelAgentMiddleware[*schema.AgenticMessage]{readTool, reduce}, backend, nil
 }
 
 // offloadThresholdBytes 按模型窗口推导单次工具结果的转存阈值。

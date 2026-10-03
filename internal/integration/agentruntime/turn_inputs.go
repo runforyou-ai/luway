@@ -26,10 +26,23 @@ type turnInputs struct {
 	maxPushedSeq int64
 	claimedSeq   int64
 	closed       bool
+	resuming     bool // 首个信号是从恢复状态继续当前轮次。
 }
 
-// run 投递初始输入并等待循环和输入监听全部退出。
+// resume 以已认领的输入边界作为起点，首个信号改为继续当前轮次。
+func (i *turnInputs) resume(claimedSeq int64) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.claimedSeq, i.maxPushedSeq, i.resuming = claimedSeq, claimedSeq, true
+}
+
+// run 投递初始输入并等待循环和输入监听全部退出；恢复执行时先投递继续当前轮次的信号。
 func (i *turnInputs) run(ctx context.Context) error {
+	if i.resuming {
+		if accepted, _ := i.loop.Push(Trigger{Resume: true}); !accepted {
+			return errors.New("agent turn loop rejected resume")
+		}
+	}
 	if err := i.poll(ctx, false); err != nil {
 		return err
 	}

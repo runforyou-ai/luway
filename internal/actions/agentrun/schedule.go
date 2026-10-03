@@ -75,7 +75,7 @@ func (s *Scheduler) appendInput(ctx context.Context, db bun.IDB, spec agentRunSp
 	active, err := db.NewSelect().Model((*servermodels.AgentRun)(nil)).
 		Where("agr.organization_id = ?", spec.OrganizationID).
 		Where("agr.scope_kind = ? AND agr.scope_id = ?", spec.ScopeKind, spec.ScopeID).
-		Where("agr.status IN (?, ?)", domain.AgentRunStatusQueued, domain.AgentRunStatusRunning).
+		Where("agr.status IN (?)", bun.In(domain.AgentRunActiveStatuses)).
 		Exists(ctx)
 	if err != nil {
 		return fmt.Errorf("check active agent run: %w", err)

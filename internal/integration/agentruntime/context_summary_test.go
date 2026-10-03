@@ -185,7 +185,7 @@ func TestContextSummaryPairsPreemptedToolCalls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	patch, err := newToolCallPatchHandler(ctx)
+	patch, err := newToolCallPatchHandler(ctx, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

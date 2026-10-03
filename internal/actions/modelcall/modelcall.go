@@ -13,6 +13,7 @@ import (
 	"github.com/cloudwego/eino/components/model"
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	"github.com/runforyou-ai/luway/internal/integration/decision"
 	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -107,16 +108,20 @@ type call struct {
 	usage   Usage
 }
 
-// begin 写入进行中的调用记录。
+// begin 写入进行中的调用记录；Agent 运行时已为本次模型调用分配编号时沿用该编号。
 func (i *Invoker) begin(ctx context.Context, scope Scope, target *aimodel.Model) (*call, error) {
 	record := &servermodels.AIModelCall{
-		OrganizationID: scope.OrganizationID, ModelID: target.ID, ModelName: target.Name, ModelUsage: string(target.Usage),
+		ID: agentruntime.ModelCallID(ctx), OrganizationID: scope.OrganizationID, ModelID: target.ID, ModelName: target.Name, ModelUsage: string(target.Usage),
 		ActorType: string(scope.Actor), ActorID: optional(scope.ActorID),
 		SourceType: string(scope.Source), SourceID: optional(scope.SourceID),
 		Status: string(domain.AIModelCallStatusRunning),
 	}
+	columns := []string{"organization_id", "model_id", "model_name", "model_usage", "actor_type", "actor_id", "source_type", "source_id", "status"}
+	if record.ID != "" {
+		columns = append(columns, "id")
+	}
 	if _, err := i.db.NewInsert().Model(record).
-		Column("organization_id", "model_id", "model_name", "model_usage", "actor_type", "actor_id", "source_type", "source_id", "status").
+		Column(columns...).
 		Returning("id").
 		Exec(context.WithoutCancel(ctx)); err != nil {
 		return nil, fmt.Errorf("record AI model call: %w", err)

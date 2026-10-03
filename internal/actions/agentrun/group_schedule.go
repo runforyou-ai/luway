@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -108,12 +109,15 @@ func cancelGroupAgentRuns(ctx context.Context, db bun.IDB, organizationID, conve
 		UPDATE agent_runs
 		SET status = ?, error_code = ?, completed_at = now(), updated_at = now()
 		WHERE lane_id = ?
-			AND status IN (?, ?)
+			AND status IN (?)
 		RETURNING id
 	`, domain.AgentRunStatusCancelled, domain.AgentRunErrorCodeAgentRemoved, lane.ID,
-		domain.AgentRunStatusQueued, domain.AgentRunStatusRunning).
+		bun.In(domain.AgentRunActiveStatuses)).
 		Scan(ctx, &runIDs); err != nil {
 		return nil, fmt.Errorf("cancel group agent runs: %w", err)
+	}
+	if err := agentprocess.CancelUnsettled(ctx, db, lane.OrganizationID, runIDs...); err != nil {
+		return nil, err
 	}
 	if _, err := db.NewUpdate().Model(lane).
 		Set("processed_seq = desired_seq").

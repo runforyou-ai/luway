@@ -27,7 +27,7 @@ func scheduleNextRun(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqu
 	active, err := db.NewSelect().Model((*servermodels.AgentRun)(nil)).
 		Where("agr.organization_id = ?", organizationID).
 		Where("agr.scope_kind = ? AND agr.scope_id = ?", scopeKind, scopeID).
-		Where("agr.status IN (?, ?)", domain.AgentRunStatusQueued, domain.AgentRunStatusRunning).
+		Where("agr.status IN (?)", bun.In(domain.AgentRunActiveStatuses)).
 		Exists(ctx)
 	if err != nil {
 		return fmt.Errorf("check active agent run for rotation: %w", err)

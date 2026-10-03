@@ -6,10 +6,14 @@ type AgentRunStatus string
 const (
 	AgentRunStatusQueued    AgentRunStatus = "queued"
 	AgentRunStatusRunning   AgentRunStatus = "running"
+	AgentRunStatusWaiting   AgentRunStatus = "waiting"
 	AgentRunStatusSucceeded AgentRunStatus = "succeeded"
 	AgentRunStatusFailed    AgentRunStatus = "failed"
 	AgentRunStatusCancelled AgentRunStatus = "cancelled"
 )
+
+// AgentRunActiveStatuses 是运行尚未结束的状态：排队、执行中与挂起等待外部结果。
+var AgentRunActiveStatuses = []AgentRunStatus{AgentRunStatusQueued, AgentRunStatusRunning, AgentRunStatusWaiting}
 
 // AgentExecutionScopeKind 定义 Agent 执行范围的类型。
 type AgentExecutionScopeKind string
