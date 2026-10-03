@@ -3,40 +3,38 @@
 package documentconvert
 
 import (
-	"archive/zip"
-	"bytes"
 	"strconv"
 	"strings"
 )
 
 // pptxSlide 持有渲染单页幻灯片所需的压缩包与该页的部件关系。
 type pptxSlide struct {
-	archive       *zip.Reader
+	archive       *ooxmlPackage
 	relationships map[string]relationship
 }
 
 // convertPPTX 按幻灯片顺序输出标题、文本框、表格、图表数据和备注，标题占位符渲染为一级标题。
 func convertPPTX(data []byte) (string, error) {
-	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	archive, err := openPackage(data)
 	if err != nil {
 		return "", err
 	}
-	presentation, err := readPart(archive, "ppt/presentation.xml")
+	presentation, err := archive.readPart("ppt/presentation.xml")
 	if err != nil {
 		return "", err
 	}
-	relationships, err := readRelationships(archive, "ppt/presentation.xml")
+	relationships, err := archive.readRelationships("ppt/presentation.xml")
 	if err != nil {
 		return "", err
 	}
 	var blocks []string
 	for _, item := range presentation.child("presentation").child("sldIdLst").elements() {
 		target := relationships[item.attr("r:id")].Target
-		root, err := readPart(archive, target)
+		root, err := archive.readPart(target)
 		if err != nil {
 			return "", err
 		}
-		slideRelationships, err := readRelationships(archive, target)
+		slideRelationships, err := archive.readRelationships(target)
 		if err != nil {
 			return "", err
 		}
@@ -49,7 +47,7 @@ func convertPPTX(data []byte) (string, error) {
 			if item.Type != "notesSlide" {
 				continue
 			}
-			notes, err := readPart(archive, item.Target)
+			notes, err := archive.readPart(item.Target)
 			if err != nil {
 				return "", err
 			}
@@ -122,7 +120,7 @@ func (s *pptxSlide) blocks(tree *xmlNode, blocks *[]string) error {
 
 // chart 输出图表标题和数据表，首列为类别，其余各列为系列取值。
 func (s *pptxSlide) chart(target string) (string, error) {
-	root, err := readPart(s.archive, target)
+	root, err := s.archive.readPart(target)
 	if err != nil {
 		return "", err
 	}

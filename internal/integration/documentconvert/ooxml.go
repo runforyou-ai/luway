@@ -4,6 +4,7 @@ package documentconvert
 
 import (
 	"archive/zip"
+	"bytes"
 	"encoding/xml"
 	"errors"
 	"io"
@@ -59,9 +60,24 @@ type relationship struct {
 	External bool
 }
 
-// readPart 读取压缩包中的 XML 部件并解析为元素树，部件缺失时返回 nil。
-func readPart(archive *zip.Reader, name string) (*xmlNode, error) {
-	file, err := archive.Open(name)
+// ooxmlPackage 是 OOXML 压缩包，remaining 是各部件解压后剩余可读取的总字节数。
+type ooxmlPackage struct {
+	archive   *zip.Reader
+	remaining int64
+}
+
+// openPackage 打开 OOXML 压缩包，各部件解压后的读取总量以 maxExpandedBytes 为上限。
+func openPackage(data []byte) (*ooxmlPackage, error) {
+	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return nil, err
+	}
+	return &ooxmlPackage{archive: archive, remaining: maxExpandedBytes}, nil
+}
+
+// readPart 读取压缩包中的 XML 部件并解析为元素树，部件缺失时返回 nil，解压读取总量超过上限时返回 errContentTooLarge。
+func (p *ooxmlPackage) readPart(name string) (*xmlNode, error) {
+	file, err := p.archive.Open(name)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
@@ -69,11 +85,16 @@ func readPart(archive *zip.Reader, name string) (*xmlNode, error) {
 		return nil, err
 	}
 	defer file.Close()
-	decoder := xml.NewDecoder(file)
+	limited := &io.LimitedReader{R: file, N: p.remaining + 1}
+	defer func() { p.remaining = limited.N - 1 }()
+	decoder := xml.NewDecoder(limited)
 	root := &xmlNode{}
 	stack := []*xmlNode{root}
 	for {
 		token, err := decoder.Token()
+		if limited.N == 0 {
+			return nil, errContentTooLarge
+		}
 		if errors.Is(err, io.EOF) {
 			return root, nil
 		}
@@ -102,9 +123,9 @@ func readPart(archive *zip.Reader, name string) (*xmlNode, error) {
 }
 
 // readRelationships 读取部件的关系表，内部目标解析为压缩包内的绝对路径。
-func readRelationships(archive *zip.Reader, part string) (map[string]relationship, error) {
+func (p *ooxmlPackage) readRelationships(part string) (map[string]relationship, error) {
 	directory, name := path.Split(part)
-	root, err := readPart(archive, directory+"_rels/"+name+".rels")
+	root, err := p.readPart(directory + "_rels/" + name + ".rels")
 	if err != nil {
 		return nil, err
 	}

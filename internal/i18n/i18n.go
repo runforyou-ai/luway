@@ -43,6 +43,7 @@ const (
 	ErrorKnowledgePageUnreachable           Key = "error.knowledge_page_unreachable"
 	ErrorKnowledgePageUnsupported           Key = "error.knowledge_page_unsupported"
 	ErrorKnowledgePageTooLarge              Key = "error.knowledge_page_too_large"
+	ErrorKnowledgeContentTooLarge           Key = "error.knowledge_content_too_large"
 
 	ErrorAgentReplyStopFailed                 Key = "error.agent_reply_stop_failed"
 	ErrorAgentUnavailable                     Key = "error.agent_unavailable"
