@@ -22,7 +22,7 @@ export function ReportPeriodFilter({ value, onValueChange }: { value: number; on
   )
 }
 
-/** 指标卡：名称、主数值与一行说明；给出 onClick 时整卡可点击。 */
+/** 指标卡：名称、主数值与说明，说明过长时换行；给出 onClick 时整卡可点击。 */
 export function StatTile({
   label,
   value,
@@ -38,7 +38,7 @@ export function StatTile({
     <>
       <p className="truncate text-sm text-muted-foreground">{label}</p>
       <p className="mt-1.5 text-2xl font-semibold tabular-nums">{value}</p>
-      <p className="mt-1 truncate text-xs text-muted-foreground">{detail}</p>
+      <p className="mt-1 text-xs text-pretty text-muted-foreground">{detail}</p>
     </>
   )
   const className = "rounded-lg border border-border/55 px-4 py-3.5 text-left"
