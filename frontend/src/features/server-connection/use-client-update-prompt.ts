@@ -9,7 +9,7 @@ import { isDesktopMainWindow } from "@/platform/desktop-window"
 
 const promptToastId = "client-update"
 
-/** 主窗口的成员事件流每次连上服务器时准备服务器提供的客户端新版本，同一版本就绪后只提示一次，服务器不再提供新版本时收起提示。 */
+/** 主窗口的成员事件流每次连上服务器时准备服务器提供的客户端新版本，提示显示期间不重复弹出；关闭提示后下次连上服务器时再次提示，重启失败时立即重新提示，服务器不再提供新版本时收起提示。 */
 export function useClientUpdatePrompt() {
   const { t } = useTranslation(["connection", "common"])
   useEffect(() => {
@@ -17,6 +17,26 @@ export function useClientUpdatePrompt() {
     let mainWindow = false
     let preparing = false
     let promptedVersion = ""
+    // 显示新版本就绪提示，提示关闭后允许再次提示。
+    const showPrompt = (version: string) => {
+      promptedVersion = version
+      toast(t("update.ready", { version }), {
+        id: promptToastId,
+        duration: Infinity,
+        onDismiss: () => {
+          promptedVersion = ""
+        },
+        action: {
+          label: t("update.restart"),
+          onClick: () => {
+            void restartClientUpdate().catch((error: unknown) => {
+              toast.error(isApiError(error) ? apiErrorMessage(error) : t("common:errors.network"))
+              showPrompt(version)
+            })
+          },
+        },
+      })
+    }
     // 准备新版本并按结果显示或收起提示。
     const prepare = () => {
       if (!mainWindow || preparing) {
@@ -33,22 +53,9 @@ export function useClientUpdatePrompt() {
             toast.dismiss(promptToastId)
             return
           }
-          if (update.version === promptedVersion) {
-            return
+          if (update.version !== promptedVersion) {
+            showPrompt(update.version)
           }
-          promptedVersion = update.version
-          toast(t("update.ready", { version: update.version }), {
-            id: promptToastId,
-            duration: Infinity,
-            action: {
-              label: t("update.restart"),
-              onClick: () => {
-                void restartClientUpdate().catch((error: unknown) => {
-                  toast.error(isApiError(error) ? apiErrorMessage(error) : t("common:errors.network"))
-                })
-              },
-            },
-          })
         })
         .catch((error: unknown) => {
           console.warn("准备客户端更新失败", error)

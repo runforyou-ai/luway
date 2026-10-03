@@ -4,10 +4,14 @@ package native
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/sha512"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
 	"strings"
 	"sync"
 
@@ -50,12 +54,11 @@ func NewClientUpdater(app *application.App, serverURL func(context.Context) (str
 	return &clientUpdater{updater: app.Updater, allowQuit: allowQuit}
 }
 
-// updaterConfig 返回从当前服务器读取更新清单、用品牌公钥校验签名且不打开更新窗口的更新器配置。
-func updaterConfig(version string, publicKey []byte, serverURL func(context.Context) (string, error)) updater.Config {
+// updaterConfig 返回从当前服务器读取更新清单、用品牌公钥校验更新包签名且不打开更新窗口的更新器配置。
+func updaterConfig(version string, publicKey ed25519.PublicKey, serverURL func(context.Context) (string, error)) updater.Config {
 	return updater.Config{
 		CurrentVersion: version,
-		Providers:      []updater.Provider{&serverProvider{serverURL: serverURL}},
-		PublicKey:      publicKey,
+		Providers:      []updater.Provider{&serverProvider{serverURL: serverURL, publicKey: publicKey}},
 		Window:         updater.WindowNone,
 	}
 }
@@ -101,9 +104,10 @@ func (u *clientUpdater) RestartClientUpdate(ctx context.Context, meta appservice
 	return nil
 }
 
-// serverProvider 按 Wails 更新清单协议读取当前连接服务器的更新清单，只接受带签名的更新包。
+// serverProvider 按 Wails 更新清单协议读取当前连接服务器的更新清单，只接受签名覆盖清单版本与摘要的更新包，更新器下载后按该摘要校验内容。
 type serverProvider struct {
 	serverURL func(context.Context) (string, error)
+	publicKey ed25519.PublicKey
 	mu        sync.Mutex
 	// current 是最近一次检查使用的清单读取方，下载沿用同一个。
 	current *endpoint.Provider
@@ -114,7 +118,7 @@ func (p *serverProvider) Name() string {
 	return "server"
 }
 
-// Check 读取当前服务器的更新清单；未连接服务器时视为没有更新。
+// Check 读取当前服务器的更新清单并校验更新包签名；未连接服务器时视为没有更新。
 func (p *serverProvider) Check(ctx context.Context, request updater.CheckRequest) (*updater.Release, error) {
 	serverURL, err := p.serverURL(ctx)
 	if err != nil {
@@ -123,7 +127,8 @@ func (p *serverProvider) Check(ctx context.Context, request updater.CheckRequest
 	if serverURL == "" {
 		return nil, nil
 	}
-	provider, err := endpoint.New(endpoint.Config{URL: strings.TrimRight(serverURL, "/") + clientrelease.UpdatePath})
+	// 下载时长随更新包大小和网络变化，由调用方的 context 结束。
+	provider, err := endpoint.New(endpoint.Config{URL: strings.TrimRight(serverURL, "/") + clientrelease.UpdatePath, HTTPClient: &http.Client{}})
 	if err != nil {
 		return nil, err
 	}
@@ -131,8 +136,12 @@ func (p *serverProvider) Check(ctx context.Context, request updater.CheckRequest
 	if err != nil || release == nil {
 		return nil, err
 	}
-	if release.Verification == nil || len(release.Verification.Signature) == 0 {
-		return nil, fmt.Errorf("更新包 %s 缺少签名", release.Artifact.Filename)
+	encoded, _ := release.Metadata[clientrelease.SignatureMetadataKey].(string)
+	signature, _ := base64.StdEncoding.DecodeString(encoded)
+	verification := release.Verification
+	if verification == nil || verification.DigestAlgo != "sha512" || len(verification.Digest) != sha512.Size ||
+		!ed25519.Verify(p.publicKey, clientrelease.UpdateStatement(release.Version, verification.Digest), signature) {
+		return nil, fmt.Errorf("更新包 %s 的签名无效", release.Artifact.Filename)
 	}
 	p.mu.Lock()
 	p.current = provider

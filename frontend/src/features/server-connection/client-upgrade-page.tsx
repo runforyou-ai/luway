@@ -15,7 +15,7 @@ import { apiErrorMessage } from "@/lib/form-errors"
 import { resolveServerURL } from "@/lib/server-url"
 import { openExternalURL } from "@/platform/external-navigation"
 
-/** 提示升级客户端：能从当前服务器更新时下载新版本后重启，否则打开服务器的下载页，也可以更换服务器。 */
+/** 提示升级客户端：能从当前服务器更新时下载新版本后重启，并保留服务器下载页作为手动安装入口；不能更新时只打开下载页，也可以更换服务器。 */
 export function ClientUpgradePage() {
   const { t, i18n } = useTranslation(["connection", "common"])
   const navigate = useNavigate()
@@ -38,32 +38,36 @@ export function ClientUpgradePage() {
     }
   }
 
-  let action: React.ReactNode
-  if (update.data?.state === ClientUpdateState.ClientUpdateStateReady) {
+  const ready = update.data?.state === ClientUpdateState.ClientUpdateStateReady
+  // 新版本就绪时下载页作为次要操作保留，重启更新失败后可以手动安装。
+  const download = (
+    <Button
+      type="button"
+      variant={ready ? "outline" : "default"}
+      className="w-full"
+      disabled={!serverUrl}
+      onClick={() => void openExternalURL(`${serverUrl}${clientDownloadPath(i18n.language)}`)}
+    >
+      <DownloadIcon />
+      {t("upgrade.download")}
+    </Button>
+  )
+  let action: React.ReactNode = download
+  if (ready) {
     action = (
-      <Button type="button" className="w-full" disabled={restarting} onClick={() => void restart()}>
-        {restarting ? <LoaderCircleIcon className="animate-spin" /> : <RotateCwIcon />}
-        {t("update.restart")}
-      </Button>
+      <div className="grid gap-3">
+        <Button type="button" className="w-full" disabled={restarting} onClick={() => void restart()}>
+          {restarting ? <LoaderCircleIcon className="animate-spin" /> : <RotateCwIcon />}
+          {t("update.restart")}
+        </Button>
+        {download}
+      </div>
     )
   } else if (update.loading) {
     action = (
       <Button type="button" className="w-full" disabled>
         <LoaderCircleIcon className="animate-spin" />
         {t("upgrade.downloading")}
-      </Button>
-    )
-  } else {
-    // 当前端不能从服务器更新、服务器没有更新包或下载失败时，从下载页手动安装。
-    action = (
-      <Button
-        type="button"
-        className="w-full"
-        disabled={!serverUrl}
-        onClick={() => void openExternalURL(`${serverUrl}${clientDownloadPath(i18n.language)}`)}
-      >
-        <DownloadIcon />
-        {t("upgrade.download")}
       </Button>
     )
   }

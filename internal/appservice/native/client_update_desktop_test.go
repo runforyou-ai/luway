@@ -5,7 +5,6 @@ package native
 import (
 	"archive/zip"
 	"context"
-	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
@@ -13,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -58,7 +58,7 @@ func updateServer(t *testing.T, signer ed25519.PrivateKey, trusted ed25519.Publi
 	_ = archive.Close()
 	content, _ := os.ReadFile(filepath.Join(directory, name))
 	short, long := sha256.Sum256(content), sha512.Sum512(content)
-	signature, _ := signer.Sign(nil, long[:], &ed25519.Options{Hash: crypto.SHA512})
+	signature := ed25519.Sign(signer, clientrelease.UpdateStatement("2.0.0", long[:]))
 	data, _ := json.Marshal(clientrelease.Index{Version: "2.0.0", Updates: []clientrelease.Update{{
 		OS: runtime.GOOS, Arch: runtime.GOARCH, Name: name, Size: int64(len(content)),
 		SHA256: hex.EncodeToString(short[:]), Signature: base64.StdEncoding.EncodeToString(signature),
@@ -111,7 +111,7 @@ func TestPrepareClientUpdate(t *testing.T) {
 	}
 }
 
-// TestPrepareClientUpdateRejectsUntrustedPackage 验证更新包签名不是由客户端信任的公钥给出，或清单缺少签名时不安装。
+// TestPrepareClientUpdateRejectsUntrustedPackage 验证更新包签名不是由客户端信任的公钥给出、清单缺少签名、清单版本与签名版本不同或内容被替换时不安装。
 func TestPrepareClientUpdateRejectsUntrustedPackage(t *testing.T) {
 	public, private, _ := ed25519.GenerateKey(rand.Reader)
 	trusted, _, _ := ed25519.GenerateKey(rand.Reader)
@@ -125,12 +125,45 @@ func TestPrepareClientUpdateRejectsUntrustedPackage(t *testing.T) {
 		t.Fatal("没有已准备的新版本时不应重启")
 	}
 
-	unsigned := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"schemaVersion":1,"version":"2.0.0","artifacts":[{"url":"app.zip","size":1}]}`))
+	// 改写清单：去掉签名，或把 2.0.0 的签名配上更高的版本号。
+	for name, rewrite := range map[string]func(map[string]any){
+		"缺少签名":  func(manifest map[string]any) { delete(manifest, "metadata") },
+		"版本被改写": func(manifest map[string]any) { manifest["version"] = "3.0.0" },
+	} {
+		forged := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			response, err := http.Get(server.URL + request.URL.String())
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer response.Body.Close()
+			var manifest map[string]any
+			_ = json.NewDecoder(response.Body).Decode(&manifest)
+			rewrite(manifest)
+			_ = json.NewEncoder(writer).Encode(manifest)
+		}))
+		t.Cleanup(forged.Close)
+		if update, err := newTestUpdater(t, "1.0.0", public, forged.URL).PrepareClientUpdate(ctx, appservice.RequestMeta{}); err == nil {
+			t.Errorf("%s的更新包应被拒绝，结果 = %+v", name, update)
+		}
+	}
+
+	// 清单不变而更新包内容被替换时，下载后的摘要校验失败。
+	swapped := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == clientrelease.UpdatePath {
+			response, err := http.Get(server.URL + request.URL.String())
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			defer response.Body.Close()
+			_, _ = io.Copy(writer, response.Body)
+			return
+		}
+		_, _ = writer.Write([]byte("tampered"))
 	}))
-	t.Cleanup(unsigned.Close)
-	if update, err := newTestUpdater(t, "1.0.0", trusted, unsigned.URL).PrepareClientUpdate(ctx, appservice.RequestMeta{}); err == nil {
-		t.Fatalf("缺少签名的更新包应被拒绝，结果 = %+v", update)
+	t.Cleanup(swapped.Close)
+	if update, err := newTestUpdater(t, "1.0.0", public, swapped.URL).PrepareClientUpdate(ctx, appservice.RequestMeta{}); err == nil {
+		t.Errorf("内容被替换的更新包应被拒绝，结果 = %+v", update)
 	}
 }

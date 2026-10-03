@@ -2,7 +2,6 @@
 package main
 
 import (
-	"crypto"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -101,10 +100,7 @@ func run(version, source, output string, key ed25519.PrivateKey) error {
 		if err != nil {
 			return fmt.Errorf("复制更新包 %s: %w", update.Name, err)
 		}
-		signature, err := key.Sign(nil, longDigest, &ed25519.Options{Hash: crypto.SHA512})
-		if err != nil {
-			return fmt.Errorf("签名更新包 %s: %w", update.Name, err)
-		}
+		signature := ed25519.Sign(key, clientrelease.UpdateStatement(version, longDigest))
 		update.Size, update.SHA256, update.Signature = size, digest, base64.StdEncoding.EncodeToString(signature)
 		index.Updates = append(index.Updates, update)
 	}

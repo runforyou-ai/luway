@@ -1,7 +1,6 @@
 package clientrelease
 
 import (
-	"crypto"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha512"
@@ -40,14 +39,10 @@ func writeDirectory(t *testing.T, index Index) string {
 	return directory
 }
 
-// signedUpdate 返回内容为 abc、用 key 签名的更新包。
-func signedUpdate(t *testing.T, key ed25519.PrivateKey, system, arch, name string) Update {
-	t.Helper()
+// signedUpdate 返回内容为 abc、用 key 为 version 签名的更新包。
+func signedUpdate(key ed25519.PrivateKey, version, system, arch, name string) Update {
 	digest := sha512.Sum512([]byte("abc"))
-	signature, err := key.Sign(nil, digest[:], &ed25519.Options{Hash: crypto.SHA512})
-	if err != nil {
-		t.Fatal(err)
-	}
+	signature := ed25519.Sign(key, UpdateStatement(version, digest[:]))
 	return Update{OS: system, Arch: arch, Name: name, Size: 3, SHA256: abcSHA256, Signature: base64.StdEncoding.EncodeToString(signature)}
 }
 
@@ -125,20 +120,25 @@ func TestServeHTTP(t *testing.T) {
 func TestLoadVerifiesUpdateSignature(t *testing.T) {
 	public, private, _ := ed25519.GenerateKey(rand.Reader)
 	_, other, _ := ed25519.GenerateKey(rand.Reader)
-	update := signedUpdate(t, private, OSDarwin, "universal", "app_1.0.0_darwin_universal.zip")
+	update := signedUpdate(private, "1.0.0", OSDarwin, "universal", "app_1.0.0_darwin_universal.zip")
 	if _, err := Load(writeDirectory(t, Index{Version: "1.0.0", Updates: []Update{update}}), "1.0.0", public); err != nil {
 		t.Fatalf("签名有效时应读取成功: %v", err)
 	}
-	forged := signedUpdate(t, other, OSDarwin, "universal", update.Name)
+	forged := signedUpdate(other, "1.0.0", OSDarwin, "universal", update.Name)
 	if _, err := Load(writeDirectory(t, Index{Version: "1.0.0", Updates: []Update{forged}}), "1.0.0", public); err == nil {
 		t.Error("其他密钥签名时应报错")
+	}
+	// 旧版本的签名不能用于新版本号。
+	older := signedUpdate(private, "0.9.0", OSDarwin, "universal", update.Name)
+	if _, err := Load(writeDirectory(t, Index{Version: "1.0.0", Updates: []Update{older}}), "1.0.0", public); err == nil {
+		t.Error("签名版本与目录版本不同时应报错")
 	}
 	unsigned := update
 	unsigned.Signature = ""
 	if _, err := Load(writeDirectory(t, Index{Version: "1.0.0", Updates: []Update{unsigned}}), "1.0.0", public); err == nil {
 		t.Error("缺少签名时应报错")
 	}
-	reserved := signedUpdate(t, private, OSDarwin, "universal", "update")
+	reserved := signedUpdate(private, "1.0.0", OSDarwin, "universal", "update")
 	if _, err := Load(writeDirectory(t, Index{Version: "1.0.0", Updates: []Update{reserved}}), "1.0.0", public); err == nil {
 		t.Error("文件名与更新清单路径冲突时应报错")
 	}
@@ -147,8 +147,8 @@ func TestLoadVerifiesUpdateSignature(t *testing.T) {
 // TestServeUpdate 校验更新清单按平台与架构给出对应更新包，通用架构匹配任意架构，没有对应更新包时返回 204。
 func TestServeUpdate(t *testing.T) {
 	public, private, _ := ed25519.GenerateKey(rand.Reader)
-	darwin := signedUpdate(t, private, OSDarwin, "universal", "app_1.0.0_darwin_universal.zip")
-	windows := signedUpdate(t, private, OSWindows, "arm64", "app_1.0.0_windows_arm64.zip")
+	darwin := signedUpdate(private, "1.0.0", OSDarwin, "universal", "app_1.0.0_darwin_universal.zip")
+	windows := signedUpdate(private, "1.0.0", OSWindows, "arm64", "app_1.0.0_windows_arm64.zip")
 	catalog, err := Load(writeDirectory(t, Index{Version: "1.0.0", Updates: []Update{darwin, windows}}), "1.0.0", public)
 	if err != nil {
 		t.Fatal(err)
@@ -171,7 +171,7 @@ func TestServeUpdate(t *testing.T) {
 		if err := json.NewDecoder(recorder.Body).Decode(&manifest); err != nil || manifest.Version != "1.0.0" || len(manifest.Artifacts) != 1 {
 			t.Fatalf("%s 清单 = %+v, %v", target, manifest, err)
 		}
-		if artifact := manifest.Artifacts[0]; artifact.URL != want || artifact.SignatureAlgo != "ed25519ph" || artifact.Signature == "" {
+		if artifact := manifest.Artifacts[0]; artifact.URL != want || artifact.DigestAlgo != "sha512" || artifact.Digest == "" || manifest.Metadata[SignatureMetadataKey] == "" {
 			t.Errorf("%s 更新包 = %+v", target, artifact)
 		}
 	}

@@ -2,7 +2,6 @@
 package clientrelease
 
 import (
-	"crypto"
 	"crypto/ed25519"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -28,6 +27,9 @@ const PathPrefix = "/clients/"
 
 // UpdatePath 是桌面端更新清单相对部署地址的访问路径。
 const UpdatePath = PathPrefix + "update"
+
+// SignatureMetadataKey 是更新清单 metadata 中更新包签名的字段名。
+const SignatureMetadataKey = "signature"
 
 // 安装包的操作系统。
 const (
@@ -84,8 +86,19 @@ type Update struct {
 	Size int64 `json:"size"`
 	// SHA256 是更新包内容的十六进制 SHA-256 摘要。
 	SHA256 string `json:"sha256"`
-	// Signature 是对更新包 SHA-512 摘要的 Ed25519ph 签名，取标准 Base64 编码。
+	// Signature 是对 UpdateStatement 给出的版本与摘要的 Ed25519 签名，取标准 Base64 编码。
 	Signature string `json:"signature"`
+}
+
+// UpdateStatement 返回更新包签名覆盖的内容：客户端版本与更新包的 SHA-512 摘要。
+func UpdateStatement(version string, digest []byte) []byte {
+	return []byte(version + "\n" + hex.EncodeToString(digest))
+}
+
+// servedUpdate 是通过签名校验的更新包及其 SHA-512 摘要。
+type servedUpdate struct {
+	Update
+	digest []byte
 }
 
 // Catalog 是服务器提供下载的客户端安装包与桌面端更新包。
@@ -94,7 +107,7 @@ type Catalog struct {
 	version   string
 	names     map[string]struct{}
 	ordered   []File
-	updates   []Update
+	updates   []servedUpdate
 }
 
 // Load 读取客户端目录的索引，校验安装包与更新包的大小与摘要，并用 updateKey 校验更新包签名；目录没有索引或索引版本与服务端版本不同时不提供客户端。
@@ -127,10 +140,10 @@ func Load(directory, serverVersion string, updateKey ed25519.PublicKey) (*Catalo
 			return nil, fmt.Errorf("校验桌面端更新包 %s: %w", update.Name, err)
 		}
 		signature, err := base64.StdEncoding.DecodeString(update.Signature)
-		if err != nil || ed25519.VerifyWithOptions(updateKey, digest, signature, &ed25519.Options{Hash: crypto.SHA512}) != nil {
+		if err != nil || len(updateKey) != ed25519.PublicKeySize || !ed25519.Verify(updateKey, UpdateStatement(index.Version, digest), signature) {
 			return nil, fmt.Errorf("校验桌面端更新包 %s: 签名无效", update.Name)
 		}
-		catalog.updates = append(catalog.updates, update)
+		catalog.updates = append(catalog.updates, servedUpdate{Update: update, digest: digest})
 	}
 	catalog.version = index.Version
 	return catalog, nil
@@ -223,25 +236,26 @@ func (c *Catalog) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	http.ServeContent(writer, request, name, info.ModTime(), content)
 }
 
-// updateManifest 是 Wails 更新器 endpoint 提供方读取的更新清单。
+// updateManifest 是 Wails 更新器 endpoint 提供方读取的更新清单，metadata 携带覆盖版本与摘要的更新包签名。
 type updateManifest struct {
-	SchemaVersion int              `json:"schemaVersion"`
-	Version       string           `json:"version"`
-	Artifacts     []updateArtifact `json:"artifacts"`
+	SchemaVersion int               `json:"schemaVersion"`
+	Version       string            `json:"version"`
+	Artifacts     []updateArtifact  `json:"artifacts"`
+	Metadata      map[string]string `json:"metadata"`
 }
 
-// updateArtifact 是更新清单中的一个更新包，下载地址相对清单地址解析。
+// updateArtifact 是更新清单中的一个更新包，下载地址相对清单地址解析，下载后按 SHA-512 摘要校验内容。
 type updateArtifact struct {
-	URL           string `json:"url"`
-	Filename      string `json:"filename"`
-	Size          int64  `json:"size"`
-	Platform      string `json:"platform"`
-	Arch          string `json:"arch"`
-	SignatureAlgo string `json:"signatureAlgo"`
-	Signature     string `json:"signature"`
+	URL        string `json:"url"`
+	Filename   string `json:"filename"`
+	Size       int64  `json:"size"`
+	Platform   string `json:"platform"`
+	Arch       string `json:"arch"`
+	DigestAlgo string `json:"digestAlgo"`
+	Digest     string `json:"digest"`
 }
 
-// serveUpdate 按查询参数 platform、arch 输出只含对应更新包的更新清单，没有对应更新包时返回 204；是否升级由客户端比较版本决定。
+// serveUpdate 按查询参数 platform、arch 输出只含对应更新包的更新清单，没有对应更新包时返回 204；是否升级由客户端校验签名并比较版本后决定。
 func (c *Catalog) serveUpdate(writer http.ResponseWriter, request *http.Request) {
 	platform, arch := request.URL.Query().Get("platform"), request.URL.Query().Get("arch")
 	writer.Header().Set("Cache-Control", "no-store")
@@ -255,8 +269,9 @@ func (c *Catalog) serveUpdate(writer http.ResponseWriter, request *http.Request)
 			Version:       c.version,
 			Artifacts: []updateArtifact{{
 				URL: update.Name, Filename: update.Name, Size: update.Size, Platform: platform, Arch: arch,
-				SignatureAlgo: "ed25519ph", Signature: update.Signature,
+				DigestAlgo: "sha512", Digest: base64.StdEncoding.EncodeToString(update.digest),
 			}},
+			Metadata: map[string]string{SignatureMetadataKey: update.Signature},
 		})
 		return
 	}
