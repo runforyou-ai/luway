@@ -412,10 +412,10 @@ function ServerSection({ servers }: { servers: PlatformServer[] }) {
   function serverBadge(server: PlatformServer) {
     if (!server.online) return <StatusBadge variant="destructive">{t("runtime.serverLost")}</StatusBadge>
     if (!server.tasksNatsConnected && !server.realtimeNatsConnected) {
-      return <StatusBadge variant="warning">{t("runtime.natsDisconnected")}</StatusBadge>
+      return <StatusBadge variant="destructive">{t("runtime.natsDisconnected")}</StatusBadge>
     }
-    if (!server.tasksNatsConnected) return <StatusBadge variant="warning">{t("runtime.tasksNatsDisconnected")}</StatusBadge>
-    if (!server.realtimeNatsConnected) return <StatusBadge variant="warning">{t("runtime.realtimeNatsDisconnected")}</StatusBadge>
+    if (!server.tasksNatsConnected) return <StatusBadge variant="destructive">{t("runtime.tasksNatsDisconnected")}</StatusBadge>
+    if (!server.realtimeNatsConnected) return <StatusBadge variant="destructive">{t("runtime.realtimeNatsDisconnected")}</StatusBadge>
     return undefined
   }
 

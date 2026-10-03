@@ -1,7 +1,7 @@
 /** 简体中文·认证文案。 */
 const auth = {
-  title: "登录",
-  description: "使用邮箱和密码登录。",
+  title: "欢迎回来",
+  description: "登录工作区，继续与同事和 AI 员工协作。",
   emailLabel: "邮箱",
   passwordLabel: "密码",
   emailRequired: "请输入邮箱。",
@@ -15,8 +15,8 @@ const auth = {
   sessionExpired: "登录已过期，请重新登录。",
   registerPrompt: "还没有账号？",
   registerLink: "注册",
-  registerTitle: "注册账号",
-  registerDescription: "注册后即可创建自己的工作区。",
+  registerTitle: "创建账号",
+  registerDescription: "加入团队，开启与 AI 员工协作的日常。",
   registerInvitationDescription: "注册后即可接受邀请加入工作区，请使用受邀邮箱。",
   displayNameLabel: "姓名",
   displayNameRequired: "请输入姓名。",

@@ -152,8 +152,8 @@ export function ServerConnectionForm() {
     <>
       {/* 已保存的服务器暂时连不上、尚未完成首次安装或版本过旧时说明原因，连不上时提供重试。 */}
       {savedUrl && connectReason ? (
-        <div role="status" className="mb-4 flex items-start gap-3 text-sm text-warning">
-          <p className="min-w-0 flex-1">
+        <div role="status" className="mb-4 flex items-start gap-3 text-sm/6">
+          <p className={`min-w-0 flex-1 ${connectReason === ConnectReason.ConnectReasonUnreachable ? "text-destructive" : "text-muted-foreground"}`}>
             {connectReason === ConnectReason.ConnectReasonUnreachable
               ? t("savedServerUnreachable", { host: new URL(savedUrl).host })
               : connectReason === ConnectReason.ConnectReasonServerOutdated

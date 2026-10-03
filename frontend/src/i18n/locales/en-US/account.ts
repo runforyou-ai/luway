@@ -1,7 +1,7 @@
 /** 美式英语·账号与工作区文案。 */
 const account = {
-  title: "Choose a workspace",
-  description: "Select the workspace you want to open.",
+  title: "Open a workspace",
+  description: "Choose your team and pick up where you left off.",
   emptyTitle: "No workspaces yet",
   emptyDescription: "Create a workspace to start collaborating with your team.",
   emptyDescriptionJoin: "Ask a workspace admin to invite you.",
@@ -11,7 +11,7 @@ const account = {
   workspaceUnavailable: "You're not a member of that workspace, or it's suspended or no longer exists. Choose a workspace to open.",
   workspaceSuspended: "Suspended",
   createTitle: "Create a workspace",
-  createDescription: "You'll be the administrator of the new workspace.",
+  createDescription: "Bring teammates and AI employees together in a shared workspace.",
   nameLabel: "Workspace name",
   slugLabel: "Workspace ID",
   addressPreview: "Address: {{address}}",

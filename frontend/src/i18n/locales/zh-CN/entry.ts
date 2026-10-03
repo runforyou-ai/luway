@@ -1,18 +1,20 @@
 /** 简体中文·入口页文案。 */
 const entry = {
-  tagline: "让 AI 员工在客户和同事常用的地方上岗，办不了的事由人接住。",
+  headline: "让 AI 分担日常，\n让团队专注重要的事。",
+  description: "与同事和 AI 员工一起服务客户、推进工作。",
+  compactTagline: "与同事和 AI，一起推进工作。",
   features: {
     service: {
-      title: "全渠道接待客户",
-      description: "网站、公众号、Telegram 等渠道统一接待，AI 员工全天答复。",
+      title: "客户咨询，及时响应",
+      description: "连接网站、公众号等渠道，AI 员工接待咨询，团队随时接手。",
     },
-    handoff: {
-      title: "人工随时接手",
-      description: "AI 解决不了的问题一键转人工，同事在同一处继续处理。",
+    collaboration: {
+      title: "同事与 AI，一起协作",
+      description: "在单聊和群聊中沟通，让 AI 员工参与团队的日常工作。",
     },
     control: {
-      title: "数据自主可控",
-      description: "支持自托管部署，每一步操作都有记录可查。",
+      title: "自主部署，掌握数据",
+      description: "支持自托管，按团队需要管理部署与数据。",
     },
   },
 }

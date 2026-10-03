@@ -60,7 +60,7 @@ export function EntryLayout({
 
   const features = [
     { key: "service", icon: HeadsetIcon },
-    { key: "handoff", icon: UsersRoundIcon },
+    { key: "collaboration", icon: UsersRoundIcon },
     { key: "control", icon: ShieldCheckIcon },
   ] as const
 
@@ -79,32 +79,35 @@ export function EntryLayout({
       >
         <aside
           className={cn(
-            "app-entry-drag relative hidden flex-col overflow-hidden bg-primary p-10 text-primary-foreground md:flex",
-            desktopOS === "darwin" && "pt-14",
+            "app-entry-drag relative hidden flex-col overflow-x-hidden overflow-y-auto bg-primary px-8 py-6 text-primary-foreground md:flex",
+            desktopOS === "darwin" && "pt-11",
           )}
         >
           {/* 品牌栏背景装饰。 */}
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-            <div className="absolute -top-24 -right-20 size-72 rounded-full bg-white/15 blur-3xl" />
-            <div className="absolute -bottom-28 -left-16 size-80 rounded-full bg-black/20 blur-3xl" />
-            <div className="absolute inset-0 bg-[radial-gradient(rgb(255_255_255/0.14)_1px,transparent_1px)] [mask-image:linear-gradient(to_bottom,black,transparent_70%)] bg-[size:18px_18px]" />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -top-24 -right-20 size-72 rounded-full bg-white/10 blur-3xl" />
+            <div className="absolute -bottom-28 -left-16 size-80 rounded-full bg-black/10 blur-3xl" />
+            <div className="absolute inset-0 bg-[radial-gradient(rgb(255_255_255/0.07)_1px,transparent_1px)] [mask-image:linear-gradient(to_bottom,black,transparent_70%)] bg-[size:18px_18px]" />
           </div>
           <div className="relative">
-            <span className="flex size-11 items-center justify-center rounded-xl bg-white p-1.5 shadow-sm">
-              <img src="/favicon.png" alt="" className="size-full object-contain" draggable={false} />
-            </span>
-            <p className="mt-5 text-2xl font-semibold tracking-tight">{productName}</p>
-            <p className="mt-2.5 text-sm/6 text-primary-foreground/80">{t("entry:tagline")}</p>
+            <div className="flex items-center gap-3">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white p-1 shadow-sm">
+                <img src="/favicon.png" alt="" className="size-full object-contain" draggable={false} />
+              </span>
+              <p className="text-lg font-semibold tracking-tight">{productName}</p>
+            </div>
+            <p className="mt-4 whitespace-pre-line text-[28px] leading-tight font-semibold tracking-tight">{t("entry:headline")}</p>
+            <p className="mt-2.5 text-sm/6 text-primary-foreground/85">{t("entry:description")}</p>
           </div>
-          <ul className="relative mt-auto space-y-5 pt-10">
+          <ul className="relative mt-6 space-y-3">
             {features.map(({ key, icon: Icon }) => (
-              <li key={key} className="flex gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-white/15">
+              <li key={key} className="flex gap-2.5">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/10">
                   <Icon className="size-4" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">{t(`entry:features.${key}.title`)}</span>
-                  <span className="mt-0.5 block text-xs/5 text-primary-foreground/70">{t(`entry:features.${key}.description`)}</span>
+                  <span className="block text-sm/5 font-medium">{t(`entry:features.${key}.title`)}</span>
+                  <span className="mt-0.5 block text-sm/5 text-primary-foreground/80">{t(`entry:features.${key}.description`)}</span>
                 </span>
               </li>
             ))}
@@ -124,12 +127,12 @@ export function EntryLayout({
                 <img src="/favicon.png" alt="" className="size-full object-contain" draggable={false} />
               </span>
               <p className="mt-3 text-lg font-semibold tracking-tight">{productName}</p>
-              <p className="mt-1 text-xs/5 text-muted-foreground">{t("entry:tagline")}</p>
+              <p className="mt-1 text-sm/6 text-muted-foreground">{t("entry:compactTagline")}</p>
             </div>
             <div className="mb-7">
               {leading}
               <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
-              {description ? <p className="mt-1.5 text-sm text-muted-foreground">{description}</p> : null}
+              {description ? <p className="mt-1.5 text-sm/6 text-muted-foreground">{description}</p> : null}
             </div>
             {children}
             {footer ? <div className="mt-8 text-center text-sm text-muted-foreground">{footer}</div> : null}

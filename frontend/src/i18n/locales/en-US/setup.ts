@@ -1,7 +1,7 @@
 /** 美式英语·初始化文案。 */
 const setup = {
-  title: "Set up",
-  description: "Create the first workspace and the platform administrator account.",
+  title: "Bring your team together",
+  description: "Create your first workspace and administrator account to get started.",
   workspaceNameLabel: "Workspace name",
   workspaceSlugLabel: "Workspace ID",
   displayNameLabel: "Your name",
