@@ -10,6 +10,9 @@ import { formatFileSize } from "@/lib/file-size"
 /** 单次最多选择的附件数量。 */
 export const attachmentSelectionLimit = 100
 
+/** 服务端提供内嵌预览的图片类型，其余图片按文件发送。 */
+const inlineImageTypes = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"])
+
 /** 维护按选择顺序排列的附件；byteLimit 大于 0 时过滤超过渠道字节上限的文件。卸载时释放全部预览。 */
 export function useAttachmentSelection(byteLimit: number) {
   const { t } = useTranslation("inbox")
@@ -66,7 +69,7 @@ export function useAttachmentSelection(byteLimit: number) {
           imageWidth: 0,
           imageHeight: 0,
         }
-        if (file.type.startsWith("image/")) {
+        if (inlineImageTypes.has(file.type)) {
           const url = URL.createObjectURL(file)
           const image = new Image()
           image.src = url

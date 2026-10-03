@@ -115,12 +115,21 @@ func (a *ReceiveWebsiteCustomerMessageAction) receive(ctx context.Context, chann
 	return result, nil
 }
 
-// executeTransaction 执行一次完整的网站访客消息事务；转人工后等待真人回复期间，从访客消息中收集接收回复的邮箱。
+// executeTransaction 按渠道的附件与多会话设置执行一次完整的网站访客消息事务；转人工后等待真人回复期间，从访客消息中收集接收回复的邮箱。
 func (a *ReceiveWebsiteCustomerMessageAction) executeTransaction(ctx context.Context, tx bun.Tx, channelID string, input InboundCustomerMessageInput) (ReceiveWebsiteCustomerMessageResult, error) {
 	channel, err := loadWebsiteChannel(ctx, tx, channelID)
 	if err != nil {
 		return ReceiveWebsiteCustomerMessageResult{}, err
 	}
+	setting, err := loadWebsiteChannelSetting(ctx, tx, channel)
+	if err != nil {
+		return ReceiveWebsiteCustomerMessageResult{}, err
+	}
+	if input.Attachment != nil && !setting.AttachmentsEnabled {
+		return ReceiveWebsiteCustomerMessageResult{}, &conversationaction.ConflictError{Reason: ConflictReasonAttachmentsDisabled}
+	}
+	// 未开启多会话时，未指定会话的消息进入访客已有的会话。
+	input.SingleConversation = !setting.MultipleConversationsEnabled && input.RequestedConversationID == nil
 	received, err := ReceiveInboundCustomerMessage(ctx, tx, a.enqueuer, channel, input)
 	if err != nil {
 		return ReceiveWebsiteCustomerMessageResult{}, err
@@ -236,6 +245,17 @@ func loadWebsiteChannel(ctx context.Context, db bun.IDB, channelID string) (*ser
 		return nil, fmt.Errorf("load website channel: %w", err)
 	}
 	return channel, nil
+}
+
+// loadWebsiteChannelSetting 读取网站渠道的访客聊天界面设置。
+func loadWebsiteChannelSetting(ctx context.Context, db bun.IDB, channel *servermodels.Channel) (*servermodels.WebsiteChannelSetting, error) {
+	setting := &servermodels.WebsiteChannelSetting{}
+	if err := db.NewSelect().Model(setting).
+		Where("wcs.organization_id = ? AND wcs.channel_id = ?", channel.OrganizationID, channel.ID).
+		Scan(ctx); err != nil {
+		return nil, fmt.Errorf("load website channel setting: %w", err)
+	}
+	return setting, nil
 }
 
 // loadWebsiteVisitorIdentity 读取网站渠道内当前访客的渠道身份，尚未建立身份时返回 false；读操作不创建联系人。

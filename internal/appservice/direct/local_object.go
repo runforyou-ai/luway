@@ -4,7 +4,6 @@ package direct
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"strings"
 
@@ -42,7 +41,7 @@ type LocalObjectUpload struct {
 	ExpectedSize int64
 }
 
-// LocalObjectAuthorizer 为服务端本地对象的直传、知识文档预览和内嵌展示完成认证与归属校验，对象所属工作区取自对象键。
+// LocalObjectAuthorizer 为服务端本地对象的直传和知识文档预览完成认证与归属校验，对象所属工作区取自对象键。
 type LocalObjectAuthorizer struct {
 	resolveIdentity *authaction.ResolveIdentityQuery
 	verifyCustomer  *customerchataction.VerifyWebsiteCustomerQuery
@@ -113,15 +112,6 @@ func (a *LocalObjectAuthorizer) AuthorizeKnowledgePreview(ctx context.Context, b
 		return "", err
 	}
 	return record.OriginalName, nil
-}
-
-// ContentType 返回本地对象内嵌展示使用的原始内容类型。
-func (a *LocalObjectAuthorizer) ContentType(ctx context.Context, storageKey string) (string, error) {
-	contentType, err := a.getFile.ContentTypeByStorageKey(ctx, storageKeyOrganizationID(storageKey), storageKey)
-	if errors.Is(err, sql.ErrNoRows) {
-		return "", ErrLocalObjectNotFound
-	}
-	return contentType, err
 }
 
 // localObjectIdentityError 把成员身份解析错误转换为本地对象错误，令牌无效、不是该工作区成员或工作区已暂停时视为未认证。

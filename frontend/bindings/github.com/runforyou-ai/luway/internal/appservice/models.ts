@@ -2373,6 +2373,9 @@ export interface File {
  * FileDownload 定义附件的即时下载地址。
  */
 export interface FileDownload {
+    /**
+     * PreviewURL 只对浏览器可内嵌展示的图片返回。
+     */
     "previewUrl": string;
     "url": string;
 }

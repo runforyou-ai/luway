@@ -2248,7 +2248,7 @@
       assets.appendChild(pending);
       return assets;
     }
-    if (fileKind(attachment.contentType) === "image") {
+    if (fileKind(attachment.contentType) === "image" && attachment.previewUrl) {
       var imageButton = document.createElement("button");
       imageButton.type = "button";
       imageButton.className = "cv-asset";
@@ -3293,10 +3293,10 @@
     });
   }
 
-  // 读取图片附件的像素尺寸，非图片或无法解码时为 0。
+  // 读取可内嵌预览图片的像素尺寸，其他文件或无法解码时为 0。
   function readImageSize(file) {
     return new Promise(function (resolve) {
-      if (fileKind(file.type) !== "image") {
+      if (["image/jpeg", "image/png", "image/gif", "image/webp"].indexOf(file.type) === -1) {
         resolve({ width: 0, height: 0 });
         return;
       }

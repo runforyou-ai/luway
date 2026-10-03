@@ -102,10 +102,3 @@ func get(ctx context.Context, db bun.IDB, organizationID, fileID string) (*serve
 func selectFile(db bun.IDB, record *servermodels.File) *bun.SelectQuery {
 	return db.NewSelect().Model(record).ColumnExpr("f.*").ColumnExpr(expiredColumn)
 }
-
-// ContentTypeByStorageKey 读取本地图片内嵌展示所需的原始内容类型。
-func (q *GetQuery) ContentTypeByStorageKey(ctx context.Context, organizationID, storageKey string) (string, error) {
-	var contentType string
-	err := q.db.NewSelect().Model((*servermodels.File)(nil)).Column("content_type").Where("f.organization_id = ? AND f.storage_key = ? AND f.storage_backend = ?", organizationID, storageKey, domain.FileStorageBackendLocal).Scan(ctx, &contentType)
-	return contentType, err
-}

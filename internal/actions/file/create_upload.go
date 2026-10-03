@@ -87,10 +87,6 @@ var storageExtensionPattern = regexp.MustCompile(`^\.[a-z0-9]{1,16}$`)
 
 // storageFileExtensions 列出原始文件名缺少可用扩展名时按内容类型补全的常用扩展名。
 var storageFileExtensions = map[string]string{
-	"image/jpeg":         ".jpg",
-	"image/png":          ".png",
-	"image/webp":         ".webp",
-	"image/gif":          ".gif",
 	"image/svg+xml":      ".svg",
 	"image/bmp":          ".bmp",
 	"image/heic":         ".heic",
@@ -124,9 +120,12 @@ var storageFileExtensions = map[string]string{
 	"video/webm":                  ".webm",
 }
 
-// storageKey 返回以文件编号命名的存储键，扩展名优先取原始文件名，其次按内容类型补全，都不可用时为 .bin。
+// storageKey 返回以文件编号命名的存储键；可内嵌展示的图片使用内容类型对应的扩展名，其余文件优先取原始文件名的扩展名，其次按内容类型补全，都不可用时为 .bin。
 func storageKey(organizationID, fileID, fileName, contentType string) string {
-	extension := strings.ToLower(path.Ext(fileName))
+	extension, inline := domain.InlineImageExtension(contentType)
+	if !inline {
+		extension = strings.ToLower(path.Ext(fileName))
+	}
 	if !storageExtensionPattern.MatchString(extension) {
 		extension = storageFileExtensions[contentType]
 	}

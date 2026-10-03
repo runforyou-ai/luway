@@ -26,7 +26,7 @@ type customerReadFixture struct {
 	receive                   *customerchataction.ReceiveWebsiteCustomerMessageAction
 }
 
-// newCustomerReadFixture 建立两个客服共享的网站客户会话。
+// newCustomerReadFixture 建立两个客服共享的网站客户会话，渠道开启多会话。
 func newCustomerReadFixture(t *testing.T) customerReadFixture {
 	t.Helper()
 	f := newNavigationFixture(t)
@@ -49,6 +49,7 @@ func newCustomerReadFixture(t *testing.T) customerReadFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
+	setWebsiteChannelSetting(t, f.db, channel.ID, "multiple_conversations_enabled", true)
 	receive := customerchataction.NewReceiveWebsiteCustomerMessageAction(f.db, agentrunaction.NewScheduler(newTestTasks(f.db)), newTestTasks(f.db), nil)
 	result, err := receive.Execute(ctx, customerchataction.WebsiteCustomerTextMessageInput{
 		ChannelID: channel.ID, ExternalID: "web-session:0123456789abcdef0123456789abcdef", ClientMessageID: uuid.NewV7().String(), Body: "客户首条消息",

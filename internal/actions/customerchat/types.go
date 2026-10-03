@@ -18,8 +18,10 @@ const (
 )
 
 const (
-	// ConflictReasonServiceSessionNotRateable 表示服务周期未关闭或已评价。
+	// ConflictReasonServiceSessionNotRateable 表示渠道未开启评价，或服务周期未关闭、已评价。
 	ConflictReasonServiceSessionNotRateable = "service_session_not_rateable"
+	// ConflictReasonAttachmentsDisabled 表示网站渠道未开启访客发送附件。
+	ConflictReasonAttachmentsDisabled = "attachments_disabled"
 )
 
 // VisitorEventType 定义访客可见的客服处理周期事件类型。

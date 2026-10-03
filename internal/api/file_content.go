@@ -13,6 +13,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 )
 
@@ -49,20 +50,20 @@ func (s *LocalObjectService) ServeHTTP(writer http.ResponseWriter, request *http
 			s.previewKnowledgeObject(writer, request, storageKey)
 			return
 		}
-		// 按文件元数据设置内嵌图片的响应内容类型。
-		if request.URL.Query().Get("inline") == "1" {
-			contentType, err := s.authorizer.ContentType(request.Context(), storageKey)
-			if err != nil {
-				writeLocalObjectError(writer, err)
-				return
-			}
-			writer.Header().Set("Content-Type", contentType)
+		// 可内嵌展示的图片按扩展名输出图片类型，其余文件一律按附件下载，响应在沙箱中打开且不推断类型。
+		contentType, inline := domain.InlineImageContentType(path.Ext(storageKey))
+		if !inline {
+			contentType = "application/octet-stream"
 		}
-		// 通过最终对象目录的静态文件服务输出不可变文件。
+		writer.Header().Set("Content-Type", contentType)
 		writer.Header().Set("X-Content-Type-Options", "nosniff")
+		writer.Header().Set("Content-Security-Policy", "sandbox")
 		if name := request.URL.Query().Get("download"); name != "" {
 			writer.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": name}))
+		} else if !inline {
+			writer.Header().Set("Content-Disposition", "attachment")
 		}
+		// 通过最终对象目录的静态文件服务输出不可变文件。
 		s.objects.ServeHTTP(&localObjectResponseWriter{ResponseWriter: writer}, request)
 	case http.MethodPut:
 		s.uploadLocalObject(writer, request, storageKey)
