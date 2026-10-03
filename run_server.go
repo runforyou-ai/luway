@@ -9,12 +9,15 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net/http"
 	"os"
+	"strings"
 
 	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/storage"
 	"github.com/runforyou-ai/luway/internal/webasset"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -73,7 +76,7 @@ func run(arguments []string) error {
 		slog.Warn("实例授权未授予自定义品牌或授权已到期，部署品牌配置暂不生效")
 	}
 
-	services, realtimeMiddleware, err := applicationServices(appStorage, config)
+	services, realtimeMiddleware, productSite, err := applicationServices(appStorage, config)
 	if err != nil {
 		return fmt.Errorf("initialize application services: %w", err)
 	}
@@ -94,6 +97,13 @@ func run(arguments []string) error {
 		assetServer.Override("favicon.png", icon, brand.OverrideActive)
 	}
 
+	// Web 应用位于 /app/ 下，网站图标保留在根路径，/index.html 跳转到应用，其余路径由产品首页处理。
+	entry := http.NewServeMux()
+	entry.Handle(domain.WebAppPath, http.StripPrefix(strings.TrimSuffix(domain.WebAppPath, "/"), assetServer))
+	entry.Handle("/index.html", http.RedirectHandler(domain.WebAppPath, http.StatusMovedPermanently))
+	entry.Handle("/favicon.png", assetServer)
+	entry.Handle("/", productSite)
+
 	app := application.New(application.Options{
 		Name:        brand.Current().DisplayName(),
 		Description: brand.Current().Description,
@@ -101,7 +111,7 @@ func run(arguments []string) error {
 		// 由 Wails 服务端运行时监听退出信号。
 		DisableDefaultSignalHandler: true,
 		Assets: application.AssetOptions{
-			Handler: assetServer,
+			Handler: entry,
 			// 实时事件流在 Wails 资源服务之前处理。
 			Middleware: realtimeMiddleware,
 		},

@@ -26,17 +26,21 @@
   {{end}}
 </nav>
 {{end}}
-<header class="docs-header">
-  <a class="docs-brand" href="{{.HomePath}}"><img src="/favicon.png" alt="" width="24" height="24">{{.SiteTitle}}</a>
+<header class="site-header">
+  <a class="site-brand" href="{{.HomePath}}"><img src="/favicon.png" alt="" width="24" height="24">{{.SiteTitle}}</a>
+  <nav class="site-nav"><a href="{{.SiteHomePath}}">{{.Labels.home}}</a></nav>
   <form class="docs-search" action="{{.SearchPath}}" method="get" role="search">
     <input type="search" name="q" value="{{with .Search}}{{.Query}}{{end}}" aria-label="{{.Labels.search}}">
   </form>
-  <select class="docs-languages" aria-label="{{.Labels.language}}" onchange="location.href = this.value">
+  <select class="site-languages" aria-label="{{.Labels.language}}" onchange="location.href = this.value">
     {{range .Languages}}<option value="{{.Path}}" lang="{{.Lang}}"{{if .Current}} selected{{end}}>{{.Label}}</option>{{end}}
   </select>
+  <a class="site-action" href="{{.AppPath}}" data-account-link="{{.Labels.openApp}}">{{.Labels.signIn}}</a>
 </header>
+<script>{{.Script}}</script>
 <details class="docs-mobile-nav">
   <summary>{{.Labels.menu}}</summary>
+  <a class="docs-mobile-home" href="{{.SiteHomePath}}">{{.Labels.home}}</a>
   {{template "nav" .}}
 </details>
 <div class="docs-shell">

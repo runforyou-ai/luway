@@ -23,6 +23,11 @@ var Locales = []string{"zh-cn", "en"}
 // brandLocales 把文档语言目录映射到品牌名称使用的界面语言标签。
 var brandLocales = map[string]string{"zh-cn": "zh-CN", "en": "en-US"}
 
+// LanguageTag 返回语言目录对应的界面语言标签。
+func LanguageTag(locale string) string {
+	return brandLocales[locale]
+}
+
 // productPlaceholder 是正文中的产品名称占位符，输出时替换为当前部署的品牌名称。
 const productPlaceholder = "{{product}}"
 

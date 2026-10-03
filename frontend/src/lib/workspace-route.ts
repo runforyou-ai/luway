@@ -1,5 +1,8 @@
 /** 工作区地址：工作区页面位于 /w/<工作区标识> 之下，账号级页面位于根路径，路由器按当前工作区设置 basename。 */
 
+/** Web 应用相对服务器地址的访问路径，应用页面以哈希路由位于其后。 */
+export const webAppPath = "/app/"
+
 const workspacePrefixPattern = /^\/w\/([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?=\/|\?|$)/
 const lastWorkspaceStorageKey = "app.lastWorkspace"
 const workspacePathsStorageKey = "app.workspacePaths"

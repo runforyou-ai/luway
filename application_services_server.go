@@ -3,6 +3,8 @@
 package main
 
 import (
+	"net/http"
+
 	"github.com/runforyou-ai/luway/docs"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
@@ -21,6 +23,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
 	"github.com/runforyou-ai/luway/internal/productdocs"
+	"github.com/runforyou-ai/luway/internal/productsite"
 	"github.com/runforyou-ai/luway/internal/publicweb"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	"github.com/runforyou-ai/luway/internal/realtime/gateway"
@@ -33,8 +36,8 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// applicationServices 组装服务端入口、业务服务和后台任务，并返回处理实时事件流的资源中间件。
-func applicationServices(appStorage *serverstorage.Store, config serverconfig.Config) ([]application.Service, application.Middleware, error) {
+// applicationServices 组装服务端入口、业务服务和后台任务，并返回处理实时事件流的资源中间件与根路径下的产品首页。
+func applicationServices(appStorage *serverstorage.Store, config serverconfig.Config) ([]application.Service, application.Middleware, http.Handler, error) {
 	db := appStorage.DB()
 	// 为 HTTPS 入口提供部署地址和证书缓存。
 	httpsEntry := ingress.NewHTTPSEntry(config.TLS, config.Server, serverstorage.NewACMECache(db))
@@ -42,7 +45,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	// 初始化本地文件存储和部署级对象存储配置。
 	localFiles, err := serverfilecontent.NewLocalStore(config.Storage.LocalDirectory)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	fileS3 := fileContentS3Config(config.Storage.S3)
 	fileReader := serverfilecontent.NewReader(localFiles, fileS3)
@@ -53,11 +56,11 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 
 	// 知识库分词词典在启动时加载一次，供分段写入与词法召回共用。
 	if err := searchtext.LoadDictionary(); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	agentRuntime, err := agentruntime.New()
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	// 部署配置了 SMTP 时启用邮件通知与邀请邮件。
 	var emailSender customernotify.Sender
@@ -80,17 +83,17 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		db: db, maintenanceDB: appStorage.MaintenanceDB(), tasks: tasks, publicURL: config.Server.PublicURL, localFiles: localFiles, fileS3: fileS3, fileReader: fileReader,
 		emailSender: emailSender, agentRuntime: agentRuntime, modelInvoker: modelInvoker, agentSchedule: agentRunScheduler, agentRun: executeAgentRun, telegramAPI: telegramAPI,
 	}); err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// 产品文档按部署状态过滤页面：当前部署使用实例授权且未配对商业服务。
 	productDocs, err := productdocs.Load(docs.Content, productdocs.Conditions{productdocs.ConditionInstanceLicense: true})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	productDocsService, err := productdocs.NewService(productDocs)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
 	// 组装企业成员与网站匿名访客各自的业务入口。
@@ -131,7 +134,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewServiceWithOptions(publicweb.NewChatService(publicLookup), application.ServiceOptions{Route: "/chat/"}),
 		application.NewServiceWithOptions(productDocsService, application.ServiceOptions{Route: "/docs"}),
 	}
-	return services, realtimeGateway.Middleware, nil
+	return services, realtimeGateway.Middleware, productsite.NewService(productdocs.StylesheetPath()), nil
 }
 
 // fileContentS3Config 把部署级对象存储配置转换为文件内容层配置。

@@ -4,6 +4,7 @@ package productdocs
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"embed"
 	"encoding/hex"
 	"fmt"
@@ -13,7 +14,9 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"sync"
 
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/webasset"
 )
@@ -32,11 +35,22 @@ var files embed.FS
 //go:embed page.html
 var pageTemplateSource string
 
+//go:embed account.js
+var accountScriptSource string
+
+// AccountScript 是文档页与产品首页共用的页头账号脚本：已登录时显示当前账号，否则保留登录入口。
+var AccountScript = template.JS(accountScriptSource)
+
 // pageTemplate 渲染文档页面、搜索结果页与 404 页面。
 var pageTemplate = template.Must(template.New("page").Parse(pageTemplateSource))
 
 // languageLabels 是语言切换中各语言的名称。
 var languageLabels = map[string]string{"zh-cn": "简体中文", "en": "English"}
+
+// LanguageLabel 返回语言切换中该语言目录的名称。
+func LanguageLabel(locale string) string {
+	return languageLabels[locale]
+}
 
 // assetTypes 是文档样式资源的响应类型。
 var assetTypes = map[string]string{".css": "text/css; charset=utf-8", ".woff2": "font/woff2"}
@@ -66,13 +80,26 @@ func NewService(site *Site) (*Service, error) {
 	if err != nil {
 		return nil, fmt.Errorf("load docs assets: %w", err)
 	}
-	if style, ok := service.assets["site.css"]; ok {
-		digest := style.Digest()
-		service.assetVersion = hex.EncodeToString(digest[:8])
-	} else {
+	service.assetVersion = stylesheetVersion()
+	if service.assetVersion == "" {
 		slog.Warn("服务端未内置产品文档样式")
 	}
 	return service, nil
+}
+
+// stylesheetVersion 返回内置样式内容摘要的前缀，样式未构建时为空。
+var stylesheetVersion = sync.OnceValue(func() string {
+	raw, err := fs.ReadFile(files, "dist/site/site.css")
+	if err != nil {
+		return ""
+	}
+	digest := sha256.Sum256(raw)
+	return hex.EncodeToString(digest[:8])
+})
+
+// StylesheetPath 返回文档站点与产品首页共用的样式地址，携带当前样式版本。
+func StylesheetPath() string {
+	return Prefix + assetsPrefix + "site.css?v=" + stylesheetVersion()
 }
 
 // ServeHTTP 处理去掉 /docs 前缀后的请求路径。
@@ -88,10 +115,10 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, Prefix, http.StatusMovedPermanently)
 		return
 	case requestPath == "/":
-		http.Redirect(writer, request, Prefix+preferredLocale(request)+"/", http.StatusFound)
+		http.Redirect(writer, request, Prefix+PreferredLocale(request)+"/", http.StatusFound)
 		return
 	case !strings.HasPrefix(requestPath, "/"):
-		s.writeNotFound(writer, request, preferredLocale(request))
+		s.writeNotFound(writer, request, PreferredLocale(request))
 		return
 	}
 	if name, ok := strings.CutPrefix(requestPath, "/"+assetsPrefix); ok {
@@ -110,7 +137,7 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	}
 	locale, slug, _ := strings.Cut(strings.TrimPrefix(requestPath, "/"), "/")
 	if _, ok := languageLabels[locale]; !ok {
-		s.writeNotFound(writer, request, preferredLocale(request))
+		s.writeNotFound(writer, request, PreferredLocale(request))
 		return
 	}
 	if !strings.HasSuffix(requestPath, "/") {
@@ -142,8 +169,8 @@ func (s *Service) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 	s.write(writer, request, http.StatusOK, view)
 }
 
-// preferredLocale 按请求的语言偏好选择文档语言，中文偏好使用中文，其余使用英文。
-func preferredLocale(request *http.Request) string {
+// PreferredLocale 按请求的语言偏好选择站点语言目录，中文偏好使用中文，其余使用英文。
+func PreferredLocale(request *http.Request) string {
 	for part := range strings.SplitSeq(request.Header.Get("Accept-Language"), ",") {
 		tag := strings.ToLower(strings.TrimSpace(strings.Split(part, ";")[0]))
 		if tag == "" || tag == "*" {
@@ -166,6 +193,8 @@ type pageView struct {
 	HTML         template.HTML
 	HomePath     string
 	SearchPath   string
+	SiteHomePath string
+	AppPath      string
 	AssetPath    string
 	Nav          []navSectionView
 	TOC          []tocView
@@ -174,6 +203,7 @@ type pageView struct {
 	Search       *searchView
 	NotFound     bool
 	AssetVersion string
+	Script       template.JS
 }
 
 // navSectionView 是侧边栏栏目的模板数据。
@@ -234,9 +264,11 @@ func (s *Service) newView(locale, slug string) pageView {
 	view := pageView{
 		Lang: lang, Locale: locale, SiteTitle: siteTitle,
 		HomePath: PagePath(locale, ""), SearchPath: PagePath(locale, "search"), AssetPath: Prefix + assetsPrefix,
-		AssetVersion: s.assetVersion,
+		SiteHomePath: "/" + locale + "/", AppPath: domain.WebAppPath,
+		AssetVersion: s.assetVersion, Script: AccountScript,
 		Labels: i18n.LocalizeMap(acceptLanguage, map[string]i18n.Key{
-			"search": i18n.DocsSearch, "onThisPage": i18n.DocsOnThisPage, "menu": i18n.DocsMenu, "language": i18n.DocsLanguage,
+			"search": i18n.DocsSearch, "onThisPage": i18n.DocsOnThisPage, "menu": i18n.DocsMenu, "language": i18n.SiteLanguage,
+			"home": i18n.SiteHome, "openApp": i18n.SiteOpenApp, "signIn": i18n.SiteSignIn,
 		}),
 	}
 	for _, section := range s.site.Navigation(locale) {
@@ -296,7 +328,7 @@ func (s *Service) writeSearch(writer http.ResponseWriter, request *http.Request,
 func (s *Service) writeNotFound(writer http.ResponseWriter, request *http.Request, locale string) {
 	view := s.newView(locale, "")
 	acceptLanguage := brandLocales[locale]
-	view.Title, _ = i18n.Localize(acceptLanguage, i18n.DocsNotFoundTitle)
+	view.Title, _ = i18n.Localize(acceptLanguage, i18n.SiteNotFoundTitle)
 	body, _ := i18n.Localize(acceptLanguage, i18n.DocsNotFoundBody)
 	home, _ := i18n.Localize(acceptLanguage, i18n.DocsBackHome)
 	view.HTML = template.HTML("<p>" + template.HTMLEscapeString(body) + "</p><p><a href=\"" + view.HomePath + "\">" + template.HTMLEscapeString(home) + "</a></p>")

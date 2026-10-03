@@ -22,7 +22,7 @@ import { useResource } from "@/hooks/use-resource"
 import { apiErrorMessage } from "@/lib/form-errors"
 import { resolveServerURL } from "@/lib/server-url"
 import { recoverSession } from "@/lib/session-navigation"
-import { enterWorkspace, navigateToHashPath, returnToPath } from "@/lib/workspace-route"
+import { enterWorkspace, navigateToHashPath, returnToPath, webAppPath, workspaceHref } from "@/lib/workspace-route"
 import { zodResolver } from "@/lib/zod-resolver"
 
 /** 校验并创建工作区，标识未手动修改时按名称自动建议；带返回地址直接进入时返回原工作区页面，否则返回工作区选择页。 */
@@ -110,7 +110,7 @@ export function WorkspaceCreatePage() {
           <div className="space-y-2">
             <FormInputField name="slug" control={form.control} label={t("slugLabel")} autoCapitalize="none" autoCorrect="off" />
             <p className="truncate text-xs text-muted-foreground">
-              {t("addressPreview", { address: `${host}/#/w/${slug || "…"}` })}
+              {t("addressPreview", { address: `${host}${webAppPath}#${workspaceHref(slug || "…", "/")}` })}
             </p>
           </div>
         </FieldGroup>

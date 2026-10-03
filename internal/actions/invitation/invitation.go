@@ -70,7 +70,7 @@ type Created struct {
 
 // Link 返回部署地址下接受邀请的链接，令牌位于片段中，不进入服务端访问日志。
 func Link(publicURL, value string) string {
-	return strings.TrimRight(publicURL, "/") + "/#/invitations/" + value
+	return strings.TrimRight(publicURL, "/") + domain.WebAppPath + "#/invitations/" + value
 }
 
 // selectInvitations 构造读取邀请、角色和发起人名称的查询。
