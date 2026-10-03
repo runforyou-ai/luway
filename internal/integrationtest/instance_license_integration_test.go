@@ -5,16 +5,23 @@ package integrationtest
 import (
 	"context"
 	"crypto/ed25519"
+	"encoding/json"
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/common/license"
 	"github.com/runforyou-ai/luway/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/integration/control"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	"uuid"
 )
@@ -58,7 +65,7 @@ func TestInstanceLicenseActivation(t *testing.T) {
 	}
 	db := openEmptyDatabase(t)
 	backend := direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL, LicenseKeys: license.Keys{testLicenseKID: publicKey}},
-		nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
+		nil, serverfilecontent.S3Config{}, nil, nil, newTestTasks(db), nil, nil, nil)
 	service := appservice.New(backend)
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
@@ -145,5 +152,195 @@ func TestInstanceLicenseActivation(t *testing.T) {
 	overview, err = backend.GetDeploymentOverview(ctx, adminMeta)
 	if err != nil || overview.Capabilities.WorkspaceLimit != 1 {
 		t.Fatalf("expired overview = %#v, err = %v", overview, err)
+	}
+}
+
+// fakeControl 是记录请求并按预设返回授权码的 control 测试替身。
+type fakeControl struct {
+	mu          sync.Mutex
+	instanceID  string
+	registered  int
+	licenseCode string
+	issue       func() string
+}
+
+// ServeHTTP 校验签名请求头与实例身份后，按路径模拟登记、激活和拉取授权。
+func (f *fakeControl) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if request.Header.Get("Signature") == "" || request.Header.Get("Content-Digest") == "" ||
+		!strings.Contains(request.Header.Get("Signature-Input"), `keyid="`+f.instanceID+`"`) {
+		writeProblem(writer, http.StatusUnauthorized, "invalid_signature")
+		return
+	}
+	var body struct {
+		Product        string `json:"product"`
+		PublicKey      string `json:"public_key"`
+		ActivationCode string `json:"activation_code"`
+	}
+	_ = json.NewDecoder(request.Body).Decode(&body)
+	switch request.URL.Path {
+	case "/api/v1/instances":
+		if body.Product != license.ProductID || body.PublicKey == "" {
+			writeProblem(writer, http.StatusBadRequest, "validation_failed")
+			return
+		}
+		f.registered++
+		writer.WriteHeader(http.StatusNoContent)
+	case "/api/v1/activations":
+		switch body.ActivationCode {
+		case "USED-USED-USED-USED":
+			writeProblem(writer, http.StatusConflict, "instance_mismatch")
+		case "GOOD-GOOD-GOOD-GOOD":
+			f.licenseCode = f.issue()
+			_ = json.NewEncoder(writer).Encode(map[string]string{"license_code": f.licenseCode})
+		default:
+			writeProblem(writer, http.StatusNotFound, "activation_code_invalid")
+		}
+	case "/api/v1/license":
+		if f.licenseCode == "" {
+			writeProblem(writer, http.StatusNotFound, "not_found")
+			return
+		}
+		_ = json.NewEncoder(writer).Encode(map[string]string{"license_code": f.licenseCode})
+	default:
+		writeProblem(writer, http.StatusNotFound, "not_found")
+	}
+}
+
+// writeProblem 写入 RFC 9457 错误响应。
+func writeProblem(writer http.ResponseWriter, status int, code string) {
+	writer.Header().Set("Content-Type", "application/problem+json")
+	writer.WriteHeader(status)
+	_ = json.NewEncoder(writer).Encode(map[string]any{"type": "about:blank", "title": code, "status": status, "code": code, "retryable": false})
+}
+
+// TestInstanceLicenseOnline 验证经 control 在线激活、后台同步续期、错误映射、上报开关与实例重置。
+func TestInstanceLicenseOnline(t *testing.T) {
+	t.Parallel()
+	t.Cleanup(func() { brand.EnableOverrideUntil(time.Time{}) })
+	publicKey, privateKey, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := openEmptyDatabase(t)
+	keys := license.Keys{testLicenseKID: publicKey}
+	fake := &fakeControl{}
+	server := httptest.NewServer(fake)
+	defer server.Close()
+	client := control.New(server.URL, "test", func(ctx context.Context) (control.Identity, error) {
+		return deploymentaction.ControlIdentity(ctx, db)
+	})
+	backend := direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL, LicenseKeys: keys, Control: client},
+		nil, serverfilecontent.S3Config{}, nil, nil, newTestTasks(db), nil, nil, nil)
+	service := appservice.New(backend)
+	online := deploymentaction.NewOnlineLicenseAction(db, keys, client)
+	ctx := context.Background()
+
+	// 未安装时后台同步直接跳过。
+	if err := online.SyncTask(ctx, deploymentaction.SyncLicenseInput{}); err != nil {
+		t.Fatalf("sync before install: %v", err)
+	}
+	admin, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
+		WorkspaceName: "在线授权", WorkspaceSlug: "online-license", DisplayName: "管理员", Email: "admin@example.test",
+		Password: "password123", Locale: appservice.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: appservice.LocaleChineseSimplified}
+	current, err := service.GetInstanceLicense(ctx, adminMeta)
+	if err != nil || current.InstanceID == "" || current.Status != appservice.LicenseStatusNone {
+		t.Fatalf("initial license = %#v, err = %v", current, err)
+	}
+	instanceID := current.InstanceID
+	now := time.Now()
+	fake.mu.Lock()
+	fake.instanceID = instanceID
+	fake.issue = func() string {
+		return signTestLicense(t, privateKey, instanceID, now.Add(-time.Hour), now.AddDate(1, 0, 0), map[string]any{license.CapabilityWorkspaceLimit: 0})
+	}
+	fake.mu.Unlock()
+
+	// control 中尚无授权时：手动同步提示先激活，后台同步保持现状。
+	_, err = backend.SyncInstanceLicense(ctx, adminMeta)
+	requireErrorMessage(t, err, i18n.ErrorInstanceLicenseNotIssued)
+	if err := online.SyncTask(ctx, deploymentaction.SyncLicenseInput{}); err != nil {
+		t.Fatalf("sync without license: %v", err)
+	}
+
+	// 激活码无效或已用于其他实例时返回对应错误，有效激活码激活授权。
+	_, err = backend.ActivateInstanceLicenseOnline(ctx, adminMeta, appservice.ActivateInstanceLicenseOnlineInput{ActivationCode: "BAD"})
+	requireErrorMessage(t, err, i18n.ErrorActivationCodeInvalid)
+	_, err = backend.ActivateInstanceLicenseOnline(ctx, adminMeta, appservice.ActivateInstanceLicenseOnlineInput{ActivationCode: "USED-USED-USED-USED"})
+	requireErrorMessage(t, err, i18n.ErrorActivationInstanceMismatch)
+	activated, err := service.ActivateInstanceLicenseOnline(ctx, adminMeta, appservice.ActivateInstanceLicenseOnlineInput{ActivationCode: " GOOD-GOOD-GOOD-GOOD\n"})
+	if err != nil || activated.Status != appservice.LicenseStatusActive || activated.InstanceID != instanceID || activated.Capabilities.WorkspaceLimit != 0 {
+		t.Fatalf("activated = %#v, err = %v", activated, err)
+	}
+
+	// control 续期后后台同步替换为签发更晚的授权码；control 返回较早的授权码时保留本地授权。
+	fake.mu.Lock()
+	renewed := signTestLicense(t, privateKey, instanceID, now, now.AddDate(2, 0, 0), map[string]any{license.CapabilityWorkspaceLimit: 0})
+	fake.licenseCode = renewed
+	fake.mu.Unlock()
+	if err := online.SyncTask(ctx, deploymentaction.SyncLicenseInput{}); err != nil {
+		t.Fatalf("sync renewed: %v", err)
+	}
+	synced, err := service.GetInstanceLicense(ctx, adminMeta)
+	if err != nil || synced.ExpiresAt == nil || !synced.ExpiresAt.After(activated.ExpiresAt.AddDate(0, 6, 0)) {
+		t.Fatalf("synced = %#v, err = %v", synced, err)
+	}
+	fake.mu.Lock()
+	fake.licenseCode = signTestLicense(t, privateKey, instanceID, now.Add(-2*time.Hour), now.AddDate(3, 0, 0), map[string]any{})
+	registered := fake.registered
+	fake.mu.Unlock()
+	kept, err := service.SyncInstanceLicense(ctx, adminMeta)
+	if err != nil || !kept.ExpiresAt.Equal(*synced.ExpiresAt) || kept.InstanceID != instanceID {
+		t.Fatalf("kept = %#v, err = %v", kept, err)
+	}
+	fake.mu.Lock()
+	if fake.registered != registered+1 {
+		t.Fatalf("registered = %d, want %d", fake.registered, registered+1)
+	}
+	fake.mu.Unlock()
+
+	// control 不再有授权或只返回已到期的授权码时，手动同步保留本地有效授权。
+	for _, code := range []string{"", signTestLicense(t, privateKey, instanceID, now.AddDate(-2, 0, 0), now.Add(-time.Hour), map[string]any{})} {
+		fake.mu.Lock()
+		fake.licenseCode = code
+		fake.mu.Unlock()
+		local, err := service.SyncInstanceLicense(ctx, adminMeta)
+		if err != nil || local.Status != appservice.LicenseStatusActive || !local.ExpiresAt.Equal(*synced.ExpiresAt) {
+			t.Fatalf("local = %#v, err = %v", local, err)
+		}
+	}
+
+	// 关闭上报后不再采集运行指标。
+	values, err := deploymentaction.TelemetryMetrics(ctx, db)
+	if err != nil || values == nil || values["deployment.accounts"] != 1 {
+		t.Fatalf("metrics = %#v, err = %v", values, err)
+	}
+	settings, err := service.UpdateDeploymentTelemetry(ctx, adminMeta, appservice.DeploymentTelemetryInput{TelemetryEnabled: false})
+	if err != nil || settings.TelemetryEnabled {
+		t.Fatalf("settings = %#v, err = %v", settings, err)
+	}
+	if values, err := deploymentaction.TelemetryMetrics(ctx, db); err != nil || values != nil {
+		t.Fatalf("metrics after disable = %#v, err = %v", values, err)
+	}
+
+	// control 不可用时提示改用离线授权。
+	server.Close()
+	_, err = backend.SyncInstanceLicense(ctx, adminMeta)
+	requireErrorMessage(t, err, i18n.ErrorControlUnavailable)
+
+	// 重置实例生成新的实例标识并删除本地授权。
+	resetID, err := deploymentaction.ResetInstance(ctx, db)
+	if err != nil || resetID == "" || resetID == instanceID {
+		t.Fatalf("reset = %q, err = %v", resetID, err)
+	}
+	reset, err := service.GetInstanceLicense(ctx, adminMeta)
+	if err != nil || reset.InstanceID != resetID || reset.Status != appservice.LicenseStatusNone {
+		t.Fatalf("after reset = %#v, err = %v", reset, err)
 	}
 }

@@ -29,7 +29,7 @@ func validInput() InstallWorkspaceInput {
 // installValidationFields 执行首次安装并返回字段校验结果。
 func installValidationFields(t *testing.T, input InstallWorkspaceInput) map[string]accountaction.ValidationCode {
 	t.Helper()
-	_, err := NewInstallWorkspaceAction(nil).Execute(context.Background(), input)
+	_, err := NewInstallWorkspaceAction(nil, nil).Execute(context.Background(), input)
 	var validationError *ValidationError
 	if !errors.As(err, &validationError) {
 		t.Fatalf("error = %#v, want validation error", err)

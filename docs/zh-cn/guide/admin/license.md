@@ -1,7 +1,6 @@
 ---
 title: 实例授权
 order: 3
-requires: [instanceLicense]
 ---
 
 激活商业授权，开放多工作区等能力。

@@ -13,11 +13,12 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// Settings 定义部署管理员可修改的部署级策略与运营数据统计时区。
+// Settings 定义部署管理员可修改的部署级策略、运营数据统计时区与运行指标上报开关。
 type Settings struct {
 	RegistrationPolicy      domain.RegistrationPolicy
 	WorkspaceCreationPolicy domain.WorkspaceCreationPolicy
 	StatisticsTimeZone      string
+	TelemetryEnabled        bool
 }
 
 // settingsFromModel 读取部署实例行中的部署级策略。
@@ -26,6 +27,7 @@ func settingsFromModel(deployment *servermodels.Deployment) Settings {
 		RegistrationPolicy:      domain.RegistrationPolicy(deployment.RegistrationPolicy),
 		WorkspaceCreationPolicy: domain.WorkspaceCreationPolicy(deployment.WorkspaceCreationPolicy),
 		StatisticsTimeZone:      deployment.StatisticsTimeZone,
+		TelemetryEnabled:        deployment.TelemetryEnabled,
 	}
 }
 
@@ -39,7 +41,7 @@ func NewSettingsQuery(db *bun.DB) *SettingsQuery {
 	return &SettingsQuery{db: db}
 }
 
-// Execute 返回当前注册策略、工作区创建策略和统计时区。
+// Execute 返回当前注册策略、工作区创建策略、统计时区和运行指标上报开关。
 func (q *SettingsQuery) Execute(ctx context.Context) (Settings, error) {
 	deployment, err := Load(ctx, q.db)
 	if err != nil {

@@ -62,6 +62,9 @@ var adminBackendMethods = map[string]bool{
 	"GetPlatformAIModelCall":             true,
 	"GetInstanceLicense":                 true,
 	"ActivateInstanceLicense":            true,
+	"ActivateInstanceLicenseOnline":      true,
+	"SyncInstanceLicense":                true,
+	"UpdateDeploymentTelemetry":          true,
 }
 
 // TestBackendMethodsRequireAuthentication 验证非公开方法在无会话时都被挡回登录入口，

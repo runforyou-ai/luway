@@ -51,7 +51,7 @@ func openEmptyDatabase(t *testing.T) *bun.DB {
 
 // newAccountTestBackend 创建自托管直接后端，只接入账号与工作区入口需要的依赖。
 func newAccountTestBackend(db *bun.DB) *direct.Backend {
-	return direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
+	return direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL}, nil, serverfilecontent.S3Config{}, nil, nil, newTestTasks(db), nil, nil, nil)
 }
 
 // requireSessionState 断言错误把调用方引导到指定会话入口。

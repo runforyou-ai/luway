@@ -679,7 +679,7 @@ func (s *Service) GetDeploymentOverview(ctx context.Context, meta RequestMeta) (
 	return WithNormalizedSlices(s.backend.GetDeploymentOverview(ctx, meta))
 }
 
-// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 func (s *Service) GetDeploymentSettings(ctx context.Context, meta RequestMeta) (DeploymentSettings, error) {
 	return WithNormalizedSlices(s.backend.GetDeploymentSettings(ctx, meta))
 }
@@ -692,6 +692,11 @@ func (s *Service) UpdateDeploymentSettings(ctx context.Context, meta RequestMeta
 // UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
 func (s *Service) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta RequestMeta, input DeploymentStatisticsTimeZoneInput) (DeploymentSettings, error) {
 	return WithNormalizedSlices(s.backend.UpdateDeploymentStatisticsTimeZone(ctx, meta, input))
+}
+
+// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+func (s *Service) UpdateDeploymentTelemetry(ctx context.Context, meta RequestMeta, input DeploymentTelemetryInput) (DeploymentSettings, error) {
+	return WithNormalizedSlices(s.backend.UpdateDeploymentTelemetry(ctx, meta, input))
 }
 
 // ListDeploymentAccounts 返回部署内的账号。
@@ -724,14 +729,24 @@ func (s *Service) ListDeploymentWorkspaces(ctx context.Context, meta RequestMeta
 	return WithNormalizedSlices(s.backend.ListDeploymentWorkspaces(ctx, meta, input))
 }
 
-// GetInstanceLicense 返回实例授权状态。
+// GetInstanceLicense 返回实例标识与实例授权状态。
 func (s *Service) GetInstanceLicense(ctx context.Context, meta RequestMeta) (InstanceLicense, error) {
 	return WithNormalizedSlices(s.backend.GetInstanceLicense(ctx, meta))
 }
 
-// ActivateInstanceLicense 用授权码激活或替换实例授权。
+// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
 func (s *Service) ActivateInstanceLicense(ctx context.Context, meta RequestMeta, input ActivateInstanceLicenseInput) (InstanceLicense, error) {
 	return WithNormalizedSlices(s.backend.ActivateInstanceLicense(ctx, meta, input))
+}
+
+// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+func (s *Service) ActivateInstanceLicenseOnline(ctx context.Context, meta RequestMeta, input ActivateInstanceLicenseOnlineInput) (InstanceLicense, error) {
+	return WithNormalizedSlices(s.backend.ActivateInstanceLicenseOnline(ctx, meta, input))
+}
+
+// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+func (s *Service) SyncInstanceLicense(ctx context.Context, meta RequestMeta) (InstanceLicense, error) {
+	return WithNormalizedSlices(s.backend.SyncInstanceLicense(ctx, meta))
 }
 
 // SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。

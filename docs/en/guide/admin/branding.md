@@ -1,7 +1,6 @@
 ---
 title: Branding
 order: 4
-requires: [instanceLicense]
 ---
 
 Use your own brand within the scope of your license.

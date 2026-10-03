@@ -1,6 +1,7 @@
 /** 部署管理调用：部署概况、实例授权、部署设置、部署账号和部署工作区。 */
 import {
   ActivateInstanceLicense,
+  ActivateInstanceLicenseOnline,
   DeactivateDeploymentAccount,
   GetDeploymentOverview,
   GetDeploymentSettings,
@@ -12,8 +13,10 @@ import {
   ResumeDeploymentWorkspace,
   RevokeDeploymentAdmin,
   SuspendDeploymentWorkspace,
+  SyncInstanceLicense,
   UpdateDeploymentSettings,
   UpdateDeploymentStatisticsTimeZone,
+  UpdateDeploymentTelemetry,
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   AccountStatus,
@@ -30,13 +33,19 @@ const listDeploymentWorkspacesBound = bind(ListDeploymentWorkspaces)
 /** 读取部署实例标识、服务端版本、规模、活跃趋势和实例能力。 */
 export const getDeploymentOverview = bind(GetDeploymentOverview)
 
-/** 读取实例授权状态。 */
+/** 读取实例标识与实例授权状态。 */
 export const getInstanceLicense = bind(GetInstanceLicense)
 
-/** 用授权码激活或替换实例授权。 */
+/** 用授权码离线激活或替换实例授权。 */
 export const activateInstanceLicense = bind(ActivateInstanceLicense)
 
-/** 读取部署注册策略、工作区创建策略和统计时区。 */
+/** 用激活码在线激活实例授权。 */
+export const activateInstanceLicenseOnline = bind(ActivateInstanceLicenseOnline)
+
+/** 立即向授权服务登记实例并拉取最新授权。 */
+export const syncInstanceLicense = bind(SyncInstanceLicense)
+
+/** 读取部署注册策略、工作区创建策略、统计时区和运行指标上报开关。 */
 export const getDeploymentSettings = bind(GetDeploymentSettings)
 
 /** 修改部署注册策略和工作区创建策略。 */
@@ -44,6 +53,9 @@ export const updateDeploymentSettings = bind(UpdateDeploymentSettings)
 
 /** 修改运营数据统计时区，服务端按新时区在后台重建运营数据。 */
 export const updateDeploymentStatisticsTimeZone = bind(UpdateDeploymentStatisticsTimeZone)
+
+/** 开启或关闭运行指标上报。 */
+export const updateDeploymentTelemetry = bind(UpdateDeploymentTelemetry)
 
 /** 停用其他账号并使其登录会话失效。 */
 export const deactivateDeploymentAccount = bind(DeactivateDeploymentAccount)

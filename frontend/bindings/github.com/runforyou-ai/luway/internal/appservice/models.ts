@@ -388,6 +388,13 @@ export interface ActivateInstanceLicenseInput {
 }
 
 /**
+ * ActivateInstanceLicenseOnlineInput 定义部署管理员输入的激活码。
+ */
+export interface ActivateInstanceLicenseOnlineInput {
+    "activationCode": string;
+}
+
+/**
  * Agent 定义 AI 员工信息，Behavior 是该员工当前生效的内置工作规则与可用工具，HandoffTeamID 为空表示转人工进入公共队列，Responsible 为空表示未指定负责人。
  */
 export interface Agent {
@@ -2328,12 +2335,13 @@ export interface DeploymentPoliciesInput {
 }
 
 /**
- * DeploymentSettings 定义部署注册策略、工作区创建策略和运营数据统计时区。
+ * DeploymentSettings 定义部署注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
  */
 export interface DeploymentSettings {
     "registrationPolicy": RegistrationPolicy;
     "workspaceCreationPolicy": WorkspaceCreationPolicy;
     "statisticsTimeZone": string;
+    "telemetryEnabled": boolean;
 }
 
 /**
@@ -2341,6 +2349,13 @@ export interface DeploymentSettings {
  */
 export interface DeploymentStatisticsTimeZoneInput {
     "statisticsTimeZone": string;
+}
+
+/**
+ * DeploymentTelemetryInput 定义运行指标上报开关的修改值。
+ */
+export interface DeploymentTelemetryInput {
+    "telemetryEnabled": boolean;
 }
 
 /**
@@ -3138,9 +3153,10 @@ export interface InstanceCapabilities {
 }
 
 /**
- * InstanceLicense 定义实例授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有状态和免费能力。
+ * InstanceLicense 定义实例标识、实例授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有实例标识、状态和免费能力。
  */
 export interface InstanceLicense {
+    "instanceId": string;
     "status": LicenseStatus;
     "licenseId": string;
     "customer": string;
