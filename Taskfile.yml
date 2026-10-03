@@ -114,6 +114,28 @@ tasks:
           echo "已创建数据库 {{.POSTGRES_DB}}"
         fi
 
+  db:reset:
+    summary: 清空当前工作区数据库后重新执行服务端迁移
+    desc: |
+      在 PostgreSQL 容器内删除并重建当前工作区数据库，再执行全部迁移。
+      执行前请先停止服务端。
+    deps:
+      - env:check:database
+    preconditions:
+      - sh: docker info >/dev/null 2>&1
+        msg: "Docker 未运行，无法连接 PostgreSQL 容器"
+    cmds:
+      - |
+        set -euo pipefail
+        docker exec luway-postgres \
+          dropdb --force --if-exists -U "{{.POSTGRES_USER}}" \
+          --maintenance-db postgres "{{.POSTGRES_DB}}"
+        docker exec luway-postgres \
+          createdb -U "{{.POSTGRES_USER}}" \
+          --maintenance-db postgres "{{.POSTGRES_DB}}"
+        echo "已重建数据库 {{.POSTGRES_DB}}"
+      - task: migrate
+
   db:test:reset:
     internal: true
     silent: true
@@ -297,19 +319,6 @@ tasks:
         vars:
           GOOSE_CMD: '{{if .VERSION}}down-to {{.VERSION}}{{else}}down{{end}}'
           GOOSE_REPEAT: '{{if .VERSION}}1{{else}}{{.STEP | default 1}}{{end}}'
-
-  migrate:reset:
-    summary: 回滚全部服务端迁移后重新执行
-    desc: |
-      使用 Goose reset 回滚全部迁移，再执行 up。
-      执行前请先停止服务端。
-    deps:
-      - db:ensure
-    cmds:
-      - task: migrate:run
-        vars:
-          GOOSE_CMD: reset
-      - task: migrate
 
   make:migration:
     silent: true

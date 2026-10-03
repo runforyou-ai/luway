@@ -153,10 +153,10 @@ wails3 task common:build:frontend            # 前端生产构建
 
 ```bash
 wails3 task db:ensure
+wails3 task db:reset
 wails3 task migrate
 wails3 task migrate:status
 wails3 task migrate:rollback                         # 可加 STEP=3 或 VERSION=<时间戳>
-wails3 task migrate:reset
 wails3 task make:migration NAME=create_example_table
 wails3 task run:server
 wails3 task test:server
@@ -194,7 +194,7 @@ wails3 task build:server
 ### 数据与迁移
 
 - 本地不运行 S3 兼容服务；对象存储由服务端部署配置的 `storage.s3` 字段和 `S3_*` 环境变量管理，可使用任意客户端可访问的临时 S3 兼容服务。
-- 回滚和重建库结构前先停止服务端；重建使用 `migrate:reset`，或先回滚再 `migrate`。
+- 回滚和重建库结构前先停止服务端；重建使用 `db:reset`，或先回滚再 `migrate`。
 - 已合入 `main` 的迁移不可修改、重命名或重排；后续结构变化新增时间戳更晚的增量迁移，并提供 Down 迁移。
 - 上线前经用户明确要求可一次性压平已合入的迁移：删除被合并的增量迁移，被改写的建表迁移改用命令运行时的新时间戳。服务端与原生端启动迁移和 `wails3 task migrate` 发现已执行版本缺少源文件即报错，已有数据库按提示重建。
 - 同一未合并 PR 内调整数据结构时，直接修改或合并尚未合入 `main` 的对应迁移，只保留最终结构，不为 PR 内已放弃的中间方案追加过渡、修正或清理迁移。本地已执行旧版本时手动调整开发库或迁移记录，不把一次性修正写入产品迁移。
