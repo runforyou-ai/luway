@@ -33,6 +33,7 @@
   "error.knowledge_page_unreachable": "读取网页失败，请检查地址是否可访问。",
   "error.knowledge_page_unsupported": "该地址返回的内容不是网页或纯文本。",
   "error.knowledge_page_too_large": "网页内容超过 10 MB。",
+  "error.knowledge_content_too_large": "文档内容过多，请拆分后重新上传。",
   "error.agent_reply_stop_failed": "停止 AI 回复失败，请重试。",
   "error.agent_unavailable": "这个 AI 员工当前不可用。",
   "agent.customer_handoff_assigned": "已为您转接人工客服{{.Name}}，请稍候。",

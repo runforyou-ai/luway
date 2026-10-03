@@ -3,8 +3,6 @@
 package documentconvert
 
 import (
-	"archive/zip"
-	"bytes"
 	"errors"
 	"strconv"
 	"strings"
@@ -19,11 +17,11 @@ type docxDocument struct {
 
 // convertDOCX 把 Word 正文中的标题、段落、列表和表格转换为 Markdown。
 func convertDOCX(data []byte) (string, error) {
-	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	archive, err := openPackage(data)
 	if err != nil {
 		return "", err
 	}
-	root, err := readPart(archive, "word/document.xml")
+	root, err := archive.readPart("word/document.xml")
 	if err != nil {
 		return "", err
 	}
@@ -31,7 +29,7 @@ func convertDOCX(data []byte) (string, error) {
 	if body == nil {
 		return "", errors.New("docx body missing")
 	}
-	relationships, err := readRelationships(archive, "word/document.xml")
+	relationships, err := archive.readRelationships("word/document.xml")
 	if err != nil {
 		return "", err
 	}
@@ -42,7 +40,7 @@ func convertDOCX(data []byte) (string, error) {
 		}
 	}
 	// 按样式名称或大纲级别识别标题样式。
-	styles, err := readPart(archive, "word/styles.xml")
+	styles, err := archive.readPart("word/styles.xml")
 	if err != nil {
 		return "", err
 	}
@@ -61,7 +59,7 @@ func convertDOCX(data []byte) (string, error) {
 		}
 	}
 	// 按编号定义记录每个列表级别是否为有序编号。
-	numbering, err := readPart(archive, "word/numbering.xml")
+	numbering, err := archive.readPart("word/numbering.xml")
 	if err != nil {
 		return "", err
 	}

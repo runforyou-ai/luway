@@ -33,6 +33,7 @@
   "error.knowledge_page_unreachable": "Could not read the page. Check that the address is reachable.",
   "error.knowledge_page_unsupported": "That address did not return a web page or plain text.",
   "error.knowledge_page_too_large": "The page content exceeds 10 MB.",
+  "error.knowledge_content_too_large": "The document has too much content. Split it and upload again.",
   "error.agent_reply_stop_failed": "Failed to stop the AI reply. Please try again.",
   "error.agent_unavailable": "This AI employee is currently unavailable.",
   "agent.customer_handoff_assigned": "I've transferred you to {{.Name}} from our support team. Please hold on.",
