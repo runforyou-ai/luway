@@ -1,7 +1,8 @@
-/** 工作台左下角的用户菜单：工作状态、设置入口、在客户端中使用、帮助文档、切换或创建工作区与退出登录。 */
+/** 工作台左下角的用户菜单：工作状态、设置入口、在客户端中使用、帮助文档、桌面端检查更新、切换或创建工作区与退出登录。 */
 import { useRef, useState } from "react"
 import {
   CheckIcon,
+  CircleArrowUpIcon,
   CircleHelpIcon,
   LayoutGridIcon,
   LoaderCircleIcon,
@@ -19,6 +20,7 @@ import { useWorkspaceScope } from "@/contexts/workspace-scope-context"
 import { useWorkStatusChange } from "@/hooks/use-work-status-change"
 import { useWorkspaceAttention } from "@/hooks/use-workspace-attention"
 import { ClientLinkDialog } from "@/features/server-connection/client-link-dialog"
+import { useClientUpdate } from "@/features/server-connection/client-update"
 import { resolveAppPlatform } from "@/platform/app-platform"
 import { openProductDocs } from "@/platform/product-docs"
 import { enterWorkspace, navigateToHashPath, withReturnTo } from "@/lib/workspace-route"
@@ -39,7 +41,7 @@ import { WorkStatusDot, WorkStatusPicker } from "@/components/work-status"
 import { UserAvatar } from "@/components/user-avatar"
 import { cn } from "@/lib/utils"
 
-/** 展示当前成员头像与工作区，展开后切换工作状态、进入设置、打开帮助文档、切换工作区或确认后退出登录。 */
+/** 展示当前成员头像与工作区，展开后切换工作状态、进入设置、打开帮助文档、检查更新、切换工作区或确认后退出登录；桌面端发现新版本时提示更新。 */
 export function WorkspaceUserMenu({
   identity,
   collapsed,
@@ -61,6 +63,7 @@ export function WorkspaceUserMenu({
   const [confirmingLogout, setConfirmingLogout] = useState(false)
   const workStatus = useWorkStatusChange(identity.user.workStatus)
   const userMenuTriggerRef = useRef<HTMLButtonElement>(null)
+  const clientUpdate = useClientUpdate(resolveAppPlatform() === "desktop")
   const skipUserMenuFocusRestoreRef = useRef(false)
 
   /** 从用户菜单进入页面，并清除头像触发器的选中效果。 */
@@ -176,6 +179,20 @@ export function WorkspaceUserMenu({
             <CircleHelpIcon />
             {t("common:productDocs")}
           </DropdownMenuItem>
+          {/* 桌面端从所连接服务器检查并安装更新，有新版本时标出。 */}
+          {resolveAppPlatform() === "desktop" ? (
+            <DropdownMenuItem onSelect={() => void clientUpdate.check()}>
+              <CircleArrowUpIcon />
+              <span className="flex-1">{t("connection:update.check")}</span>
+              {clientUpdate.update?.version ? (
+                <span className="rounded-sm bg-primary/10 px-1.5 text-xs font-medium text-primary">
+                  {t("connection:update.available")}
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground">{clientUpdate.update?.currentVersion}</span>
+              )}
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <LayoutGridIcon />
@@ -254,6 +271,7 @@ export function WorkspaceUserMenu({
         }}
       />
       <ClientLinkDialog open={clientLinkOpen} onOpenChange={setClientLinkOpen} />
+      {clientUpdate.dialog}
     </div>
   )
 }

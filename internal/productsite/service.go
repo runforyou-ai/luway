@@ -237,7 +237,7 @@ func (s *Service) platformViews(tag string) []platformView {
 	views := make([]platformView, 0, len(platforms))
 	for _, platform := range platforms {
 		view := platformView{ID: platform.id, Name: platform.name, Icon: platform.icon}
-		for _, file := range s.clients.Files() {
+		for _, file := range s.clients.Installers() {
 			if file.OS != platform.os {
 				continue
 			}
@@ -249,7 +249,7 @@ func (s *Service) platformViews(tag string) []platformView {
 				label = universal
 			}
 			view.Downloads = append(view.Downloads, downloadView{
-				Label: label, Size: fmt.Sprintf("%.1f MB", float64(file.Size)/(1<<20)), URL: clientrelease.URL(file),
+				Label: label, Size: fmt.Sprintf("%.1f MB", float64(file.Size)/(1<<20)), URL: clientrelease.URL(file.File),
 			})
 		}
 		switch {

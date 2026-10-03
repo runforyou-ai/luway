@@ -2,7 +2,9 @@
 package brand
 
 import (
+	"crypto/ed25519"
 	_ "embed"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -46,6 +48,8 @@ type Brand struct {
 	SDKName string `json:"sdkName"`
 	// ServerURL 是原生端内置的部署地址，本机没有保存过服务器地址时直接使用该地址；为空时进入连接页。
 	ServerURL string `json:"serverURL,omitempty"`
+	// UpdatePublicKey 是验证桌面端更新包签名的 Ed25519 公钥（原始 32 字节的 base64），为空时桌面端不启用应用内更新。
+	UpdatePublicKey string `json:"updatePublicKey,omitempty"`
 }
 
 // Override 定义部署级品牌覆盖，留空的字段沿用构建品牌。
@@ -151,7 +155,19 @@ func (b Brand) Validate() error {
 			return fmt.Errorf("serverURL 必须是不带路径的完整 HTTP 地址")
 		}
 	}
+	if b.UpdatePublicKey != "" && b.UpdateKey() == nil {
+		return fmt.Errorf("updatePublicKey 必须是 Ed25519 公钥原始 32 字节的 base64")
+	}
 	return nil
+}
+
+// UpdateKey 返回验证桌面端更新包签名的公钥，未配置或格式无效时为 nil。
+func (b Brand) UpdateKey() ed25519.PublicKey {
+	key, err := base64.StdEncoding.DecodeString(b.UpdatePublicKey)
+	if err != nil || len(key) != ed25519.PublicKeySize {
+		return nil
+	}
+	return key
 }
 
 // Name 按界面语言返回产品名称：先精确匹配语言标签，再匹配主语言，都没有时使用 DefaultLocale 名称。

@@ -14,7 +14,7 @@
 # The Taskfile passes these through: task build:docker CGO_ENABLED=1 GO_IMAGE=... RUNTIME_IMAGE=...
 # 通过 wails3 task build:docker 先构建 frontend/dist、internal/publicweb/dist 和 internal/productdocs/dist/site。
 # 直接调用 docker build 前须准备这些资源，CI 的前端 build 脚本会一并生成；未构建文档样式时 /docs/ 页面不带样式。
-# 客户端安装包通过构建上下文 clients 传入（--build-context clients=<客户端目录>），目录须含与 APP_VERSION 同版本的 clients.json；未传入时镜像不提供客户端下载。
+# 客户端安装包与更新包通过构建上下文 clients 传入（--build-context clients=<客户端目录>），目录须含与 APP_VERSION 同版本的 clients.json；未传入时镜像不提供客户端下载。
 
 ARG GO_IMAGE=golang:1.27-alpine
 ARG RUNTIME_IMAGE=gcr.io/distroless/static-debian12

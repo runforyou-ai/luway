@@ -34,6 +34,7 @@ export function useResource<T>(
     gcTime?: number
     staleTime?: number
     refetchInterval?: number | false | ((data: T | undefined) => number | false)
+    refetchIntervalInBackground?: boolean
     refetchOnWindowFocus?: boolean
     placeholder?: () => T | undefined
   } = {},
@@ -52,6 +53,7 @@ export function useResource<T>(
     refetchInterval: typeof refetchInterval === "function"
       ? (query) => refetchInterval(query.state.data)
       : refetchInterval,
+    refetchIntervalInBackground: options.refetchIntervalInBackground,
     refetchOnWindowFocus: options.refetchOnWindowFocus,
   })
 

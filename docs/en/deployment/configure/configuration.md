@@ -27,7 +27,7 @@ This page is being written.
 
 | Field | Environment variable | Default | Description |
 | --- | --- | --- | --- |
-| `clients.directory` | `CLIENTS_DIRECTORY` | `data/clients` | Directory holding client installers and their index `clients.json`. See [Client distribution](/docs/en/deployment/operate/client-distribution/) |
+| `clients.directory` | `CLIENTS_DIRECTORY` | `data/clients` | Directory holding client installers, update packages and their index `clients.json`. See [Client distribution](/docs/en/deployment/operate/client-distribution/) |
 
 ## Email
 

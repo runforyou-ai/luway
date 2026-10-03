@@ -238,6 +238,8 @@ export const resourceKeys = {
   knowledgeGapSimilarQA: (gapId: string, knowledgeBaseId: string, query: string) => ["knowledge-gap-similar-qa", gapId, knowledgeBaseId, query],
   /** 当前客户端连接的企业服务器地址。 */
   serverURL: () => ["server-url"],
+  /** 本机客户端版本与所连接服务器提供的较新客户端版本。 */
+  clientUpdate: () => ["client-update"],
   /** 知识库列表。 */
   knowledgeBases: () => ["knowledge-bases"],
   /** 单个知识库。 */
@@ -333,4 +335,5 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.platformWorkspaceCredits()[0],
   resourceKeys.platformWorkspaceCreditEntries()[0],
   resourceKeys.serverURL()[0],
+  resourceKeys.clientUpdate()[0],
 ])

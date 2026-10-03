@@ -108,6 +108,13 @@ export function ChangePassword(meta: $models.RequestMeta, input: $models.ChangeP
 }
 
 /**
+ * CheckClientUpdate 返回本机客户端版本与所连接服务器提供的较新客户端版本。
+ */
+export function CheckClientUpdate(meta: $models.RequestMeta): $CancellablePromise<$models.ClientUpdate> {
+    return $Call.ByID(1730946413, meta);
+}
+
+/**
  * CheckNotificationPermission 返回当前设备的系统通知授权状态。
  */
 export function CheckNotificationPermission(meta: $models.RequestMeta): $CancellablePromise<$models.NotificationPermissionStatus> {
@@ -896,6 +903,13 @@ export function GetWebsiteChannel(meta: $models.RequestMeta, channelID: string):
  */
 export function GrantPlatformAdmin(meta: $models.RequestMeta, accountID: string): $CancellablePromise<$models.PlatformAccount> {
     return $Call.ByID(3143688549, meta, accountID);
+}
+
+/**
+ * InstallClientUpdate 从所连接服务器下载并验证客户端更新包，替换应用后重启。
+ */
+export function InstallClientUpdate(meta: $models.RequestMeta): $CancellablePromise<void> {
+    return $Call.ByID(36715578, meta);
 }
 
 /**

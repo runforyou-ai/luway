@@ -27,7 +27,7 @@ order: 1
 
 | 配置项 | 环境变量 | 默认值 | 说明 |
 | --- | --- | --- | --- |
-| `clients.directory` | `CLIENTS_DIRECTORY` | `data/clients` | 存放客户端安装包及其索引 `clients.json` 的目录，见[客户端分发](/docs/zh-cn/deployment/operate/client-distribution/) |
+| `clients.directory` | `CLIENTS_DIRECTORY` | `data/clients` | 存放客户端安装包、更新包及其索引 `clients.json` 的目录，见[客户端分发](/docs/zh-cn/deployment/operate/client-distribution/) |
 
 ## 邮件
 

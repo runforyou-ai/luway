@@ -952,6 +952,12 @@ type NativeLocaleUpdater interface {
 	SetLocale(Locale)
 }
 
+// ClientUpdater 由桌面端实现，检查所连接服务器提供的客户端版本，并在支持的平台下载、验证、替换应用后重启。
+type ClientUpdater interface {
+	CheckClientUpdate(context.Context, RequestMeta) (ClientUpdate, error)
+	InstallClientUpdate(context.Context, RequestMeta) error
+}
+
 // NativeServerLink 由原生端实现连接链接的接收。
 type NativeServerLink interface {
 	// TakeOpenedServerLink 返回并清除最近一次唤起应用的连接链接携带的部署地址，没有时返回空串。

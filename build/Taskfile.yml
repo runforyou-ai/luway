@@ -257,7 +257,7 @@ tasks:
       production frontend is built first so the embedded assets are current.
 
       Usage: task build:docker [TAG=myapp:latest] [VERSION=0.1.0] [CLIENTS=<客户端目录>] [CGO_ENABLED=1] [GO_IMAGE=...] [RUNTIME_IMAGE=...]
-      CLIENTS 指向含 clients.json 的客户端目录时，镜像内置这些安装包；索引版本须与 VERSION 一致。
+      CLIENTS 指向含 clients.json 的客户端目录时，镜像内置这些安装包与更新包；索引版本须与 VERSION 一致。
       For CGO apps, set CGO_ENABLED=1 with libc-compatible builder/runtime images, e.g.:
         task build:docker CGO_ENABLED=1 GO_IMAGE=golang:1.27-bookworm RUNTIME_IMAGE=gcr.io/distroless/base-debian12
     deps:

@@ -72,3 +72,23 @@ func TestValidateServerURL(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateUpdatePublicKey 验证更新公钥可以为空，填写时必须是 32 字节 Ed25519 公钥的 base64。
+func TestValidateUpdatePublicKey(t *testing.T) {
+	cases := map[string]bool{
+		"": true,
+		"MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=": false,
+		"GB9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=":                 true,
+		"not base64": false,
+	}
+	for key, valid := range cases {
+		value := Build()
+		value.UpdatePublicKey = key
+		if err := value.Validate(); (err == nil) != valid {
+			t.Errorf("updatePublicKey %q 校验结果 = %v，期望有效 = %v", key, err, valid)
+		}
+		if valid && key != "" && len(value.UpdateKey()) != 32 {
+			t.Errorf("updatePublicKey %q 解析后长度 = %d", key, len(value.UpdateKey()))
+		}
+	}
+}

@@ -28,6 +28,7 @@ import (
 // authOps 持有首次安装、账号会话和工作区列表的 Action 和 Query。
 type authOps struct {
 	deploymentName     string
+	clientVersion      string
 	platformSettings   *platformaction.SettingsQuery
 	installWorkspace   *installationaction.InstallWorkspaceAction
 	login              *authaction.LoginAction
@@ -43,6 +44,7 @@ type authOps struct {
 func newAuthOps(db *bun.DB, deployment DeploymentConfig, taskEnqueuer servertask.TxEnqueuer) authOps {
 	return authOps{
 		deploymentName:     deployment.Name,
+		clientVersion:      deployment.ClientVersion,
 		platformSettings:   platformaction.NewSettingsQuery(db),
 		installWorkspace:   installationaction.NewInstallWorkspaceAction(db, taskEnqueuer),
 		login:              authaction.NewLoginAction(db),
@@ -60,7 +62,7 @@ func authFromSession(output authaction.SessionOutput) appservice.Auth {
 	return appservice.Auth{Account: accountFromModel(*output.Account), Token: output.Token, ExpiresAt: output.ExpiresAt}
 }
 
-// InstallationStatus 返回部署名称、首次安装状态、注册策略是否开放注册、产品品牌和接口版本。
+// InstallationStatus 返回部署名称、首次安装状态、注册策略是否开放注册、产品品牌、接口版本和服务器提供的客户端版本。
 func (o *directOperations) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
 	settings, err := o.platformSettings.Execute(ctx)
 	installed := !errors.Is(err, platformaction.ErrNotInstalled)
@@ -75,7 +77,7 @@ func (o *directOperations) InstallationStatus(ctx context.Context, meta appservi
 	return appservice.InstallationStatus{
 		DeploymentName: o.deploymentName, Installed: installed, RegistrationOpen: settings.RegistrationPolicy == domain.RegistrationPolicyOpen,
 		Brand:      appservice.Brand{Names: current.Names, SDKName: current.SDKName, LinkScheme: current.Slug},
-		APIVersion: appservice.APIVersion, MinClientAPIVersion: appservice.MinClientAPIVersion,
+		APIVersion: appservice.APIVersion, MinClientAPIVersion: appservice.MinClientAPIVersion, ClientVersion: o.clientVersion,
 	}, nil
 }
 

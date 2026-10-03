@@ -17,7 +17,7 @@ order: 0
 | `/app/` | Web 应用，首次安装、登录与工作区页面都在这里 |
 | `/docs/` | 与当前服务器版本对应的产品文档 |
 | `/zh-cn/download/` | 客户端下载页，英文页面在 `/en/download/`，见[客户端分发](/docs/zh-cn/deployment/operate/client-distribution/) |
-| `/clients/` | 客户端安装包文件 |
+| `/clients/` | 客户端安装包、更新包与桌面端更新清单 |
 
 ## 部署形态
 

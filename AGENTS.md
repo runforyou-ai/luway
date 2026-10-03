@@ -19,7 +19,7 @@ Luway 是开源、以自托管为主的 AI 原生企业协作产品，使用 Go�
 - 所有命令从仓库根目录通过 `wails3 task` 执行，Task 自动加载当前 worktree 的 `.env`。不直接调用底层构建工具。
 - 每个 worktree 使用独立的 Server、Vite 端口、PostgreSQL 数据库和 NATS 命名空间；PostgreSQL 和 NATS 为共享实例，由仓库根目录的 `docker-compose-dev.yml` 定义，`.env` 的 `COMPOSE_FILE` 指向该文件，仅在主工作区启动。
 - 开发、测试和界面验证统一通过当前 worktree 的公网域名 `https://<worktree 目录名>-dev.runforyou.app` 访问服务端，不使用 `127.0.0.1`、局域网 IP 等内网地址，并配置为该 worktree 的 `PUBLIC_URL`。该域名经常驻的 Cloudflare Tunnel 转发到该 worktree 的 `WAILS_SERVER_PORT`，由用户手动启动。
-- 客户端构建使用平台 Task（如 `darwin:build`、`windows:package`），目标架构只传 `ARCH`，不自行设置 `GOOS`、`GOARCH`、`CGO_ENABLED`。客户端固定启用 CGO；纯静态服务端镜像使用 `CGO_ENABLED=0`。
+- 客户端构建使用平台 Task（如 `darwin:build`、`windows:package`），目标架构只传 `ARCH`，不自行设置 `GOOS`、`GOARCH`、`CGO_ENABLED`。发布构建由环境变量 `VERSION` 注入程序版本号，未设置时为 `dev`。客户端固定启用 CGO；纯静态服务端镜像使用 `CGO_ENABLED=0`。
 - 每次测试或界面验证结束后，关闭本次启动的服务端、客户端、Vite、MCP 等进程及其子进程，并确认端口已释放；用户明确要求保留时除外。只清理本次启动的进程，不关闭其他 worktree 的进程或共享的 PostgreSQL、NATS。
 
 ## Wails 版本
@@ -56,7 +56,8 @@ Luway 是开源、以自托管为主的 AI 原生企业协作产品，使用 Go�
 - `docs/` 只放面向使用者、部署者与开发者的产品文档 Markdown，中文在 `zh-cn/`、英文在 `en/`，两种语言页面一一对应；侧边栏栏目与分组在 `docs/nav.yaml`。服务端内置这些源文件，由 `internal/productdocs` 用 goldmark 渲染，在 `/docs/` 下输出与服务端同版本的页面和搜索，并通过 `GetProductDocPage` 为应用内帮助提供正文片段。启动服务端即可预览，`productdocs` 的测试校验中英文对应、frontmatter、站内链接与锚点及导航覆盖。
 - 功能变更与对应文档在同一改动中更新。每页 frontmatter 写 `title`、`order`，只在特定部署可见的页面写 `requires`（`commerce`）；正文中的产品名称写 `{{product}}`，输出时替换为当前部署的品牌名称，标题不写产品名称；站内链接写成 `/docs/<语言>/<页面>/`，提示块用 `> [!NOTE]` 等 GitHub 写法。只面向官方与白标运营方的内容不写进产品文档。
 - 服务端根路径由 `internal/productsite` 用 Go 模板输出中英文产品首页（`/zh-cn/`、`/en/`）与客户端下载页（`/<语言>/download/`），与 `/docs/` 共用页头和样式，页头互相提供首页、文档与下载入口，右上角按 Web 应用的登录令牌显示当前账号或登录入口；页面文案由 `internal/i18n` 的 `site.*` 词条管理，产品名称用 `{{.Product}}` 插值，只介绍已实现的能力。
-- 客户端安装包由 `internal/clientrelease` 从服务端配置的客户端目录读取，目录中的 `clients.json` 是唯一的安装包清单，版本须与服务端一致，文件经 `/clients/` 下载。发布流程用 `build/scripts/clientindex` 从桌面端产物生成该目录，容器镜像经构建上下文 `clients` 内置它；客户端内的下载入口统一打开 `frontend/src/lib/client-download.ts` 给出的下载页。
+- 客户端安装包与桌面端更新包由 `internal/clientrelease` 从服务端配置的客户端目录读取，目录中的 `clients.json` 是唯一的文件清单，版本须与服务端一致，文件经 `/clients/` 下载，桌面端更新清单按 Wails 更新清单协议位于 `/clients/update`。发布流程用 `build/scripts/clientindex` 从桌面端产物生成该目录，并用与品牌 `updatePublicKey` 配对的私钥签名更新包，容器镜像经构建上下文 `clients` 内置该目录。
+- 桌面端以服务器状态中的 `clientVersion` 判断是否有新版本，macOS 与 Windows 经 `appservice/native` 的应用内更新（Wails 更新器）安装，其余情况打开 `frontend/src/lib/client-download.ts` 给出的下载页；品牌未配置更新公钥、版本不是语义化版本或当前用户无权写入应用所在目录时不启用应用内安装。
 - 站点样式在 `frontend/src/product-docs/`：`content.css` 是 `/docs/` 页面与应用内帮助共用的正文排版，`site.css` 是共用页头与文档布局，`home.css` 是产品首页布局，经 `wails3 task common:build:docs` 构建到 `internal/productdocs/dist/site`；颜色与圆角取自 `frontend/src/styles/theme-tokens.css`，与 Web 端共用。
 - 应用内帮助入口只引用 `frontend/src/lib/product-docs.ts` 中登记的页面：用户菜单经 `@/platform/product-docs` 打开完整文档，配置页面用 `ProductDocSheet` 在侧栏显示；调整文档页面路径时同步更新登记表。
 

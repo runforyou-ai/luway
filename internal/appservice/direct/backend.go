@@ -84,7 +84,7 @@ type directOperations struct {
 	productDocsOps
 }
 
-// DeploymentConfig 定义直接后端的部署名称、部署地址、邀请邮件发送、产品文档、授权码验签公钥和 control 客户端；邮件发送只在配置了 SMTP 时设置。
+// DeploymentConfig 定义直接后端的部署名称、部署地址、邀请邮件发送、产品文档、授权码验签公钥、control 客户端和服务器提供的客户端版本；邮件发送只在配置了 SMTP 时设置。
 type DeploymentConfig struct {
 	Name             string
 	PublicURL        string
@@ -92,6 +92,8 @@ type DeploymentConfig struct {
 	ProductDocs      *productdocs.Site
 	LicenseKeys      license.Keys
 	Control          *control.Client
+	// ClientVersion 是服务器客户端目录提供的客户端版本，没有客户端时为空。
+	ClientVersion string
 }
 
 // New 创建直接访问服务端存储的应用后端。

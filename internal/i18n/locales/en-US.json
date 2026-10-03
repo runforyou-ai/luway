@@ -189,6 +189,8 @@
   "error.internal": "The service is temporarily unavailable. Try again later.",
   "error.method_not_allowed": "This request method is not supported.",
   "error.installation_status_read_failed": "Could not read the installation status.",
+  "error.client_update_unavailable": "The server does not provide an update for this platform.",
+  "error.client_update_failed": "Update failed. Try again later.",
   "error.already_initialized": "Setup has already been completed.",
   "error.installation_required": "First-time setup hasn't been completed.",
   "error.authentication_status_failed": "Could not read the authentication status.",

@@ -34,6 +34,10 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      UPDATER_PRIVATE_KEY:
+        description: Ed25519 private key (PEM) matching the brand's updatePublicKey, used to sign desktop update packages
+        required: false
 
 permissions:
   contents: read
@@ -382,8 +386,10 @@ jobs:
           fi
           wails3 task windows:package ARCH="$arch" INSTALL_SCOPE=user
 
+          # 安装包用于首次安装，应用可执行文件是应用内更新替换的更新包。
           mkdir -p release-assets
           cp "bin/${slug}-${arch}-installer.exe" "release-assets/${slug}_${VERSION}_windows_${arch}-installer.exe"
+          cp "bin/${slug}.exe" "release-assets/${slug}_${VERSION}_windows_${arch}.exe"
 
       - name: Upload Windows desktop assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
@@ -450,10 +456,10 @@ jobs:
           wails3 task darwin:package:universal
           wails3 task darwin:create:dmg
 
-          mkdir -p release-assets "${slug}_${VERSION}_darwin_universal"
-          cp -R "bin/${slug}.app" "${slug}_${VERSION}_darwin_universal/"
-          ditto -c -k --sequesterRsrc --keepParent \
-            "${slug}_${VERSION}_darwin_universal" \
+          # zip 根目录只含应用包，作为应用内更新替换的更新包；不写入资源分支目录 __MACOSX。
+          mkdir -p release-assets
+          ditto -c -k --norsrc --noextattr --keepParent \
+            "bin/${slug}.app" \
             "release-assets/${slug}_${VERSION}_darwin_universal.zip"
 
           dmg="$(find bin -maxdepth 1 -type f -name '*.dmg' -print -quit)"
@@ -683,12 +689,23 @@ jobs:
           path: ${{ runner.temp }}/desktop-assets
           merge-multiple: true
 
+      # 品牌配置了更新公钥时用对应私钥签名更新包，未配置时客户端目录只含安装包。
       - name: Build client directory
         env:
           CLIENTS: ${{ runner.temp }}/clients
           DESKTOP_ASSETS: ${{ runner.temp }}/desktop-assets
+          UPDATER_PRIVATE_KEY: ${{ secrets.UPDATER_PRIVATE_KEY }}
           VERSION: ${{ needs.prepare.outputs.version }}
-        run: go run ./build/scripts/clientindex -version "$VERSION" -source "$DESKTOP_ASSETS" -output "$CLIENTS"
+        shell: bash
+        run: |
+          set -euo pipefail
+          key_args=()
+          if [[ -n "$UPDATER_PRIVATE_KEY" ]]; then
+            key="$RUNNER_TEMP/updater.key"
+            (umask 077 && printf '%s\n' "$UPDATER_PRIVATE_KEY" > "$key")
+            key_args=(-key "$key")
+          fi
+          go run ./build/scripts/clientindex -version "$VERSION" -source "$DESKTOP_ASSETS" -output "$CLIENTS" "${key_args[@]}"
 
       # 客户端索引随 Release 发布，供服务端更新时下载同版本客户端。
       - name: Upload client index

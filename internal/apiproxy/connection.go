@@ -143,6 +143,7 @@ func probeServer(ctx context.Context, state *remoteState) (appservice.Installati
 		Brand               appservice.Brand `json:"brand"`
 		APIVersion          int              `json:"apiVersion"`
 		MinClientAPIVersion int              `json:"minClientApiVersion"`
+		ClientVersion       string           `json:"clientVersion"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, maxResponseBytes)).Decode(&payload); err != nil {
 		return appservice.InstallationStatus{}, fmt.Errorf("decode installation status response: %w", err)
@@ -157,6 +158,7 @@ func probeServer(ctx context.Context, state *remoteState) (appservice.Installati
 		Brand:               payload.Brand,
 		APIVersion:          payload.APIVersion,
 		MinClientAPIVersion: payload.MinClientAPIVersion,
+		ClientVersion:       payload.ClientVersion,
 	}, nil
 }
 

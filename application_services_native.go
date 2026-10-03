@@ -24,13 +24,14 @@ type deviceRegistrar interface {
 	Stop()
 }
 
-// applicationServices 创建原生端使用的远程应用服务和本机设备注册器。
+// applicationServices 创建原生端使用的远程应用服务和本机设备注册器；allowQuit 在应用内更新重启前放行应用退出。
 func applicationServices(
 	appStorage nativeStorage,
 	nativeLocaleUpdater appservice.NativeLocaleUpdater,
 	notification appservice.NativeNotification,
 	serverLinks appservice.NativeServerLink,
 	unreadIndicator appservice.UnreadIndicator,
+	allowQuit func(bool),
 ) ([]application.Service, deviceRegistrar, error) {
 	sessions, err := clientsession.NewManager(context.Background(), appStorage)
 	if err != nil {
@@ -84,6 +85,7 @@ func applicationServices(
 		appservice.WithNativeServerLink(serverLinks),
 		appservice.WithUnreadIndicator(unreadIndicator),
 		appservice.WithConversationWindowOpener(conversationWindows),
+		appservice.WithClientUpdater(appservicenative.NewClientUpdater(backend, allowQuit)),
 	}
 	registrar := newDeviceRegistrar(appStorage, backend, sessions)
 	if registrar != nil {

@@ -17,7 +17,7 @@ The server provides these entry points under the deployment address:
 | `/app/` | Web app, including first-time setup, sign-in, and workspace pages |
 | `/docs/` | Product documentation for the current server version |
 | `/en/download/` | Client download page, with the Chinese page at `/zh-cn/download/`. See [Client distribution](/docs/en/deployment/operate/client-distribution/) |
-| `/clients/` | Client installer files |
+| `/clients/` | Client installers, update packages and the desktop update manifest |
 
 ## Deployment options
 

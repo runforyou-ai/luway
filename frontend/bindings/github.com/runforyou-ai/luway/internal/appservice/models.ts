@@ -1221,6 +1221,15 @@ export enum ChatSubjectKind {
 };
 
 /**
+ * ClientUpdate 定义本机客户端版本、所连接服务器提供的较新客户端版本（已是最新时为空）以及本机能否在应用内安装该版本。
+ */
+export interface ClientUpdate {
+    "currentVersion": string;
+    "version": string;
+    "installable": boolean;
+}
+
+/**
  * Colleague 定义通讯录同事目录项：IdentityType 为 user 时是在职成员并带 UserID 与 Email，为 agent 时是服务台并带 AgentID 与在职负责人姓名 ResponsibleName。
  */
 export interface Colleague {
@@ -3077,7 +3086,7 @@ export interface InstallWorkspaceInput {
 }
 
 /**
- * InstallationStatus 定义部署名称、平台是否已完成首次安装、注册策略是否开放注册、平台使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。
+ * InstallationStatus 定义部署名称、平台是否已完成首次安装、注册策略是否开放注册、平台使用的产品品牌、服务端接口版本、服务端接受的最低原生端接口版本和服务器提供的客户端版本。
  */
 export interface InstallationStatus {
     "deploymentName": string;
@@ -3086,6 +3095,11 @@ export interface InstallationStatus {
     "brand": Brand;
     "apiVersion": number;
     "minClientApiVersion": number;
+
+    /**
+     * ClientVersion 是服务器提供下载与更新的客户端版本，服务器没有客户端时为空。
+     */
+    "clientVersion": string;
 }
 
 /**

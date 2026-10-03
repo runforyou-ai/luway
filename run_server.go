@@ -89,13 +89,13 @@ func run(arguments []string) error {
 		slog.Warn("授权未授予自定义品牌或授权已到期，部署品牌配置暂不生效")
 	}
 
-	services, middleware, err := applicationServices(appStorage, config)
-	if err != nil {
-		return fmt.Errorf("initialize application services: %w", err)
-	}
 	clients, err := clientrelease.Load(config.Clients.Directory, buildinfo.Version)
 	if err != nil {
 		return fmt.Errorf("load client downloads: %w", err)
+	}
+	services, middleware, err := applicationServices(appStorage, config, clients.Version())
+	if err != nil {
+		return fmt.Errorf("initialize application services: %w", err)
 	}
 
 	dist, err := fs.Sub(assets, "frontend/dist")
@@ -114,7 +114,7 @@ func run(arguments []string) error {
 		assetServer.Override("favicon.png", icon, brand.OverrideActive)
 	}
 
-	// Web 应用位于 /app/ 下，客户端安装包位于 /clients/ 下，网站图标保留在根路径，/index.html 跳转到应用，其余路径由产品站处理。
+	// Web 应用位于 /app/ 下，客户端安装包、更新包与更新清单位于 /clients/ 下，网站图标保留在根路径，/index.html 跳转到应用，其余路径由产品站处理。
 	entry := http.NewServeMux()
 	entry.Handle(domain.WebAppPath, http.StripPrefix(strings.TrimSuffix(domain.WebAppPath, "/"), assetServer))
 	entry.Handle(clientrelease.PathPrefix, clients)

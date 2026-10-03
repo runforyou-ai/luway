@@ -20,10 +20,18 @@ type Service struct {
 	conversationWindows ConversationWindowOpener
 	localDevice         LocalDeviceReporter
 	localEnvironment    LocalEnvironmentManager
+	clientUpdater       ClientUpdater
 }
 
 // Option 配置平台专属的应用服务能力。
 type Option func(*Service)
+
+// WithClientUpdater 注入桌面端应用内更新能力。
+func WithClientUpdater(updater ClientUpdater) Option {
+	return func(service *Service) {
+		service.clientUpdater = updater
+	}
+}
 
 // WithImageSelector 注入原生端图片文件选择器。
 func WithImageSelector(selector ImageSelector) Option {
@@ -205,6 +213,22 @@ func (s *Service) TakeOpenedServerLink(ctx context.Context, meta RequestMeta) (s
 		return "", nil
 	}
 	return s.nativeServerLink.TakeOpenedServerLink(ctx, meta)
+}
+
+// CheckClientUpdate 返回本机客户端版本与所连接服务器提供的较新客户端版本。
+func (s *Service) CheckClientUpdate(ctx context.Context, meta RequestMeta) (ClientUpdate, error) {
+	if s.clientUpdater == nil {
+		return ClientUpdate{}, methodNotAllowedError(meta, "CheckClientUpdate")
+	}
+	return s.clientUpdater.CheckClientUpdate(ctx, meta)
+}
+
+// InstallClientUpdate 从所连接服务器下载并验证客户端更新包，替换应用后重启。
+func (s *Service) InstallClientUpdate(ctx context.Context, meta RequestMeta) error {
+	if s.clientUpdater == nil {
+		return methodNotAllowedError(meta, "InstallClientUpdate")
+	}
+	return s.clientUpdater.InstallClientUpdate(ctx, meta)
 }
 
 // UpdateUnreadIndicator 更新当前设备的未读提示。

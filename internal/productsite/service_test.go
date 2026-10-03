@@ -79,18 +79,20 @@ func TestHomePage(t *testing.T) {
 	}
 }
 
-// abcSHA256 是内容 abc 的 SHA-256 摘要。
-const abcSHA256 = "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+// abcFile 返回内容为 abc 的客户端文件。
+func abcFile(name string) clientrelease.File {
+	return clientrelease.File{Name: name, Size: 3, SHA512: "ddaf35a193617abacc417349ae20413112e6fa4e89a97ea20a9eeee64b55d39a2192992a274fc1a836ba3c23a3feebbd454d4423643ce80e2a9ac94fa54ca49f"}
+}
 
 // TestDownloadPage 校验下载页按平台列出服务器提供的安装包，移动端显示即将推出。
 func TestDownloadPage(t *testing.T) {
 	directory := t.TempDir()
-	index := clientrelease.Index{Version: "1.2.3", Files: []clientrelease.File{
-		{OS: clientrelease.OSWindows, Arch: "amd64", Format: clientrelease.FormatEXE, Name: "app_1.2.3_windows_amd64-installer.exe", Size: 3, SHA256: abcSHA256},
-		{OS: clientrelease.OSDarwin, Arch: "universal", Format: clientrelease.FormatDMG, Name: "app_1.2.3_darwin_universal.dmg", Size: 3, SHA256: abcSHA256},
-		{OS: clientrelease.OSLinux, Arch: "amd64", Format: clientrelease.FormatDeb, Name: "app_1.2.3_linux_amd64.deb", Size: 3, SHA256: abcSHA256},
+	index := clientrelease.Index{Version: "1.2.3", Installers: []clientrelease.Installer{
+		{OS: clientrelease.OSWindows, Arch: "amd64", Format: clientrelease.FormatEXE, File: abcFile("app_1.2.3_windows_amd64-installer.exe")},
+		{OS: clientrelease.OSDarwin, Arch: clientrelease.ArchUniversal, Format: clientrelease.FormatDMG, File: abcFile("app_1.2.3_darwin_universal.dmg")},
+		{OS: clientrelease.OSLinux, Arch: "amd64", Format: clientrelease.FormatDeb, File: abcFile("app_1.2.3_linux_amd64.deb")},
 	}}
-	for _, file := range index.Files {
+	for _, file := range index.Installers {
 		if err := os.WriteFile(filepath.Join(directory, file.Name), []byte("abc"), 0o644); err != nil {
 			t.Fatal(err)
 		}
@@ -105,7 +107,7 @@ func TestDownloadPage(t *testing.T) {
 	}
 	body := serveWith(NewService("/site.css", clients), http.MethodGet, "/zh-cn/download/", "").Body.String()
 	for _, want := range []string{
-		`href="/clients/app_1.2.3_windows_amd64-installer.exe"`, `href="/clients/app_1.2.3_darwin_universal.dmg"`,
+		`href="/clients/app_1.2.3_windows_amd64-installer.exe?v=ddaf35a193617aba"`, `href="/clients/app_1.2.3_darwin_universal.dmg?v=ddaf35a193617aba"`,
 		"版本 1.2.3", "Apple 芯片与 Intel", "Debian / Ubuntu · x64", `data-platform="android" aria-disabled="true"`,
 		`data-platform="ios" aria-disabled="true"`, "即将推出",
 		`<option value="/en/download/"`,

@@ -107,7 +107,7 @@ type RequestMeta struct {
 	DeviceID    string `json:"-"`
 }
 
-// InstallationStatus 定义部署名称、平台是否已完成首次安装、注册策略是否开放注册、平台使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。
+// InstallationStatus 定义部署名称、平台是否已完成首次安装、注册策略是否开放注册、平台使用的产品品牌、服务端接口版本、服务端接受的最低原生端接口版本和服务器提供的客户端版本。
 type InstallationStatus struct {
 	DeploymentName      string `json:"deploymentName"`
 	Installed           bool   `json:"installed"`
@@ -115,6 +115,15 @@ type InstallationStatus struct {
 	Brand               Brand  `json:"brand"`
 	APIVersion          int    `json:"apiVersion"`
 	MinClientAPIVersion int    `json:"minClientApiVersion"`
+	// ClientVersion 是服务器提供下载与更新的客户端版本，服务器没有客户端时为空。
+	ClientVersion string `json:"clientVersion"`
+}
+
+// ClientUpdate 定义本机客户端版本、所连接服务器提供的较新客户端版本（已是最新时为空）以及本机能否在应用内安装该版本。
+type ClientUpdate struct {
+	CurrentVersion string `json:"currentVersion"`
+	Version        string `json:"version"`
+	Installable    bool   `json:"installable"`
 }
 
 // ProductDocPageInput 定义要读取的文档语言目录（zh-cn 或 en）与页面路径，首页路径为空字符串。

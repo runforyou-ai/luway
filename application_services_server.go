@@ -41,8 +41,8 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
-// applicationServices 组装服务端入口、业务服务和后台任务，并返回检查原生端接口版本、处理实时事件流的资源中间件。
-func applicationServices(appStorage *serverstorage.Store, config serverconfig.Config) ([]application.Service, application.Middleware, error) {
+// applicationServices 组装服务端入口、业务服务和后台任务，clientVersion 是服务器提供的客户端版本；返回检查原生端接口版本、处理实时事件流的资源中间件。
+func applicationServices(appStorage *serverstorage.Store, config serverconfig.Config, clientVersion string) ([]application.Service, application.Middleware, error) {
 	db := appStorage.DB()
 	// 为 HTTPS 入口提供部署地址和证书缓存。
 	httpsEntry := ingress.NewHTTPSEntry(config.TLS, config.Server, serverstorage.NewACMECache(db))
@@ -111,6 +111,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	deployment := directDeploymentConfig(config, emailSender)
 	deployment.ProductDocs = productDocs
 	deployment.Control = controlClient
+	deployment.ClientVersion = clientVersion
 	translator := translationaction.NewTranslator(db, agentRuntime, modelInvoker)
 	directBackend := direct.New(db, deployment, localFiles, fileS3, agentRunScheduler, executeAgentRun, tasks, serviceReplySuggestions, translator, knowledgeRetrieval)
 	boundService := appservice.New(directBackend)

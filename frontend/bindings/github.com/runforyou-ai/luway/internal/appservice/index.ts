@@ -190,6 +190,7 @@ export type {
     ChannelOption,
     ChannelOptionList,
     ChannelRoutingTarget,
+    ClientUpdate,
     Colleague,
     ColleagueList,
     ColleagueListInput,

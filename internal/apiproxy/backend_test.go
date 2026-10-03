@@ -409,6 +409,23 @@ func TestBackendChecksServerAPIVersion(t *testing.T) {
 	}
 }
 
+// TestBackendProbeReturnsClientVersion 验证检测服务器时返回服务器提供的客户端版本。
+func TestBackendProbeReturnsClientVersion(t *testing.T) {
+	remote := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writeTestJSON(writer, http.StatusOK, map[string]any{"installed": true, "apiVersion": appservice.APIVersion, "minClientApiVersion": appservice.APIVersion, "clientVersion": "1.2.0"})
+	}))
+	defer remote.Close()
+
+	backend, err := newTestBackend(&memoryStore{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	status, err := backend.ProbeServer(context.Background(), appservice.RequestMeta{Locale: "zh-CN"}, remote.URL)
+	if err != nil || status.ClientVersion != "1.2.0" {
+		t.Fatalf("status = %+v, %v", status, err)
+	}
+}
+
 // TestBackendRejectsUnrecognizedServer 验证原生端拒绝普通 HTTP 服务。
 func TestBackendRejectsUnrecognizedServer(t *testing.T) {
 	remote := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {

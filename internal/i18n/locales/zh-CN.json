@@ -189,6 +189,8 @@
   "error.internal": "服务暂时不可用，请稍后重试。",
   "error.method_not_allowed": "不支持此请求方法。",
   "error.installation_status_read_failed": "读取安装状态失败。",
+  "error.client_update_unavailable": "服务器未提供本机平台的更新包。",
+  "error.client_update_failed": "更新失败，请稍后重试。",
   "error.already_initialized": "已经完成初始化。",
   "error.installation_required": "尚未完成首次安装。",
   "error.authentication_status_failed": "读取登录状态失败。",

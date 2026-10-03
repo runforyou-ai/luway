@@ -3,6 +3,9 @@ package domain
 // WebAppPath 是 Web 应用相对部署地址的访问路径，应用页面以哈希路由位于其后。
 const WebAppPath = "/app/"
 
+// ClientUpdatePath 是桌面端检查与下载应用内更新时请求的更新清单路径。
+const ClientUpdatePath = "/clients/update"
+
 // RegistrationPolicy 定义平台的账号注册策略。
 type RegistrationPolicy string
 
