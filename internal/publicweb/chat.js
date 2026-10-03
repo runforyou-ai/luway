@@ -1840,9 +1840,15 @@
         "/messages",
     )
       .then(function (result) {
+        // 快照中的消息不触发补拉，请求期间先到达的消息已标记补拉。
+        conversation.historyLoading = false;
         clearConversationMessages(conversation);
         result.messages.forEach(function (message) {
           appendServerMessage(conversation, message);
+        });
+        // 尚在发送的附件排在历史消息之后。
+        conversation.pendingAttachments.forEach(function (entry) {
+          appendConversationNode(conversation, entry.node);
         });
         syncSessionRatings(conversation, result.sessionRatings);
         conversation.before = result.before || "";
@@ -1882,7 +1888,7 @@
       });
   }
 
-  // 清空指定会话现有的真实消息节点。
+  // 清空指定会话现有的真实消息节点，尚在发送的附件节点保留。
   function clearConversationMessages(conversation) {
     removeConversationTyping(conversation);
     unmountMessageBodies(conversationMessageContainer(conversation));
@@ -1892,7 +1898,7 @@
     conversation.messageIDs = Object.create(null);
     if (conversation === activeConversation) {
       Array.from(messages.children).forEach(function (node) {
-        if (node !== intro) {
+        if (node !== intro && !conversation.pendingAttachments.some(function (entry) { return entry.node === node; })) {
           node.remove();
         }
       });
@@ -1927,6 +1933,10 @@
   function appendServerMessage(conversation, value) {
     if (conversation.messageIDs[value.id]) {
       return;
+    }
+    // 历史加载期间写入的消息可能不在快照中，加载结束后沿游标补拉。
+    if (conversation.historyLoading) {
+      conversation.refreshPending = true;
     }
     if (value.author === "system") {
       appendServerEvent(conversation, value);
