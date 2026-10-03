@@ -199,6 +199,10 @@ func TestEmptyConversationUnreadMarksIgnoreListLimit(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	// 批量造数后刷新数据库统计信息。
+	if _, err := f.db.ExecContext(ctx, "ANALYZE"); err != nil {
+		t.Fatal(err)
+	}
 	inbox := inboxaction.NewLoadInboxQuery(f.db)
 	rowsPage, counts, err := inbox.Execute(ctx, f.member, inboxaction.LoadInput{Scope: domain.InboxScopeChat})
 	rows := rowsPage.Conversations

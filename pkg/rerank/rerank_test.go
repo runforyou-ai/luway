@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -46,6 +47,21 @@ func TestRerankProtocols(t *testing.T) {
 
 	_, err = client.Rerank(context.Background(), Credential{Protocol: ProtocolCompatible, BaseURL: server.URL + "/v1", APIKey: "wrong"}, "rerank", "退款", []string{"甲"}, 1)
 	if failure, ok := err.(*Error); !ok || failure.Code != "rerank_model_unavailable" {
+		t.Fatalf("err=%v", err)
+	}
+}
+
+// TestRerankRejectsOversizedResponse 验证超出读取上限的响应按重排失败处理。
+func TestRerankRejectsOversizedResponse(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"results": []map[string]any{{"index": 0, "relevance_score": 0.7}},
+			"padding": strings.Repeat("a", maxResponseBytes),
+		})
+	}))
+	defer server.Close()
+	_, err := NewClient().Rerank(context.Background(), Credential{Protocol: ProtocolCompatible, BaseURL: server.URL + "/v1", APIKey: "secret"}, "rerank", "退款", []string{"甲"}, 1)
+	if failure, ok := err.(*Error); !ok || failure.Code != "rerank_failed" {
 		t.Fatalf("err=%v", err)
 	}
 }
