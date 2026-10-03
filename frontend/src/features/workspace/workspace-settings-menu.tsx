@@ -5,6 +5,7 @@ import {
   ArchiveIcon,
   BellIcon,
   BrainCircuitIcon,
+  ChartColumnIcon,
   GlobeIcon,
   Building2Icon,
   HeadsetIcon,
@@ -184,6 +185,20 @@ export function WorkspaceSettingsMenu({
             icon={GaugeIcon}
           >
             {t("navigation.deploymentOverview")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/usage"
+            icon={ChartColumnIcon}
+          >
+            {t("navigation.deploymentUsage")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/runtime"
+            icon={ActivityIcon}
+          >
+            {t("navigation.deploymentRuntime")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}

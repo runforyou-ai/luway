@@ -31,6 +31,7 @@ type TaskRun struct {
 	StartedAt      *time.Time      `bun:"started_at"`
 	CompletedAt    *time.Time      `bun:"completed_at"`
 	LastError      *string         `bun:"last_error"`
+	FailedAt       *time.Time      `bun:"failed_at"`
 	CreatedAt      time.Time       `bun:"created_at"`
 	UpdatedAt      time.Time       `bun:"updated_at"`
 }

@@ -48,6 +48,14 @@ export const resourceKeys = {
   deploymentAccounts: (parameters?: KeyParameters) => listKey("deployment-accounts", parameters),
   /** 部署工作区列表，可带筛选分页参数。 */
   deploymentWorkspaces: (parameters?: KeyParameters) => listKey("deployment-workspaces", parameters),
+  /** 部署整体业务使用，可带统计天数参数。 */
+  deploymentUsage: (parameters?: KeyParameters) => listKey("deployment-usage", parameters),
+  /** 部署各工作区业务使用，可带统计天数、排序与分页参数。 */
+  deploymentWorkspaceUsage: (parameters?: KeyParameters) => listKey("deployment-workspace-usage", parameters),
+  /** 部署运行状态。 */
+  deploymentRuntime: () => ["deployment-runtime"],
+  /** 部署失败任务列表，可带分页参数。 */
+  deploymentFailedTasks: (parameters?: KeyParameters) => listKey("deployment-failed-tasks", parameters),
   /** 部署的平台供应商列表。 */
   platformAIProviders: () => ["platform-ai-providers"],
   /** 单个平台供应商。 */
@@ -302,6 +310,10 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.deploymentSettings()[0],
   resourceKeys.deploymentAccounts()[0],
   resourceKeys.deploymentWorkspaces()[0],
+  resourceKeys.deploymentUsage()[0],
+  resourceKeys.deploymentWorkspaceUsage()[0],
+  resourceKeys.deploymentRuntime()[0],
+  resourceKeys.deploymentFailedTasks()[0],
   resourceKeys.platformAIProviders()[0],
   resourceKeys.platformAIProvider()[0],
   resourceKeys.platformAIProviderModels()[0],

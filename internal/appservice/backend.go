@@ -432,7 +432,7 @@ type Backend interface {
 	// AcceptInvitation 由当前账号接受邀请并加入工作区。
 	//appservice:route POST /invitation-acceptances auth=account
 	AcceptInvitation(context.Context, RequestMeta, InvitationTokenInput) (Workspace, error)
-	// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+	// GetDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
 	//appservice:route GET /deployment/overview auth=admin
 	GetDeploymentOverview(context.Context, RequestMeta) (DeploymentOverview, error)
 	// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
@@ -483,6 +483,18 @@ type Backend interface {
 	// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 	//appservice:route POST /deployment/workspaces/:workspaceID/resume auth=admin
 	ResumeDeploymentWorkspace(context.Context, RequestMeta, string) (DeploymentWorkspace, error)
+	// GetDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+	//appservice:route GET /deployment/usage auth=admin
+	GetDeploymentUsage(context.Context, RequestMeta, DeploymentUsageInput) (DeploymentUsageMetrics, error)
+	// ListDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+	//appservice:route GET /deployment/usage/workspaces auth=admin
+	ListDeploymentWorkspaceUsage(context.Context, RequestMeta, DeploymentWorkspaceUsageListInput) (DeploymentWorkspaceUsageList, error)
+	// GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+	//appservice:route GET /deployment/runtime auth=admin
+	GetDeploymentRuntimeStatus(context.Context, RequestMeta) (DeploymentRuntimeStatus, error)
+	// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+	//appservice:route GET /deployment/runtime/failed-tasks auth=admin
+	ListDeploymentFailedTasks(context.Context, RequestMeta, DeploymentFailedTaskListInput) (DeploymentFailedTaskList, error)
 	// ListPlatformAIProviders 返回部署的平台供应商。
 	//appservice:route GET /deployment/platform-model-providers auth=admin
 	ListPlatformAIProviders(context.Context, RequestMeta) (PlatformAIProviderList, error)

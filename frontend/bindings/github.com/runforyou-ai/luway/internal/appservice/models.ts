@@ -2327,11 +2327,41 @@ export interface DeploymentDailyActivity {
 }
 
 /**
- * DeploymentOverview 定义部署实例标识、服务端版本、安装时间、规模、活跃情况和实例能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
+ * DeploymentFailedTask 定义一次等待重试或近 7 天内失败的后台任务运行；WorkspaceName 为所属工作区名称，部署级任务为空，FailedAt 为最近一次执行失败的时间。
+ */
+export interface DeploymentFailedTask {
+    "id": string;
+    "action": string;
+    "queue": string;
+    "workspaceName": string | null;
+    "retrying": boolean;
+    "attempt": number;
+    "maxAttempts": number;
+    "error": string;
+    "failedAt": string;
+}
+
+/**
+ * DeploymentFailedTaskList 定义失败任务分页结果。
+ */
+export interface DeploymentFailedTaskList {
+    "tasks": DeploymentFailedTask[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * DeploymentFailedTaskListInput 定义失败任务列表的分页。
+ */
+export interface DeploymentFailedTaskListInput {
+    "page": number;
+    "pageSize": number;
+}
+
+/**
+ * DeploymentOverview 定义部署实例标识、安装时间、规模、活跃情况和实例能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
  */
 export interface DeploymentOverview {
     "instanceId": string;
-    "version": string;
     "installedAt": string;
     "statisticsTimeZone": string;
     "statsRebuilding": boolean;
@@ -2353,6 +2383,14 @@ export interface DeploymentPoliciesInput {
 }
 
 /**
+ * DeploymentRuntimeStatus 定义服务端版本与后台任务各队列的运行概况。
+ */
+export interface DeploymentRuntimeStatus {
+    "version": string;
+    "queues": DeploymentTaskQueue[] | null;
+}
+
+/**
  * DeploymentSettings 定义部署注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
  */
 export interface DeploymentSettings {
@@ -2370,11 +2408,62 @@ export interface DeploymentStatisticsTimeZoneInput {
 }
 
 /**
+ * DeploymentTaskQueue 定义一个后台任务队列的运行概况：Waiting 为已到执行时间仍在排队的任务数，OldestWaitingSince 为其中最早的到期时间，没有排队任务时为空；
+ * Running 为执行中的任务数，Retrying 为执行失败后等待重试的任务数，Paused 为所属工作区暂停而挂起的任务数，Failed 为近 7 天失败且不再重试的任务数。
+ */
+export interface DeploymentTaskQueue {
+    "queue": string;
+    "waiting": number;
+    "oldestWaitingSince": string | null;
+    "running": number;
+    "retrying": number;
+    "paused": number;
+    "failed": number;
+}
+
+/**
  * DeploymentTelemetryInput 定义运行指标上报开关的修改值。
  */
 export interface DeploymentTelemetryInput {
     "telemetryEnabled": boolean;
 }
+
+/**
+ * DeploymentUsageInput 定义业务使用的统计范围：最近 Days 天内关闭的客服周期。
+ */
+export interface DeploymentUsageInput {
+    "days": number;
+}
+
+/**
+ * DeploymentUsageMetrics 定义业务使用指标，口径与工作区的 AI 表现和团队表现报表一致：ServiceSessions 为已关闭周期数，Conversations 为其所属会话去重数；
+ * AIClosed 为其中 AI 员工接待过的周期数，AIResolved 与 HandedOff 为其中 AI 独立解决与发生过转人工的周期数；首响为按工作时间计的真人首响（秒），没有样本时为空；KnowledgeGaps 为全部待处理的待补知识条数。
+ */
+export interface DeploymentUsageMetrics {
+    "serviceSessions": number;
+    "conversations": number;
+    "aiClosed": number;
+    "aiResolved": number;
+    "handedOff": number;
+    "firstResponseMedian": number | null;
+    "firstResponseP90": number | null;
+    "knowledgeGaps": number;
+}
+
+/**
+ * DeploymentUsageSort 表示业务使用工作区列表的排序方式，均为降序。
+ */
+export enum DeploymentUsageSort {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    DeploymentUsageSortServiceSessions = "service_sessions",
+    DeploymentUsageSortConversations = "conversations",
+    DeploymentUsageSortFirstResponse = "first_response",
+    DeploymentUsageSortKnowledgeGaps = "knowledge_gaps",
+};
 
 /**
  * DeploymentWorkspace 定义部署工作区列表中的一个工作区、状态与当前规模；HasDeploymentAdmin 表示有有效部署管理员成员，此时不能暂停；LastActiveOn 为最近有活跃的日期 YYYY-MM-DD，从未活跃时为空。
@@ -2427,6 +2516,35 @@ export enum DeploymentWorkspaceSort {
     DeploymentWorkspaceSortMemberCount = "member_count",
     DeploymentWorkspaceSortStorage = "storage",
 };
+
+/**
+ * DeploymentWorkspaceUsage 定义一个工作区的业务使用指标。
+ */
+export interface DeploymentWorkspaceUsage {
+    "id": string;
+    "name": string;
+    "slug": string;
+    "status": WorkspaceStatus;
+    "metrics": DeploymentUsageMetrics;
+}
+
+/**
+ * DeploymentWorkspaceUsageList 定义一页工作区业务使用指标。
+ */
+export interface DeploymentWorkspaceUsageList {
+    "workspaces": DeploymentWorkspaceUsage[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * DeploymentWorkspaceUsageListInput 定义业务使用工作区列表的统计范围、排序与分页，Sort 缺省按服务周期数。
+ */
+export interface DeploymentWorkspaceUsageListInput {
+    "days": number;
+    "sort": DeploymentUsageSort;
+    "page": number;
+    "pageSize": number;
+}
 
 /**
  * Device 定义成员注册到企业的本机设备，LocalAgents 是设备上报的已安装且可用的本机 Agent。

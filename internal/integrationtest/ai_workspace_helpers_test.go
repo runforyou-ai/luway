@@ -15,16 +15,22 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// newAIWorkspace 建立带一个对话模型的独立工作区，返回数据库、管理员身份、模型服务编号和模型编号。
+// newAIWorkspace 在共享测试数据库中建立带一个对话模型的独立工作区，返回数据库、管理员身份、模型服务编号和模型编号。
 func newAIWorkspace(t *testing.T) (*bun.DB, *servermodels.Identity, string, string) {
 	t.Helper()
-	ctx := context.Background()
-	store, err := serverstorage.Open(ctx, servertest.DatabaseConfig(t))
+	store, err := serverstorage.Open(context.Background(), servertest.DatabaseConfig(t))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = store.Close() })
-	db := store.DB()
+	identity, providerID, modelID := newAIWorkspaceIn(t, store.DB())
+	return store.DB(), identity, providerID, modelID
+}
+
+// newAIWorkspaceIn 在指定数据库中建立带一个对话模型的独立工作区，返回管理员身份、模型服务编号和模型编号。
+func newAIWorkspaceIn(t *testing.T, db *bun.DB) (*servermodels.Identity, string, string) {
+	t.Helper()
+	ctx := context.Background()
 	identity := installWorkspace(t, db, workspaceSpec{
 		Name: "AI 员工测试", DisplayName: "管理员", Email: uniqueEmail("admin"), Password: "password123",
 		Locale: domain.LocaleEnglishUnitedStates, TimeZone: "America/New_York",
@@ -48,7 +54,7 @@ func newAIWorkspace(t *testing.T) (*bun.DB, *servermodels.Identity, string, stri
 		InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096,
 	}
 	insertAIModels(t, db, model)
-	return db, identity, provider.ID, model.ID
+	return identity, provider.ID, model.ID
 }
 
 // testAIModel 定义测试写入的工作区模型及其指向供应商的来源。

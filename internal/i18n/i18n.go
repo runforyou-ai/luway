@@ -174,6 +174,8 @@ const (
 	ErrorDeploymentWorkspaceNotFound             Key = "error.deployment_workspace_not_found"
 	ErrorDeploymentWorkspaceHasAdmin             Key = "error.deployment_workspace_has_admin"
 	ErrorDeploymentWorkspaceUpdateFailed         Key = "error.deployment_workspace_update_failed"
+	ErrorDeploymentUsageFailed                   Key = "error.deployment_usage_failed"
+	ErrorDeploymentRuntimeFailed                 Key = "error.deployment_runtime_failed"
 	ErrorChannelNotFound                         Key = "error.channel_not_found"
 	ErrorChannelListFailed                       Key = "error.channel_list_failed"
 	ErrorChannelReadFailed                       Key = "error.channel_read_failed"

@@ -23,6 +23,8 @@ const settings = {
     modelServices: "模型服务",
     webSearch: "联网搜索",
     deploymentOverview: "部署概览",
+    deploymentUsage: "业务使用",
+    deploymentRuntime: "运行状态",
     deploymentLicense: "实例授权",
     deploymentAccounts: "全部账号",
     deploymentWorkspaces: "全部工作区",

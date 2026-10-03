@@ -218,6 +218,8 @@
   "error.deployment_workspace_not_found": "This workspace wasn't found.",
   "error.deployment_workspace_has_admin": "This workspace has a deployment admin and can't be suspended.",
   "error.deployment_workspace_update_failed": "Couldn't change the workspace status.",
+  "error.deployment_usage_failed": "Couldn't load business usage.",
+  "error.deployment_runtime_failed": "Couldn't load the runtime status.",
   "error.instance_license_read_failed": "Couldn't load the instance license.",
   "error.instance_license_activate_failed": "Couldn't activate the instance license.",
   "error.instance_license_invalid": "This license code is invalid. Make sure you copied all of it.",

@@ -315,6 +315,14 @@ const workspaceRouteDefinitions = [
     element: <DeploymentSettingsPage section="overview" />,
   },
   {
+    path: "/settings/deployment/usage",
+    element: <DeploymentSettingsPage section="usage" />,
+  },
+  {
+    path: "/settings/deployment/runtime",
+    element: <DeploymentSettingsPage section="runtime" />,
+  },
+  {
     path: "/settings/deployment/license",
     element: <DeploymentSettingsPage section="license" />,
   },

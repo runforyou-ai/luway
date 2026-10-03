@@ -218,6 +218,8 @@
   "error.deployment_workspace_not_found": "没有找到这个工作区。",
   "error.deployment_workspace_has_admin": "该工作区有部署管理员，不能暂停。",
   "error.deployment_workspace_update_failed": "修改工作区状态失败。",
+  "error.deployment_usage_failed": "读取业务使用失败。",
+  "error.deployment_runtime_failed": "读取运行状态失败。",
   "error.instance_license_read_failed": "读取实例授权失败。",
   "error.instance_license_activate_failed": "激活实例授权失败。",
   "error.instance_license_invalid": "授权码无效，请确认已完整复制。",

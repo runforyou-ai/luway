@@ -69,7 +69,11 @@ export function DeploymentWorkspaceListPage() {
   const settings = useResource(resourceKeys.deploymentSettings(), (signal) => getDeploymentSettings(signal))
   const pending = useConfirmedAction<PendingWorkspaceChange>({
     action: ({ workspace, change }) => workspaceChangeRequests[change](workspace.id),
-    invalidateKeys: () => [resourceKeys.deploymentWorkspaces(), resourceKeys.workspaces()],
+    invalidateKeys: () => [
+      resourceKeys.deploymentWorkspaces(),
+      resourceKeys.deploymentWorkspaceUsage(),
+      resourceKeys.workspaces(),
+    ],
     successMessage: ({ change }) => t(change === "suspend" ? "workspaces.suspended" : "workspaces.resumed"),
     errorMessage: () => t("workspaces.updateError"),
     logLabel: "修改工作区状态",

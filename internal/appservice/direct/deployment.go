@@ -31,6 +31,9 @@ type deploymentOps struct {
 	updateDeploymentAccount  *deploymentaction.UpdateAccountAction
 	listDeploymentWorkspaces *deploymentaction.ListWorkspacesQuery
 	setWorkspaceStatus       *deploymentaction.SetWorkspaceStatusAction
+	deploymentUsage          *deploymentaction.UsageQuery
+	deploymentTaskQueues     *deploymentaction.TaskQueuesQuery
+	deploymentFailedTasks    *deploymentaction.FailedTaskListQuery
 	instanceLicenseRead      *deploymentaction.LicenseQuery
 	activateInstanceLicense  *deploymentaction.ActivateLicenseAction
 	onlineInstanceLicense    *deploymentaction.OnlineLicenseAction
@@ -48,6 +51,9 @@ func newDeploymentOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKey
 		updateDeploymentAccount:  deploymentaction.NewUpdateAccountAction(db),
 		listDeploymentWorkspaces: deploymentaction.NewListWorkspacesQuery(db),
 		setWorkspaceStatus:       deploymentaction.NewSetWorkspaceStatusAction(db),
+		deploymentUsage:          deploymentaction.NewUsageQuery(db),
+		deploymentTaskQueues:     deploymentaction.NewTaskQueuesQuery(db),
+		deploymentFailedTasks:    deploymentaction.NewFailedTaskListQuery(db),
 		instanceLicenseRead:      deploymentaction.NewLicenseQuery(db),
 		activateInstanceLicense:  deploymentaction.NewActivateLicenseAction(db, licenseKeys),
 		onlineInstanceLicense:    deploymentaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
@@ -55,7 +61,7 @@ func newDeploymentOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKey
 	}
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+// GetDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
 func (o *directOperations) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.DeploymentOverview, error) {
 	overview, err := o.deploymentOverview.Execute(ctx)
 	if err != nil {
@@ -69,7 +75,7 @@ func (o *directOperations) GetDeploymentOverview(ctx context.Context, meta appse
 		})
 	}
 	return appservice.DeploymentOverview{
-		InstanceID: overview.InstanceID, Version: buildinfo.Version, InstalledAt: overview.InstalledAt, StatisticsTimeZone: overview.StatisticsTimeZone,
+		InstanceID: overview.InstanceID, InstalledAt: overview.InstalledAt, StatisticsTimeZone: overview.StatisticsTimeZone,
 		StatsRebuilding: overview.StatsRebuilding,
 		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
 		Last7Days: appservice.DeploymentActivityWindow(overview.Last7Days), Last30Days: appservice.DeploymentActivityWindow(overview.Last30Days),
@@ -261,6 +267,67 @@ func (o *directOperations) setDeploymentWorkspaceStatus(ctx context.Context, met
 	return deploymentWorkspaceFromAction(record), nil
 }
 
+// GetDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+func (o *directOperations) GetDeploymentUsage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentUsageInput) (appservice.DeploymentUsageMetrics, error) {
+	metrics, err := o.deploymentUsage.Summary(ctx, input.Days)
+	if err != nil {
+		return appservice.DeploymentUsageMetrics{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentUsageFailed, account, "")
+	}
+	return appservice.DeploymentUsageMetrics(metrics), nil
+}
+
+// ListDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (o *directOperations) ListDeploymentWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentWorkspaceUsageListInput) (appservice.DeploymentWorkspaceUsageList, error) {
+	output, err := o.deploymentUsage.ListWorkspaces(ctx, deploymentaction.UsageListInput{
+		Days: input.Days, Sort: deploymentaction.UsageSort(input.Sort), Page: input.Page, PageSize: input.PageSize,
+	})
+	if err != nil {
+		return appservice.DeploymentWorkspaceUsageList{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentUsageFailed, account, "")
+	}
+	workspaces := make([]appservice.DeploymentWorkspaceUsage, 0, len(output.Workspaces))
+	for _, record := range output.Workspaces {
+		workspaces = append(workspaces, appservice.DeploymentWorkspaceUsage{
+			ID: record.ID, Name: record.Name, Slug: record.Slug, Status: appservice.WorkspaceStatus(record.Status),
+			Metrics: appservice.DeploymentUsageMetrics(record.UsageMetrics),
+		})
+	}
+	return appservice.DeploymentWorkspaceUsageList{
+		Workspaces: workspaces,
+		Page:       appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total},
+	}, nil
+}
+
+// GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (o *directOperations) GetDeploymentRuntimeStatus(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.DeploymentRuntimeStatus, error) {
+	queues, err := o.deploymentTaskQueues.Execute(ctx)
+	if err != nil {
+		return appservice.DeploymentRuntimeStatus{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentRuntimeFailed, account, "")
+	}
+	status := appservice.DeploymentRuntimeStatus{Version: buildinfo.Version, Queues: make([]appservice.DeploymentTaskQueue, 0, len(queues))}
+	for _, queue := range queues {
+		status.Queues = append(status.Queues, appservice.DeploymentTaskQueue(queue))
+	}
+	return status, nil
+}
+
+// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (o *directOperations) ListDeploymentFailedTasks(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentFailedTaskListInput) (appservice.DeploymentFailedTaskList, error) {
+	output, err := o.deploymentFailedTasks.Execute(ctx, deploymentaction.FailedTaskListInput{Page: input.Page, PageSize: input.PageSize})
+	if err != nil {
+		return appservice.DeploymentFailedTaskList{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentRuntimeFailed, account, "")
+	}
+	tasks := make([]appservice.DeploymentFailedTask, 0, len(output.Tasks))
+	for _, task := range output.Tasks {
+		tasks = append(tasks, appservice.DeploymentFailedTask{
+			ID: task.ID, Action: task.ActionName, Queue: task.QueueName, WorkspaceName: task.WorkspaceName, Retrying: task.Retrying,
+			Attempt: task.Attempt, MaxAttempts: task.MaxAttempts, Error: task.LastError, FailedAt: task.FailedAt,
+		})
+	}
+	return appservice.DeploymentFailedTaskList{
+		Tasks: tasks, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total},
+	}, nil
+}
+
 // deploymentWorkspaceFromAction 把部署工作区记录转换为应用契约。
 func deploymentWorkspaceFromAction(record deploymentaction.WorkspaceRecord) appservice.DeploymentWorkspace {
 	var lastActiveOn *string
@@ -317,6 +384,8 @@ func deploymentError(ctx context.Context, meta appservice.RequestMeta, err error
 			deploymentaction.ValidationStatisticsTimeZoneInvalid:      i18n.FieldTimeZoneInvalid,
 			deploymentaction.ValidationWorkspaceSortInvalid:           i18n.FieldDeploymentQueryInvalid,
 			deploymentaction.ValidationWorkspaceStatusInvalid:         i18n.FieldDeploymentQueryInvalid,
+			deploymentaction.ValidationUsageSortInvalid:               i18n.FieldDeploymentQueryInvalid,
+			deploymentaction.ValidationUsageDaysInvalid:               i18n.FieldDeploymentQueryInvalid,
 		}
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, keys))
 	}

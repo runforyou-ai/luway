@@ -9,7 +9,7 @@ import {
 } from "@/api"
 import { handoffReasonKey } from "@/lib/handoff-reason-labels"
 
-import { useReportFormat } from "./report-format"
+import { useReportFormat } from "@/hooks/use-report-format"
 import { EmptyNote, MeterList, ReportSection, StatTile } from "@/components/report-parts"
 
 /** 模型调用 handoff_to_human 时可给出的业务原因，其余为系统原因。 */

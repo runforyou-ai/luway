@@ -168,6 +168,10 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.POST("/deployment/license/sync", s.syncInstanceLicense)
 	router.POST("/deployment/workspaces/:workspaceID/suspend", s.suspendDeploymentWorkspace)
 	router.POST("/deployment/workspaces/:workspaceID/resume", s.resumeDeploymentWorkspace)
+	router.GET("/deployment/usage", s.getDeploymentUsage)
+	router.GET("/deployment/usage/workspaces", s.listDeploymentWorkspaceUsage)
+	router.GET("/deployment/runtime", s.getDeploymentRuntimeStatus)
+	router.GET("/deployment/runtime/failed-tasks", s.listDeploymentFailedTasks)
 	router.GET("/deployment/platform-model-providers", s.listPlatformAIProviders)
 	router.GET("/deployment/platform-model-providers/:providerID", s.getPlatformAIProvider)
 	router.GET("/deployment/platform-model-providers/:providerID/models", s.listPlatformAIProviderModels)
@@ -1402,7 +1406,7 @@ func (s *Service) acceptInvitation(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+// getDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
 func (s *Service) getDeploymentOverview(c *gin.Context) {
 	output, err := s.application.GetDeploymentOverview(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1529,6 +1533,42 @@ func (s *Service) suspendDeploymentWorkspace(c *gin.Context) {
 // resumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 func (s *Service) resumeDeploymentWorkspace(c *gin.Context) {
 	output, err := s.application.ResumeDeploymentWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+func (s *Service) getDeploymentUsage(c *gin.Context) {
+	input, ok := bindDeploymentUsageInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.GetDeploymentUsage(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (s *Service) listDeploymentWorkspaceUsage(c *gin.Context) {
+	input, ok := bindDeploymentWorkspaceUsageListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListDeploymentWorkspaceUsage(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (s *Service) getDeploymentRuntimeStatus(c *gin.Context) {
+	output, err := s.application.GetDeploymentRuntimeStatus(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (s *Service) listDeploymentFailedTasks(c *gin.Context) {
+	input, ok := bindDeploymentFailedTaskListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListDeploymentFailedTasks(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -2731,6 +2771,33 @@ func bindDeploymentAccountListInputQuery(c *gin.Context) (appservice.DeploymentA
 	}, true
 }
 
+// bindDeploymentFailedTaskListInputQuery 从查询参数解析 appservice.DeploymentFailedTaskListInput。
+func bindDeploymentFailedTaskListInputQuery(c *gin.Context) (appservice.DeploymentFailedTaskListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.DeploymentFailedTaskListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.DeploymentFailedTaskListInput{}, false
+	}
+	return appservice.DeploymentFailedTaskListInput{
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindDeploymentUsageInputQuery 从查询参数解析 appservice.DeploymentUsageInput。
+func bindDeploymentUsageInputQuery(c *gin.Context) (appservice.DeploymentUsageInput, bool) {
+	days, ok := positiveQueryInteger(c, "days", 30)
+	if !ok {
+		return appservice.DeploymentUsageInput{}, false
+	}
+	return appservice.DeploymentUsageInput{
+		Days: days,
+	}, true
+}
+
 // bindDeploymentWorkspaceListInputQuery 从查询参数解析 appservice.DeploymentWorkspaceListInput。
 func bindDeploymentWorkspaceListInputQuery(c *gin.Context) (appservice.DeploymentWorkspaceListInput, bool) {
 	page, ok := positiveQueryInteger(c, "page", 1)
@@ -2745,6 +2812,28 @@ func bindDeploymentWorkspaceListInputQuery(c *gin.Context) (appservice.Deploymen
 		Query:    c.Query("query"),
 		Status:   appservice.WorkspaceStatus(c.Query("status")),
 		Sort:     appservice.DeploymentWorkspaceSort(c.DefaultQuery("sort", "created_at")),
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindDeploymentWorkspaceUsageListInputQuery 从查询参数解析 appservice.DeploymentWorkspaceUsageListInput。
+func bindDeploymentWorkspaceUsageListInputQuery(c *gin.Context) (appservice.DeploymentWorkspaceUsageListInput, bool) {
+	days, ok := positiveQueryInteger(c, "days", 30)
+	if !ok {
+		return appservice.DeploymentWorkspaceUsageListInput{}, false
+	}
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.DeploymentWorkspaceUsageListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.DeploymentWorkspaceUsageListInput{}, false
+	}
+	return appservice.DeploymentWorkspaceUsageListInput{
+		Days:     days,
+		Sort:     appservice.DeploymentUsageSort(c.DefaultQuery("sort", "service_sessions")),
 		Page:     page,
 		PageSize: pageSize,
 	}, true

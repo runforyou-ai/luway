@@ -12,11 +12,15 @@ import { DeploymentPlatformModelListPage } from "@/features/settings/deployment/
 import { DeploymentPlatformProviderFormPage } from "@/features/settings/deployment/deployment-platform-provider-form-page"
 import { DeploymentPlatformProviderListPage } from "@/features/settings/deployment/deployment-platform-provider-list-page"
 import { DeploymentRegistrationPage } from "@/features/settings/deployment/deployment-registration-page"
+import { DeploymentRuntimePage } from "@/features/settings/deployment/deployment-runtime-page"
+import { DeploymentUsagePage } from "@/features/settings/deployment/deployment-usage-page"
 import { DeploymentWorkspaceListPage } from "@/features/settings/deployment/deployment-workspace-list-page"
 
 /** 部署设置分组中各页面的渲染方式。 */
 const deploymentSections = {
   overview: () => <DeploymentOverviewPage />,
+  usage: () => <DeploymentUsagePage />,
+  runtime: () => <DeploymentRuntimePage />,
   license: () => <DeploymentLicensePage />,
   accounts: (account: Account) => <DeploymentAccountListPage account={account} />,
   workspaces: () => <DeploymentWorkspaceListPage />,

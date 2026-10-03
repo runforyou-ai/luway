@@ -40,6 +40,8 @@ const (
 	ValidationStatisticsTimeZoneInvalid      common.FieldCode = "DEPLOYMENT_STATISTICS_TIME_ZONE_INVALID"
 	ValidationWorkspaceSortInvalid           common.FieldCode = "DEPLOYMENT_WORKSPACE_SORT_INVALID"
 	ValidationWorkspaceStatusInvalid         common.FieldCode = "DEPLOYMENT_WORKSPACE_STATUS_INVALID"
+	ValidationUsageSortInvalid               common.FieldCode = "DEPLOYMENT_USAGE_SORT_INVALID"
+	ValidationUsageDaysInvalid               common.FieldCode = "DEPLOYMENT_USAGE_DAYS_INVALID"
 )
 
 // Create 在首次安装事务内写入部署实例行并投递与 control 的首次同步，实例标识与签名私钥由数据库生成，注册仅限受邀邮箱，工作区仅部署管理员可创建，统计时区取部署管理员的时区。

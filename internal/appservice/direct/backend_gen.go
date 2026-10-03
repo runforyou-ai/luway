@@ -1350,7 +1350,7 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return b.ops.AcceptInvitation(ctx, meta, account, input)
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
+// GetDeploymentOverview 返回实例标识、规模、活跃趋势和实例能力。
 func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentOverview, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1518,6 +1518,46 @@ func (b *Backend) ResumeDeploymentWorkspace(ctx context.Context, meta appservice
 		return zero, err
 	}
 	return b.ops.ResumeDeploymentWorkspace(ctx, meta, account, workspaceID)
+}
+
+// GetDeploymentUsage 返回部署整体最近若干天的客服业务使用指标。
+func (b *Backend) GetDeploymentUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentUsageInput) (appservice.DeploymentUsageMetrics, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentUsageMetrics
+		return zero, err
+	}
+	return b.ops.GetDeploymentUsage(ctx, meta, account, input)
+}
+
+// ListDeploymentWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (b *Backend) ListDeploymentWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentWorkspaceUsageListInput) (appservice.DeploymentWorkspaceUsageList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentWorkspaceUsageList
+		return zero, err
+	}
+	return b.ops.ListDeploymentWorkspaceUsage(ctx, meta, account, input)
+}
+
+// GetDeploymentRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (b *Backend) GetDeploymentRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentRuntimeStatus, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentRuntimeStatus
+		return zero, err
+	}
+	return b.ops.GetDeploymentRuntimeStatus(ctx, meta, account)
+}
+
+// ListDeploymentFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (b *Backend) ListDeploymentFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentFailedTaskListInput) (appservice.DeploymentFailedTaskList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentFailedTaskList
+		return zero, err
+	}
+	return b.ops.ListDeploymentFailedTasks(ctx, meta, account, input)
 }
 
 // ListPlatformAIProviders 返回部署的平台供应商。
