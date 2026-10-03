@@ -44,25 +44,37 @@ func loadProvider(ctx context.Context, db bun.IDB, organizationID, providerID st
 	return provider, nil
 }
 
-// loadModels 按添加顺序读取供应商的模型目录。
+// modelRow 定义供应商模型目录查询的一行：模型与指向该供应商的来源路由。
+type modelRow struct {
+	ID              string          `bun:"id"`
+	Identifier      string          `bun:"identifier"`
+	Name            string          `bun:"name"`
+	Type            string          `bun:"model_type"`
+	InputModalities json.RawMessage `bun:"input_modalities"`
+	ContextWindow   int64           `bun:"context_window"`
+	MaxOutputTokens int64           `bun:"max_output_tokens"`
+}
+
+// loadModels 按添加顺序读取供应商的模型目录，上游模型标识取指向该供应商的来源路由。
 func loadModels(ctx context.Context, db bun.IDB, providerID string) ([]Model, error) {
-	records := make([]servermodels.AIModel, 0)
-	if err := db.NewSelect().
-		Model(&records).
-		Where("aim.provider_id = ?", providerID).
-		Order("aim.id ASC").
-		Scan(ctx); err != nil {
+	rows := make([]modelRow, 0)
+	if err := db.NewSelect().TableExpr("ai_model_routes AS amr").
+		ColumnExpr("aim.id::text AS id, amr.identifier, aim.name, aim.model_type, aim.input_modalities, aim.context_window, aim.max_output_tokens").
+		Join("JOIN ai_models AS aim ON aim.id = amr.model_id").
+		Where("amr.provider_id = ?", providerID).
+		OrderExpr("aim.id ASC").
+		Scan(ctx, &rows); err != nil {
 		return nil, err
 	}
-	models := make([]Model, 0, len(records))
-	for _, record := range records {
+	models := make([]Model, 0, len(rows))
+	for _, row := range rows {
 		inputModalities := make([]domain.AIModelInputModality, 0)
-		if err := json.Unmarshal(record.InputModalities, &inputModalities); err != nil {
-			return nil, fmt.Errorf("decode model %q input modalities: %w", record.ID, err)
+		if err := json.Unmarshal(row.InputModalities, &inputModalities); err != nil {
+			return nil, fmt.Errorf("decode model %q input modalities: %w", row.ID, err)
 		}
 		models = append(models, Model{
-			ID: record.ID, Identifier: record.Identifier, Name: record.Name, Type: domain.AIModelType(record.Type),
-			InputModalities: inputModalities, ContextWindow: record.ContextWindow, MaxOutputTokens: record.MaxOutputTokens,
+			ID: row.ID, Identifier: row.Identifier, Name: row.Name, Type: domain.AIModelType(row.Type),
+			InputModalities: inputModalities, ContextWindow: row.ContextWindow, MaxOutputTokens: row.MaxOutputTokens,
 		})
 	}
 	return models, nil
@@ -136,33 +148,36 @@ func validateReferencedModels(ctx context.Context, db bun.IDB, organizationID st
 	return nil
 }
 
-// saveModels 按增删改保存供应商模型目录，返回带编号的完整目录。
-func saveModels(ctx context.Context, tx bun.Tx, providerID string, models []Model, changes modelChanges) ([]Model, error) {
-	if len(changes.deleted) > 0 {
-		if _, err := tx.NewDelete().Model((*servermodels.AIModel)(nil)).
-			Where("provider_id = ?", providerID).
-			Where("id IN (?)", bun.In(changes.deleted)).
-			Exec(ctx); err != nil {
-			return nil, err
-		}
+// saveModels 按增删改保存工作区供应商的模型目录：每个模型属于该工作区，并以唯一一条来源路由指向该供应商；返回带编号的完整目录。
+func saveModels(ctx context.Context, tx bun.Tx, organizationID, providerID string, models []Model, changes modelChanges) ([]Model, error) {
+	if err := deleteModels(ctx, tx, organizationID, changes.deleted); err != nil {
+		return nil, err
 	}
 	for _, model := range changes.updated {
-		record, err := modelRecord(providerID, model)
+		record, err := modelRecord(organizationID, model)
 		if err != nil {
 			return nil, err
 		}
 		if _, err := tx.NewUpdate().Model(&record).
-			Column("identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
+			Column("name", "model_type", "input_modalities", "context_window", "max_output_tokens").
+			Set("updated_at = now()").
+			Where("organization_id = ?", organizationID).
+			WherePK().
+			Exec(ctx); err != nil {
+			return nil, err
+		}
+		if _, err := tx.NewUpdate().Model((*servermodels.AIModelRoute)(nil)).
+			Set("identifier = ?", model.Identifier).
 			Set("updated_at = now()").
 			Where("provider_id = ?", providerID).
-			WherePK().
+			Where("model_id = ?", model.ID).
 			Exec(ctx); err != nil {
 			return nil, err
 		}
 	}
 	inserted := make([]servermodels.AIModel, 0, len(changes.inserted))
 	for _, model := range changes.inserted {
-		record, err := modelRecord(providerID, model)
+		record, err := modelRecord(organizationID, model)
 		if err != nil {
 			return nil, err
 		}
@@ -170,8 +185,17 @@ func saveModels(ctx context.Context, tx bun.Tx, providerID string, models []Mode
 	}
 	if len(inserted) > 0 {
 		if _, err := tx.NewInsert().Model(&inserted).
-			Column("provider_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
+			Column("organization_id", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
 			Returning("id").
+			Exec(ctx); err != nil {
+			return nil, err
+		}
+		routes := make([]servermodels.AIModelRoute, 0, len(inserted))
+		for index, record := range inserted {
+			routes = append(routes, servermodels.AIModelRoute{ModelID: record.ID, ProviderID: providerID, Identifier: changes.inserted[index].Identifier, Enabled: true})
+		}
+		if _, err := tx.NewInsert().Model(&routes).
+			Column("model_id", "provider_id", "identifier", "priority", "enabled").
 			Exec(ctx); err != nil {
 			return nil, err
 		}
@@ -189,14 +213,31 @@ func saveModels(ctx context.Context, tx bun.Tx, providerID string, models []Mode
 	return saved, nil
 }
 
-// modelRecord 把模型目录项转换为存储模型。
-func modelRecord(providerID string, model Model) (servermodels.AIModel, error) {
+// deleteModels 删除工作区模型及其全部来源路由。
+func deleteModels(ctx context.Context, tx bun.Tx, organizationID string, modelIDs []string) error {
+	if len(modelIDs) == 0 {
+		return nil
+	}
+	if _, err := tx.NewDelete().Model((*servermodels.AIModelRoute)(nil)).
+		Where("model_id IN (SELECT id FROM ai_models WHERE organization_id = ? AND id IN (?))", organizationID, bun.In(modelIDs)).
+		Exec(ctx); err != nil {
+		return err
+	}
+	_, err := tx.NewDelete().Model((*servermodels.AIModel)(nil)).
+		Where("organization_id = ?", organizationID).
+		Where("id IN (?)", bun.In(modelIDs)).
+		Exec(ctx)
+	return err
+}
+
+// modelRecord 把模型目录项转换为属于工作区的存储模型。
+func modelRecord(organizationID string, model Model) (servermodels.AIModel, error) {
 	inputModalities, err := json.Marshal(model.InputModalities)
 	if err != nil {
 		return servermodels.AIModel{}, err
 	}
 	return servermodels.AIModel{
-		ID: model.ID, ProviderID: providerID, Identifier: model.Identifier, Name: model.Name, Type: string(model.Type),
+		ID: model.ID, OrganizationID: &organizationID, Name: model.Name, Type: string(model.Type),
 		InputModalities: inputModalities, ContextWindow: model.ContextWindow, MaxOutputTokens: model.MaxOutputTokens,
 	}, nil
 }
@@ -215,7 +256,7 @@ func conflictError(err error) error {
 	switch {
 	case pgerr.UniqueViolationOn(err, "ai_providers_organization_name_unique"):
 		return &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
-	case pgerr.UniqueViolationOn(err, "ai_models_provider_identifier_unique"):
+	case pgerr.UniqueViolationOn(err, "ai_model_routes_provider_identifier_unique"):
 		return &ValidationError{Fields: map[string]ValidationCode{"models": ValidationModelsInvalid}}
 	default:
 		return nil

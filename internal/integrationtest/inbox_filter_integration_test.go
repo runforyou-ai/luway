@@ -81,7 +81,7 @@ func TestInboxChannelFilter(t *testing.T) {
 	if _, err := servicesessionaction.NewClaimServiceSessionAction(f.db, nil, newTestTasks(f.db)).Execute(ctx, f.owner, other.Conversation.ID); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := servicesessionaction.NewCloseServiceSessionAction(f.db, agentrunaction.NewExecuteAction(f.db, nil, nil, testAttachmentReader(f.db), nil, nil), newTestTasks(f.db)).Execute(ctx, f.owner, other.Conversation.ID); err != nil {
+	if _, err := servicesessionaction.NewCloseServiceSessionAction(f.db, agentrunaction.NewExecuteAction(f.db, nil, nil, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil), newTestTasks(f.db)).Execute(ctx, f.owner, other.Conversation.ID); err != nil {
 		t.Fatal(err)
 	}
 	closed := inboxaction.LoadInput{
@@ -107,7 +107,7 @@ func TestInboxChannelFilter(t *testing.T) {
 		t.Fatalf("disabled channel=%v err=%v", conversationIDs(closedPage.Conversations), err)
 	}
 	login := loginMember(t, f.db, f.owner.Organization.ID, f.owner.Account.Email, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
 	candidates, err := backend.ListInboxChannels(ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID})
 	if err != nil || len(candidates.Channels) != 2 {
 		t.Fatalf("channel candidates=%+v err=%v", candidates.Channels, err)
@@ -505,7 +505,7 @@ func TestInboxPendingQueueSince(t *testing.T) {
 	if _, err := send.Execute(ctx, f.owner, servicesessionaction.ServiceTextMessageInput{ConversationID: f.conversationID, ClientMessageID: uuid.NewV7().String(), Body: "已处理"}); err != nil {
 		t.Fatal(err)
 	}
-	coordinator := agentrunaction.NewExecuteAction(f.db, nil, nil, testAttachmentReader(f.db), nil, nil)
+	coordinator := agentrunaction.NewExecuteAction(f.db, nil, nil, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil)
 	if _, err := servicesessionaction.NewTransferServiceSessionAction(f.db, coordinator, agentrunaction.NewScheduler(newTestTasks(f.db)), newTestTasks(f.db)).Execute(ctx, f.owner, servicesessionaction.TransferServiceSessionInput{
 		ConversationID: f.conversationID, TargetKind: domain.ServiceSessionTargetPublicQueue,
 	}); err != nil {

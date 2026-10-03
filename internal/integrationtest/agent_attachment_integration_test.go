@@ -110,7 +110,7 @@ func TestAgentAttachmentInputs(t *testing.T) {
 			}
 			return agentruntime.RunResult{Content: "已阅读", EndSeq: input.EndSeq}, nil
 		}}
-		if err := agentrunaction.NewExecuteAction(f.db, tasks, runtime, testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+		if err := agentrunaction.NewExecuteAction(f.db, tasks, runtime, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 			t.Fatal(err)
 		}
 	}

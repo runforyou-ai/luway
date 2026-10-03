@@ -13,6 +13,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	servicecategoryaction "github.com/runforyou-ai/luway/internal/actions/servicecategory"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
@@ -95,7 +96,7 @@ func TestServiceSessionSummaryLifecycle(t *testing.T) {
 		"category": {Kind: decision.KindChoice, Choice: category.ID, Probabilities: map[string]float64{category.ID: 0.8}},
 	}}
 	caller := &summaryCaller{text: "```json\n{\"summary\":\"客户询问订单状态，客服已告知预计送达时间。\"}\n```"}
-	worker := servicesummary.NewWorker(f.db, tasks, decider, caller)
+	worker := servicesummary.NewWorker(f.db, tasks, modelcall.New(f.db, modelcall.Upstreams{Decider: decider}), caller)
 	if err := worker.Summarize(ctx, input); err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +244,7 @@ func TestHandoffSummary(t *testing.T) {
 		t.Fatal(err)
 	}
 	caller := &summaryCaller{text: `{"request":"Where is my order?","progress":"AI could not find the order.","blocker":"Check the order system."}`}
-	worker := servicesummary.NewWorker(f.db, tasks, &summaryDecider{}, caller)
+	worker := servicesummary.NewWorker(f.db, tasks, modelcall.New(f.db, modelcall.Upstreams{Decider: &summaryDecider{}}), caller)
 	// 旧的转人工任务不写入。
 	if err := worker.HandoffSummary(ctx, servicesummary.HandoffSummaryInput{OrganizationID: f.owner.Organization.ID, ServiceSessionID: session.ID, MessageID: first}); err != nil {
 		t.Fatal(err)
@@ -290,9 +291,9 @@ func seedSummaryModels(t *testing.T, db *bun.DB, identity *servermodels.Identity
 		t.Fatal(err)
 	}
 	insertAIModels(t, db,
-		&servermodels.AIModel{ProviderID: provider.ID, Identifier: "chat-model", Name: "对话模型", Type: string(domain.AIModelTypeChat),
+		&testAIModel{ProviderID: provider.ID, Identifier: "chat-model", Name: "对话模型", Type: string(domain.AIModelTypeChat),
 			InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096},
-		&servermodels.AIModel{ProviderID: provider.ID, Identifier: "decision-model", Name: "判断模型", Type: string(domain.AIModelTypeDecision),
+		&testAIModel{ProviderID: provider.ID, Identifier: "decision-model", Name: "判断模型", Type: string(domain.AIModelTypeDecision),
 			InputModalities: json.RawMessage(`["text"]`), ContextWindow: 32000},
 	)
 	return provider.ID

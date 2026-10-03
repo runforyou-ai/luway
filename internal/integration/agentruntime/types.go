@@ -3,10 +3,10 @@ package agentruntime
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/cloudwego/eino/adk/filesystem"
+	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/localskill"
@@ -56,17 +56,27 @@ type InputFeed interface {
 	Claim(context.Context, int64) (ClaimedInput, error)
 }
 
-// ModelConfig 定义模型组件运行所需配置。
+// ModelOptions 定义创建对话模型组件时的请求参数。
+type ModelOptions struct {
+	MaxOutputTokens int  // 单次输出 Token 上限，零值不限制。
+	DisableThinking bool // 为 true 时在模型提供思考开关时关闭思考模式。
+}
+
+// ModelFactory 按请求参数创建对话模型组件，由执行侧注入并负责调用来源与调用记录。
+type ModelFactory func(context.Context, ModelOptions) (model.AgenticModel, error)
+
+// ModelConfig 定义运行使用的模型参数与模型组件工厂。
 type ModelConfig struct {
-	Brand           string
-	APIKey          string
-	BaseURL         string
-	Identifier      string
 	MaxOutputTokens int
 	ContextWindow   int
 	InputModalities []domain.AIModelInputModality
-	DisableThinking bool              // 为 true 时在模型组件提供思考开关的品牌上关闭思考模式。
-	Transport       http.RoundTripper // 非空时模型请求经该传输层发出。
+	DisableThinking bool
+	New             ModelFactory
+}
+
+// newModel 按模型参数创建对话模型组件。
+func (c ModelConfig) newModel(ctx context.Context) (model.AgenticModel, error) {
+	return c.New(ctx, ModelOptions{MaxOutputTokens: c.MaxOutputTokens, DisableThinking: c.DisableThinking})
 }
 
 // AttachmentContent 读取本次运行会话中指定附件消息的文件内容。
@@ -120,13 +130,6 @@ type GroundingPolicy string
 // GroundingStrict 要求直接输出的正文在当前输入边界内取得有效依据，否则纠正一次后转人工。
 const GroundingStrict GroundingPolicy = "strict"
 
-// ModelCredentials 定义调用模型所需的凭据与入口，由执行侧注入，不进入有效配置；设备执行时指向服务端模型代理。
-type ModelCredentials struct {
-	APIKey    string
-	BaseURL   string
-	Transport http.RoundTripper // 非空时模型请求经该传输层发出。
-}
-
 // Workspace 是执行设备提供的本机文件与命令访问，相对路径与命令工作目录以会话默认文件夹为起点。
 type Workspace interface {
 	filesystem.Backend
@@ -171,8 +174,8 @@ type LocalSkills interface {
 // RunRequest 定义一次有界 Agent 业务运行。
 type RunRequest struct {
 	RunID                 string
-	Assignment            Assignment       // 本次运行的有效配置，由 ResolveAssignment 产出并固定在运行快照中。
-	Credentials           ModelCredentials // 模型供应商凭据。
+	Assignment            Assignment   // 本次运行的有效配置，由 ResolveAssignment 产出并固定在运行快照中。
+	Models                ModelFactory // 创建本次运行的对话模型组件，由执行侧注入。
 	KnowledgeSearch       KnowledgeSearch
 	WebSearch             WebSearch // 有效配置包含联网搜索时由执行侧提供。
 	WebFetch              WebFetch  // 有效配置包含网页读取时由执行侧提供。
@@ -191,17 +194,13 @@ type RunRequest struct {
 	OnStream              func(runstream.Delta) // 串行接收合并后的运行流增量，实现不得阻塞。
 }
 
-// modelConfig 合并有效配置中的模型参数与执行侧注入的凭据。
+// modelConfig 合并有效配置中的模型参数与执行侧注入的模型组件工厂。
 func (r RunRequest) modelConfig() ModelConfig {
 	return ModelConfig{
-		Brand:           r.Assignment.Model.Brand,
-		APIKey:          r.Credentials.APIKey,
-		BaseURL:         r.Credentials.BaseURL,
-		Identifier:      r.Assignment.Model.Identifier,
 		MaxOutputTokens: int(r.Assignment.Model.MaxOutputTokens),
 		ContextWindow:   int(r.Assignment.Model.ContextWindow),
 		InputModalities: r.Assignment.Model.InputModalities,
-		Transport:       r.Credentials.Transport,
+		New:             r.Models,
 	}
 }
 

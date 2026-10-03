@@ -74,12 +74,12 @@ func TestSkillLoadingSurvivesSummary(t *testing.T) {
 		return assistantReply("检查完了")
 	}}
 	chatModel := &summaryModel{AgenticModel: main}
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+	runtime := &EinoRuntime{}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, err := runtime.Run(ctx, RunRequest{
 		RunID: "skill-run", Assignment: Assignment{AgentName: "小码", Tools: []string{skillToolName}, Model: AssignmentModel{ContextWindow: 4000}},
-		Workspace: &imageWorkspace{}, Skills: testSkills(t), MaxTurns: 2,
+		Models: fixedModels(chatModel), Workspace: &imageWorkspace{}, Skills: testSkills(t), MaxTurns: 2,
 	}, feed)
 	if err != nil || result.Content != "检查完了" {
 		t.Fatalf("result = %+v, err = %v", result, err)

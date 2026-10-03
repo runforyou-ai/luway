@@ -92,7 +92,7 @@ func (w *Worker) HandoffSummary(ctx context.Context, input HandoffSummaryInput) 
 	generateCtx, cancel := context.WithTimeout(ctx, summaryTimeout)
 	defer cancel()
 	response, err := w.caller.CallOnce(generateCtx, agentruntime.SingleCallRequest{
-		Instruction: instruction, Model: model.ModelConfig(), Input: materials + "\n\n转人工原因：" + string(reason),
+		Instruction: instruction, Model: w.invoker.ModelConfig(sessionScope(input.OrganizationID, input.ServiceSessionID), model), Input: materials + "\n\n转人工原因：" + string(reason),
 	})
 	if err != nil {
 		return fmt.Errorf("generate handoff summary: %w", err)

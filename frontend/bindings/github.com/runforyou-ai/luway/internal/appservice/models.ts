@@ -29,7 +29,6 @@ export enum AIModelInputModality {
  */
 export interface AIModelOption {
     "id": string;
-    "identifier": string;
     "name": string;
     "type": AIModelType;
     "inputModalities": AIModelInputModality[] | null;

@@ -40,7 +40,7 @@ func aiModelOptionFromAction(option aimodelaction.Option) appservice.AIModelOpti
 		inputModalities = append(inputModalities, appservice.AIModelInputModality(modality))
 	}
 	return appservice.AIModelOption{
-		ID: option.ID, Identifier: option.Identifier, Name: option.Name, Type: appservice.AIModelType(option.Type),
+		ID: option.ID, Name: option.Name, Type: appservice.AIModelType(option.Type),
 		InputModalities: inputModalities, ProviderID: option.ProviderID, ProviderName: option.ProviderName,
 		ProviderBrand: appservice.AIProviderBrand(option.Brand),
 	}

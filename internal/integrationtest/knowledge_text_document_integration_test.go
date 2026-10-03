@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
@@ -34,7 +35,7 @@ func runDocumentProcessing(t *testing.T, db *bun.DB, probe *retrievalProbe, orga
 	if err := db.NewSelect().Model(base).WherePK().Scan(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	err := knowledgeaction.NewProcessDocumentAction(db, probe, probe, probe, probe).Execute(context.Background(), knowledgeaction.ProcessInput{
+	err := knowledgeaction.NewProcessDocumentAction(db, probe, modelcall.New(db, modelcall.Upstreams{Embedder: probe}), probe, probe).Execute(context.Background(), knowledgeaction.ProcessInput{
 		OrganizationID: organizationID, KnowledgeBaseID: baseID, DocumentID: documentID, SourceKind: document.SourceKind, FetchPage: fetchPage, ProcessingID: document.ProcessingID,
 		ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap,
 		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
@@ -142,7 +143,7 @@ func TestKnowledgeTextDocumentLifecycle(t *testing.T) {
 	}
 
 	// 召回结果的来源名称取文档标题。
-	records, err := knowledgeaction.NewRetrievalService(db, probe, probe).Retrieve(ctx, identity, base.ID, "如何申请退款")
+	records, err := knowledgeaction.NewRetrievalService(db, modelcall.New(db, modelcall.Upstreams{Embedder: probe, Reranker: probe})).Retrieve(ctx, identity, base.ID, "如何申请退款")
 	if err != nil || len(records) == 0 || records[0].DocumentID != created.ID || records[0].DocumentName != "退款政策说明" {
 		t.Fatalf("records=%+v err=%v", records, err)
 	}

@@ -54,15 +54,12 @@ func TestFinalIterationAnswersWithoutTools(t *testing.T) {
 		t.Fatal(err)
 	}
 	chatModel := &toolHungryChatModel{}
-	runtime := &EinoRuntime{
-		newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil },
-		tools:    []tool.BaseTool{echoTool},
-	}
+	runtime := &EinoRuntime{tools: []tool.BaseTool{echoTool}}
 	feed := &testInputFeed{}
 	feed.appendUser("帮我查一下")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	result, err := runtime.Run(ctx, RunRequest{RunID: "budget-run", Assignment: Assignment{AgentName: "test-agent"}, MaxIterations: 3, MaxTurns: 2}, feed)
+	result, err := runtime.Run(ctx, RunRequest{RunID: "budget-run", Assignment: Assignment{AgentName: "test-agent"}, Models: fixedModels(chatModel), MaxIterations: 3, MaxTurns: 2}, feed)
 	if err != nil {
 		t.Fatal(err)
 	}

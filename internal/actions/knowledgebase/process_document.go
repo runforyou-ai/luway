@@ -11,10 +11,10 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/documentconvert"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
-	"github.com/runforyou-ai/luway/pkg/embedding"
 	"github.com/runforyou-ai/luway/pkg/textsplit"
 	"github.com/runforyou-ai/luway/pkg/webfetch"
 	"github.com/uptrace/bun"
@@ -22,9 +22,6 @@ import (
 
 type documentConverter interface {
 	Convert(context.Context, string, io.Reader) (string, error)
-}
-type segmentEmbedder interface {
-	Embed(context.Context, embedding.Credential, string, int, []string) ([][]float32, error)
 }
 type documentFileReader interface {
 	Open(context.Context, *servermodels.File) (io.ReadCloser, error)
@@ -37,14 +34,14 @@ type pageFetcher interface {
 type ProcessDocumentAction struct {
 	db        *bun.DB
 	converter documentConverter
-	embedder  segmentEmbedder
+	invoker   *modelcall.Invoker
 	files     documentFileReader
 	pages     pageFetcher
 }
 
 // NewProcessDocumentAction 创建文档处理任务。
-func NewProcessDocumentAction(db *bun.DB, converter documentConverter, embedder segmentEmbedder, files documentFileReader, pages pageFetcher) *ProcessDocumentAction {
-	return &ProcessDocumentAction{db: db, converter: converter, embedder: embedder, files: files, pages: pages}
+func NewProcessDocumentAction(db *bun.DB, converter documentConverter, invoker *modelcall.Invoker, files documentFileReader, pages pageFetcher) *ProcessDocumentAction {
+	return &ProcessDocumentAction{db: db, converter: converter, invoker: invoker, files: files, pages: pages}
 }
 
 // Execute 执行当前文档任务，并在同一事务中写入分段与发布批次。
@@ -85,10 +82,11 @@ func (a *ProcessDocumentAction) Execute(ctx context.Context, input ProcessInput)
 	if len(segments) == 0 {
 		return &ProcessError{Code: "empty_content", Stage: domain.KnowledgeIndexSplitting}
 	}
-	published, err := embedAndPublish(ctx, a.db, a.embedder, indexPublication{
+	published, err := embedAndPublish(ctx, a.db, a.invoker, indexPublication{
 		Model:            (*servermodels.KnowledgeDocument)(nil),
 		Batch:            segmentBatch{OrganizationID: input.OrganizationID, KnowledgeBaseID: input.KnowledgeBaseID, SourceType: domain.KnowledgeSourceDocument, SourceID: input.DocumentID, BatchID: input.ProcessingID, EmbeddingDimension: input.EmbeddingDimension},
 		EmbeddingModelID: input.EmbeddingModelID,
+		CallSource:       domain.AIModelCallSourceKnowledgeDocument,
 	}, segments)
 	if err == nil && published {
 		slog.Info("知识文档分段与向量完成", "document_id", input.DocumentID, "processing_id", input.ProcessingID, "segment_count", len(segments), "embedding_dimension", input.EmbeddingDimension, "duration_ms", time.Since(started).Milliseconds())

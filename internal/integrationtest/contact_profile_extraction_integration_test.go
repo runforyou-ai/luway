@@ -11,6 +11,7 @@ import (
 
 	contactprofileaction "github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -92,7 +93,7 @@ func TestContactProfileExtraction(t *testing.T) {
 	decider := &summaryDecider{answers: map[string]decision.Answer{"tag_0": {Kind: decision.KindYesNo, Probability: 0.9}}}
 	caller := &summaryCaller{text: `{"name":"王先生","fields":[{"name":"公司","value":"Other"},{"name":"城市","value":"上海"},{"name":"套餐","value":"专业版"},{"name":"席位数","value":"5"}],` +
 		`"emails":["Wang@Example.com","not-an-email"],"phones":["+86 138 0000 0000","13800000000"]}`}
-	worker := servicesummary.NewWorker(f.db, tasks, decider, caller)
+	worker := servicesummary.NewWorker(f.db, tasks, modelcall.New(f.db, modelcall.Upstreams{Decider: decider}), caller)
 	if err := worker.ExtractContactProfile(ctx, input); err != nil {
 		t.Fatal(err)
 	}

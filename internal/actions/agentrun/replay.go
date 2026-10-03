@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/actions/servicecategory"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -47,7 +49,7 @@ func (a *ExecuteAction) Replay(ctx context.Context, input ReplayInput) (agentrun
 		ColumnExpr("oi.display_name AS agent_name").
 		ColumnExpr("aim.input_modalities").
 		ColumnExpr("ar.configuration->'knowledgeBaseIds' AS knowledge_base_ids").
-		ColumnExpr("aim.id::text AS model_id, ? = ANY(a.service_audiences) AS handles_customers, o.name AS organization_name", domain.ServiceAudienceCustomer).
+		ColumnExpr("? = ANY(a.service_audiences) AS handles_customers, o.name AS organization_name", domain.ServiceAudienceCustomer).
 		Join("JOIN organizations AS o ON o.id = a.organization_id").
 		Apply(func(query *bun.SelectQuery) *bun.SelectQuery {
 			return withManagedAgentConfiguration(query, "replay_revision.id")
@@ -81,7 +83,9 @@ func (a *ExecuteAction) Replay(ctx context.Context, input ReplayInput) (agentrun
 	for _, category := range categories {
 		handoffCategories = append(handoffCategories, agentruntime.HandoffCategory{ID: category.ID, Name: category.Name, Description: category.Description})
 	}
-	knowledge, err := loadKnowledgeSearch(ctx, a.db, a.knowledge, input.OrganizationID, execution.KnowledgeBaseIDs)
+	// 回放中的模型调用记为本次评测的后台调用。
+	scope := modelcall.SystemScope(input.OrganizationID, domain.AIModelCallSourceAgentEvaluation, input.ReplayID)
+	knowledge, err := loadKnowledgeSearch(ctx, a.db, a.knowledge, scope, execution.KnowledgeBaseIDs)
 	if err != nil {
 		return agentruntime.RunResult{}, fmt.Errorf("load replay knowledge bases: %w", err)
 	}
@@ -99,17 +103,24 @@ func (a *ExecuteAction) Replay(ctx context.Context, input ReplayInput) (agentrun
 	)
 	var history agentruntime.CustomerHistorySearch
 	if input.History != nil {
-		scope := *input.History
+		bound := *input.History
 		history = func(ctx context.Context, query string) (agentruntime.CustomerHistoryResult, error) {
-			return servicesummary.SearchHistory(ctx, a.db, input.OrganizationID, scope.ServiceSessionID, &scope.ClosedBefore, query)
+			return servicesummary.SearchHistory(ctx, a.db, input.OrganizationID, bound.ServiceSessionID, &bound.ClosedBefore, query)
 		}
+	}
+	model, err := aimodel.Resolve(ctx, a.db, input.OrganizationID, execution.ModelID, domain.AIModelUsageAgent)
+	if errors.Is(err, aimodel.ErrUnavailable) {
+		return agentruntime.RunResult{}, ErrReplayConfigurationUnavailable
+	}
+	if err != nil {
+		return agentruntime.RunResult{}, fmt.Errorf("resolve replay model: %w", err)
 	}
 	runCtx, cancel := context.WithTimeout(ctx, agentRunTimeout)
 	defer cancel()
 	result, err := a.runtime.Run(runCtx, agentruntime.RunRequest{
 		RunID:                 input.ReplayID,
 		Assignment:            assignment,
-		Credentials:           agentruntime.ModelCredentials{APIKey: execution.APIKey, BaseURL: execution.APIURL},
+		Models:                a.invoker.ChatModels(scope, model),
 		KnowledgeSearch:       knowledge,
 		CustomerHistorySearch: history,
 		MCPConnections:        mcpServers.Servers,

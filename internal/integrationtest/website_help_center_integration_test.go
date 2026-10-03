@@ -11,6 +11,7 @@ import (
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	helpcenteraction "github.com/runforyou-ai/luway/internal/actions/helpcenter"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
@@ -57,7 +58,7 @@ func TestWebsiteHelpCenter(t *testing.T) {
 	}
 	getHelpCenter := helpcenteraction.NewGetHelpCenterQuery(db)
 	getArticle := helpcenteraction.NewGetArticleQuery(db)
-	search := helpcenteraction.NewSearchQuery(db, knowledgeaction.NewRetrievalService(db, probe, probe))
+	search := helpcenteraction.NewSearchQuery(db, knowledgeaction.NewRetrievalService(db, modelcall.New(db, modelcall.Upstreams{Embedder: probe, Reranker: probe})))
 
 	// 未发布任何知识库时没有合集，搜索不返回结果。
 	if collections, err := getHelpCenter.Execute(ctx, channel.ID); err != nil || len(collections) != 0 {

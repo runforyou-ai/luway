@@ -17,20 +17,19 @@ import (
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
 	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
 	"github.com/runforyou-ai/luway/internal/integration/localworkspace"
+	"github.com/runforyou-ai/luway/internal/integration/modelgateway"
 	"github.com/runforyou-ai/luway/internal/integration/websearch"
 )
 
 const (
 	// defaultRunTimeout 是服务端未给出有效运行总时限时使用的时限。
 	defaultRunTimeout = 30 * time.Minute
-	// deviceModelAPIKey 是模型组件要求的非空凭据占位值，模型请求的认证由传输层写入登录令牌。
-	deviceModelAPIKey = "device"
 )
 
 // errRunSuppressed 表示服务端判定运行已失效，本机停止执行。
 var errRunSuppressed = errors.New("device run suppressed")
 
-// runAgent 按领取时固定的有效配置在本机执行运行时，模型请求经企业服务端模型代理，成功时回报结果。
+// runAgent 按领取时固定的有效配置在本机执行运行时，模型请求经企业服务端模型网关，成功时回报结果。
 func (w *Worker) runAgent(runCtx context.Context, meta appservice.RequestMeta, runID string, claim appservice.DeviceRunClaim, local *activeRun) (agentruntime.RunResult, error) {
 	var assignment agentruntime.Assignment
 	if err := json.Unmarshal(claim.Assignment, &assignment); err != nil {
@@ -39,16 +38,16 @@ func (w *Worker) runAgent(runCtx context.Context, meta appservice.RequestMeta, r
 	if assignment.LocalAgent != "" {
 		return w.runLocalAgent(runCtx, meta, runID, claim, assignment, local)
 	}
-	baseURL, transport, err := w.client.DeviceModelEndpoint(runCtx, meta, runID)
+	endpoint, transport, err := w.client.DeviceModelEndpoint(runCtx, meta, runID)
 	if err != nil {
 		return agentruntime.RunResult{}, fmt.Errorf("resolve device model endpoint: %w", err)
 	}
 	ctx, cancel, onStream := runContext(runCtx, claim, local)
 	defer cancel()
 	request := agentruntime.RunRequest{
-		RunID:       runID,
-		Assignment:  assignment,
-		Credentials: agentruntime.ModelCredentials{APIKey: deviceModelAPIKey, BaseURL: baseURL, Transport: transport},
+		RunID:      runID,
+		Assignment: assignment,
+		Models:     modelgateway.Models(endpoint, transport),
 		ReadAttachment: func(ctx context.Context, messageID string) ([]byte, error) {
 			return w.client.ReadDeviceRunAttachment(ctx, meta, runID, messageID)
 		},

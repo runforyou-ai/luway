@@ -282,7 +282,7 @@ func TestSyncHeadsIdentityProfile(t *testing.T) {
 		return nil
 	})
 
-	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
 	heads, err := backend.GetSyncHeads(ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID})
 	stored := loadSyncHeads(t, f.db, lonely)
 	if err != nil || heads.ConversationCount != 1 || heads.ConversationChecksum != stored.ConversationChecksum || heads.IdentityProfileVersion != strconv.FormatInt(stored.IdentityProfileVersion, 10) {

@@ -63,7 +63,7 @@ func TestWebSearchSettingsAndAgentTools(t *testing.T) {
 	if err := tasks.Registry().RegisterJSON(agentrunaction.RunActionName, func(context.Context, agentrunaction.RunInput) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	execute := agentrunaction.NewExecuteAction(f.db, tasks, runtime, testAttachmentReader(f.db), nil, nil)
+	execute := agentrunaction.NewExecuteAction(f.db, tasks, runtime, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil)
 	created, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{
 		DisplayName: "资料助手 " + uuid.NewV7().String()[:8],
 		Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{

@@ -89,7 +89,7 @@ type DeploymentConfig struct {
 }
 
 // New 创建直接访问服务端存储的应用后端。
-func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.LocalStore, s3 serverfilecontent.S3Config, agentScheduler conversationaction.AgentMessageScheduler, agentCoordinator *agentrunaction.ExecuteAction, taskEnqueuer servertask.TxEnqueuer, serviceReplySuggestions *agentrunaction.GenerateServiceReplySuggestionsAction, translator *translationaction.Translator) *Backend {
+func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.LocalStore, s3 serverfilecontent.S3Config, agentScheduler conversationaction.AgentMessageScheduler, agentCoordinator *agentrunaction.ExecuteAction, taskEnqueuer servertask.TxEnqueuer, serviceReplySuggestions *agentrunaction.GenerateServiceReplySuggestionsAction, translator *translationaction.Translator, knowledgeRetrieval *knowledgebaseaction.RetrievalService) *Backend {
 	connectionRunner := connectiontest.NewRunner(10 * time.Second)
 	connectionClient := connectiontest.NewHTTPClient()
 	modelProviderRegistry := modelprovider.NewRegistry(connectionClient)
@@ -114,7 +114,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		agentOps:           newAgentOps(db, agentCoordinator, serviceReplySuggestions),
 		agentEvaluationOps: newAgentEvaluationOps(db, taskEnqueuer),
 		personalAgentOps:   newPersonalAgentOps(db),
-		knowledgeOps:       newKnowledgeOps(db, taskEnqueuer, documentQuery),
+		knowledgeOps:       newKnowledgeOps(db, taskEnqueuer, documentQuery, knowledgeRetrieval),
 		integrationOps:     newIntegrationOps(db, taskEnqueuer, connectionRunner, modelProviderRegistry, mcpTest, mcpScheduler),
 		deviceOps:          newDeviceOps(db),
 		fileOps:            newFileOps(db, localFiles, s3, serverfilecontent.NewLinks("", s3.PublicBaseURL)),

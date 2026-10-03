@@ -141,7 +141,7 @@ func TestServiceBusinessQueries(t *testing.T) {
 		if err := db.NewSelect().Model(run).Where("agr.conversation_id = ? AND agr.status = ?", conversationID, domain.AgentRunStatusQueued).Scan(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if err := agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+		if err := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 			t.Fatal(err)
 		}
 	})
@@ -217,7 +217,7 @@ func TestServiceBusinessQueries(t *testing.T) {
 			if err := db.NewSelect().Model(run).Where("agr.conversation_id = ? AND agr.status = ?", conversationID, domain.AgentRunStatusQueued).Scan(ctx); err != nil {
 				t.Fatal(err)
 			}
-			if err := agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+			if err := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 				t.Fatal(err)
 			}
 			queries, err := conversationaction.NewListBusinessQueriesQuery(db).Execute(ctx, identity, conversationID)

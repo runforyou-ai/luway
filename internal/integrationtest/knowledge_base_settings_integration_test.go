@@ -56,10 +56,7 @@ func TestKnowledgeBaseSettings(t *testing.T) {
 	input := newKnowledgeBaseInput(t, db, identity, "配置测试", domain.KnowledgeBaseCategoryStandard)
 	create, update := knowledgeaction.NewCreateKnowledgeBaseAction(db), knowledgeaction.NewUpdateKnowledgeBaseAction(db, newKnowledgeTasks(t, db))
 	// 读取测试配置所用向量模型的供应商，按上游标识查找同供应商的其他模型。
-	embeddingA := &servermodels.AIModel{ID: input.EmbeddingModelID}
-	if err := db.NewSelect().Model(embeddingA).WherePK().Scan(ctx); err != nil {
-		t.Fatal(err)
-	}
+	embeddingA := loadTestAIModel(t, db, input.EmbeddingModelID)
 	providerID, rerankID := embeddingA.ProviderID, input.RerankModelID
 	embeddingB := aiModelID(t, db, providerID, "embedding-b")
 	base, err := create.Execute(ctx, identity, input)
