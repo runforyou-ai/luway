@@ -28,7 +28,7 @@ func TestDeploymentOperationsData(t *testing.T) {
 	if err := tasks.Registry().RegisterJSON(deploymentaction.AggregateStatsActionName, aggregate.Execute); err != nil {
 		t.Fatal(err)
 	}
-	backend := direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL}, nil, serverfilecontent.S3Config{}, nil, nil, tasks, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL}, nil, serverfilecontent.S3Config{}, nil, nil, tasks, nil, nil, nil)
 	service := appservice.New(backend)
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}
