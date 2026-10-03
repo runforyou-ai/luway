@@ -1730,6 +1730,17 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 	return b.ops.ListPlatformFailedTasks(ctx, meta, account, input)
 }
 
+// ListPlatformServerErrors 返回近 7 天的服务端错误记录。
+func (b *Backend) ListPlatformServerErrors(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformServerErrorListInput) (_ appservice.PlatformServerErrorList, err error) {
+	defer settle(ctx, "ListPlatformServerErrors", &err, internalError(meta))
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformServerErrorList
+		return zero, err
+	}
+	return b.ops.ListPlatformServerErrors(ctx, meta, account, input)
+}
+
 // GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
 func (b *Backend) GetPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (_ appservice.CreditBalance, err error) {
 	defer settle(ctx, "GetPlatformWorkspaceCredits", &err, internalError(meta))

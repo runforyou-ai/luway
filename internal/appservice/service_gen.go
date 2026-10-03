@@ -784,6 +784,11 @@ func (s *Service) ListPlatformFailedTasks(ctx context.Context, meta RequestMeta,
 	return WithNormalizedSlices(s.backend.ListPlatformFailedTasks(ctx, meta, input))
 }
 
+// ListPlatformServerErrors 返回近 7 天的服务端错误记录。
+func (s *Service) ListPlatformServerErrors(ctx context.Context, meta RequestMeta, input PlatformServerErrorListInput) (PlatformServerErrorList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformServerErrors(ctx, meta, input))
+}
+
 // GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
 func (s *Service) GetPlatformWorkspaceCredits(ctx context.Context, meta RequestMeta, workspaceID string) (CreditBalance, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformWorkspaceCredits(ctx, meta, workspaceID))

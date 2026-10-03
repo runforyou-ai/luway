@@ -498,6 +498,9 @@ type Backend interface {
 	// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
 	//appservice:route GET /platform/runtime/failed-tasks auth=admin
 	ListPlatformFailedTasks(context.Context, RequestMeta, PlatformFailedTaskListInput) (PlatformFailedTaskList, error)
+	// ListPlatformServerErrors 返回近 7 天的服务端错误记录。
+	//appservice:route GET /platform/runtime/server-errors auth=admin
+	ListPlatformServerErrors(context.Context, RequestMeta, PlatformServerErrorListInput) (PlatformServerErrorList, error)
 	// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
 	//appservice:route GET /platform/workspaces/:workspaceID/credits auth=admin
 	GetPlatformWorkspaceCredits(context.Context, RequestMeta, string) (CreditBalance, error)

@@ -34,6 +34,7 @@ type platformOps struct {
 	platformUsage          *platformaction.UsageQuery
 	platformRuntime        *platformaction.RuntimeStatusQuery
 	platformFailedTasks    *platformaction.FailedTaskListQuery
+	platformServerErrors   *platformaction.ServerErrorListQuery
 	licenseRead            *platformaction.LicenseQuery
 	activateLicense        *platformaction.ActivateLicenseAction
 	onlineLicense          *platformaction.OnlineLicenseAction
@@ -54,6 +55,7 @@ func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys 
 		platformUsage:          platformaction.NewUsageQuery(db),
 		platformRuntime:        platformaction.NewRuntimeStatusQuery(db, s3),
 		platformFailedTasks:    platformaction.NewFailedTaskListQuery(db),
+		platformServerErrors:   platformaction.NewServerErrorListQuery(db),
 		licenseRead:            platformaction.NewLicenseQuery(db),
 		activateLicense:        platformaction.NewActivateLicenseAction(db, licenseKeys),
 		onlineLicense:          platformaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
@@ -334,6 +336,24 @@ func (o *directOperations) ListPlatformFailedTasks(ctx context.Context, meta app
 	}
 	return appservice.PlatformFailedTaskList{
 		Tasks: tasks, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total},
+	}, nil
+}
+
+// ListPlatformServerErrors 返回近 7 天的服务端错误记录。
+func (o *directOperations) ListPlatformServerErrors(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformServerErrorListInput) (appservice.PlatformServerErrorList, error) {
+	output, err := o.platformServerErrors.Execute(ctx, platformaction.ServerErrorListInput{Page: input.Page, PageSize: input.PageSize})
+	if err != nil {
+		return appservice.PlatformServerErrorList{}, platformError(meta, err, i18n.ErrorPlatformRuntimeFailed)
+	}
+	records := make([]appservice.PlatformServerError, 0, len(output.Errors))
+	for _, record := range output.Errors {
+		records = append(records, appservice.PlatformServerError{
+			ID: record.ID, OccurredAt: record.OccurredAt, InstanceID: record.InstanceID, Hostname: record.Hostname, Version: record.Version, Message: record.Message,
+			Operation: record.Operation, Action: record.Action, Queue: record.Queue, Error: record.Error, EventID: record.EventID, Attributes: record.Attributes,
+		})
+	}
+	return appservice.PlatformServerErrorList{
+		Errors: records, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total},
 	}, nil
 }
 

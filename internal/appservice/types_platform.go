@@ -319,3 +319,31 @@ type PlatformFailedTaskList struct {
 	Tasks []PlatformFailedTask `json:"tasks"`
 	Page  PageInfo             `json:"page"`
 }
+
+// PlatformServerErrorListInput 定义服务端错误列表的分页。
+type PlatformServerErrorListInput struct {
+	Page     int `json:"page" query:"page,default=1"`
+	PageSize int `json:"pageSize" query:"pageSize,default=50"`
+}
+
+// PlatformServerError 定义一条服务端错误记录：InstanceID 为写入日志的服务端进程实例编号，Operation 为出错的业务入口方法，Action 与 Queue 为出错的后台任务及其队列，EventID 为上报 control 的错误事件编号，Attributes 为日志的其他属性。
+type PlatformServerError struct {
+	ID         string            `json:"id"`
+	OccurredAt time.Time         `json:"occurredAt"`
+	InstanceID string            `json:"instanceId"`
+	Hostname   string            `json:"hostname"`
+	Version    string            `json:"version"`
+	Message    string            `json:"message"`
+	Operation  *string           `json:"operation"`
+	Action     *string           `json:"action"`
+	Queue      *string           `json:"queue"`
+	Error      *string           `json:"error"`
+	EventID    *string           `json:"eventId"`
+	Attributes map[string]string `json:"attributes"`
+}
+
+// PlatformServerErrorList 定义服务端错误分页结果。
+type PlatformServerErrorList struct {
+	Errors []PlatformServerError `json:"errors"`
+	Page   PageInfo              `json:"page"`
+}

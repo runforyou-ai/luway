@@ -1069,6 +1069,13 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 	return output, err
 }
 
+// ListPlatformServerErrors 返回近 7 天的服务端错误记录。
+func (b *Backend) ListPlatformServerErrors(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformServerErrorListInput) (appservice.PlatformServerErrorList, error) {
+	var output appservice.PlatformServerErrorList
+	err := b.do(ctx, meta, http.MethodGet, "/platform/runtime/server-errors", encodePlatformServerErrorListInputQuery(input), nil, &output)
+	return output, err
+}
+
 // GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
 func (b *Backend) GetPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.CreditBalance, error) {
 	var output appservice.CreditBalance
@@ -2175,6 +2182,14 @@ func encodePlatformAccountListInputQuery(input appservice.PlatformAccountListInp
 
 // encodePlatformFailedTaskListInputQuery 将 appservice.PlatformFailedTaskListInput 编码为查询参数。
 func encodePlatformFailedTaskListInputQuery(input appservice.PlatformFailedTaskListInput) url.Values {
+	query := url.Values{}
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodePlatformServerErrorListInputQuery 将 appservice.PlatformServerErrorListInput 编码为查询参数。
+func encodePlatformServerErrorListInputQuery(input appservice.PlatformServerErrorListInput) url.Values {
 	query := url.Values{}
 	setPositiveQuery(query, "page", input.Page)
 	setPositiveQuery(query, "pageSize", input.PageSize)

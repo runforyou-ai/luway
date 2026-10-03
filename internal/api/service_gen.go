@@ -173,6 +173,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/platform/usage/workspaces", s.listPlatformWorkspaceUsage)
 	router.GET("/platform/runtime", s.getPlatformRuntimeStatus)
 	router.GET("/platform/runtime/failed-tasks", s.listPlatformFailedTasks)
+	router.GET("/platform/runtime/server-errors", s.listPlatformServerErrors)
 	router.GET("/platform/workspaces/:workspaceID/credits", s.getPlatformWorkspaceCredits)
 	router.GET("/platform/workspaces/:workspaceID/credits/entries", s.listPlatformWorkspaceCreditEntries)
 	router.POST("/platform/workspaces/:workspaceID/credits/adjustments", s.adjustPlatformWorkspaceCredits)
@@ -1585,6 +1586,16 @@ func (s *Service) listPlatformFailedTasks(c *gin.Context) {
 		return
 	}
 	output, err := s.application.ListPlatformFailedTasks(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listPlatformServerErrors 返回近 7 天的服务端错误记录。
+func (s *Service) listPlatformServerErrors(c *gin.Context) {
+	input, ok := bindPlatformServerErrorListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListPlatformServerErrors(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -3011,6 +3022,22 @@ func bindPlatformFailedTaskListInputQuery(c *gin.Context) (appservice.PlatformFa
 		return appservice.PlatformFailedTaskListInput{}, false
 	}
 	return appservice.PlatformFailedTaskListInput{
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindPlatformServerErrorListInputQuery 从查询参数解析 appservice.PlatformServerErrorListInput。
+func bindPlatformServerErrorListInputQuery(c *gin.Context) (appservice.PlatformServerErrorListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.PlatformServerErrorListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.PlatformServerErrorListInput{}, false
+	}
+	return appservice.PlatformServerErrorListInput{
 		Page:     page,
 		PageSize: pageSize,
 	}, true

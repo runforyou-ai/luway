@@ -139,6 +139,14 @@ func registerServerTasks(deps serverTaskDeps) error {
 	stats.Payload = platformaction.AggregateStatsInput{}
 	deps.tasks.RegisterSchedule(stats)
 
+	// 服务端错误记录每小时删除超过保留时长的部分。
+	if err := registry.RegisterJSON(platformaction.PruneServerErrorsActionName, func(ctx context.Context, _ struct{}) error {
+		return platformaction.PruneServerErrors(ctx, db)
+	}); err != nil {
+		return err
+	}
+	deps.tasks.RegisterSchedule(maintenanceSchedule(platformaction.PruneServerErrorsScheduleKey, platformaction.PruneServerErrorsActionName, "@hourly"))
+
 	// 服务端每次启动和之后每天向 control 登记并拉取授权，失败时按退避重试。
 	if err := registry.RegisterJSON(platformaction.SyncLicenseActionName, deps.onlineLicense.SyncTask); err != nil {
 		return err

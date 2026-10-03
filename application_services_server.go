@@ -136,8 +136,10 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		return nil, nil, fmt.Errorf("read hostname: %w", err)
 	}
 
-	// 注册上报、健康检查、业务与文件路由、公开聊天入口及后台服务生命周期；上报最先启动、最后停止，覆盖其他服务启停时的错误。
+	// 注册错误记录、上报、健康检查、业务与文件路由、公开聊天入口及后台服务生命周期；错误记录与上报最先启动、最后停止，覆盖其他服务启停时的错误。
+	// 上报处理器包在错误记录外层，错误记录可以带上上报的事件编号。
 	services := []application.Service{
+		application.NewService(&serverErrorLogLifecycle{log: platformaction.NewServerErrorLog(db, tasks.InstanceID(), hostname, buildinfo.Version)}),
 		application.NewService(&telemetryLifecycle{telemetry: telemetry, control: controlClient}),
 		application.NewServiceWithOptions(api.NewLiveness(), application.ServiceOptions{Route: "/healthz"}),
 		application.NewServiceWithOptions(api.NewReadiness(db), application.ServiceOptions{Route: "/readyz"}),

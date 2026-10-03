@@ -56,6 +56,8 @@ export const resourceKeys = {
   platformRuntime: () => ["platform-runtime"],
   /** 平台失败任务列表，可带分页参数。 */
   platformFailedTasks: (parameters?: KeyParameters) => listKey("platform-failed-tasks", parameters),
+  /** 平台服务端错误列表，可带分页参数。 */
+  platformServerErrors: (parameters?: KeyParameters) => listKey("platform-server-errors", parameters),
   /** 平台供应商列表。 */
   platformAIProviders: () => ["platform-ai-providers"],
   /** 单个平台供应商。 */
@@ -323,6 +325,7 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.platformWorkspaceUsage()[0],
   resourceKeys.platformRuntime()[0],
   resourceKeys.platformFailedTasks()[0],
+  resourceKeys.platformServerErrors()[0],
   resourceKeys.platformAIProviders()[0],
   resourceKeys.platformAIProvider()[0],
   resourceKeys.platformAIProviderModels()[0],

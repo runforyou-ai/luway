@@ -78,6 +78,24 @@ func (l *realtimeLifecycle) ServiceShutdown() error {
 	return l.publisher.Stop()
 }
 
+// serverErrorLogLifecycle 将服务端错误记录接入 Wails 服务生命周期。
+type serverErrorLogLifecycle struct {
+	log *platformaction.ServerErrorLog
+}
+
+// ServiceStartup 把 Error 级别日志接入错误记录并开始后台写入。
+func (l *serverErrorLogLifecycle) ServiceStartup(context.Context, application.ServiceOptions) error {
+	slog.SetDefault(slog.New(l.log.Handler(slog.Default().Handler())))
+	l.log.Start()
+	return nil
+}
+
+// ServiceShutdown 写入已排队的错误记录后停止。
+func (l *serverErrorLogLifecycle) ServiceShutdown() error {
+	l.log.Stop()
+	return nil
+}
+
 // telemetryLifecycle 将向 control 上报运行指标与错误接入 Wails 服务生命周期。
 type telemetryLifecycle struct {
 	telemetry *platformaction.Telemetry
