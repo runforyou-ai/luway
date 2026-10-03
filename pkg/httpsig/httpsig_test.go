@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -70,5 +71,67 @@ func TestTransportSignsEachAttempt(t *testing.T) {
 	}
 	if len(inputs) != 2 {
 		t.Fatalf("signature inputs = %d, want 2 distinct", len(inputs))
+	}
+}
+
+// TestVerifyAcceptsSignedRequest 校验签名后的请求在服务端按原始请求目标验签通过，篡改、换钥和超时均被拒绝。
+func TestVerifyAcceptsSignedRequest(t *testing.T) {
+	seed := make([]byte, ed25519.SeedSize)
+	key := ed25519.NewKeyFromSeed(seed)
+	signer := Signer{KeyID: "commerce", Key: key}
+	body := []byte("")
+	now := time.Unix(1790000000, 0)
+	outgoing := httptest.NewRequest(http.MethodPost, "https://luway.example.com/api/notify?x=1", nil)
+	signer.sign(outgoing, body, now, "nonce")
+
+	received := func() *http.Request {
+		request := httptest.NewRequest(http.MethodPost, "/api/notify?x=1", nil)
+		request.Host = "luway.example.com"
+		request.Header = outgoing.Header.Clone()
+		// 服务端路由剥离前缀后，验签仍按原始请求目标计算路径。
+		request.URL.Path = "/notify"
+		return request
+	}
+	public := key.Public().(ed25519.PublicKey)
+	if err := Verify(received(), body, "commerce", public, now.Add(time.Minute), 5*time.Minute); err != nil {
+		t.Fatalf("Verify() error = %v", err)
+	}
+	// 签名方选用其他标签时同样验签通过。
+	relabeled := received()
+	relabeled.Header.Set("Signature-Input", strings.Replace(relabeled.Header.Get("Signature-Input"), "sig=", "commerce=", 1))
+	relabeled.Header.Set("Signature", strings.Replace(relabeled.Header.Get("Signature"), "sig=", "commerce=", 1))
+	if err := Verify(relabeled, body, "commerce", public, now, 5*time.Minute); err != nil {
+		t.Fatalf("Verify() with custom label error = %v", err)
+	}
+	// 签名方按其他顺序覆盖组成部分并额外覆盖请求头时，按声明顺序验签通过。
+	reordered := received()
+	reordered.Header.Set("Actor", `user="u1"`)
+	params := `("@path" "@method" "actor" "@query" "@authority" "content-digest");created=` + strconv.FormatInt(now.Unix(), 10) + `;nonce="n2";keyid="commerce";alg="ed25519"`
+	base := strings.Join([]string{
+		`"@path": /api/notify`, `"@method": POST`, `"actor": user="u1"`, `"@query": ?x=1`, `"@authority": luway.example.com`,
+		`"content-digest": ` + reordered.Header.Get("Content-Digest"), `"@signature-params": ` + params,
+	}, "\n")
+	reordered.Header.Set("Signature-Input", "sig="+params)
+	reordered.Header.Set("Signature", "sig=:"+base64.StdEncoding.EncodeToString(ed25519.Sign(key, []byte(base)))+":")
+	if err := Verify(reordered, body, "commerce", public, now, 5*time.Minute); err != nil {
+		t.Fatalf("Verify() with reordered components error = %v", err)
+	}
+	other := ed25519.NewKeyFromSeed(append(make([]byte, ed25519.SeedSize-1), 1)).Public().(ed25519.PublicKey)
+	for name, check := range map[string]func() error{
+		"body":  func() error { return Verify(received(), []byte("x"), "commerce", public, now, 5*time.Minute) },
+		"keyid": func() error { return Verify(received(), body, "other", public, now, 5*time.Minute) },
+		"key":   func() error { return Verify(received(), body, "commerce", other, now, 5*time.Minute) },
+		"expired": func() error {
+			return Verify(received(), body, "commerce", public, now.Add(10*time.Minute), 5*time.Minute)
+		},
+		"method": func() error {
+			request := received()
+			request.Method = http.MethodGet
+			return Verify(request, body, "commerce", public, now, 5*time.Minute)
+		},
+	} {
+		if err := check(); err == nil {
+			t.Errorf("%s: Verify() accepted tampered request", name)
+		}
 	}
 }

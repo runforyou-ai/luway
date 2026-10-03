@@ -12,7 +12,7 @@ The top of the Credits page shows:
 - **Available credits**: all credits the workspace can use right now.
 - **Left from today's grant**: how much of today's daily grant is left, and when it resets.
 
-When a platform admin turns on the daily grant, every workspace receives the same number of credits each day. Credits not used by the end of the day reset and don't carry over. Credits a platform admin adds manually don't expire.
+When a platform admin turns on the daily grant, every workspace receives the same number of credits each day. Credits not used by the end of the day reset and don't carry over. Credits a platform admin adds manually and purchased credits don't expire.
 
 Credits that reset soonest are used first, so today's grant is used before credits that don't expire.
 
@@ -36,7 +36,9 @@ The lower part of the Credits page lists changes, newest first:
 | Daily grant | Credits granted for the day |
 | Platform adjustment | Credits a platform admin added or deducted, with their note |
 | Model call | One entry per call, with the model, usage, tokens, and credits charged. Calls still running are marked **Reserved** |
-| Grant expired | Unused grant credits that reset at the end of the day |
+| Top-up | Credits the workspace purchased and paid for |
+| Top-up refunded | When a top-up order is refunded, its unused credits are taken back. Credits already used aren't reclaimed |
+| Credits expired | Credits that are no longer valid, such as unused grant credits that reset at the end of the day |
 
 ## Running out of credits
 

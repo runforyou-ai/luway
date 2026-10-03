@@ -754,6 +754,26 @@ func (s *Service) SyncLicense(ctx context.Context, meta RequestMeta) (License, e
 	return WithNormalizedSlices(s.backend.SyncLicense(ctx, meta))
 }
 
+// GetCommercePairing 返回平台与商业服务的配对状态。
+func (s *Service) GetCommercePairing(ctx context.Context, meta RequestMeta) (CommercePairing, error) {
+	return WithNormalizedSlices(s.backend.GetCommercePairing(ctx, meta))
+}
+
+// PairCommerce 用商业服务生成的配对码完成配对，替换现有配对并从头读取商业服务变更。
+func (s *Service) PairCommerce(ctx context.Context, meta RequestMeta, input PairCommerceInput) (CommercePairing, error) {
+	return WithNormalizedSlices(s.backend.PairCommerce(ctx, meta, input))
+}
+
+// UnpairCommerce 解除与商业服务的配对并删除已应用的工作区权益。
+func (s *Service) UnpairCommerce(ctx context.Context, meta RequestMeta) error {
+	return s.backend.UnpairCommerce(ctx, meta)
+}
+
+// SyncCommerce 立即读取商业服务的变更。
+func (s *Service) SyncCommerce(ctx context.Context, meta RequestMeta) (CommercePairing, error) {
+	return WithNormalizedSlices(s.backend.SyncCommerce(ctx, meta))
+}
+
 // SuspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 func (s *Service) SuspendPlatformWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (PlatformWorkspace, error) {
 	return WithNormalizedSlices(s.backend.SuspendPlatformWorkspace(ctx, meta, workspaceID))
