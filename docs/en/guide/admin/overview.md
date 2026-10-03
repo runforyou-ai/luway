@@ -7,7 +7,7 @@ Deployment administrators review the deployment's scale, activity, and customer 
 
 ## Open deployment administration
 
-Deployment administrators open **Settings** in any workspace. The **Deployment** group in the left navigation contains Deployment overview, Business usage, Runtime status, All accounts, All workspaces, and Sign-up & creation. Only deployment administrators see this group.
+Deployment administrators open **Settings** in any workspace. The **Deployment** group in the left navigation contains the deployment's administration pages. Only deployment administrators see this group.
 
 ## Accounts and workspaces
 

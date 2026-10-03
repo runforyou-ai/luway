@@ -1381,7 +1381,7 @@ func TestServerActionsWithPostgreSQL(t *testing.T) {
 	// 覆盖 AI 员工的创建、执行配置修订、状态切换、团队与渠道联动及团队删除。
 	runStep("AI员工", func(t *testing.T) {
 		provider := &servermodels.AIProvider{
-			OrganizationID: loggedIn.Identity.Organization.ID,
+			OrganizationID: &loggedIn.Identity.Organization.ID,
 			Brand:          string(domain.AIProviderBrandOpenAI),
 			Name:           "测试模型服务",
 			CredentialType: string(domain.AIProviderCredentialTypeAPIKey),

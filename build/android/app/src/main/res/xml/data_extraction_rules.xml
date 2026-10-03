@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 及以上的云备份与设备间迁移规则：本机数据库目录不进入备份，也不迁移到新设备或 iOS 设备。 -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="local/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="local/" />
+    </device-transfer>
+    <cross-platform-transfer platform="ios">
+        <exclude domain="file" path="local/" />
+    </cross-platform-transfer>
+</data-extraction-rules>

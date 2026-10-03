@@ -6,11 +6,15 @@ import (
 	"context"
 	"os/signal"
 	"syscall"
+	"time"
 
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	"github.com/runforyou-ai/luway/internal/ingress"
+	"github.com/runforyou-ai/luway/internal/integration/control"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	"github.com/runforyou-ai/luway/internal/realtime/gateway"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
+	"github.com/uptrace/bun"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -70,4 +74,30 @@ func (l *realtimeLifecycle) ServiceStartup(ctx context.Context, _ application.Se
 func (l *realtimeLifecycle) ServiceShutdown() error {
 	l.gateway.Shutdown()
 	return l.publisher.Stop()
+}
+
+// telemetryLifecycle 将向 control 上报运行指标接入 Wails 服务生命周期。
+type telemetryLifecycle struct {
+	db      *bun.DB
+	control *control.Client
+	metrics *control.Metrics
+}
+
+// ServiceStartup 开始每分钟采集并上报运行指标，部署关闭上报时不上报。
+func (l *telemetryLifecycle) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
+	metrics, err := l.control.StartMetrics(ctx, deploymentaction.TelemetryGauges, func(ctx context.Context) (map[string]int64, error) {
+		return deploymentaction.TelemetryMetrics(ctx, l.db)
+	})
+	if err != nil {
+		return err
+	}
+	l.metrics = metrics
+	return nil
+}
+
+// ServiceShutdown 上报剩余指标后停止采集。
+func (l *telemetryLifecycle) ServiceShutdown() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return l.metrics.Shutdown(ctx)
 }

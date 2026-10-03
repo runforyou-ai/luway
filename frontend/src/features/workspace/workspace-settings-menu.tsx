@@ -12,11 +12,13 @@ import {
   ChevronLeftIcon,
   CircleUserRoundIcon,
   GaugeIcon,
+  KeyRoundIcon,
   LayoutGridIcon,
   LockKeyholeIcon,
   HardDriveIcon,
   MonitorSmartphoneIcon,
   ShieldCheckIcon,
+  ServerIcon,
   SlidersHorizontalIcon,
   UserPlusIcon,
   UserRoundIcon,
@@ -200,6 +202,13 @@ export function WorkspaceSettingsMenu({
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
+            to="/settings/deployment/license"
+            icon={KeyRoundIcon}
+          >
+            {t("navigation.deploymentLicense")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
             to="/settings/deployment/accounts"
             icon={CircleUserRoundIcon}
           >
@@ -218,6 +227,27 @@ export function WorkspaceSettingsMenu({
             icon={UserPlusIcon}
           >
             {t("navigation.deploymentRegistration")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/platform-models"
+            icon={BrainCircuitIcon}
+          >
+            {t("navigation.deploymentPlatformModels")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/platform-providers"
+            icon={ServerIcon}
+          >
+            {t("navigation.deploymentPlatformProviders")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/platform-model-calls"
+            icon={ActivityIcon}
+          >
+            {t("navigation.deploymentPlatformCalls")}
           </PagePaneLink>
         </PagePaneGroup>
       ) : null}

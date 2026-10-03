@@ -36,7 +36,7 @@ func newAIWorkspaceIn(t *testing.T, db *bun.DB) (*servermodels.Identity, string,
 		Locale: domain.LocaleEnglishUnitedStates, TimeZone: "America/New_York",
 	}).Identity
 	provider := &servermodels.AIProvider{
-		OrganizationID: identity.Organization.ID,
+		OrganizationID: &identity.Organization.ID,
 		Brand:          string(domain.AIProviderBrandOpenAI),
 		Name:           "测试模型服务",
 		CredentialType: string(domain.AIProviderCredentialTypeAPIKey),

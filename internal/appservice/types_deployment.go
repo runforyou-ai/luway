@@ -30,6 +30,15 @@ const (
 	WorkspaceCreationPolicyDeploymentAdmin WorkspaceCreationPolicy = WorkspaceCreationPolicy(domain.WorkspaceCreationPolicyDeploymentAdmin)
 )
 
+// LicenseStatus 表示实例授权状态。
+type LicenseStatus string
+
+const (
+	LicenseStatusNone    LicenseStatus = LicenseStatus(domain.LicenseStatusNone)
+	LicenseStatusActive  LicenseStatus = LicenseStatus(domain.LicenseStatusActive)
+	LicenseStatusExpired LicenseStatus = LicenseStatus(domain.LicenseStatusExpired)
+)
+
 // InstanceCapabilities 定义部署实例当前生效的能力；WorkspaceLimit 为 0 表示不限工作区数量。
 type InstanceCapabilities struct {
 	WorkspaceLimit int  `json:"workspaceLimit"`
@@ -51,6 +60,27 @@ type DeploymentOverview struct {
 	Capabilities       InstanceCapabilities      `json:"capabilities"`
 }
 
+// InstanceLicense 定义实例标识、实例授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有实例标识、状态和免费能力。
+type InstanceLicense struct {
+	InstanceID   string               `json:"instanceId"`
+	Status       LicenseStatus        `json:"status"`
+	LicenseID    string               `json:"licenseId"`
+	Customer     string               `json:"customer"`
+	IssuedAt     *time.Time           `json:"issuedAt"`
+	ExpiresAt    *time.Time           `json:"expiresAt"`
+	Capabilities InstanceCapabilities `json:"capabilities"`
+}
+
+// ActivateInstanceLicenseInput 定义部署管理员粘贴的授权码。
+type ActivateInstanceLicenseInput struct {
+	LicenseCode string `json:"licenseCode"`
+}
+
+// ActivateInstanceLicenseOnlineInput 定义部署管理员输入的激活码。
+type ActivateInstanceLicenseOnlineInput struct {
+	ActivationCode string `json:"activationCode"`
+}
+
 // DeploymentActivityWindow 定义截至今天若干天内去重后的活跃账号数和活跃工作区数，以及新增账号数和新增工作区数。
 type DeploymentActivityWindow struct {
 	ActiveAccounts   int `json:"activeAccounts"`
@@ -68,17 +98,23 @@ type DeploymentDailyActivity struct {
 	NewWorkspaces    int    `json:"newWorkspaces"`
 }
 
-// DeploymentSettings 定义部署注册策略、工作区创建策略和运营数据统计时区。
+// DeploymentSettings 定义部署注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
 type DeploymentSettings struct {
 	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy"`
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
 	StatisticsTimeZone      string                  `json:"statisticsTimeZone"`
+	TelemetryEnabled        bool                    `json:"telemetryEnabled"`
 }
 
 // DeploymentPoliciesInput 定义部署注册策略和工作区创建策略的修改值。
 type DeploymentPoliciesInput struct {
 	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy"`
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
+}
+
+// DeploymentTelemetryInput 定义运行指标上报开关的修改值。
+type DeploymentTelemetryInput struct {
+	TelemetryEnabled bool `json:"telemetryEnabled"`
 }
 
 // DeploymentStatisticsTimeZoneInput 定义运营数据统计时区的修改值。

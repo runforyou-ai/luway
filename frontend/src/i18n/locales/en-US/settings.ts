@@ -25,9 +25,13 @@ const settings = {
     deploymentOverview: "Deployment overview",
     deploymentUsage: "Business usage",
     deploymentRuntime: "Runtime status",
+    deploymentLicense: "Instance license",
     deploymentAccounts: "All accounts",
     deploymentWorkspaces: "All workspaces",
     deploymentRegistration: "Sign-up & creation",
+    deploymentPlatformModels: "Platform models",
+    deploymentPlatformProviders: "Platform providers",
+    deploymentPlatformCalls: "Model calls",
   },
   profile: {
     title: "Profile",

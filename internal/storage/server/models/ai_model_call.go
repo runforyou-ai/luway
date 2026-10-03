@@ -19,6 +19,7 @@ type AIModelCall struct {
 	ModelID           string     `bun:"model_id"`
 	ModelName         string     `bun:"model_name"`
 	ModelUsage        string     `bun:"model_usage"`
+	ModelScope        string     `bun:"model_scope"`
 	ActorType         string     `bun:"actor_type"`
 	ActorID           *string    `bun:"actor_id"`
 	SourceType        string     `bun:"source_type"`

@@ -1,11 +1,18 @@
-/** 部署设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，统计时区，以及实例标识、安装时间和工作区上限。 */
+/** 部署设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，统计时区，实例标识、运行指标上报开关、安装时间和工作区上限。 */
 import { useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { z } from "zod"
 
-import { getDeploymentOverview, getDeploymentSettings, updateDeploymentStatisticsTimeZone, type DeploymentSettings } from "@/api"
+import {
+  getDeploymentOverview,
+  getDeploymentSettings,
+  updateDeploymentStatisticsTimeZone,
+  updateDeploymentTelemetry,
+  type DeploymentSettings,
+} from "@/api"
+import { SwitchField } from "@/components/form/switch-field"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { DailyBarChart, ReportSection, StatTile } from "@/components/report-parts"
@@ -28,7 +35,13 @@ const statisticsTimeZoneSchema = z.object({ statisticsTimeZone: z.string().min(1
 /** 统计时区表单值。 */
 type StatisticsTimeZoneFormValues = z.infer<typeof statisticsTimeZoneSchema>
 
-/** 展示部署规模、活跃趋势和实例信息，统计时区选择后立即保存，实例标识可一键复制。 */
+/** 运行指标上报开关表单校验。 */
+const telemetrySchema = z.object({ telemetryEnabled: z.boolean() })
+
+/** 运行指标上报开关表单值。 */
+type TelemetryFormValues = z.infer<typeof telemetrySchema>
+
+/** 展示部署规模、活跃趋势和实例信息，统计时区与上报开关修改后立即保存，实例标识可一键复制。 */
 export function DeploymentOverviewPage() {
   const { t, i18n } = useTranslation(["deployment", "common"])
   const { formatDateTime } = useDateTime()
@@ -118,6 +131,7 @@ export function DeploymentOverviewPage() {
                   </div>
                   <FieldDescription>{t("overview.instanceIdHelp")}</FieldDescription>
                 </Field>
+                <TelemetryField settings={settings.data} />
                 <div className="grid gap-6 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="deployment-installed-at">{t("overview.installedAt")}</FieldLabel>
@@ -186,6 +200,47 @@ function StatisticsTimeZoneField({ settings }: { settings: DeploymentSettings })
             </NativeSelect>
             <FieldDescription>{t("overview.statisticsTimeZoneHelp")}</FieldDescription>
           </Field>
+        )}
+      />
+    </form>
+  )
+}
+
+/** 运行指标上报开关，切换后立即保存。 */
+function TelemetryField({ settings }: { settings: DeploymentSettings }) {
+  const { t } = useTranslation("deployment")
+  const form = useForm<TelemetryFormValues>({
+    resolver: zodResolver(telemetrySchema),
+    shouldUseNativeValidation: true,
+    defaultValues: { telemetryEnabled: settings.telemetryEnabled },
+  })
+  const { submit } = useFormSave({
+    form,
+    schema: telemetrySchema,
+    autoSave: true,
+    save: (values) => updateDeploymentTelemetry(values),
+    savedValues: (saved) => ({ telemetryEnabled: saved.telemetryEnabled }),
+    errorMessage: t("overview.telemetrySaveError"),
+    errorFields: ["telemetryEnabled"],
+    logLabel: "保存运行指标上报开关",
+  })
+
+  return (
+    <form onSubmit={form.handleSubmit(submit)} noValidate>
+      <Controller
+        name="telemetryEnabled"
+        control={form.control}
+        render={({ field }) => (
+          <SwitchField
+            id={field.name}
+            name={field.name}
+            label={t("overview.telemetry")}
+            description={t("overview.telemetryHelp")}
+            checked={field.value}
+            onBlur={field.onBlur}
+            onCheckedChange={field.onChange}
+            ref={field.ref}
+          />
         )}
       />
     </form>

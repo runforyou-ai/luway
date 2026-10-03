@@ -141,15 +141,29 @@ type AIProviderModelList struct {
 	Models []AIProviderModel `json:"models"`
 }
 
-// AIModelOption 定义模型选择器中的模型及其所属供应商。
+// AIModelScope 表示模型范围：平台模型由部署提供，工作区模型由工作区自行配置。
+type AIModelScope string
+
+const (
+	AIModelScopePlatform  AIModelScope = AIModelScope(domain.AIModelScopePlatform)
+	AIModelScopeWorkspace AIModelScope = AIModelScope(domain.AIModelScopeWorkspace)
+)
+
+// AIModelOptionProvider 定义工作区模型选项所属的供应商。
+type AIModelOptionProvider struct {
+	ID    string          `json:"id"`
+	Name  string          `json:"name"`
+	Brand AIProviderBrand `json:"brand"`
+}
+
+// AIModelOption 定义模型选择器中的模型；工作区模型带所属供应商，平台模型的 Provider 为空。
 type AIModelOption struct {
 	ID              string                 `json:"id"`
+	Scope           AIModelScope           `json:"scope"`
 	Name            string                 `json:"name"`
 	Type            AIModelType            `json:"type"`
 	InputModalities []AIModelInputModality `json:"inputModalities"`
-	ProviderID      string                 `json:"providerId"`
-	ProviderName    string                 `json:"providerName"`
-	ProviderBrand   AIProviderBrand        `json:"providerBrand"`
+	Provider        *AIModelOptionProvider `json:"provider"`
 }
 
 // AIModelOptionList 定义满足某一用途的模型选项。

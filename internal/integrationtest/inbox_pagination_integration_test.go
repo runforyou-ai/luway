@@ -55,7 +55,7 @@ func newInboxPaginationFixture(t *testing.T) inboxPaginationFixture {
 	t.Helper()
 	f := inboxPaginationFixture{customerReadFixture: newCustomerReadFixture(t), customerIDs: make(map[string][]string)}
 	ctx := context.Background()
-	provider := &servermodels.AIProvider{OrganizationID: f.owner.Organization.ID, Brand: "openai", Name: "分页模型", CredentialType: string(domain.AIProviderCredentialTypeAPIKey), APIKey: "test", APIURL: "https://example.com/v1"}
+	provider := &servermodels.AIProvider{OrganizationID: &f.owner.Organization.ID, Brand: "openai", Name: "分页模型", CredentialType: string(domain.AIProviderCredentialTypeAPIKey), APIKey: "test", APIURL: "https://example.com/v1"}
 	if _, err := f.db.NewInsert().Model(provider).Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -125,11 +125,17 @@ func newInboxPaginationFixture(t *testing.T) inboxPaginationFixture {
 			t.Fatal(err)
 		}
 	}
-	// 批量造数后刷新数据库统计信息。
-	if _, err := f.db.ExecContext(ctx, "ANALYZE"); err != nil {
+	// 批量造数后刷新收件箱相关表的统计信息。
+	analyzeInboxTables(ctx, t, f.db)
+	return f
+}
+
+// analyzeInboxTables 按固定顺序刷新收件箱查询相关表的统计信息。
+func analyzeInboxTables(ctx context.Context, t *testing.T, db *bun.DB) {
+	t.Helper()
+	if _, err := db.ExecContext(ctx, "ANALYZE organization_identities, chat_subjects, conversations, conversation_participants, conversation_user_states, messages"); err != nil {
 		t.Fatal(err)
 	}
-	return f
 }
 
 // TestInboxPagination 验证全量 SQL 顺序、各筛选、重复请求和页外未读总数。

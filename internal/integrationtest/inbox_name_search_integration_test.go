@@ -47,10 +47,8 @@ func TestInboxNameSearchPagination(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// 批量造数后刷新数据库统计信息。
-	if _, err := f.db.ExecContext(ctx, "ANALYZE"); err != nil {
-		t.Fatal(err)
-	}
+	// 批量造数后刷新收件箱相关表的统计信息。
+	analyzeInboxTables(ctx, t, f.db)
 
 	search := inboxaction.LoadInput{Search: "  周报　 汇总 ", SearchRange: inboxaction.SearchRangeReadable, Limit: 25}
 	var ids []string

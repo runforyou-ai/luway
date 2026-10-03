@@ -88,6 +88,9 @@ const common = {
     customerService: "Customer service",
     member: "Member",
   },
+  aiModels: {
+    platformGroup: "Platform models",
+  },
   agentBehavior: {
     tools: "Available tools",
     show: "Show built-in rules",

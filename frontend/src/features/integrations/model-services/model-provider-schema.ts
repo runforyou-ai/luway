@@ -77,21 +77,21 @@ export function createAIModelSchema(
     })
 }
 
-/** 创建模型服务供应商表单校验。 */
-export function createAIProviderSchema(
-  messages: AIModelSchemaMessages & {
-    brandInvalid: string
-    credentialTypeInvalid: string
-    nameRequired: string
-    nameTooLong: string
-    apiKeyRequired: string
-    apiKeyTooLong: string
-    apiUrlRequired: string
-    apiUrlInvalid: string
-    modelsRequired: string
-  },
-) {
-  return z.object({
+/** 供应商品牌、名称与连接配置字段的校验提示。 */
+export type AIProviderConnectionSchemaMessages = {
+  brandInvalid: string
+  credentialTypeInvalid: string
+  nameRequired: string
+  nameTooLong: string
+  apiKeyRequired: string
+  apiKeyTooLong: string
+  apiUrlRequired: string
+  apiUrlInvalid: string
+}
+
+/** 返回供应商品牌、名称与连接配置字段的校验。 */
+function aiProviderConnectionShape(messages: AIProviderConnectionSchemaMessages) {
+  return {
     brand: requiredWailsEnum(AIProviderBrand, messages.brandInvalid),
     credentialType: requiredWailsEnum(
       AIProviderCredentialType,
@@ -108,35 +108,56 @@ export function createAIProviderSchema(
       .trim()
       .min(1, messages.apiUrlRequired)
       .refine(isHTTPEndpoint, messages.apiUrlInvalid),
-    models: z
-      .array(createAIModelSchema(messages))
-      .min(1, messages.modelsRequired)
-      .superRefine((models, context) => {
-        const identifiers = new Set<string>()
-        models.forEach((model, index) => {
-          if (identifiers.has(model.identifier)) {
-            context.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: messages.modelIdentifierDuplicate,
-              path: [index, "identifier"],
-            })
-          }
-          identifiers.add(model.identifier)
-        })
-      }),
-  }).superRefine((values, context) => {
-    // 使用密钥的供应商必须填写密钥，无凭据的服务不校验该字段。
-    if (
-      values.credentialType === AIProviderCredentialType.AIProviderCredentialTypeAPIKey &&
-      values.apiKey === ""
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: messages.apiKeyRequired,
-        path: ["apiKey"],
-      })
-    }
-  })
+  }
+}
+
+/** 使用密钥的供应商必须填写密钥，无凭据的服务不校验该字段。 */
+function requireAPIKey(
+  values: { credentialType: string; apiKey: string },
+  context: z.RefinementCtx,
+  message: string,
+) {
+  if (
+    values.credentialType === AIProviderCredentialType.AIProviderCredentialTypeAPIKey &&
+    values.apiKey === ""
+  ) {
+    context.addIssue({ code: z.ZodIssueCode.custom, message, path: ["apiKey"] })
+  }
+}
+
+/** 创建只含品牌、名称与连接配置的供应商表单校验。 */
+export function createAIProviderConnectionSchema(messages: AIProviderConnectionSchemaMessages) {
+  return z
+    .object(aiProviderConnectionShape(messages))
+    .superRefine((values, context) => requireAPIKey(values, context, messages.apiKeyRequired))
+}
+
+/** 创建模型服务供应商表单校验。 */
+export function createAIProviderSchema(
+  messages: AIModelSchemaMessages &
+    AIProviderConnectionSchemaMessages & { modelsRequired: string },
+) {
+  return z
+    .object({
+      ...aiProviderConnectionShape(messages),
+      models: z
+        .array(createAIModelSchema(messages))
+        .min(1, messages.modelsRequired)
+        .superRefine((models, context) => {
+          const identifiers = new Set<string>()
+          models.forEach((model, index) => {
+            if (identifiers.has(model.identifier)) {
+              context.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: messages.modelIdentifierDuplicate,
+                path: [index, "identifier"],
+              })
+            }
+            identifiers.add(model.identifier)
+          })
+        }),
+    })
+    .superRefine((values, context) => requireAPIKey(values, context, messages.apiKeyRequired))
 }
 
 /** 把正整数或 K、M 紧凑值转换为 Token 数。 */
@@ -155,6 +176,10 @@ export function parseTokenCount(value: string) {
 
 export type AIProviderFormValues = z.infer<
   ReturnType<typeof createAIProviderSchema>
+>
+
+export type AIProviderConnectionFormValues = z.infer<
+  ReturnType<typeof createAIProviderConnectionSchema>
 >
 
 export type AIModelFormValues = z.infer<ReturnType<typeof createAIModelSchema>>

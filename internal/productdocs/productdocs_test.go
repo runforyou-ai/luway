@@ -15,7 +15,7 @@ import (
 )
 
 // allConditions 让声明了显示条件的页面全部可见。
-var allConditions = Conditions{ConditionCommerce: true, ConditionInstanceLicense: true}
+var allConditions = Conditions{ConditionCommerce: true}
 
 // TestContent 校验内置文档：中英文页面一一对应、frontmatter 完整、显示条件合法、站内链接与锚点存在、导航覆盖全部页面。
 func TestContent(t *testing.T) {

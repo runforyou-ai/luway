@@ -1360,7 +1360,7 @@ func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.Req
 	return b.ops.GetDeploymentOverview(ctx, meta, account)
 }
 
-// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1388,6 +1388,16 @@ func (b *Backend) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta a
 		return zero, err
 	}
 	return b.ops.UpdateDeploymentStatisticsTimeZone(ctx, meta, account, input)
+}
+
+// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+func (b *Backend) UpdateDeploymentTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentTelemetryInput) (appservice.DeploymentSettings, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentSettings
+		return zero, err
+	}
+	return b.ops.UpdateDeploymentTelemetry(ctx, meta, account, input)
 }
 
 // ListDeploymentAccounts 返回部署内的账号。
@@ -1450,6 +1460,46 @@ func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.
 	return b.ops.ListDeploymentWorkspaces(ctx, meta, account, input)
 }
 
+// GetInstanceLicense 返回实例标识与实例授权状态。
+func (b *Backend) GetInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.InstanceLicense
+		return zero, err
+	}
+	return b.ops.GetInstanceLicense(ctx, meta, account)
+}
+
+// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
+func (b *Backend) ActivateInstanceLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseInput) (appservice.InstanceLicense, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.InstanceLicense
+		return zero, err
+	}
+	return b.ops.ActivateInstanceLicense(ctx, meta, account, input)
+}
+
+// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+func (b *Backend) ActivateInstanceLicenseOnline(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseOnlineInput) (appservice.InstanceLicense, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.InstanceLicense
+		return zero, err
+	}
+	return b.ops.ActivateInstanceLicenseOnline(ctx, meta, account, input)
+}
+
+// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+func (b *Backend) SyncInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.InstanceLicense
+		return zero, err
+	}
+	return b.ops.SyncInstanceLicense(ctx, meta, account)
+}
+
 // SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 func (b *Backend) SuspendDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
@@ -1508,6 +1558,134 @@ func (b *Backend) ListDeploymentFailedTasks(ctx context.Context, meta appservice
 		return zero, err
 	}
 	return b.ops.ListDeploymentFailedTasks(ctx, meta, account, input)
+}
+
+// ListPlatformAIProviders 返回部署的平台供应商。
+func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIProviderList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIProviderList
+		return zero, err
+	}
+	return b.ops.ListPlatformAIProviders(ctx, meta, account)
+}
+
+// GetPlatformAIProvider 返回平台供应商详情。
+func (b *Backend) GetPlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) (appservice.PlatformAIProvider, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIProvider
+		return zero, err
+	}
+	return b.ops.GetPlatformAIProvider(ctx, meta, account, providerID)
+}
+
+// ListPlatformAIProviderModels 返回平台供应商可提供的模型。
+func (b *Backend) ListPlatformAIProviderModels(ctx context.Context, meta appservice.RequestMeta, providerID string) (appservice.AIProviderModelList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.AIProviderModelList
+		return zero, err
+	}
+	return b.ops.ListPlatformAIProviderModels(ctx, meta, account, providerID)
+}
+
+// CreatePlatformAIProvider 创建平台供应商。
+func (b *Backend) CreatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIProviderInput) (appservice.PlatformAIProvider, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIProvider
+		return zero, err
+	}
+	return b.ops.CreatePlatformAIProvider(ctx, meta, account, input)
+}
+
+// UpdatePlatformAIProvider 修改平台供应商。
+func (b *Backend) UpdatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string, input appservice.PlatformAIProviderUpdateInput) (appservice.PlatformAIProvider, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIProvider
+		return zero, err
+	}
+	return b.ops.UpdatePlatformAIProvider(ctx, meta, account, providerID, input)
+}
+
+// DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
+func (b *Backend) DeletePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) error {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		return err
+	}
+	return b.ops.DeletePlatformAIProvider(ctx, meta, account, providerID)
+}
+
+// ListPlatformAIModels 返回部署的平台模型目录。
+func (b *Backend) ListPlatformAIModels(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIModelList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIModelList
+		return zero, err
+	}
+	return b.ops.ListPlatformAIModels(ctx, meta, account)
+}
+
+// GetPlatformAIModel 返回平台模型详情。
+func (b *Backend) GetPlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) (appservice.PlatformAIModel, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIModel
+		return zero, err
+	}
+	return b.ops.GetPlatformAIModel(ctx, meta, account, modelID)
+}
+
+// CreatePlatformAIModel 创建对全部工作区可用的平台模型。
+func (b *Backend) CreatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIModel
+		return zero, err
+	}
+	return b.ops.CreatePlatformAIModel(ctx, meta, account, input)
+}
+
+// UpdatePlatformAIModel 修改平台模型的属性与来源。
+func (b *Backend) UpdatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIModel
+		return zero, err
+	}
+	return b.ops.UpdatePlatformAIModel(ctx, meta, account, modelID, input)
+}
+
+// DeletePlatformAIModel 删除没有被工作区引用的平台模型。
+func (b *Backend) DeletePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) error {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		return err
+	}
+	return b.ops.DeletePlatformAIModel(ctx, meta, account, modelID)
+}
+
+// ListPlatformAIModelCalls 返回平台模型调用记录。
+func (b *Backend) ListPlatformAIModelCalls(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelCallListInput) (appservice.PlatformAIModelCallList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIModelCallList
+		return zero, err
+	}
+	return b.ops.ListPlatformAIModelCalls(ctx, meta, account, input)
+}
+
+// GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
+func (b *Backend) GetPlatformAIModelCall(ctx context.Context, meta appservice.RequestMeta, callID string) (appservice.PlatformAIModelCallDetail, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformAIModelCallDetail
+		return zero, err
+	}
+	return b.ops.GetPlatformAIModelCall(ctx, meta, account, callID)
 }
 
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。

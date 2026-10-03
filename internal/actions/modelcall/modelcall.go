@@ -110,13 +110,13 @@ type call struct {
 // begin 写入进行中的调用记录。
 func (i *Invoker) begin(ctx context.Context, scope Scope, target *aimodel.Model) (*call, error) {
 	record := &servermodels.AIModelCall{
-		OrganizationID: scope.OrganizationID, ModelID: target.ID, ModelName: target.Name, ModelUsage: string(target.Usage),
+		OrganizationID: scope.OrganizationID, ModelID: target.ID, ModelName: target.Name, ModelUsage: string(target.Usage), ModelScope: string(target.Scope),
 		ActorType: string(scope.Actor), ActorID: optional(scope.ActorID),
 		SourceType: string(scope.Source), SourceID: optional(scope.SourceID),
 		Status: string(domain.AIModelCallStatusRunning),
 	}
 	if _, err := i.db.NewInsert().Model(record).
-		Column("organization_id", "model_id", "model_name", "model_usage", "actor_type", "actor_id", "source_type", "source_id", "status").
+		Column("organization_id", "model_id", "model_name", "model_usage", "model_scope", "actor_type", "actor_id", "source_type", "source_id", "status").
 		Returning("id").
 		Exec(context.WithoutCancel(ctx)); err != nil {
 		return nil, fmt.Errorf("record AI model call: %w", err)

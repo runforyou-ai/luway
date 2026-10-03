@@ -25,9 +25,13 @@ const settings = {
     deploymentOverview: "部署概览",
     deploymentUsage: "业务使用",
     deploymentRuntime: "运行状态",
+    deploymentLicense: "实例授权",
     deploymentAccounts: "全部账号",
     deploymentWorkspaces: "全部工作区",
     deploymentRegistration: "注册与创建",
+    deploymentPlatformModels: "平台模型",
+    deploymentPlatformProviders: "平台供应商",
+    deploymentPlatformCalls: "模型调用",
   },
   profile: {
     title: "个人资料",
