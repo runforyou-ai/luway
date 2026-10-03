@@ -462,6 +462,12 @@ type Backend interface {
 	// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
 	//appservice:route GET /deployment/workspaces auth=admin
 	ListDeploymentWorkspaces(context.Context, RequestMeta, DeploymentWorkspaceListInput) (DeploymentWorkspaceList, error)
+	// GetInstanceLicense 返回实例授权状态。
+	//appservice:route GET /deployment/license auth=admin
+	GetInstanceLicense(context.Context, RequestMeta) (InstanceLicense, error)
+	// ActivateInstanceLicense 用授权码激活或替换实例授权。
+	//appservice:route PUT /deployment/license auth=admin
+	ActivateInstanceLicense(context.Context, RequestMeta, ActivateInstanceLicenseInput) (InstanceLicense, error)
 	// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 	//appservice:route POST /deployment/workspaces/:workspaceID/suspend auth=admin
 	SuspendDeploymentWorkspace(context.Context, RequestMeta, string) (DeploymentWorkspace, error)

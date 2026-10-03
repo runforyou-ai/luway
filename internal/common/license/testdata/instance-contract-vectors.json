@@ -1,0 +1,40 @@
+{
+    "description": "Test vectors for the product <-> control contract. Keys derive from fixed 32-byte Ed25519 seeds (unpadded base64url). Requests use RFC 9421 HTTP Message Signatures with an RFC 9530 Content-Digest; license codes are EdDSA JWTs (RFC 7519, RFC 8037).",
+    "instance_request": {
+        "seed": "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE",
+        "public_key": "iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w",
+        "method": "POST",
+        "url": "https://control.example.com/api/v1/instances",
+        "body": "{\"product\":\"luway\",\"public_key\":\"iojj3XQJ8ZX9UtstPLpdcspnCb8dlBIb83SIAbQPb1w\",\"version\":\"1.5.0\"}",
+        "headers": {
+            "Content-Type": "application/json",
+            "Content-Digest": "sha-256=:KUNOydaBvJcT9Kwo1aVPZoEMuOQ4GvxF5cjAPSHPY00=:",
+            "Signature-Input": "sig=(\"@method\" \"@authority\" \"@path\" \"@query\" \"content-digest\");created=1790000000;nonce=\"AAECAwQFBgcICQoLDA0ODw\";keyid=\"019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c\";alg=\"ed25519\"",
+            "Signature": "sig=:QKyqq6lMzOEmLc8xou78y+sM+ND7akSSwgVq3WxTwH65i9Lskl5/gHyfA/TXsRWXTAYStWDSu2sAx5Goa5k6Bg==:"
+        },
+        "signature_base": "\"@method\": POST\n\"@authority\": control.example.com\n\"@path\": /api/v1/instances\n\"@query\": ?\n\"content-digest\": sha-256=:KUNOydaBvJcT9Kwo1aVPZoEMuOQ4GvxF5cjAPSHPY00=:\n\"@signature-params\": (\"@method\" \"@authority\" \"@path\" \"@query\" \"content-digest\");created=1790000000;nonce=\"AAECAwQFBgcICQoLDA0ODw\";keyid=\"019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c\";alg=\"ed25519\""
+    },
+    "license_code": {
+        "seed": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI",
+        "public_key": "gTl3Dqh9F19Wo1Rmw0x-zMuNipG07jeiXfYPW4_Js5Q",
+        "header": {
+            "alg": "EdDSA",
+            "typ": "license+jwt",
+            "kid": "k20261002-test"
+        },
+        "claims": {
+            "iss": "runforyou-control",
+            "aud": "luway",
+            "sub": "019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5c",
+            "iat": 1790000000,
+            "exp": 1821536000,
+            "license_id": "019a2b3c-4d5e-7f60-8a9b-0c1d2e3f4a5b",
+            "customer": "武汉润予科技有限公司",
+            "capabilities": {
+                "branding.custom": true,
+                "workspace.limit": 0
+            }
+        },
+        "code": "eyJhbGciOiJFZERTQSIsInR5cCI6ImxpY2Vuc2Urand0Iiwia2lkIjoiazIwMjYxMDAyLXRlc3QifQ.eyJpc3MiOiJydW5mb3J5b3UtY29udHJvbCIsImF1ZCI6Imx1d2F5Iiwic3ViIjoiMDE5YTJiM2MtNGQ1ZS03ZjYwLThhOWItMGMxZDJlM2Y0YTVjIiwiaWF0IjoxNzkwMDAwMDAwLCJleHAiOjE4MjE1MzYwMDAsImxpY2Vuc2VfaWQiOiIwMTlhMmIzYy00ZDVlLTdmNjAtOGE5Yi0wYzFkMmUzZjRhNWIiLCJjdXN0b21lciI6Iuatpuaxiea2puS6iOenkeaKgOaciemZkOWFrOWPuCIsImNhcGFiaWxpdGllcyI6eyJicmFuZGluZy5jdXN0b20iOnRydWUsIndvcmtzcGFjZS5saW1pdCI6MH19.ePRz5P5nH0mvUS6mhzpoXTqWyGBddWjJf-LP1ki2unkBQMtJE7ws4DAFHvQajeBPbuBVHoE2PT9Cl93Hby2PCA"
+    }
+}

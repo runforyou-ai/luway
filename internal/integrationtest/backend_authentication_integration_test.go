@@ -60,6 +60,8 @@ var adminBackendMethods = map[string]bool{
 	"DeletePlatformAIModel":              true,
 	"ListPlatformAIModelCalls":           true,
 	"GetPlatformAIModelCall":             true,
+	"GetInstanceLicense":                 true,
+	"ActivateInstanceLicense":            true,
 }
 
 // TestBackendMethodsRequireAuthentication 验证非公开方法在无会话时都被挡回登录入口，

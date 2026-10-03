@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import type { Account } from "@/api"
 import { DeploymentAccountListPage } from "@/features/settings/deployment/deployment-account-list-page"
 import { DeploymentAdminGate } from "@/features/settings/deployment/deployment-admin-gate"
+import { DeploymentLicensePage } from "@/features/settings/deployment/deployment-license-page"
 import { DeploymentOverviewPage } from "@/features/settings/deployment/deployment-overview-page"
 import { DeploymentPlatformModelCallListPage } from "@/features/settings/deployment/deployment-platform-model-call-list-page"
 import { DeploymentPlatformModelFormPage } from "@/features/settings/deployment/deployment-platform-model-form-page"
@@ -16,6 +17,7 @@ import { DeploymentWorkspaceListPage } from "@/features/settings/deployment/depl
 /** 部署设置分组中各页面的渲染方式。 */
 const deploymentSections = {
   overview: () => <DeploymentOverviewPage />,
+  license: () => <DeploymentLicensePage />,
   accounts: (account: Account) => <DeploymentAccountListPage account={account} />,
   workspaces: () => <DeploymentWorkspaceListPage />,
   registration: () => <DeploymentRegistrationPage />,

@@ -11,6 +11,7 @@ import {
   ChevronLeftIcon,
   CircleUserRoundIcon,
   GaugeIcon,
+  KeyRoundIcon,
   LayoutGridIcon,
   LockKeyholeIcon,
   HardDriveIcon,
@@ -183,6 +184,13 @@ export function WorkspaceSettingsMenu({
             icon={GaugeIcon}
           >
             {t("navigation.deploymentOverview")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/license"
+            icon={KeyRoundIcon}
+          >
+            {t("navigation.deploymentLicense")}
           </PagePaneLink>
           <PagePaneLink
             collapsed={collapsed}
