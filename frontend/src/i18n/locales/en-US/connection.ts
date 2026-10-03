@@ -16,9 +16,14 @@ const connection = {
   serverOutdated: "The server at {{host}} is out of date. Ask your administrator to update it.",
   upgrade: {
     title: "Update required",
-    description: "{{host}} requires a newer version of this app. Download and install it, then open the app again.",
+    description: "{{host}} requires a newer version of this app.",
     download: "Download new version",
+    downloading: "Downloading new version",
     changeServer: "Change server",
+  },
+  update: {
+    ready: "Version {{version}} is ready. Restart to apply it.",
+    restart: "Restart to update",
   },
   clientLink: {
     title: "Use in the app",

@@ -15,9 +15,14 @@ const connection = {
   serverOutdated: "{{host}} 的服务器版本过旧，请联系管理员升级服务器。",
   upgrade: {
     title: "需要升级客户端",
-    description: "{{host}} 要求使用更新版本的客户端，请下载安装后重新打开。",
+    description: "{{host}} 要求使用更新版本的客户端。",
     download: "下载新版本",
+    downloading: "正在下载新版本",
     changeServer: "更换服务器",
+  },
+  update: {
+    ready: "新版本 {{version}} 已就绪，重启后生效。",
+    restart: "重启并更新",
   },
   clientLink: {
     title: "在客户端中使用",

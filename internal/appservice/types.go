@@ -63,6 +63,25 @@ const (
 	NotificationPermissionStatusUnsupported NotificationPermissionStatus = "unsupported"
 )
 
+// ClientUpdateState 表示原生端从当前服务器更新客户端的状态。
+type ClientUpdateState string
+
+const (
+	// ClientUpdateStateUnsupported 表示当前端不能从服务器更新自身。
+	ClientUpdateStateUnsupported ClientUpdateState = "unsupported"
+	// ClientUpdateStateCurrent 表示服务器没有提供比当前客户端更新的版本。
+	ClientUpdateStateCurrent ClientUpdateState = "current"
+	// ClientUpdateStateReady 表示新版本已下载并通过签名校验，重启后生效。
+	ClientUpdateStateReady ClientUpdateState = "ready"
+)
+
+// ClientUpdate 是原生端从当前服务器更新客户端的结果。
+type ClientUpdate struct {
+	State ClientUpdateState `json:"state"`
+	// Version 是已准备好的新版本，只在 State 为 ready 时有值。
+	Version string `json:"version"`
+}
+
 // ConnectReason 表示原生端已保存服务器仍进入连接页的原因。
 type ConnectReason string
 

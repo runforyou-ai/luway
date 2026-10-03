@@ -1194,6 +1194,43 @@ export enum ChatSubjectKind {
 };
 
 /**
+ * ClientUpdate 是原生端从当前服务器更新客户端的结果。
+ */
+export interface ClientUpdate {
+    "state": ClientUpdateState;
+
+    /**
+     * Version 是已准备好的新版本，只在 State 为 ready 时有值。
+     */
+    "version": string;
+}
+
+/**
+ * ClientUpdateState 表示原生端从当前服务器更新客户端的状态。
+ */
+export enum ClientUpdateState {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    /**
+     * ClientUpdateStateUnsupported 表示当前端不能从服务器更新自身。
+     */
+    ClientUpdateStateUnsupported = "unsupported",
+
+    /**
+     * ClientUpdateStateCurrent 表示服务器没有提供比当前客户端更新的版本。
+     */
+    ClientUpdateStateCurrent = "current",
+
+    /**
+     * ClientUpdateStateReady 表示新版本已下载并通过签名校验，重启后生效。
+     */
+    ClientUpdateStateReady = "ready",
+};
+
+/**
  * Colleague 定义通讯录同事目录项：IdentityType 为 user 时是在职成员并带 UserID 与 Email，为 agent 时是服务台并带 AgentID 与在职负责人姓名 ResponsibleName。
  */
 export interface Colleague {

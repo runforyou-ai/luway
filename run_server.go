@@ -95,7 +95,7 @@ func run(arguments []string) error {
 	if err != nil {
 		return fmt.Errorf("initialize application services: %w", err)
 	}
-	clients, err := clientrelease.Load(config.Clients.Directory, buildinfo.Version)
+	clients, err := clientrelease.Load(config.Clients.Directory, buildinfo.Version, brand.Build().UpdateKey())
 	if err != nil {
 		return fmt.Errorf("load client downloads: %w", err)
 	}

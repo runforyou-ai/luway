@@ -21,6 +21,7 @@ type Service struct {
 	conversationWindows ConversationWindowOpener
 	localComputer       LocalComputerReporter
 	localEnvironment    LocalEnvironmentManager
+	clientUpdater       ClientUpdater
 }
 
 // Option 配置平台专属的应用服务能力。
@@ -58,6 +59,13 @@ func WithNativeNotification(notification NativeNotification) Option {
 func WithNativeServerLink(link NativeServerLink) Option {
 	return func(service *Service) {
 		service.nativeServerLink = link
+	}
+}
+
+// WithClientUpdater 注入原生端从所连接服务器更新客户端的能力。
+func WithClientUpdater(updater ClientUpdater) Option {
+	return func(service *Service) {
+		service.clientUpdater = updater
 	}
 }
 
@@ -221,6 +229,22 @@ func (s *Service) TakeOpenedServerLink(ctx context.Context, meta RequestMeta) (s
 		return "", nil
 	}
 	return s.nativeServerLink.TakeOpenedServerLink(ctx, meta)
+}
+
+// PrepareClientUpdate 检查当前服务器提供的客户端版本，较新时下载更新包并校验签名；当前端不能从服务器更新时返回 unsupported。
+func (s *Service) PrepareClientUpdate(ctx context.Context, meta RequestMeta) (ClientUpdate, error) {
+	if s.clientUpdater == nil {
+		return ClientUpdate{State: ClientUpdateStateUnsupported}, nil
+	}
+	return s.clientUpdater.PrepareClientUpdate(ctx, meta)
+}
+
+// RestartClientUpdate 退出应用并以已准备好的新版本重新启动。
+func (s *Service) RestartClientUpdate(ctx context.Context, meta RequestMeta) error {
+	if s.clientUpdater == nil {
+		return methodNotAllowedError(meta, "RestartClientUpdate")
+	}
+	return s.clientUpdater.RestartClientUpdate(ctx, meta)
 }
 
 // UpdateUnreadIndicator 更新当前设备的未读提示。

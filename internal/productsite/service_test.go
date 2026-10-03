@@ -18,7 +18,7 @@ import (
 
 // serve 以指定方法、路径和语言偏好请求不提供客户端安装包的产品站服务。
 func serve(method, target, acceptLanguage string) *httptest.ResponseRecorder {
-	clients, _ := clientrelease.Load("", "test")
+	clients, _ := clientrelease.Load("", "test", nil)
 	return serveWith(NewService("/docs/_assets/site.css?v=test", clients), method, target, acceptLanguage)
 }
 
@@ -99,7 +99,7 @@ func TestDownloadPage(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(directory, clientrelease.IndexName), data, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	clients, err := clientrelease.Load(directory, "1.2.3")
+	clients, err := clientrelease.Load(directory, "1.2.3", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

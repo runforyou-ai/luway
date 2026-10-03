@@ -4,6 +4,7 @@ import { Events, Window } from "@wailsio/runtime"
 
 import { onLocalComputerChanged } from "@/api"
 import { SharedAppRoutes } from "@/apps/shared-app-routes"
+import { useClientUpdatePrompt } from "@/features/server-connection/use-client-update-prompt"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResourceInvalidator } from "@/hooks/use-resource"
 import { resolveDesktopOS } from "@/platform/app-platform"
@@ -59,6 +60,7 @@ export default function DesktopApp({ workspaceSlug }: { workspaceSlug: string | 
   const nativeOS = resolveDesktopOS()
   const fullscreen = useWindowFullscreen(nativeOS === "darwin")
   useLocalComputerRefresh()
+  useClientUpdatePrompt()
 
   return (
     <div

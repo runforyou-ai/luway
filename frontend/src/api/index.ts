@@ -35,6 +35,7 @@ export {
   uploadFile,
 } from "@/api/uploads"
 export * from "@/api/agents"
+export * from "@/api/client-update"
 export * from "@/api/product-docs"
 export * from "@/api/agent-evaluations"
 export * from "@/api/personal-agents"

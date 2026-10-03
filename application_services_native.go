@@ -31,6 +31,7 @@ func applicationServices(
 	notification appservice.NativeNotification,
 	serverLinks appservice.NativeServerLink,
 	unreadIndicator appservice.UnreadIndicator,
+	allowQuit func(bool),
 ) ([]application.Service, localComputer, error) {
 	sessions, err := clientsession.NewManager(context.Background(), appStorage)
 	if err != nil {
@@ -85,6 +86,10 @@ func applicationServices(
 		appservice.WithNativeServerLink(serverLinks),
 		appservice.WithUnreadIndicator(unreadIndicator),
 		appservice.WithConversationWindowOpener(conversationWindows),
+		// 桌面端从当前连接的服务器读取更新清单。
+		appservice.WithClientUpdater(appservicenative.NewClientUpdater(application.Get(), func(ctx context.Context) (string, error) {
+			return backend.ServerURL(ctx, appservice.RequestMeta{})
+		}, allowQuit)),
 	}
 	computer := newLocalComputer(appStorage, backend, sessions)
 	if computer != nil {

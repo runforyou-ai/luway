@@ -1452,6 +1452,13 @@ export function PausePersonalAgent(meta: $models.RequestMeta, agentID: string): 
 }
 
 /**
+ * PrepareClientUpdate 检查当前服务器提供的客户端版本，较新时下载更新包并校验签名；当前端不能从服务器更新时返回 unsupported。
+ */
+export function PrepareClientUpdate(meta: $models.RequestMeta): $CancellablePromise<$models.ClientUpdate> {
+    return $Call.ByID(132977062, meta);
+}
+
+/**
  * PreviewCustomerReplyTranslation 把客服回复译为客户语言并回译为客服语言，供发送前核对。
  */
 export function PreviewCustomerReplyTranslation(meta: $models.RequestMeta, conversationID: string, input: $models.CustomerReplyTranslationInput): $CancellablePromise<$models.CustomerReplyTranslationPreview> {
@@ -1652,6 +1659,13 @@ export function RerunAgentEvaluationCase(meta: $models.RequestMeta, agentID: str
  */
 export function ResolveCustomerMessageDelivery(meta: $models.RequestMeta, conversationID: string, deliveryID: string, input: $models.CustomerDeliveryResolveInput): $CancellablePromise<void> {
     return $Call.ByID(2157772402, meta, conversationID, deliveryID, input);
+}
+
+/**
+ * RestartClientUpdate 退出应用并以已准备好的新版本重新启动。
+ */
+export function RestartClientUpdate(meta: $models.RequestMeta): $CancellablePromise<void> {
+    return $Call.ByID(3972178094, meta);
 }
 
 /**

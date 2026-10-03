@@ -17,6 +17,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/storage"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
+	"github.com/wailsapp/wails/v3/pkg/updater"
 )
 
 //go:embed build/appicon.png
@@ -27,6 +28,8 @@ var nativeMacTrayTemplateIcon []byte
 
 // run 初始化原生端存储与应用服务，并运行 Wails 应用。
 func run(_ []string) error {
+	// 更新器重新启动的辅助进程在打开本机存储前完成程序替换并退出。
+	updater.HandleHelperMode()
 	appStorage, err := storage.Open(context.Background())
 	if err != nil {
 		return fmt.Errorf("initialize storage: %w", err)
@@ -124,6 +127,7 @@ func run(_ []string) error {
 		notificationProvider,
 		serverLinks,
 		trayController,
+		trayQuitRequested.Store,
 	)
 	if err != nil {
 		return fmt.Errorf("initialize application services: %w", err)

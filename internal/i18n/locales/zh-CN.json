@@ -444,6 +444,7 @@
   "error.server_initialization_required": "服务器尚未完成首次安装，请先通过 Web 完成安装。",
   "error.server_outdated": "服务器版本过旧，请联系管理员升级服务器。",
   "error.client_upgrade_required": "当前客户端版本过旧，请升级到最新版本。",
+  "error.client_update_failed": "无法更新客户端，请稍后重试。",
   "error.remote_request_create_failed": "创建服务器请求失败。",
   "error.server_connection_failed": "服务器连接失败。",
   "error.inbox_cursor_invalid": "会话列表位置已失效，请刷新列表。",
