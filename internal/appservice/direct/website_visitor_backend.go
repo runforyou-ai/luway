@@ -225,7 +225,7 @@ func (b *WebsiteVisitorBackend) GetMessageAttachment(ctx context.Context, meta a
 		return appservice.WebsiteVisitorAttachmentLinks{}, websiteVisitorError(ctx, meta, err, i18n.MessengerAttachmentUnavailable, "get_message_attachment", "channel_id", channelID, "message_id", messageID)
 	}
 	linker := visitorAttachmentLinker{s3: b.s3, fileLinks: b.links}
-	links, err := linker.links(ctx, domain.FileStorageBackend(record.StorageBackend), record.StorageKey, record.OriginalName)
+	links, err := linker.links(ctx, domain.FileStorageBackend(record.StorageBackend), record.StorageKey, record.OriginalName, record.ContentType)
 	if err != nil {
 		return appservice.WebsiteVisitorAttachmentLinks{}, websiteVisitorError(ctx, meta, err, i18n.MessengerAttachmentUnavailable, "get_message_attachment", "channel_id", channelID, "message_id", messageID)
 	}
@@ -275,24 +275,33 @@ type visitorAttachmentLinker struct {
 	fileLinks serverfilecontent.Links
 }
 
-// links 返回附件的预览与下载地址。
-func (l *visitorAttachmentLinker) links(ctx context.Context, backend domain.FileStorageBackend, storageKey, fileName string) (appservice.WebsiteVisitorAttachmentLinks, error) {
+// links 返回附件的下载地址，可内嵌展示的图片同时返回预览地址。
+func (l *visitorAttachmentLinker) links(ctx context.Context, backend domain.FileStorageBackend, storageKey, fileName, contentType string) (appservice.WebsiteVisitorAttachmentLinks, error) {
+	_, inline := domain.InlineImageExtension(contentType)
 	if backend == domain.FileStorageBackendLocal {
 		contentURL, err := l.fileLinks.URL(domain.FileStorageBackendLocal, storageKey)
 		if err != nil {
 			return appservice.WebsiteVisitorAttachmentLinks{}, err
 		}
-		return appservice.WebsiteVisitorAttachmentLinks{PreviewURL: contentURL + "?inline=1", DownloadURL: contentURL + "?download=" + url.QueryEscape(fileName)}, nil
-	}
-	preview, err := serverfilecontent.PresignDownload(ctx, l.s3, storageKey, "inline")
-	if err != nil {
-		return appservice.WebsiteVisitorAttachmentLinks{}, err
+		links := appservice.WebsiteVisitorAttachmentLinks{DownloadURL: contentURL + "?download=" + url.QueryEscape(fileName)}
+		if inline {
+			links.PreviewURL = contentURL
+		}
+		return links, nil
 	}
 	download, err := serverfilecontent.PresignDownload(ctx, l.s3, storageKey, mime.FormatMediaType("attachment", map[string]string{"filename": fileName}))
 	if err != nil {
 		return appservice.WebsiteVisitorAttachmentLinks{}, err
 	}
-	return appservice.WebsiteVisitorAttachmentLinks{PreviewURL: preview.URL, DownloadURL: download.URL}, nil
+	links := appservice.WebsiteVisitorAttachmentLinks{DownloadURL: download.URL}
+	if inline {
+		preview, err := serverfilecontent.PresignDownload(ctx, l.s3, storageKey, "inline")
+		if err != nil {
+			return appservice.WebsiteVisitorAttachmentLinks{}, err
+		}
+		links.PreviewURL = preview.URL
+	}
+	return links, nil
 }
 
 // avatarURL 返回头像文件的稳定公开地址。
@@ -472,6 +481,8 @@ func websiteVisitorError(ctx context.Context, meta appservice.WebsiteVisitorMeta
 			messageKey = i18n.VisitorErrorReplyTargetInvalid
 		case conversationaction.ConflictReasonAttachmentTooLarge:
 			messageKey = i18n.VisitorErrorAttachmentTooLarge
+		case customerchataction.ConflictReasonAttachmentsDisabled:
+			messageKey = i18n.VisitorErrorAttachmentsDisabled
 		case customerchataction.ConflictReasonServiceSessionNotRateable:
 			messageKey = i18n.VisitorErrorRatingUnavailable
 		}
@@ -550,7 +561,7 @@ func websiteVisitorMessageFromAction(ctx context.Context, linker *visitorAttachm
 		}
 		// 内容尚未就绪的附件不返回地址。
 		if value.Attachment.TransferStatus == domain.MessageAttachmentTransferReady {
-			links, err := linker.links(ctx, value.Attachment.StorageBackend, value.Attachment.StorageKey, value.Attachment.Name)
+			links, err := linker.links(ctx, value.Attachment.StorageBackend, value.Attachment.StorageKey, value.Attachment.Name, value.Attachment.ContentType)
 			if err != nil {
 				return appservice.WebsiteVisitorMessage{}, err
 			}

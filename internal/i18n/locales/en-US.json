@@ -684,6 +684,7 @@
   "visitor_error.rating_comment_too_long": "This comment is too long. Shorten it and try again.",
   "visitor_error.file_invalid": "This file can't be sent. Choose another file.",
   "visitor_error.attachment_too_large": "This file is too large to send.",
+  "visitor_error.attachments_disabled": "Files can't be sent in this chat.",
   "visitor_error.chat_unavailable": "This chat is currently unavailable.",
   "visitor_error.conversation_not_found": "This conversation could not be found.",
   "visitor_error.reply_target_invalid": "You can't reply to this message.",

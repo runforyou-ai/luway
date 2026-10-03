@@ -684,6 +684,7 @@
   "visitor_error.rating_comment_too_long": "评价内容太长，请缩短后再提交。",
   "visitor_error.file_invalid": "无法发送这个文件，请重新选择。",
   "visitor_error.attachment_too_large": "文件太大，无法发送。",
+  "visitor_error.attachments_disabled": "当前聊天不支持发送文件。",
   "visitor_error.chat_unavailable": "当前聊天暂不可用。",
   "visitor_error.conversation_not_found": "找不到这段对话。",
   "visitor_error.reply_target_invalid": "无法回复这条消息。",

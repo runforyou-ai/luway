@@ -29,7 +29,7 @@ func NewCreateWebsiteVisitorUploadAction(db *bun.DB, backend domain.FileStorageB
 	return &CreateWebsiteVisitorUploadAction{db: db, backend: backend}
 }
 
-// Execute 按渠道上限校验元数据，幂等建立渠道身份后按企业存储配置创建临时文件。
+// Execute 按渠道上限校验元数据，渠道开启附件时幂等建立渠道身份并按企业存储配置创建临时文件。
 func (a *CreateWebsiteVisitorUploadAction) Execute(ctx context.Context, input WebsiteVisitorUploadInput) (*servermodels.File, error) {
 	fields := map[string]conversationaction.ValidationCode{}
 	if !common.ValidUUID(input.ChannelID) {
@@ -49,6 +49,13 @@ func (a *CreateWebsiteVisitorUploadAction) Execute(ctx context.Context, input We
 		channel, err := loadWebsiteChannel(ctx, tx, input.ChannelID)
 		if err != nil {
 			return err
+		}
+		setting, err := loadWebsiteChannelSetting(ctx, tx, channel)
+		if err != nil {
+			return err
+		}
+		if !setting.AttachmentsEnabled {
+			return &conversationaction.ConflictError{Reason: ConflictReasonAttachmentsDisabled}
 		}
 		// 访客的首条消息可以是附件，渠道身份在创建上传这一步落库，登录用户同时关联企业用户编号与邮箱。
 		ids := generateIDs()

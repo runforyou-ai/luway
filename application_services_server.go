@@ -133,7 +133,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	publicLookup := channelaction.NewGetPublicWebsiteChannelQuery(db).Execute
 	hostname, err := os.Hostname()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("read hostname: %w", err)
+		return nil, nil, fmt.Errorf("read hostname: %w", err)
 	}
 
 	// 注册健康检查、业务与文件路由、公开聊天入口及后台服务生命周期。
