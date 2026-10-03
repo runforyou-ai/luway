@@ -52,7 +52,7 @@ func startRealtimeGateway(t *testing.T, f navigationFixture, options gateway.Opt
 	config := servertest.NATSConfig(t, "test_gateway_"+strings.ReplaceAll(uuid.NewV7().String(), "-", ""))
 	publisher := startTestPublisher(t, config)
 
-	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
 	var member gateway.MemberBackend = backend
 	if wrap != nil {
 		member = wrap(backend)

@@ -35,17 +35,20 @@ var accountBackendMethods = map[string]bool{
 
 // adminBackendMethods 是只允许部署管理员调用的方法，与 backend.go 中标记 auth=admin 的路由一一对应。
 var adminBackendMethods = map[string]bool{
-	"GetDeploymentOverview":       true,
-	"GetDeploymentSettings":       true,
-	"UpdateDeploymentSettings":    true,
-	"ListDeploymentAccounts":      true,
-	"DeactivateDeploymentAccount": true,
-	"ReactivateDeploymentAccount": true,
-	"GrantDeploymentAdmin":        true,
-	"RevokeDeploymentAdmin":       true,
-	"ListDeploymentWorkspaces":    true,
-	"GetInstanceLicense":          true,
-	"ActivateInstanceLicense":     true,
+	"GetDeploymentOverview":              true,
+	"GetDeploymentSettings":              true,
+	"UpdateDeploymentSettings":           true,
+	"UpdateDeploymentStatisticsTimeZone": true,
+	"ListDeploymentAccounts":             true,
+	"DeactivateDeploymentAccount":        true,
+	"ReactivateDeploymentAccount":        true,
+	"GrantDeploymentAdmin":               true,
+	"RevokeDeploymentAdmin":              true,
+	"ListDeploymentWorkspaces":           true,
+	"SuspendDeploymentWorkspace":         true,
+	"ResumeDeploymentWorkspace":          true,
+	"GetInstanceLicense":                 true,
+	"ActivateInstanceLicense":            true,
 }
 
 // TestBackendMethodsRequireAuthentication 验证非公开方法在无会话时都被挡回登录入口，

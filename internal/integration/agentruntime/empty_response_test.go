@@ -48,14 +48,12 @@ func TestEmptyFinalResponseRetryIsBounded(t *testing.T) {
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			chatModel := &emptyThenAnswerChatModel{emptyReplies: scenario.emptyReplies}
-			runtime := &EinoRuntime{
-				newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil },
-			}
+			runtime := &EinoRuntime{}
 			feed := &testInputFeed{}
 			feed.appendUser("群里的问题")
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			result, err := runtime.Run(ctx, RunRequest{RunID: "test-run-id", Assignment: Assignment{AgentName: "群协作助手"}}, feed)
+			result, err := runtime.Run(ctx, RunRequest{RunID: "test-run-id", Assignment: Assignment{AgentName: "群协作助手"}, Models: fixedModels(chatModel)}, feed)
 			if scenario.wantErr && err == nil {
 				t.Fatalf("期望达到上限后失败，实际结果 = %#v", result)
 			}
@@ -97,12 +95,12 @@ func (m *mediaThenEmptyChatModel) Stream(ctx context.Context, input []*schema.Ag
 // TestMediaRetryKeepsEmptyResponseRetry 验证多模态重试不占用空正文重试的次数。
 func TestMediaRetryKeepsEmptyResponseRetry(t *testing.T) {
 	chatModel := &mediaThenEmptyChatModel{}
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+	runtime := &EinoRuntime{}
 	feed := &testInputFeed{desired: 1, messages: []Message{{
 		ID: "1", Role: MessageRoleUser, Content: "看图", Media: &Media{MIMEType: "image/png", ByteSize: 16},
 	}}}
 	result, err := runtime.Run(context.Background(), RunRequest{
-		RunID: "media-then-empty", MaxTurns: 1,
+		RunID: "media-then-empty", MaxTurns: 1, Models: fixedModels(chatModel),
 		Assignment: Assignment{AgentName: "test-agent", Model: AssignmentModel{
 			InputModalities: []domain.AIModelInputModality{domain.AIModelInputModalityText, domain.AIModelInputModalityImage},
 		}},

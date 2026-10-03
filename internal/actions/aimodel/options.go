@@ -29,8 +29,8 @@ func (q *ListOptionsQuery) Execute(ctx context.Context, identity *servermodels.I
 		return nil, ErrUsageInvalid
 	}
 	options := make([]Option, 0)
-	if err := modelQuery(q.db, identity.Organization.ID, usage).
-		OrderExpr("lower(aip.name) ASC, lower(aim.name) ASC, aim.identifier ASC").
+	if err := optionQuery(q.db, identity.Organization.ID, usage).
+		OrderExpr("lower(aip.name) ASC, lower(aim.name) ASC, aim.id ASC").
 		Scan(ctx, &options); err != nil {
 		return nil, fmt.Errorf("list AI model options: %w", err)
 	}

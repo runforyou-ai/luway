@@ -218,7 +218,7 @@ func (o *directOperations) ListWorkspaces(ctx context.Context, meta appservice.R
 	}
 	items := make([]appservice.Workspace, 0, len(workspaces))
 	for _, workspace := range workspaces {
-		items = append(items, appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug})
+		items = append(items, appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug, Status: appservice.WorkspaceStatus(workspace.Status)})
 	}
 	return appservice.WorkspaceList{Items: items, CanCreate: canCreate}, nil
 }
@@ -243,7 +243,7 @@ func (o *directOperations) CreateWorkspace(ctx context.Context, meta appservice.
 		return appservice.Workspace{}, appservice.FailedError(meta, i18n.ErrorWorkspaceCreateFailed)
 	}
 	slog.Info("工作区已创建", "organization_id", workspace.ID, "account_id", account.Account.ID)
-	return appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug}, nil
+	return appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug, Status: appservice.WorkspaceStatus(workspace.Status)}, nil
 }
 
 // LoadIdentity 返回当前账号在请求目标工作区中的成员身份。
@@ -287,7 +287,7 @@ func workspaceFieldKeys(fields map[string]common.FieldCode) map[string]i18n.Key 
 	return translateValidationFields(fields, keys)
 }
 
-// ListWorkspaceAttention 逐个读取账号有效成员身份所在工作区的提醒数量；读取期间失去成员身份的工作区不返回。
+// ListWorkspaceAttention 逐个读取账号有效成员身份所在工作区的提醒数量；已暂停或读取期间失去成员身份的工作区不返回。
 func (o *directOperations) ListWorkspaceAttention(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.WorkspaceAttentionList, error) {
 	failed := func(err error) (appservice.WorkspaceAttentionList, error) {
 		if ctx.Err() != nil {
@@ -303,7 +303,7 @@ func (o *directOperations) ListWorkspaceAttention(ctx context.Context, meta apps
 	items := make([]appservice.WorkspaceAttention, 0, len(workspaces))
 	for _, workspace := range workspaces {
 		identity, err := authaction.ResolveMember(ctx, o.db, account, workspace.ID)
-		if errors.Is(err, authaction.ErrMembershipNotFound) {
+		if errors.Is(err, authaction.ErrMembershipNotFound) || errors.Is(err, authaction.ErrWorkspaceSuspended) {
 			continue
 		}
 		if err != nil {

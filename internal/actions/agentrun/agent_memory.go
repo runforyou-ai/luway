@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -50,14 +52,15 @@ type ExtractAgentMemoryAction struct {
 	db        *bun.DB
 	enqueuer  servertask.TxEnqueuer
 	extractor agentruntime.MemoryExtractor
+	invoker   *modelcall.Invoker
 }
 
 // errAgentMemoryChanged 表示提取期间会话的提取进度或个人 AI 员工的记忆已被其他任务或负责人修改，本次结果作废并重试。
 var errAgentMemoryChanged = errors.New("agent memory changed during extraction")
 
 // NewExtractAgentMemoryAction 创建个人 AI 员工记忆提取操作。
-func NewExtractAgentMemoryAction(db *bun.DB, enqueuer servertask.TxEnqueuer, extractor agentruntime.MemoryExtractor) *ExtractAgentMemoryAction {
-	return &ExtractAgentMemoryAction{db: db, enqueuer: enqueuer, extractor: extractor}
+func NewExtractAgentMemoryAction(db *bun.DB, enqueuer servertask.TxEnqueuer, extractor agentruntime.MemoryExtractor, invoker *modelcall.Invoker) *ExtractAgentMemoryAction {
+	return &ExtractAgentMemoryAction{db: db, enqueuer: enqueuer, extractor: extractor, invoker: invoker}
 }
 
 // enqueueAgentMemory 在调用方事务中确认运行的 Agent 是个人 AI 员工，是时为回复消息投递记忆提取任务。
@@ -76,7 +79,7 @@ func enqueueAgentMemory(ctx context.Context, db bun.IDB, enqueuer servertask.TxE
 
 // enqueueAgentMemoryExtraction 在调用方事务中把记忆提取任务投递到 Agent 队列。
 func enqueueAgentMemoryExtraction(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, input AgentMemoryInput, idempotencyKey string) error {
-	options := servertask.EnqueueOptions{Queue: servertask.QueueAgent, MaxAttempts: agentMemoryMaxAttempts, IdempotencyKey: idempotencyKey}
+	options := servertask.EnqueueOptions{OrganizationID: input.OrganizationID, Queue: servertask.QueueAgent, MaxAttempts: agentMemoryMaxAttempts, IdempotencyKey: idempotencyKey}
 	if _, err := enqueuer.EnqueueIn(ctx, db, AgentMemoryActionName, input, options); err != nil {
 		return fmt.Errorf("enqueue agent memory extraction: %w", err)
 	}
@@ -129,12 +132,13 @@ func (a *ExtractAgentMemoryAction) Execute(ctx context.Context, input AgentMemor
 	var agent struct {
 		managedAgentModel
 		AgentID               string `bun:"agent_id"`
+		AgentIdentityID       string `bun:"agent_identity_id"`
 		ResponsibleUserID     string `bun:"responsible_user_id"`
 		ResponsibleIdentityID string `bun:"responsible_identity_id"`
 		MemoryExtractedSeq    int64  `bun:"memory_extracted_seq"`
 	}
 	err := a.db.NewSelect().TableExpr("agent_conversations AS ac").
-		ColumnExpr("a.id AS agent_id, a.responsible_user_id, ac.user_identity_id AS responsible_identity_id, ac.memory_extracted_seq").
+		ColumnExpr("a.id AS agent_id, a.identity_id AS agent_identity_id, a.responsible_user_id, ac.user_identity_id AS responsible_identity_id, ac.memory_extracted_seq").
 		Join("JOIN agents AS a ON a.identity_id = ac.agent_identity_id AND a.organization_id = ac.organization_id").
 		Apply(func(query *bun.SelectQuery) *bun.SelectQuery {
 			return withManagedAgentConfiguration(query, "a.active_revision_id")
@@ -160,10 +164,18 @@ func (a *ExtractAgentMemoryAction) Execute(ctx context.Context, input AgentMemor
 	if err != nil {
 		return err
 	}
+	scope := modelcall.AgentScope(input.OrganizationID, agent.AgentIdentityID, domain.AIModelCallSourceConversation, input.ConversationID)
+	model, err := agent.modelConfig(ctx, a.db, a.invoker, scope)
+	if errors.Is(err, aimodel.ErrUnavailable) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("resolve agent memory model: %w", err)
+	}
 	extractCtx, cancel := context.WithTimeout(ctx, agentMemoryTimeout)
 	defer cancel()
 	result, err := a.extractor.ExtractMemory(extractCtx, agentruntime.MemoryExtractionRequest{
-		Model: agent.modelConfig(), Entries: entries, Earlier: earlier, Recent: recent,
+		Model: model, Entries: entries, Earlier: earlier, Recent: recent,
 	})
 	if err != nil {
 		return fmt.Errorf("extract agent memory: %w", err)

@@ -51,7 +51,7 @@ func openEmptyDatabase(t *testing.T) *bun.DB {
 
 // newAccountTestBackend 创建自托管直接后端，只接入账号与工作区入口需要的依赖。
 func newAccountTestBackend(db *bun.DB) *direct.Backend {
-	return direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+	return direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
 }
 
 // requireSessionState 断言错误把调用方引导到指定会话入口。
@@ -133,7 +133,7 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	if closed, _ := i18n.Localize("zh-CN", i18n.ErrorRegistrationClosed); !ok || appErr.Message != closed {
 		t.Fatalf("closed registration error = %#v", err)
 	}
-	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
+	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
 		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
 	}); err != nil {
 		t.Fatal(err)
@@ -157,7 +157,7 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	_, err = backend.CreateWorkspace(ctx, memberMeta, appservice.WorkspaceInput{Name: "成员工作区", Slug: "member-team"})
 	requireErrorKind(t, err, appservice.ErrorKindForbidden)
 	// 所有账号可创建时，普通账号同样受实例工作区上限约束。
-	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
+	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
 		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyAnyAccount,
 	}); err != nil {
 		t.Fatal(err)
@@ -186,10 +186,10 @@ func TestDeploymentAdministration(t *testing.T) {
 		t.Fatal(err)
 	}
 	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: appservice.LocaleChineseSimplified}
-	_, err = backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{RegistrationPolicy: "closed", WorkspaceCreationPolicy: "everyone"})
+	_, err = backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{RegistrationPolicy: "closed", WorkspaceCreationPolicy: "everyone"})
 	requireFieldError(t, err, "registrationPolicy", i18n.FieldRegistrationPolicyInvalid)
 	requireFieldError(t, err, "workspaceCreationPolicy", i18n.FieldWorkspaceCreationPolicyInvalid)
-	settings, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
+	settings, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentPoliciesInput{
 		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
 	})
 	if err != nil || settings.RegistrationPolicy != appservice.RegistrationPolicyOpen {

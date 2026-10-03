@@ -107,8 +107,7 @@ func (w *Worker) Review(ctx context.Context, input ReviewInput) error {
 	}
 	generateCtx, cancel := context.WithTimeout(ctx, summaryTimeout)
 	defer cancel()
-	answers, err := w.decider.Decide(generateCtx, decision.Credential{BaseURL: decisionModel.APIURL, APIKey: decisionModel.APIKey},
-		decisionModel.Identifier, decisionState(transcript, decisionModel.ContextWindow), questions)
+	answers, err := w.invoker.Decide(generateCtx, sessionScope(input.OrganizationID, input.ServiceSessionID), decisionModel, decisionState(transcript, decisionModel.ContextWindow), questions)
 	if err != nil {
 		return fmt.Errorf("decide service session review: %w", err)
 	}

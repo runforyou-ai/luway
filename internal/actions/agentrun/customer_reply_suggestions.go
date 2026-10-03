@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -62,12 +63,13 @@ type ServiceReplySuggestionsInput struct {
 type GenerateServiceReplySuggestionsAction struct {
 	db          *bun.DB
 	generator   agentruntime.ReplyCandidateGenerator
+	invoker     *modelcall.Invoker
 	attachments *AttachmentReader
 }
 
 // NewGenerateServiceReplySuggestionsAction 创建回复候选生成操作。
-func NewGenerateServiceReplySuggestionsAction(db *bun.DB, generator agentruntime.ReplyCandidateGenerator, attachments *AttachmentReader) *GenerateServiceReplySuggestionsAction {
-	return &GenerateServiceReplySuggestionsAction{db: db, generator: generator, attachments: attachments}
+func NewGenerateServiceReplySuggestionsAction(db *bun.DB, generator agentruntime.ReplyCandidateGenerator, invoker *modelcall.Invoker, attachments *AttachmentReader) *GenerateServiceReplySuggestionsAction {
+	return &GenerateServiceReplySuggestionsAction{db: db, generator: generator, invoker: invoker, attachments: attachments}
 }
 
 // customerReplyReference 定义客服回复所引用的消息摘要。
@@ -100,12 +102,16 @@ func (a *GenerateServiceReplySuggestionsAction) Execute(ctx context.Context, ide
 	if err != nil {
 		return nil, err
 	}
+	model, err := prepared.agent.modelConfig(ctx, a.db, a.invoker, modelcall.MemberScope(identity, domain.AIModelCallSourceConversation, input.ConversationID))
+	if err != nil {
+		return nil, fmt.Errorf("resolve reply suggestion model: %w", err)
+	}
 	generateCtx, cancel := context.WithTimeout(ctx, serviceReplySuggestionTimeout)
 	defer cancel()
 	startedAt := time.Now()
 	result, err := a.generator.GenerateReplyCandidates(generateCtx, agentruntime.ReplyCandidatesRequest{
 		Instruction: customerReplyInstruction(prepared.agent.Instruction, input.Language),
-		Model:       prepared.agent.modelConfig(),
+		Model:       model,
 		History:     prepared.history,
 		Task:        customerReplyTask(input, prepared.replyTo),
 	})

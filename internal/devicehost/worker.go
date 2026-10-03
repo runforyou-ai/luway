@@ -51,7 +51,7 @@ type RunClient interface {
 	appservice.DeviceRunBackend
 	// OpenDeviceEventStream 以本机设备身份建立设备事件流，关闭返回值即结束事件流。
 	OpenDeviceEventStream(context.Context, appservice.RequestMeta) (io.ReadCloser, error)
-	// DeviceModelEndpoint 返回运行的模型代理入口与附加本机设备认证的传输层。
+	// DeviceModelEndpoint 返回运行的服务端模型网关入口与附加本机设备认证的传输层。
 	DeviceModelEndpoint(context.Context, appservice.RequestMeta, string) (string, http.RoundTripper, error)
 	// ReadDeviceRunAttachment 读取运行所属会话中指定附件消息的文件内容。
 	ReadDeviceRunAttachment(ctx context.Context, meta appservice.RequestMeta, runID, messageID string) ([]byte, error)

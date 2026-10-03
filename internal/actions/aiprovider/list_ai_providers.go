@@ -32,15 +32,20 @@ func (q *ListAIProvidersQuery) Execute(ctx context.Context, identity *servermode
 		Scan(ctx); err != nil {
 		return nil, fmt.Errorf("list AI providers: %w", err)
 	}
-	modelRecords := make([]servermodels.AIModel, 0)
-	if err := q.db.NewSelect().
-		Model(&modelRecords).
-		Column("aim.id", "aim.provider_id", "aim.identifier", "aim.name", "aim.model_type").
-		Join("JOIN ai_providers AS aip ON aip.id = aim.provider_id").
+	modelRecords := make([]struct {
+		ID         string `bun:"id"`
+		ProviderID string `bun:"provider_id"`
+		Identifier string `bun:"identifier"`
+		Name       string `bun:"name"`
+		Type       string `bun:"model_type"`
+	}, 0)
+	if err := q.db.NewSelect().TableExpr("ai_model_routes AS amr").
+		ColumnExpr("aim.id::text AS id, amr.provider_id::text AS provider_id, amr.identifier, aim.name, aim.model_type").
+		Join("JOIN ai_models AS aim ON aim.id = amr.model_id").
+		Join("JOIN ai_providers AS aip ON aip.id = amr.provider_id").
 		Where("aip.organization_id = ?", identity.Organization.ID).
-		Order("aim.provider_id ASC").
-		Order("aim.id ASC").
-		Scan(ctx); err != nil {
+		OrderExpr("amr.provider_id ASC, aim.id ASC").
+		Scan(ctx, &modelRecords); err != nil {
 		return nil, fmt.Errorf("list AI provider models: %w", err)
 	}
 	modelsByProvider := make(map[string][]ModelSummary)

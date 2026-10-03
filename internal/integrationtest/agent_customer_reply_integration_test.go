@@ -67,7 +67,7 @@ func TestAgentCustomerReplies(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			coordinator := agentrunaction.NewExecuteAction(db, tasks, nil, testAttachmentReader(db), nil, nil)
+			coordinator := agentrunaction.NewExecuteAction(db, tasks, nil, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 			if scenario.earlierSession {
 				if _, err := servicesessionaction.NewCloseServiceSessionAction(db, coordinator, newTestTasks(db)).Execute(ctx, identity, original.Conversation.ID); err != nil {
 					t.Fatal(err)
@@ -198,7 +198,7 @@ func TestAgentCustomerReplies(t *testing.T) {
 			if err := db.NewSelect().Model(run).Where("agr.conversation_id = ? AND agr.status = ?", original.Conversation.ID, domain.AgentRunStatusQueued).Scan(ctx); err != nil {
 				t.Fatal(err)
 			}
-			if err := agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+			if err := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 				t.Fatal(err)
 			}
 			if calls != 1 {

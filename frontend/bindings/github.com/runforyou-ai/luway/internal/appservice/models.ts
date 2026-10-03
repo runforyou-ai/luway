@@ -29,7 +29,6 @@ export enum AIModelInputModality {
  */
 export interface AIModelOption {
     "id": string;
-    "identifier": string;
     "name": string;
     "type": AIModelType;
     "inputModalities": AIModelInputModality[] | null;
@@ -2231,33 +2230,83 @@ export interface DeploymentAccountListInput {
 }
 
 /**
- * DeploymentOverview 定义部署实例标识、服务端版本、安装时间、规模和实例能力。
+ * DeploymentActivityWindow 定义截至今天若干天内去重后的活跃账号数和活跃工作区数，以及新增账号数和新增工作区数。
+ */
+export interface DeploymentActivityWindow {
+    "activeAccounts": number;
+    "activeWorkspaces": number;
+    "newAccounts": number;
+    "newWorkspaces": number;
+}
+
+/**
+ * DeploymentDailyActivity 定义一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数，Date 为 YYYY-MM-DD。
+ */
+export interface DeploymentDailyActivity {
+    "date": string;
+    "activeAccounts": number;
+    "activeWorkspaces": number;
+    "newAccounts": number;
+    "newWorkspaces": number;
+}
+
+/**
+ * DeploymentOverview 定义部署实例标识、服务端版本、安装时间、规模、活跃情况和实例能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
  */
 export interface DeploymentOverview {
     "instanceId": string;
     "version": string;
     "installedAt": string;
+    "statisticsTimeZone": string;
+    "statsRebuilding": boolean;
     "accountCount": number;
     "workspaceCount": number;
+    "memberCount": number;
+    "last7Days": DeploymentActivityWindow;
+    "last30Days": DeploymentActivityWindow;
+    "trend": DeploymentDailyActivity[] | null;
     "capabilities": InstanceCapabilities;
 }
 
 /**
- * DeploymentSettings 定义部署注册策略和工作区创建策略。
+ * DeploymentPoliciesInput 定义部署注册策略和工作区创建策略的修改值。
  */
-export interface DeploymentSettings {
+export interface DeploymentPoliciesInput {
     "registrationPolicy": RegistrationPolicy;
     "workspaceCreationPolicy": WorkspaceCreationPolicy;
 }
 
 /**
- * DeploymentWorkspace 定义部署工作区列表中的一个工作区及其有效成员数量。
+ * DeploymentSettings 定义部署注册策略、工作区创建策略和运营数据统计时区。
+ */
+export interface DeploymentSettings {
+    "registrationPolicy": RegistrationPolicy;
+    "workspaceCreationPolicy": WorkspaceCreationPolicy;
+    "statisticsTimeZone": string;
+}
+
+/**
+ * DeploymentStatisticsTimeZoneInput 定义运营数据统计时区的修改值。
+ */
+export interface DeploymentStatisticsTimeZoneInput {
+    "statisticsTimeZone": string;
+}
+
+/**
+ * DeploymentWorkspace 定义部署工作区列表中的一个工作区、状态与当前规模；HasDeploymentAdmin 表示有有效部署管理员成员，此时不能暂停；LastActiveOn 为最近有活跃的日期 YYYY-MM-DD，从未活跃时为空。
  */
 export interface DeploymentWorkspace {
     "id": string;
     "name": string;
     "slug": string;
+    "status": WorkspaceStatus;
     "memberCount": number;
+    "aiEmployeeCount": number;
+    "channelCount": number;
+    "deviceCount": number;
+    "hasDeploymentAdmin": boolean;
+    "storageBytes": number;
+    "lastActiveOn": string | null;
     "createdAt": string;
 }
 
@@ -2270,13 +2319,30 @@ export interface DeploymentWorkspaceList {
 }
 
 /**
- * DeploymentWorkspaceListInput 定义部署工作区列表的关键词与分页条件。
+ * DeploymentWorkspaceListInput 定义部署工作区列表的关键词、状态、排序与分页条件；Status 为空表示全部状态，Sort 缺省按创建时间。
  */
 export interface DeploymentWorkspaceListInput {
     "query": string;
+    "status": WorkspaceStatus;
+    "sort": DeploymentWorkspaceSort;
     "page": number;
     "pageSize": number;
 }
+
+/**
+ * DeploymentWorkspaceSort 表示部署工作区列表的排序方式，均为降序。
+ */
+export enum DeploymentWorkspaceSort {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    DeploymentWorkspaceSortCreatedAt = "created_at",
+    DeploymentWorkspaceSortLastActive = "last_active",
+    DeploymentWorkspaceSortMemberCount = "member_count",
+    DeploymentWorkspaceSortStorage = "storage",
+};
 
 /**
  * Device 定义成员注册到企业的本机设备，LocalAgents 是设备上报的已安装且可用的本机 Agent。
@@ -5718,12 +5784,13 @@ export enum WorkStatus {
 };
 
 /**
- * Workspace 定义账号可进入的工作区。
+ * Workspace 定义账号加入的工作区；已暂停的工作区不能进入。
  */
 export interface Workspace {
     "id": string;
     "name": string;
     "slug": string;
+    "status": WorkspaceStatus;
 }
 
 /**
@@ -5771,3 +5838,16 @@ export interface WorkspaceList {
     "items": Workspace[] | null;
     "canCreate": boolean;
 }
+
+/**
+ * WorkspaceStatus 表示工作区状态：active 正常，suspended 已被部署管理员暂停。
+ */
+export enum WorkspaceStatus {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    WorkspaceStatusActive = "active",
+    WorkspaceStatusSuspended = "suspended",
+};

@@ -9,6 +9,7 @@ import (
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice"
@@ -27,9 +28,7 @@ import (
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/luway/pkg/connectiontest"
-	"github.com/runforyou-ai/luway/pkg/embedding"
 	mailintegration "github.com/runforyou-ai/luway/pkg/mail"
-	"github.com/runforyou-ai/luway/pkg/rerank"
 	"github.com/runforyou-ai/luway/pkg/searchtext"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -72,13 +71,14 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	// 运行期通过附件读取器读取会话附件，按配置版本绑定的知识库执行混合检索；客服 AI 写回复以单次模型调用同步生成回复候选。
 	agentRunScheduler := agentrunaction.NewScheduler(tasks)
 	agentAttachments := agentrunaction.NewAttachmentReader(db, fileReader, serverfilecontent.NewLinks(config.Server.PublicURL, fileS3.PublicBaseURL))
-	knowledgeRetrieval := knowledgeaction.NewRetrievalService(db, embedding.NewClient(), rerank.NewClient())
-	executeAgentRun := agentrunaction.NewExecuteAction(db, tasks, agentRuntime, agentAttachments, knowledgeRetrieval, emailSender)
-	serviceReplySuggestions := agentrunaction.NewGenerateServiceReplySuggestionsAction(db, agentRuntime, agentAttachments)
+	modelInvoker := modelcall.New(db, modelcall.DefaultUpstreams())
+	knowledgeRetrieval := knowledgeaction.NewRetrievalService(db, modelInvoker)
+	executeAgentRun := agentrunaction.NewExecuteAction(db, tasks, agentRuntime, modelInvoker, agentAttachments, knowledgeRetrieval, emailSender)
+	serviceReplySuggestions := agentrunaction.NewGenerateServiceReplySuggestionsAction(db, agentRuntime, modelInvoker, agentAttachments)
 	telegramAPI := telegramintegration.NewClient(connectiontest.NewHTTPClient())
 	if err := registerServerTasks(serverTaskDeps{
 		db: db, maintenanceDB: appStorage.MaintenanceDB(), tasks: tasks, publicURL: config.Server.PublicURL, localFiles: localFiles, fileS3: fileS3, fileReader: fileReader,
-		emailSender: emailSender, agentRuntime: agentRuntime, agentSchedule: agentRunScheduler, agentRun: executeAgentRun, telegramAPI: telegramAPI,
+		emailSender: emailSender, agentRuntime: agentRuntime, modelInvoker: modelInvoker, agentSchedule: agentRunScheduler, agentRun: executeAgentRun, telegramAPI: telegramAPI,
 	}); err != nil {
 		return nil, nil, err
 	}
@@ -96,8 +96,8 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	// 组装企业成员与网站匿名访客各自的业务入口。
 	deployment := directDeploymentConfig(config, emailSender)
 	deployment.ProductDocs = productDocs
-	translator := translationaction.NewTranslator(db, agentRuntime)
-	directBackend := direct.New(db, deployment, localFiles, fileS3, agentRunScheduler, executeAgentRun, tasks, serviceReplySuggestions, translator)
+	translator := translationaction.NewTranslator(db, agentRuntime, modelInvoker)
+	directBackend := direct.New(db, deployment, localFiles, fileS3, agentRunScheduler, executeAgentRun, tasks, serviceReplySuggestions, translator, knowledgeRetrieval)
 	boundService := appservice.New(directBackend)
 	websiteVisitorBackend := direct.NewWebsiteVisitorBackend(db, agentRunScheduler, tasks, localFiles, fileS3, emailSender, knowledgeRetrieval)
 	websiteVisitorService := appservice.NewWebsiteVisitorService(websiteVisitorBackend)
@@ -109,7 +109,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	httpAPI := api.NewService(
 		boundService,
 		api.WithDeviceRuns(directBackend),
-		api.WithDeviceModelProxy(directBackend),
+		api.WithDeviceModelGateway(directBackend),
 		api.WithDeviceRunAttachments(directBackend),
 		api.WithWebsiteVisitor(websiteVisitorService, config.TLS.Mode != "off", config.Server.VisitorCountryHeader),
 		api.WithWebsiteVisitorRealtime(realtimeGateway),

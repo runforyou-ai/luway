@@ -77,7 +77,7 @@ func (t *Translator) TranslateMessages(ctx context.Context, identity *servermode
 		}
 	}
 	if len(pending) > 0 {
-		translated, err := t.translatePending(ctx, identity, target, pending)
+		translated, err := t.translatePending(ctx, identity, conversationID, target, pending)
 		if err != nil {
 			return nil, err
 		}
@@ -96,9 +96,9 @@ func (t *Translator) TranslateMessages(ctx context.Context, identity *servermode
 }
 
 // translatePending 以一次模型调用识别待翻译消息的语言并译为目标语言，在事务中保存正文语言与译文；模型未返回的消息以空译文返回，由调用方按翻译失败处理。
-func (t *Translator) translatePending(ctx context.Context, identity *servermodels.Identity, target string, pending []translatableMessage) ([]MessageTranslation, error) {
+func (t *Translator) translatePending(ctx context.Context, identity *servermodels.Identity, conversationID, target string, pending []translatableMessage) ([]MessageTranslation, error) {
 	organizationID := identity.Organization.ID
-	model, err := loadModel(ctx, t.db, organizationID)
+	model, err := t.loadModel(ctx, identity, conversationID)
 	if err != nil {
 		return nil, err
 	}

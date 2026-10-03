@@ -62,7 +62,7 @@ func testAgentMemory(t *testing.T, f *deviceRunFixture) {
 	extractor := &scriptedMemoryExtractor{result: agentruntime.MemoryExtractionResult{Saved: []agentruntime.MemoryEntry{
 		{Path: "report.md", Name: "周报格式", Description: "周报按客户分组", Body: "周报按客户分组整理。"},
 	}}}
-	extract := agentrunaction.NewExtractAgentMemoryAction(db, f.tasks, extractor)
+	extract := agentrunaction.NewExtractAgentMemoryAction(db, f.tasks, extractor, testModelInvoker(db))
 	if err := extract.Execute(ctx, input); err != nil {
 		t.Fatal(err)
 	}

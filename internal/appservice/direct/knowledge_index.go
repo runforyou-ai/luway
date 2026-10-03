@@ -20,6 +20,10 @@ func knowledgeIndexPresentation(meta appservice.RequestMeta, stage domain.Knowle
 			key = i18n.ErrorKnowledgeContentEmpty
 		case "parse_failed", "unsupported_file":
 			key = i18n.ErrorKnowledgeParseFailed
+		case "file_too_large":
+			key = i18n.FieldKnowledgeDocumentTooLarge
+		case "content_too_large":
+			key = i18n.ErrorKnowledgeContentTooLarge
 		case "url_unreachable", "url_invalid":
 			key = i18n.ErrorKnowledgePageUnreachable
 		case "url_content_unsupported":

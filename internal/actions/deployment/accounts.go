@@ -140,16 +140,21 @@ func (a *UpdateAccountAction) SetStatus(ctx context.Context, operator *servermod
 // SetDeploymentAdmin 授予或撤销其他账号的部署管理员身份；授予时目标账号须至少有一个有效的工作区成员身份。
 func (a *UpdateAccountAction) SetDeploymentAdmin(ctx context.Context, operator *servermodels.AccountIdentity, accountID string, admin bool) (AccountRecord, error) {
 	return a.update(ctx, operator, accountID, func(ctx context.Context, tx bun.Tx) error {
-		// 授予时检查目标账号的有效成员身份；目标账号行已锁定，与成员停用串行。
+		// 授予时检查目标账号在正常状态工作区中的有效成员身份；目标账号行已锁定，与成员停用串行，共享锁定所在工作区，与工作区暂停串行。
 		if admin {
-			member, err := tx.NewSelect().Model((*servermodels.User)(nil)).
-				Where("account_id = ?", accountID).
-				Where("status = ?", domain.IdentityStatusActive).
-				Exists(ctx)
-			if err != nil {
+			var workspaceIDs []string
+			if err := tx.NewSelect().TableExpr("users AS u").
+				Join("JOIN organizations AS o ON o.id = u.organization_id").
+				ColumnExpr("o.id::text").
+				Where("u.account_id = ?", accountID).
+				Where("u.status = ?", domain.IdentityStatusActive).
+				Where("o.lifecycle_status = ?", domain.OrganizationLifecycleActive).
+				OrderExpr("o.id ASC").
+				For("SHARE OF o").
+				Scan(ctx, &workspaceIDs); err != nil {
 				return err
 			}
-			if !member {
+			if len(workspaceIDs) == 0 {
 				return ErrNoActiveMembership
 			}
 		}

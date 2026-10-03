@@ -67,7 +67,7 @@ func (a *UpdateAIProviderAction) Execute(ctx context.Context, identity *servermo
 			Exec(ctx); err != nil {
 			return err
 		}
-		if models, err = saveModels(ctx, tx, current.ID, input.Models, changes); err != nil {
+		if models, err = saveModels(ctx, tx, identity.Organization.ID, current.ID, input.Models, changes); err != nil {
 			return err
 		}
 		if len(changes.renamedEmbeddings) > 0 {

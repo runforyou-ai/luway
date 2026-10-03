@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useLocation, useNavigate } from "react-router"
 
-import { listWorkspaces } from "@/api"
+import { WorkspaceStatus, listWorkspaces } from "@/api"
 import { PageLoading } from "@/components/page-loading"
 import { PageLoadError } from "@/components/page-load-error"
 import { resourceKeys } from "@/hooks/resource-keys"
@@ -42,9 +42,11 @@ export function WorkspaceEntry() {
       return
     }
     const lastSlug = lastWorkspaceSlug()
+    // 只自动进入未暂停的工作区。
+    const enterable = data.items.filter((workspace) => workspace.status === WorkspaceStatus.WorkspaceStatusActive)
     const target =
-      data.items.find((workspace) => workspace.slug === lastSlug) ??
-      (data.items.length === 1 ? data.items[0] : undefined)
+      enterable.find((workspace) => workspace.slug === lastSlug) ??
+      (enterable.length === 1 ? enterable[0] : undefined)
     if (!target) {
       navigate("/workspaces", { replace: true })
       return

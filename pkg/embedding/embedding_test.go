@@ -39,7 +39,7 @@ func embeddingServer(t *testing.T, dimension int, batches *[]int) *httptest.Serv
 			vector[0] = float32(index)
 			data = append(data, map[string]any{"index": index, "embedding": vector})
 		}
-		_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": data, "usage": map[string]any{"prompt_tokens": len(input.Input)}})
 	}))
 }
 
@@ -52,9 +52,13 @@ func TestEmbedBatchesAndOrder(t *testing.T) {
 	for index := range inputs {
 		inputs[index] = fmt.Sprintf("第%d段", index)
 	}
-	vectors, err := NewClient().Embed(context.Background(), Credential{BaseURL: server.URL, APIKey: "test-key"}, "embedding-test", 8, inputs)
+	result, err := NewClient().Embed(context.Background(), Credential{BaseURL: server.URL, APIKey: "test-key"}, "embedding-test", 8, inputs)
 	if err != nil {
 		t.Fatal(err)
+	}
+	vectors := result.Vectors
+	if result.InputTokens != 45 {
+		t.Fatalf("input tokens = %d", result.InputTokens)
 	}
 	if len(batches) != 3 || batches[0] != 20 || batches[1] != 20 || batches[2] != 5 {
 		t.Fatalf("batches=%v", batches)
@@ -120,7 +124,8 @@ func TestEmbedWithoutCredential(t *testing.T) {
 	}))
 	defer server.Close()
 
-	vectors, err := NewClient().Embed(context.Background(), Credential{BaseURL: server.URL}, "embedding-test", 2, []string{"正文"})
+	result, err := NewClient().Embed(context.Background(), Credential{BaseURL: server.URL}, "embedding-test", 2, []string{"正文"})
+	vectors := result.Vectors
 	if err != nil {
 		t.Fatal(err)
 	}

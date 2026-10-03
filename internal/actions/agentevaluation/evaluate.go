@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
@@ -35,21 +36,16 @@ type Replayer interface {
 	Replay(context.Context, agentrunaction.ReplayInput) (agentruntime.RunResult, error)
 }
 
-// Decider 在固定选项内给出带概率的判断。
-type Decider interface {
-	Decide(ctx context.Context, credential decision.Credential, model string, state any, questions map[string]decision.Question) (map[string]decision.Answer, error)
-}
-
 // Worker 执行评测任务：回放用例、判定并写入结果。
 type Worker struct {
 	db       *bun.DB
 	replayer Replayer
-	decider  Decider
+	invoker  *modelcall.Invoker
 }
 
-// NewWorker 创建评测任务执行器。
-func NewWorker(db *bun.DB, replayer Replayer, decider Decider) *Worker {
-	return &Worker{db: db, replayer: replayer, decider: decider}
+// NewWorker 创建评测任务执行器，判断模型经统一调用入口调用。
+func NewWorker(db *bun.DB, replayer Replayer, invoker *modelcall.Invoker) *Worker {
+	return &Worker{db: db, replayer: replayer, invoker: invoker}
 }
 
 // outcome 是一次尝试的判定结果。
@@ -116,7 +112,7 @@ func (w *Worker) Evaluate(ctx context.Context, input EvaluateInput) error {
 		slog.Warn("评测回放失败", "organization_id", input.OrganizationID, "evaluation_result_id", pending.ID, "error", runErr)
 		judged.status, judged.errorCode = domain.AgentEvaluationResultStatusError, new(domain.AgentEvaluationErrorRuntimeFailed)
 	default:
-		if err := w.judge(ctx, input.OrganizationID, snapshot, result, &judged); err != nil {
+		if err := w.judge(ctx, input.OrganizationID, pending.ID, snapshot, result, &judged); err != nil {
 			return err
 		}
 	}
@@ -124,7 +120,7 @@ func (w *Worker) Evaluate(ctx context.Context, input EvaluateInput) error {
 }
 
 // judge 按处理方式与标准答案判定一次正常结束的回放。
-func (w *Worker) judge(ctx context.Context, organizationID string, snapshot CaseSnapshot, result agentruntime.RunResult, judged *outcome) error {
+func (w *Worker) judge(ctx context.Context, organizationID, evaluationID string, snapshot CaseSnapshot, result agentruntime.RunResult, judged *outcome) error {
 	actual := result.Decision.Outcome()
 	judged.actualAction, judged.answer = new(string(actual)), result.Content
 	if actual == domain.AgentRunOutcomeHandoff {
@@ -146,7 +142,7 @@ func (w *Worker) judge(ctx context.Context, organizationID string, snapshot Case
 		judged.status, judged.errorCode = domain.AgentEvaluationResultStatusError, new(domain.AgentEvaluationErrorDecisionModelUnavailable)
 		return nil
 	}
-	answers, err := w.decider.Decide(ctx, decision.Credential{BaseURL: model.APIURL, APIKey: model.APIKey}, model.Identifier,
+	answers, err := w.invoker.Decide(ctx, modelcall.SystemScope(organizationID, domain.AIModelCallSourceAgentEvaluation, evaluationID), model,
 		judgeState(snapshot, result, model.ContextWindow), map[string]decision.Question{
 			"correct": {Kind: decision.KindYesNo,
 				Instructions: "AI 的回复覆盖了标准答案的要点、没有与之矛盾的内容，并且与本次知识库检索和业务查询返回的资料一致，没有编造资料中没有的事实。"},

@@ -12,9 +12,11 @@ import (
 type Deployment struct {
 	bun.BaseModel `bun:"table:deployments,alias:dep"`
 
-	InstanceID              string    `bun:"instance_id,pk"`
-	CreatedAt               time.Time `bun:"created_at,nullzero,default:now()"`
-	UpdatedAt               time.Time `bun:"updated_at,nullzero,default:now()"`
-	RegistrationPolicy      string    `bun:"registration_policy"`
-	WorkspaceCreationPolicy string    `bun:"workspace_creation_policy"`
+	InstanceID               string    `bun:"instance_id,pk"`
+	CreatedAt                time.Time `bun:"created_at,nullzero,default:now()"`
+	UpdatedAt                time.Time `bun:"updated_at,nullzero,default:now()"`
+	RegistrationPolicy       string    `bun:"registration_policy"`
+	WorkspaceCreationPolicy  string    `bun:"workspace_creation_policy"`
+	StatisticsTimeZone       string    `bun:"statistics_time_zone"`
+	StatisticsRebuildPending bool      `bun:"statistics_rebuild_pending"`
 }

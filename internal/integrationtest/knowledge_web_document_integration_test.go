@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
@@ -98,12 +99,12 @@ func TestKnowledgeWebDocumentLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	stale := loadKnowledgeDocument(t, db, created.ID)
-	runErr := knowledgeaction.NewProcessDocumentAction(db, failing, failing, failing, failing).Execute(ctx, knowledgeaction.ProcessInput{
+	runErr := knowledgeaction.NewProcessDocumentAction(db, failing, modelcall.New(db, modelcall.Upstreams{Embedder: failing}), failing, failing).Execute(ctx, knowledgeaction.ProcessInput{
 		OrganizationID: identity.Organization.ID, KnowledgeBaseID: base.ID, DocumentID: created.ID, SourceKind: stale.SourceKind, FetchPage: true, ProcessingID: stale.ProcessingID,
 		ChunkLength: stale.ChunkLength, ChunkOverlap: stale.ChunkOverlap,
 		EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
 	})
-	if err := knowledgeaction.NewProcessDocumentAction(db, failing, failing, failing, failing).FinalizeFailure(ctx, knowledgeaction.ProcessInput{DocumentID: created.ID, ProcessingID: stale.ProcessingID}, runErr); err != nil {
+	if err := knowledgeaction.NewProcessDocumentAction(db, failing, modelcall.New(db, modelcall.Upstreams{Embedder: failing}), failing, failing).FinalizeFailure(ctx, knowledgeaction.ProcessInput{DocumentID: created.ID, ProcessingID: stale.ProcessingID}, runErr); err != nil {
 		t.Fatal(err)
 	}
 	document = loadKnowledgeDocument(t, db, created.ID)

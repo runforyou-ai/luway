@@ -47,7 +47,7 @@ func (p *DocumentProcessing) enqueue(ctx context.Context, tx bun.IDB, organizati
 			OrganizationID: organizationID, KnowledgeBaseID: base.ID, DocumentID: document.ID, SourceKind: document.SourceKind, FetchPage: fetchPage, ProcessingID: document.ProcessingID,
 			ChunkLength: document.ChunkLength, ChunkOverlap: document.ChunkOverlap,
 			EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
-		}, Options: servertask.EnqueueOptions{Queue: servertask.QueueKnowledge, MaxAttempts: 1, IdempotencyKey: document.ProcessingID, TriggerType: servertask.TriggerBusiness}}
+		}, Options: servertask.EnqueueOptions{OrganizationID: organizationID, Queue: servertask.QueueKnowledge, MaxAttempts: 1, IdempotencyKey: document.ProcessingID, TriggerType: servertask.TriggerBusiness}}
 	}
 	if _, err := tx.NewUpdate().Model((*servermodels.KnowledgeDocument)(nil)).
 		TableExpr("unnest(?::uuid[], ?::uuid[]) AS batch(id, processing_id)", pgdialect.Array(ids), pgdialect.Array(processingIDs)).

@@ -58,7 +58,7 @@ func TestInstanceLicenseActivation(t *testing.T) {
 	}
 	db := openEmptyDatabase(t)
 	backend := direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL, LicenseKeys: license.Keys{testLicenseKID: publicKey}},
-		nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+		nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
 	service := appservice.New(backend)
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}

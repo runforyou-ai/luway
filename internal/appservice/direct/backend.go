@@ -91,7 +91,7 @@ type DeploymentConfig struct {
 }
 
 // New 创建直接访问服务端存储的应用后端。
-func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.LocalStore, s3 serverfilecontent.S3Config, agentScheduler conversationaction.AgentMessageScheduler, agentCoordinator *agentrunaction.ExecuteAction, taskEnqueuer servertask.TxEnqueuer, serviceReplySuggestions *agentrunaction.GenerateServiceReplySuggestionsAction, translator *translationaction.Translator) *Backend {
+func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.LocalStore, s3 serverfilecontent.S3Config, agentScheduler conversationaction.AgentMessageScheduler, agentCoordinator *agentrunaction.ExecuteAction, taskEnqueuer servertask.TxEnqueuer, serviceReplySuggestions *agentrunaction.GenerateServiceReplySuggestionsAction, translator *translationaction.Translator, knowledgeRetrieval *knowledgebaseaction.RetrievalService) *Backend {
 	connectionRunner := connectiontest.NewRunner(10 * time.Second)
 	connectionClient := connectiontest.NewHTTPClient()
 	modelProviderRegistry := modelprovider.NewRegistry(connectionClient)
@@ -116,14 +116,14 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		agentOps:           newAgentOps(db, agentCoordinator, serviceReplySuggestions),
 		agentEvaluationOps: newAgentEvaluationOps(db, taskEnqueuer),
 		personalAgentOps:   newPersonalAgentOps(db),
-		knowledgeOps:       newKnowledgeOps(db, taskEnqueuer, documentQuery),
+		knowledgeOps:       newKnowledgeOps(db, taskEnqueuer, documentQuery, knowledgeRetrieval),
 		integrationOps:     newIntegrationOps(db, taskEnqueuer, connectionRunner, modelProviderRegistry, mcpTest, mcpScheduler),
 		deviceOps:          newDeviceOps(db),
 		fileOps:            newFileOps(db, localFiles, s3, serverfilecontent.NewLinks("", s3.PublicBaseURL)),
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
-		deploymentOps:      newDeploymentOps(db, deployment.LicenseKeys),
+		deploymentOps:      newDeploymentOps(db, taskEnqueuer, deployment.LicenseKeys),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}
 	return &Backend{ops: ops}
@@ -227,6 +227,10 @@ func (g sessionGuard) authenticate(ctx context.Context, meta appservice.RequestM
 	if errors.Is(err, authaction.ErrMembershipNotFound) {
 		slog.Info("账号不是目标工作区的有效成员", "workspace_id", meta.WorkspaceID)
 		return nil, appservice.SessionError(meta, appservice.SessionStateWorkspace, i18n.ErrorWorkspaceUnavailable)
+	}
+	if errors.Is(err, authaction.ErrWorkspaceSuspended) {
+		slog.Info("目标工作区已暂停", "workspace_id", meta.WorkspaceID)
+		return nil, appservice.SessionError(meta, appservice.SessionStateWorkspace, i18n.ErrorWorkspaceSuspended)
 	}
 	if err != nil {
 		if ctx.Err() != nil {

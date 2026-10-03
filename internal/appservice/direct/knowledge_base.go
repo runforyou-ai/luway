@@ -44,7 +44,7 @@ type knowledgeOps struct {
 }
 
 // newKnowledgeOps 创建知识库的业务实现依赖。
-func newKnowledgeOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, documentQuery *knowledgebaseaction.DocumentQuery) knowledgeOps {
+func newKnowledgeOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, documentQuery *knowledgebaseaction.DocumentQuery, retrieval *knowledgebaseaction.RetrievalService) knowledgeOps {
 	return knowledgeOps{
 		documentQuery:       documentQuery,
 		createDocuments:     knowledgebaseaction.NewCreateDocumentsAction(db, taskEnqueuer),
@@ -64,7 +64,7 @@ func newKnowledgeOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, documentQue
 		createKnowledgeBase: knowledgebaseaction.NewCreateKnowledgeBaseAction(db),
 		updateKnowledgeBase: knowledgebaseaction.NewUpdateKnowledgeBaseAction(db, taskEnqueuer),
 		deleteKnowledgeBase: knowledgebaseaction.NewDeleteKnowledgeBaseAction(db),
-		retrieval:           knowledgebaseaction.NewRetrievalService(db, embedding.NewClient(), rerank.NewClient()),
+		retrieval:           retrieval,
 	}
 }
 

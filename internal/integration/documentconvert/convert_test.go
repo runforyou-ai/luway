@@ -227,3 +227,32 @@ func TestConvertPDF(t *testing.T) {
 		t.Fatalf("markdown=%q\nwant=%q", markdown, want)
 	}
 }
+
+// TestConvertLimits 验证原件大小上限与 Office 原件解压后的累计内容上限。
+func TestConvertLimits(t *testing.T) {
+	converter := NewConverter()
+	padding := strings.Repeat(" ", maxExpandedBytes/2+1)
+	const ns = `xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"`
+	cases := []struct {
+		name string
+		data []byte
+		want string
+	}{
+		{name: "a.txt", data: bytes.Repeat([]byte("a"), maxSourceBytes+1), want: "file_too_large"},
+		{name: "a.docx", data: zipArchive(t, map[string]string{"word/document.xml": "<document>" + padding + padding + "</document>"}), want: "content_too_large"},
+		{name: "a.pptx", data: zipArchive(t, map[string]string{
+			"ppt/presentation.xml":            `<p:presentation ` + ns + `><p:sldIdLst><p:sldId r:id="rId1"/><p:sldId r:id="rId2"/></p:sldIdLst></p:presentation>`,
+			"ppt/_rels/presentation.xml.rels": `<Relationships><Relationship Id="rId1" Type="slide" Target="slides/slide1.xml"/><Relationship Id="rId2" Type="slide" Target="slides/slide2.xml"/></Relationships>`,
+			"ppt/slides/slide1.xml":           "<sld>" + padding + "</sld>",
+			"ppt/slides/slide2.xml":           "<sld>" + padding + "</sld>",
+		}), want: "content_too_large"},
+		{name: "a.xlsx", data: zipArchive(t, map[string]string{"xl/media/a.bin": padding + padding}), want: "content_too_large"},
+	}
+	for _, test := range cases {
+		_, err := converter.Convert(context.Background(), test.name, bytes.NewReader(test.data))
+		var failure *Error
+		if !errors.As(err, &failure) || failure.Code != test.want {
+			t.Fatalf("%s: err=%v want=%s", test.name, err, test.want)
+		}
+	}
+}

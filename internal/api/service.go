@@ -24,7 +24,7 @@ type WebsiteVisitorRealtime interface {
 type Service struct {
 	application         *appservice.Service
 	deviceRuns          appservice.DeviceRunBackend
-	deviceModels        DeviceModelAuthorizer
+	deviceModels        DeviceModelGateway
 	deviceAttachments   DeviceRunAttachmentReader
 	websiteVisitor      *appservice.WebsiteVisitorService
 	visitorRealtime     WebsiteVisitorRealtime
@@ -82,9 +82,9 @@ func NewService(application *appservice.Service, options ...ServiceOption) *Serv
 	if service.deviceRuns != nil {
 		service.registerGeneratedDeviceRunRoutes(router)
 	}
-	// 注册设备运行的模型代理，请求路径在代理入口之后按上游模型服务的接口拼接。
+	// 注册设备运行的模型网关，设备的模型请求经统一调用入口执行。
 	if service.deviceModels != nil {
-		router.POST("/agent-runs/:runID/model/*path", service.proxyDeviceModel)
+		router.POST("/agent-runs/:runID/model", service.serveDeviceModel)
 	}
 	// 注册设备运行读取会话附件的原始内容入口。
 	if service.deviceAttachments != nil {

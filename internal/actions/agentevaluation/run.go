@@ -193,7 +193,7 @@ func insertAttempt(ctx context.Context, tx bun.Tx, enqueuer servertask.TxEnqueue
 		return fmt.Errorf("create evaluation result: %w", err)
 	}
 	if _, err := enqueuer.EnqueueIn(ctx, tx, EvaluateActionName, EvaluateInput{OrganizationID: run.OrganizationID, ResultID: result.ID}, servertask.EnqueueOptions{
-		Queue: servertask.QueueEvaluation, IdempotencyKey: "agent-evaluation:" + result.ID,
+		OrganizationID: run.OrganizationID, Queue: servertask.QueueEvaluation, IdempotencyKey: "agent-evaluation:" + result.ID,
 	}); err != nil {
 		return fmt.Errorf("enqueue evaluation: %w", err)
 	}

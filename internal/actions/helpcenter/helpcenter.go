@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -81,7 +82,8 @@ func loadScope(ctx context.Context, db bun.IDB, channelID string) (publishScope,
 	err := db.NewSelect().
 		Model(channel).
 		Column("organization_id").
-		Where("c.id = ? AND c.type = ? AND c.enabled = TRUE", channelID, domain.ChannelTypeWebsite).
+		Where("c.id = ? AND c.type = ?", channelID, domain.ChannelTypeWebsite).
+		Where(channelaction.AcceptsCustomersCondition("c")).
 		Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return publishScope{}, ErrChannelNotFound

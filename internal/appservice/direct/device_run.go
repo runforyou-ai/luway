@@ -17,7 +17,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
-	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
 	"github.com/runforyou-ai/luway/internal/integration/websearch"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/pkg/connectiontest"
@@ -284,32 +283,20 @@ func decodeDeviceRunProcess(meta appservice.RequestMeta, device deviceIdentity, 
 	return nil
 }
 
-// DeviceModelUpstream 定义设备模型代理转发的上游模型服务：规范化后的入口、品牌、供应商凭据与配置版本锁定的模型标识。
-type DeviceModelUpstream struct {
-	Brand      string
-	BaseURL    string
-	APIKey     string
-	Identifier string
-}
-
-// AuthorizeDeviceModelRequest 校验模型代理请求来自持有该运行有效租约的本人未撤销设备，并返回运行锁定的上游模型服务。
-func (b *Backend) AuthorizeDeviceModelRequest(ctx context.Context, meta appservice.RequestMeta, runID string) (DeviceModelUpstream, error) {
+// DeviceRunModels 校验模型网关请求来自持有该运行有效租约的本人未撤销设备，并返回经统一调用入口记为该运行调用的对话模型组件工厂。
+func (b *Backend) DeviceRunModels(ctx context.Context, meta appservice.RequestMeta, runID string) (agentruntime.ModelFactory, error) {
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
-		return DeviceModelUpstream{}, err
+		return nil, err
 	}
 	if !common.ValidUUID(runID) {
-		return DeviceModelUpstream{}, appservice.NotFoundError(meta, i18n.ErrorDeviceRunNotFound)
+		return nil, appservice.NotFoundError(meta, i18n.ErrorDeviceRunNotFound)
 	}
-	upstream, err := b.ops.agentCoordinator.ResolveDeviceModelUpstream(ctx, device.device, runID)
+	models, err := b.ops.agentCoordinator.DeviceRunModels(ctx, device.device, runID)
 	if err != nil {
-		return DeviceModelUpstream{}, b.ops.deviceRunError(ctx, meta, err, device, runID)
+		return nil, b.ops.deviceRunError(ctx, meta, err, device, runID)
 	}
-	baseURL, err := modelprovider.CompatibleBaseURL(upstream.Brand, upstream.BaseURL)
-	if err != nil {
-		return DeviceModelUpstream{}, b.ops.deviceRunError(ctx, meta, fmt.Errorf("normalize device model upstream: %w", err), device, runID)
-	}
-	return DeviceModelUpstream{Brand: upstream.Brand, BaseURL: baseURL, APIKey: upstream.APIKey, Identifier: upstream.Identifier}, nil
+	return models, nil
 }
 
 // ReadDeviceRunAttachment 校验请求来自持有该运行有效租约的本人未撤销设备，并返回运行所属会话中指定附件消息的文件内容。

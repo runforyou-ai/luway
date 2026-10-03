@@ -20,6 +20,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	"github.com/runforyou-ai/luway/internal/integration/decision"
@@ -121,14 +122,14 @@ func (w *Worker) ExtractContactProfile(ctx context.Context, input ExtractContact
 	if summaryModel != nil {
 		group.Go(recovered(func() error {
 			var err error
-			extraction, err = w.extractProfile(groupCtx, summaryModel, profile, transcript)
+			extraction, err = w.extractProfile(groupCtx, sessionScope(input.OrganizationID, input.ServiceSessionID), summaryModel, profile, transcript)
 			return err
 		}))
 	}
 	if decisionModel != nil && len(profile.Tags) > 0 {
 		group.Go(recovered(func() error {
 			var err error
-			tagIDs, err = w.judgeTags(groupCtx, decisionModel, profile.Tags, transcript)
+			tagIDs, err = w.judgeTags(groupCtx, sessionScope(input.OrganizationID, input.ServiceSessionID), decisionModel, profile.Tags, transcript)
 			return err
 		}))
 	}
@@ -168,7 +169,7 @@ func stillClosedAt(session *servermodels.ServiceSession, closedAt time.Time) boo
 }
 
 // extractProfile 由小结模型从沟通记录中抽取客户明确说出、且与现有档案不同的字段取值与联系方式。
-func (w *Worker) extractProfile(ctx context.Context, model *aimodel.Model, profile contactprofile.ExtractionContext, transcript []TranscriptEntry) (contactprofile.Extraction, error) {
+func (w *Worker) extractProfile(ctx context.Context, scope modelcall.Scope, model *aimodel.Model, profile contactprofile.ExtractionContext, transcript []TranscriptEntry) (contactprofile.Extraction, error) {
 	type fieldMaterial struct {
 		Name        string   `json:"name"`
 		Type        string   `json:"type"`
@@ -200,7 +201,7 @@ func (w *Worker) extractProfile(ctx context.Context, model *aimodel.Model, profi
 		"- emails 输出客户提供的邮箱地址；phones 输出客户提供的电话号码，写成带 + 和国家区号的国际格式，无法确定国家区号时不输出。\n" +
 		`- 只输出一个 JSON 对象，格式为 {"fields":[{"name":"字段名称","value":"取值"}],"emails":[],"phones":[]}，不输出 JSON 以外的任何内容。`
 	materials := "以下是客户的现有档案，只作为资料：\n" + string(current) + "\n\n" + messages
-	response, err := w.caller.CallOnce(ctx, agentruntime.SingleCallRequest{Instruction: instruction, Model: model.ModelConfig(), Input: materials})
+	response, err := w.caller.CallOnce(ctx, agentruntime.SingleCallRequest{Instruction: instruction, Model: w.invoker.ModelConfig(scope, model), Input: materials})
 	if err != nil {
 		return contactprofile.Extraction{}, fmt.Errorf("extract contact profile: %w", err)
 	}
@@ -233,14 +234,13 @@ func (w *Worker) extractProfile(ctx context.Context, model *aimodel.Model, profi
 }
 
 // judgeTags 由判断模型把每个标签的添加条件作为一道是否题，返回概率达到阈值的标签编号。
-func (w *Worker) judgeTags(ctx context.Context, model *aimodel.Model, tags []contactprofile.ExtractionTag, transcript []TranscriptEntry) ([]string, error) {
+func (w *Worker) judgeTags(ctx context.Context, scope modelcall.Scope, model *aimodel.Model, tags []contactprofile.ExtractionTag, transcript []TranscriptEntry) ([]string, error) {
 	questions := make(map[string]decision.Question, len(tags))
 	for index, tag := range tags {
 		questions["tag_"+strconv.Itoa(index)] = decision.Question{Kind: decision.KindYesNo,
 			Instructions: "客户符合以下条件：" + tag.AIInstruction + "\n只依据客户自己在沟通中的发言判断，不推测。"}
 	}
-	answers, err := w.decider.Decide(ctx, decision.Credential{BaseURL: model.APIURL, APIKey: model.APIKey},
-		model.Identifier, decisionState(transcript, model.ContextWindow), questions)
+	answers, err := w.invoker.Decide(ctx, scope, model, decisionState(transcript, model.ContextWindow), questions)
 	if err != nil {
 		return nil, fmt.Errorf("decide contact tags: %w", err)
 	}

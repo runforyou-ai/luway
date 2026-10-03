@@ -79,27 +79,25 @@ func TestContextSummaryKeepsLatestInput(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var configs []ModelConfig
-	runtime := &EinoRuntime{
-		newModel: func(_ context.Context, config ModelConfig) (model.AgenticModel, error) {
-			configs = append(configs, config)
-			return chatModel, nil
-		},
-		tools: []tool.BaseTool{echoTool},
-	}
+	var options []ModelOptions
+	runtime := &EinoRuntime{tools: []tool.BaseTool{echoTool}}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// 窗口 4000 Token 的摘要阈值为 1600，第二轮上下文含三千字的回答时触发摘要。
 	result, err := runtime.Run(ctx, RunRequest{
 		RunID: "summary-run", Assignment: Assignment{AgentName: "test-agent", Model: AssignmentModel{ContextWindow: 4000}},
+		Models: func(_ context.Context, option ModelOptions) (model.AgenticModel, error) {
+			options = append(options, option)
+			return chatModel, nil
+		},
 		MaxTurns: 3,
 	}, feed)
 	if err != nil || result.Content != "算完了" || result.EndSeq != 3 {
 		t.Fatalf("result = %#v, err = %v", result, err)
 	}
 	// 摘要模型按窗口的一成限定最大输出。
-	if len(configs) != 2 || configs[0].MaxOutputTokens != 0 || configs[1].MaxOutputTokens != 400 {
-		t.Fatalf("model configs = %+v", configs)
+	if len(options) != 2 || options[0].MaxOutputTokens != 0 || options[1].MaxOutputTokens != 400 {
+		t.Fatalf("model options = %+v", options)
 	}
 	if len(chatModel.summaries) != 1 || len(inputs) != 3 || result.Usage.TotalTokens != 110 {
 		t.Fatalf("summaries = %d, calls = %d, usage = %+v", len(chatModel.summaries), len(inputs), result.Usage)
@@ -142,16 +140,13 @@ func TestContextSummaryCompactsWithinTurn(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime := &EinoRuntime{
-		newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil },
-		tools:    []tool.BaseTool{echoTool},
-	}
+	runtime := &EinoRuntime{tools: []tool.BaseTool{echoTool}}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// 窗口 4000 Token 的摘要阈值为 1600，两段千字说明使第三次规划超过阈值。
 	result, err := runtime.Run(ctx, RunRequest{
 		RunID: "summary-turn-run", Assignment: Assignment{AgentName: "test-agent", Model: AssignmentModel{ContextWindow: 4000}},
-		MaxTurns: 2,
+		Models: fixedModels(chatModel), MaxTurns: 2,
 	}, feed)
 	if err != nil || result.Content != "算完了" || len(chatModel.summaries) != 1 || len(inputs) != 4 {
 		t.Fatalf("result = %#v, err = %v, summaries = %d, calls = %d", result, err, len(chatModel.summaries), len(inputs))
@@ -252,7 +247,7 @@ func TestContextSummaryKeepsCurrentEvidence(t *testing.T) {
 		reply(groundedAnswer),
 	}}
 	chatModel := &summaryModel{AgenticModel: grounding}
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+	runtime := &EinoRuntime{}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// 窗口 9000 Token 的摘要阈值为 6100，第二轮补入的长问题使上下文超过阈值。
@@ -260,7 +255,7 @@ func TestContextSummaryKeepsCurrentEvidence(t *testing.T) {
 		RunID: "summary-grounding-run",
 		Assignment: Assignment{AgentName: "客服", Scene: SceneCustomer, Grounding: GroundingStrict,
 			Model: AssignmentModel{ContextWindow: 9000}},
-		MaxIterations: 6, MaxTurns: 2,
+		Models: fixedModels(chatModel), MaxIterations: 6, MaxTurns: 2,
 		KnowledgeSearch: matchedKnowledge("退货与换货期限都是 7 天。"),
 	}, feed)
 	if err != nil {
@@ -303,7 +298,7 @@ func TestContextSummaryKeepsEvidence(t *testing.T) {
 			}
 			grounding := &groundingModel{script: append(script, reply(groundedAnswer))}
 			chatModel := &summaryModel{AgenticModel: grounding}
-			runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+			runtime := &EinoRuntime{}
 			searches := 0
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -312,7 +307,7 @@ func TestContextSummaryKeepsEvidence(t *testing.T) {
 				RunID: "summary-evidence-run",
 				Assignment: Assignment{AgentName: "客服", Scene: SceneCustomer, Grounding: GroundingStrict,
 					Model: AssignmentModel{ContextWindow: 8000}},
-				MaxIterations: 8, MaxTurns: 1,
+				Models: fixedModels(chatModel), MaxIterations: 8, MaxTurns: 1,
 				KnowledgeSearch: func(ctx context.Context, request knowledgeretrieval.Request) (knowledgeretrieval.Result, error) {
 					if searches++; searches > 1 {
 						return knowledgeretrieval.Result{}, nil

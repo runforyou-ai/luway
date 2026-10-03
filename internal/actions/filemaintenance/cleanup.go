@@ -44,7 +44,7 @@ func NewScanExpiredAction(db *bun.DB, enqueuer servertask.Enqueuer) *ScanExpired
 	return &ScanExpiredAction{db: db, enqueuer: enqueuer}
 }
 
-// Execute 扫描所有过期候选并幂等投递删除任务。
+// Execute 扫描所有过期候选并幂等投递删除任务；删除任务是部署级存储维护，不随工作区暂停挂起。
 func (a *ScanExpiredAction) Execute(ctx context.Context, _ ScanExpiredInput) error {
 	type candidate struct {
 		ID        string    `bun:"id"`

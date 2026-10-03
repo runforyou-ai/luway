@@ -29,9 +29,10 @@ var (
 
 // Workspace 描述账号可进入的工作区。
 type Workspace struct {
-	ID   string
-	Name string
-	Slug string
+	ID     string
+	Name   string
+	Slug   string
+	Status domain.OrganizationLifecycleStatus `bun:"lifecycle_status"`
 }
 
 // WorkspaceInput 定义工作区名称和标识。
@@ -101,7 +102,7 @@ func (a *CreateWorkspaceAction) Execute(ctx context.Context, identity *servermod
 	if err != nil {
 		return Workspace{}, fmt.Errorf("create workspace: %w", err)
 	}
-	return Workspace{ID: created.Organization.ID, Name: created.Organization.Name, Slug: created.Organization.Slug}, nil
+	return Workspace{ID: created.Organization.ID, Name: created.Organization.Name, Slug: created.Organization.Slug, Status: domain.OrganizationLifecycleActive}, nil
 }
 
 // checkWorkspaceCreation 按部署创建策略和实例工作区上限判断账号能否再创建一个工作区。
@@ -149,7 +150,7 @@ func (q *CanCreateWorkspaceQuery) Execute(ctx context.Context, identity *serverm
 	return true, nil
 }
 
-// ListAccountWorkspacesQuery 读取账号作为有效成员可进入的工作区。
+// ListAccountWorkspacesQuery 读取账号作为有效成员加入的工作区。
 type ListAccountWorkspacesQuery struct {
 	db *bun.DB
 }
@@ -159,14 +160,15 @@ func NewListAccountWorkspacesQuery(db *bun.DB) *ListAccountWorkspacesQuery {
 	return &ListAccountWorkspacesQuery{db: db}
 }
 
-// Execute 按工作区名称返回账号有有效成员身份的工作区。
+// Execute 按工作区名称返回账号有有效成员身份的正常或已暂停工作区。
 func (q *ListAccountWorkspacesQuery) Execute(ctx context.Context, identity *servermodels.AccountIdentity) ([]Workspace, error) {
 	var workspaces []Workspace
 	if err := q.db.NewSelect().
 		TableExpr("organizations AS o").
-		ColumnExpr("o.id::text AS id, o.name, o.slug").
+		ColumnExpr("o.id::text AS id, o.name, o.slug, o.lifecycle_status").
 		Join("JOIN users AS u ON u.organization_id = o.id").
 		Where("u.account_id = ?", identity.Account.ID).
+		Where("o.lifecycle_status IN (?)", bun.In([]domain.OrganizationLifecycleStatus{domain.OrganizationLifecycleActive, domain.OrganizationLifecycleSuspended})).
 		Where("u.status = ?", domain.IdentityStatusActive).
 		OrderExpr("o.name ASC, o.id ASC").
 		Scan(ctx, &workspaces); err != nil {

@@ -14,6 +14,7 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/actions/channelmessage"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/telegram"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -71,27 +72,31 @@ func NewWorker(db *bun.DB, sender telegram.Sender, files ContentOpener, enqueuer
 
 // Scan 为到期队头补充幂等唤醒，HTTP 发送由独立任务执行。
 func (w *Worker) Scan(ctx context.Context, _ struct{}) error {
-	var ids []string
-	if err := readyHeads(w.db).Limit(100).Scan(ctx, &ids); err != nil {
+	var heads []struct {
+		ID             string `bun:"id"`
+		OrganizationID string `bun:"organization_id"`
+	}
+	if err := readyHeads(w.db).Column("d.organization_id").Limit(100).Scan(ctx, &heads); err != nil {
 		return err
 	}
-	for _, id := range ids {
-		if _, err := w.enqueuer.Enqueue(ctx, SendActionName, Input{DeliveryID: id}, servertask.EnqueueOptions{Queue: servertask.QueueDelivery, IdempotencyKey: "cdeliv-item:" + id}); err != nil {
+	for _, head := range heads {
+		if _, err := w.enqueuer.Enqueue(ctx, SendActionName, Input{DeliveryID: head.ID}, servertask.EnqueueOptions{OrganizationID: head.OrganizationID, Queue: servertask.QueueDelivery, IdempotencyKey: "cdeliv-item:" + head.ID}); err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
-			slog.Warn("客户消息投递扫描失败", "delivery_id", id, "error", err)
+			slog.Warn("客户消息投递扫描失败", "delivery_id", head.ID, "error", err)
 		}
 	}
 	return nil
 }
 
-// readyHeads 构造到期队头查询：各渠道身份管道中最小的非终态投递，且已到可发送、租约过期或待确认到期时间；按最早更新排序。
+// readyHeads 构造正常状态工作区的到期队头查询：各渠道身份管道中最小的非终态投递，且已到可发送、租约过期或待确认到期时间；按最早更新排序。
 func readyHeads(db bun.IDB) *bun.SelectQuery {
 	return db.NewSelect().TableExpr("customer_message_deliveries AS d").Column("d.id").
 		Join("JOIN channels AS ch ON ch.id = d.channel_id AND ch.organization_id = d.organization_id").
 		Where("(d.status IN ('pending','retry_wait') AND d.available_at <= now()) OR (d.status = 'sending' AND d.lease_expires_at <= now()) OR (d.status = 'uncertain' AND d.uncertain_until <= now())").
 		Where("d.status IN ('sending', 'uncertain') OR (ch.enabled AND NOT EXISTS (SELECT 1 FROM customer_channel_send_gates AS gate WHERE gate.organization_id = d.organization_id AND gate.channel_id = d.channel_id AND gate.flood_wait_until > now()))").
+		Where(identityaction.ActiveWorkspaceCondition("d.organization_id")).
 		Where("NOT EXISTS (SELECT 1 FROM customer_message_deliveries AS earlier WHERE earlier.organization_id = d.organization_id AND earlier.channel_id = d.channel_id AND earlier.contact_channel_identity_id = d.contact_channel_identity_id AND earlier.position < d.position AND earlier.status IN ('pending','retry_wait','sending','uncertain'))").
 		OrderExpr("d.updated_at, d.id")
 }
@@ -100,8 +105,8 @@ func readyHeads(db bun.IDB) *bun.SelectQuery {
 //
 // 同一渠道身份按位置串行发送，不同渠道身份并行发送；所属企业由投递记录确定，认领之后的查询都按该企业限定。
 func (w *Worker) Execute(ctx context.Context, input Input) error {
-	var identityID string
-	err := w.db.NewSelect().Model((*models.CustomerMessageDelivery)(nil)).Column("contact_channel_identity_id").Where("id = ?", input.DeliveryID).Scan(ctx, &identityID)
+	var identityID, organizationID string
+	err := w.db.NewSelect().Model((*models.CustomerMessageDelivery)(nil)).Column("contact_channel_identity_id", "organization_id").Where("id = ?", input.DeliveryID).Scan(ctx, &identityID, &organizationID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
@@ -119,7 +124,7 @@ func (w *Worker) Execute(ctx context.Context, input Input) error {
 		return nil
 	}
 	if err == nil {
-		_, err = w.enqueuer.Enqueue(ctx, SendActionName, Input{DeliveryID: nextID}, servertask.EnqueueOptions{Queue: servertask.QueueDelivery})
+		_, err = w.enqueuer.Enqueue(ctx, SendActionName, Input{DeliveryID: nextID}, servertask.EnqueueOptions{OrganizationID: organizationID, Queue: servertask.QueueDelivery})
 	}
 	if err != nil {
 		slog.Warn("唤醒渠道身份下一条客户消息投递失败", "contact_channel_identity_id", identityID, "error", err)

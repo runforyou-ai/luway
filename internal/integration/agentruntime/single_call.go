@@ -31,7 +31,7 @@ type SingleCaller interface {
 func (r *EinoRuntime) CallOnce(ctx context.Context, request SingleCallRequest) (SingleCallResult, error) {
 	config := request.Model
 	config.DisableThinking = true
-	chatModel, err := r.newModel(ctx, config)
+	chatModel, err := config.newModel(ctx)
 	if err != nil {
 		return SingleCallResult{}, err
 	}

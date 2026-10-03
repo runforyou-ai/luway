@@ -1350,7 +1350,7 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return b.ops.AcceptInvitation(ctx, meta, account, input)
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
 func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentOverview, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1360,7 +1360,7 @@ func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.Req
 	return b.ops.GetDeploymentOverview(ctx, meta, account)
 }
 
-// GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
 func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1371,13 +1371,23 @@ func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.Req
 }
 
 // UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
-func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentSettings) (appservice.DeploymentSettings, error) {
+func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentPoliciesInput) (appservice.DeploymentSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.DeploymentSettings
 		return zero, err
 	}
 	return b.ops.UpdateDeploymentSettings(ctx, meta, account, input)
+}
+
+// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
+func (b *Backend) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentStatisticsTimeZoneInput) (appservice.DeploymentSettings, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentSettings
+		return zero, err
+	}
+	return b.ops.UpdateDeploymentStatisticsTimeZone(ctx, meta, account, input)
 }
 
 // ListDeploymentAccounts 返回部署内的账号。
@@ -1430,7 +1440,7 @@ func (b *Backend) RevokeDeploymentAdmin(ctx context.Context, meta appservice.Req
 	return b.ops.RevokeDeploymentAdmin(ctx, meta, account, accountID)
 }
 
-// ListDeploymentWorkspaces 返回部署内的全部工作区。
+// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
 func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentWorkspaceListInput) (appservice.DeploymentWorkspaceList, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1458,6 +1468,26 @@ func (b *Backend) ActivateInstanceLicense(ctx context.Context, meta appservice.R
 		return zero, err
 	}
 	return b.ops.ActivateInstanceLicense(ctx, meta, account, input)
+}
+
+// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+func (b *Backend) SuspendDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentWorkspace
+		return zero, err
+	}
+	return b.ops.SuspendDeploymentWorkspace(ctx, meta, account, workspaceID)
+}
+
+// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+func (b *Backend) ResumeDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentWorkspace
+		return zero, err
+	}
+	return b.ops.ResumeDeploymentWorkspace(ctx, meta, account, workspaceID)
 }
 
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。

@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 	"uuid"
 
+	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
@@ -220,13 +221,13 @@ func generateIDs() generatedIDs {
 	}
 }
 
-// loadWebsiteChannel 读取启用的网站渠道和路由配置。
+// loadWebsiteChannel 读取接待客户的网站渠道和路由配置。
 func loadWebsiteChannel(ctx context.Context, db bun.IDB, channelID string) (*servermodels.Channel, error) {
 	channel := &servermodels.Channel{}
 	err := db.NewSelect().Model(channel).
 		Where("c.id = ?", channelID).
 		Where("c.type = ?", domain.ChannelTypeWebsite).
-		Where("c.enabled = TRUE").
+		Where(channelaction.AcceptsCustomersCondition("c")).
 		Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, conversationaction.ErrChannelNotFound

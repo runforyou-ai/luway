@@ -42,7 +42,7 @@ export const resourceKeys = {
   deploymentOverview: () => ["deployment-overview"],
   /** 实例授权状态。 */
   instanceLicense: () => ["instance-license"],
-  /** 部署注册策略和工作区创建策略。 */
+  /** 部署注册策略、工作区创建策略和统计时区。 */
   deploymentSettings: () => ["deployment-settings"],
   /** 部署账号列表，可带筛选分页参数。 */
   deploymentAccounts: (parameters?: KeyParameters) => listKey("deployment-accounts", parameters),

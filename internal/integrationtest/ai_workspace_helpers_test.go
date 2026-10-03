@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/servertest"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -42,7 +43,7 @@ func newAIWorkspace(t *testing.T) (*bun.DB, *servermodels.Identity, string, stri
 		Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	model := &servermodels.AIModel{
+	model := &testAIModel{
 		ProviderID: provider.ID, Identifier: "chat-model", Name: "测试对话模型", Type: string(domain.AIModelTypeChat),
 		InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096,
 	}
@@ -50,16 +51,43 @@ func newAIWorkspace(t *testing.T) (*bun.DB, *servermodels.Identity, string, stri
 	return db, identity, provider.ID, model.ID
 }
 
-// insertAIModels 写入模型目录项并回填模型编号。
-func insertAIModels(t *testing.T, db bun.IDB, models ...*servermodels.AIModel) {
+// testAIModel 定义测试写入的工作区模型及其指向供应商的来源。
+type testAIModel struct {
+	ID              string          `bun:"id"`
+	ProviderID      string          `bun:"provider_id"`
+	Identifier      string          `bun:"identifier"`
+	Name            string          `bun:"name"`
+	Type            string          `bun:"type"`
+	InputModalities json.RawMessage `bun:"input_modalities"`
+	ContextWindow   int64           `bun:"context_window"`
+	MaxOutputTokens int64           `bun:"max_output_tokens"`
+}
+
+// insertAIModels 按供应商所属工作区写入模型与指向该供应商的来源路由，并回填模型编号。
+func insertAIModels(t *testing.T, db bun.IDB, models ...*testAIModel) {
 	t.Helper()
+	ctx := context.Background()
 	for _, model := range models {
-		if _, err := db.NewInsert().Model(model).
-			Column("provider_id", "identifier", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
-			Returning("id").
-			Exec(context.Background()); err != nil {
+		var organizationID string
+		if err := db.NewSelect().Model((*servermodels.AIProvider)(nil)).Column("organization_id").
+			Where("id = ?", model.ProviderID).Scan(ctx, &organizationID); err != nil {
 			t.Fatal(err)
 		}
+		record := &servermodels.AIModel{
+			OrganizationID: &organizationID, Name: model.Name, Type: model.Type, InputModalities: model.InputModalities,
+			ContextWindow: model.ContextWindow, MaxOutputTokens: model.MaxOutputTokens,
+		}
+		if _, err := db.NewInsert().Model(record).
+			Column("organization_id", "name", "model_type", "input_modalities", "context_window", "max_output_tokens").
+			Returning("id").
+			Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+		route := &servermodels.AIModelRoute{ModelID: record.ID, ProviderID: model.ProviderID, Identifier: model.Identifier, Enabled: true}
+		if _, err := db.NewInsert().Model(route).Column("model_id", "provider_id", "identifier", "priority", "enabled").Exec(ctx); err != nil {
+			t.Fatal(err)
+		}
+		model.ID = record.ID
 	}
 }
 
@@ -67,11 +95,31 @@ func insertAIModels(t *testing.T, db bun.IDB, models ...*servermodels.AIModel) {
 func aiModelID(t *testing.T, db bun.IDB, providerID, identifier string) string {
 	t.Helper()
 	var id string
-	if err := db.NewSelect().Model((*servermodels.AIModel)(nil)).
-		ColumnExpr("id::text").
+	if err := db.NewSelect().Model((*servermodels.AIModelRoute)(nil)).
+		ColumnExpr("model_id::text").
 		Where("provider_id = ? AND identifier = ?", providerID, identifier).
 		Scan(context.Background(), &id); err != nil {
 		t.Fatalf("查询模型 %s/%s 编号失败：%v", providerID, identifier, err)
 	}
 	return id
+}
+
+// loadTestAIModel 读取工作区模型及其来源的供应商与上游模型标识。
+func loadTestAIModel(t *testing.T, db bun.IDB, modelID string) *testAIModel {
+	t.Helper()
+	model := &testAIModel{}
+	if err := db.NewSelect().TableExpr("ai_models AS aim").
+		ColumnExpr("aim.id::text AS id, amr.provider_id::text AS provider_id, amr.identifier, aim.name, aim.model_type AS type").
+		ColumnExpr("aim.input_modalities, aim.context_window, aim.max_output_tokens").
+		Join("JOIN ai_model_routes AS amr ON amr.model_id = aim.id").
+		Where("aim.id = ?", modelID).
+		Scan(context.Background(), model); err != nil {
+		t.Fatalf("读取模型 %s 失败：%v", modelID, err)
+	}
+	return model
+}
+
+// testModelInvoker 返回使用默认上游客户端的统一调用入口，供不请求真实上游的测试装配业务操作。
+func testModelInvoker(db bun.IDB) *modelcall.Invoker {
+	return modelcall.New(db, modelcall.DefaultUpstreams())
 }

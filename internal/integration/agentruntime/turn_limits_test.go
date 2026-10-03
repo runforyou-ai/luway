@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/tool"
 	toolutils "github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/schema"
@@ -36,10 +35,10 @@ func TestRunFollowUpsDoNotConsumeIterationBudget(t *testing.T) {
 				}
 				return assistantReply(fmt.Sprintf("回答 %d", calls)), nil
 			}}
-			runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+			runtime := &EinoRuntime{}
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			result, err := runtime.Run(ctx, RunRequest{Assignment: Assignment{AgentName: "test"}, MaxIterations: 1, MaxTurns: maxTurns}, feed)
+			result, err := runtime.Run(ctx, RunRequest{Assignment: Assignment{AgentName: "test"}, Models: fixedModels(chatModel), MaxIterations: 1, MaxTurns: maxTurns}, feed)
 			if maxTurns > 0 {
 				if err == nil || !strings.Contains(err.Error(), "agent turn limit 3 exceeded") || calls != 3 {
 					t.Fatalf("limited calls = %d, error = %v", calls, err)
@@ -88,10 +87,9 @@ func TestRunRetainsToolsAcrossRepeatedPreemption(t *testing.T) {
 		}
 		return assistantReply("正在计算", &schema.FunctionToolCall{CallID: fmt.Sprintf("call-%d", calls), Name: "echo", Arguments: `{"text":"3","delayMilliseconds":200}`}), nil
 	}}
-	runtime.newModel = func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	result, err := runtime.Run(ctx, RunRequest{Assignment: Assignment{AgentName: "test"}, MaxIterations: 2}, feed)
+	result, err := runtime.Run(ctx, RunRequest{Assignment: Assignment{AgentName: "test"}, Models: fixedModels(chatModel), MaxIterations: 2}, feed)
 	if err != nil || result.Content != "完成" || result.EndSeq != 4 || calls != 4 {
 		t.Fatalf("result = %#v, calls = %d, error = %v", result, calls, err)
 	}
@@ -108,12 +106,11 @@ func TestRunIterationLimitStillStopsToolLoop(t *testing.T) {
 		calls++
 		return assistantReply("", &schema.FunctionToolCall{CallID: fmt.Sprintf("call-%d", calls), Name: "echo", Arguments: `{"text":"3"}`}), nil
 	}}
-	runtime.newModel = func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }
 	feed := &testInputFeed{}
 	feed.appendUser("计算")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	_, err = runtime.Run(ctx, RunRequest{Assignment: Assignment{AgentName: "test"}, MaxIterations: 2, MaxTurns: 20}, feed)
+	_, err = runtime.Run(ctx, RunRequest{Assignment: Assignment{AgentName: "test"}, Models: fixedModels(chatModel), MaxIterations: 2, MaxTurns: 20}, feed)
 	if err == nil || calls > 2 || calls == 0 || ctx.Err() != nil {
 		t.Fatalf("calls = %d, error = %v, context error = %v", calls, err, ctx.Err())
 	}

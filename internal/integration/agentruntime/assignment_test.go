@@ -13,7 +13,7 @@ func customerFacts() AssignmentFacts {
 	return AssignmentFacts{
 		HandlesCustomers: true, OrganizationName: "演示公司", AgentName: "小鹿", Instruction: "只回答售后问题。",
 		Model: AssignmentModel{
-			ModelID: "model-id", Brand: "deepseek", Identifier: "model", MaxOutputTokens: 1024, ContextWindow: 8192,
+			ModelID: "model-id", MaxOutputTokens: 1024, ContextWindow: 8192,
 			InputModalities: []domain.AIModelInputModality{domain.AIModelInputModalityText},
 		},
 		Scene: SceneContext{Scene: SceneCustomer},
@@ -98,8 +98,8 @@ func TestResolveAssignment(t *testing.T) {
 	if !strings.Contains(assignment.Instruction, "只回答售后问题。") || !strings.HasSuffix(assignment.Instruction, customerFollowUpRule) {
 		t.Fatalf("有效配置指令 = %q", assignment.Instruction)
 	}
-	if len(assignment.InstructionSHA256) != 64 || assignment.AgentName != "小鹿" || assignment.Model.Brand != "deepseek" ||
-		assignment.Model.ModelID != "model-id" || assignment.Model.ContextWindow != 8192 ||
+	if len(assignment.InstructionSHA256) != 64 || assignment.AgentName != "小鹿" ||
+		assignment.Model.ModelID != "model-id" || assignment.Model.MaxOutputTokens != 1024 || assignment.Model.ContextWindow != 8192 ||
 		len(assignment.Model.InputModalities) != 1 || len(assignment.MCPServers) != 1 {
 		t.Fatalf("有效配置元数据 = %+v", assignment)
 	}
@@ -179,7 +179,7 @@ func TestResolveAssignmentLocalAgent(t *testing.T) {
 	facts.Scene = SceneContext{Scene: SceneGroup, MentionCandidates: []string{"张三"}}
 	assignment := ResolveAssignment(facts, Capabilities{Knowledge: true, WebFetch: true, LocalTools: LocalTools(), Memory: true, MCPServers: []string{"crm"}})
 	if assignment.LocalAgent != domain.LocalAgentKindCodex || len(assignment.Tools) != 0 || len(assignment.MCPServers) != 0 ||
-		assignment.Model.Identifier != "" || assignment.Memory || assignment.DelegateInstruction != "" {
+		assignment.Model.ModelID != "" || assignment.Memory || assignment.DelegateInstruction != "" {
 		t.Fatalf("ResolveAssignment() = %+v", assignment)
 	}
 	if !strings.Contains(assignment.Instruction, "整理周报。") || !strings.Contains(assignment.Instruction, "张三") || strings.Contains(assignment.Instruction, "search_knowledge") {

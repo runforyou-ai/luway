@@ -15,12 +15,11 @@ import (
 	"unicode/utf8"
 
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/knowledgeretrieval"
-	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
-	"github.com/runforyou-ai/luway/pkg/embedding"
 	"github.com/runforyou-ai/luway/pkg/rerank"
 	"github.com/runforyou-ai/luway/pkg/searchtext"
 	"github.com/runforyou-ai/luway/pkg/textsplit"
@@ -36,13 +35,6 @@ var (
 	// ErrRetrievalQueryInvalid 表示检索内容为空或超出长度。
 	ErrRetrievalQueryInvalid = errors.New("knowledge retrieval query is invalid")
 )
-
-type queryEmbedder interface {
-	Embed(context.Context, embedding.Credential, string, int, []string) ([][]float32, error)
-}
-type candidateReranker interface {
-	Rerank(context.Context, rerank.Credential, string, string, []string, int) ([]rerank.Score, error)
-}
 
 // RetrievalRecord 定义混合召回返回的一条来源片段、重排得分和两路名次。
 // 文档记录指向命中的分段；问答记录以条目编号作为文档与分段编号，位置固定为 1，并携带完整答案。
@@ -62,23 +54,22 @@ type RetrievalRecord struct {
 
 // RetrievalService 对知识库执行词法与向量并行召回、名次融合、重排打分和相关性阈值过滤，人工检索测试与 Agent 共用。
 type RetrievalService struct {
-	db       *bun.DB
-	embedder queryEmbedder
-	reranker candidateReranker
+	db      *bun.DB
+	invoker *modelcall.Invoker
 }
 
-// NewRetrievalService 创建知识库检索服务。
-func NewRetrievalService(db *bun.DB, embedder queryEmbedder, reranker candidateReranker) *RetrievalService {
-	return &RetrievalService{db: db, embedder: embedder, reranker: reranker}
+// NewRetrievalService 创建知识库检索服务，向量化与重排经统一调用入口执行。
+func NewRetrievalService(db *bun.DB, invoker *modelcall.Invoker) *RetrievalService {
+	return &RetrievalService{db: db, invoker: invoker}
 }
 
-// knowledgeSource 固定一个知识库及其模型凭据，承担该库的召回与阅读；同一向量模型配置的来源共用 embeddings；articlesOnly 为真时只召回帮助中心文章。
+// knowledgeSource 固定一个知识库、重排模型与模型调用归属，承担该库的召回与阅读；同一向量模型配置的来源共用 embeddings；articlesOnly 为真时只召回帮助中心文章。
 type knowledgeSource struct {
 	service      *RetrievalService
 	base         servermodels.KnowledgeBase
+	scope        modelcall.Scope
 	embeddings   *queryEmbeddings
-	rerank       rerank.Credential
-	rerankModel  string
+	rerankModel  *aimodel.Model
 	articlesOnly bool
 }
 
@@ -88,7 +79,7 @@ func (s *RetrievalService) Retrieve(ctx context.Context, identity *servermodels.
 	if query == "" || utf8.RuneCountInString(query) > domain.KnowledgeRetrievalQueryMaxLength {
 		return nil, ErrRetrievalQueryInvalid
 	}
-	sources, err := s.sources(ctx, identity.Organization.ID, []string{knowledgeBaseID})
+	sources, err := s.sources(ctx, modelcall.MemberScope(identity, domain.AIModelCallSourceKnowledgeBase, knowledgeBaseID), []string{knowledgeBaseID})
 	if err != nil {
 		return nil, err
 	}
@@ -107,18 +98,18 @@ func (s *RetrievalService) Retrieve(ctx context.Context, identity *servermodels.
 	return sources[0].retrieve(ctx, query)
 }
 
-// Sources 按企业校验知识库并构造检索来源，供多知识库融合检索使用。
-func (s *RetrievalService) Sources(ctx context.Context, organizationID string, knowledgeBaseIDs []string) ([]knowledgeretrieval.Source, error) {
-	sources, err := s.sources(ctx, organizationID, knowledgeBaseIDs)
+// Sources 按 scope 的工作区校验知识库并构造检索来源，供多知识库融合检索使用，模型调用按 scope 记录。
+func (s *RetrievalService) Sources(ctx context.Context, scope modelcall.Scope, knowledgeBaseIDs []string) ([]knowledgeretrieval.Source, error) {
+	sources, err := s.sources(ctx, scope, knowledgeBaseIDs)
 	if err != nil {
 		return nil, err
 	}
 	return retrievalSources(sources), nil
 }
 
-// ArticleSources 按企业校验知识库并构造只召回帮助中心文章的来源：文档知识库只召回在线编写的文档，问答知识库召回全部条目。
-func (s *RetrievalService) ArticleSources(ctx context.Context, organizationID string, knowledgeBaseIDs []string) ([]knowledgeretrieval.Source, error) {
-	sources, err := s.sources(ctx, organizationID, knowledgeBaseIDs)
+// ArticleSources 按 scope 的工作区校验知识库并构造只召回帮助中心文章的来源：文档知识库只召回在线编写的文档，问答知识库召回全部条目；模型调用按 scope 记录。
+func (s *RetrievalService) ArticleSources(ctx context.Context, scope modelcall.Scope, knowledgeBaseIDs []string) ([]knowledgeretrieval.Source, error) {
+	sources, err := s.sources(ctx, scope, knowledgeBaseIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -150,8 +141,9 @@ func retrievalSources(sources []*knowledgeSource) []knowledgeretrieval.Source {
 	return output
 }
 
-// sources 读取同企业知识库及其向量、重排模型凭据；任一知识库不存在时返回 ErrNotFound。
-func (s *RetrievalService) sources(ctx context.Context, organizationID string, knowledgeBaseIDs []string) ([]*knowledgeSource, error) {
+// sources 读取 scope 工作区中的知识库及其向量、重排模型；任一知识库不存在时返回 ErrNotFound。
+func (s *RetrievalService) sources(ctx context.Context, scope modelcall.Scope, knowledgeBaseIDs []string) ([]*knowledgeSource, error) {
+	organizationID := scope.OrganizationID
 	for _, id := range knowledgeBaseIDs {
 		if !common.ValidUUID(id) {
 			return nil, ErrNotFound
@@ -171,14 +163,14 @@ func (s *RetrievalService) sources(ctx context.Context, organizationID string, k
 			if base.ID != id {
 				continue
 			}
-			source := &knowledgeSource{service: s, base: base}
+			source := &knowledgeSource{service: s, base: base, scope: scope}
 			key := queryEmbeddingKey{modelID: base.EmbeddingModelID, dimension: base.EmbeddingDimension}
 			if source.embeddings = embeddings[key]; source.embeddings == nil {
-				credential, model, err := resolveEmbeddingModel(ctx, s.db, organizationID, base.EmbeddingModelID)
+				model, err := resolveEmbeddingModel(ctx, s.db, organizationID, base.EmbeddingModelID)
 				if err != nil {
 					return nil, err
 				}
-				source.embeddings = newQueryEmbeddings(s.embedder, credential, model, key)
+				source.embeddings = newQueryEmbeddings(s.invoker, scope, model, key)
 				embeddings[key] = source.embeddings
 			}
 			model, err := aimodel.Resolve(ctx, s.db, organizationID, base.RerankModelID, domain.AIModelUsageRerank)
@@ -188,17 +180,7 @@ func (s *RetrievalService) sources(ctx context.Context, organizationID string, k
 			if err != nil {
 				return nil, err
 			}
-			rerankBaseURL, err := modelprovider.CompatibleBaseURL(string(model.Brand), model.APIURL)
-			if err != nil {
-				return nil, &rerank.Error{Code: "rerank_model_unavailable"}
-			}
-			// 阿里云使用 DashScope 原生重排接口，其余品牌使用通用的 rerank 接口格式。
-			protocol := rerank.ProtocolCompatible
-			if model.Brand == domain.AIProviderBrandAlibaba {
-				protocol = rerank.ProtocolDashScope
-			}
-			source.rerank = rerank.Credential{Protocol: protocol, BaseURL: rerankBaseURL, APIKey: model.APIKey}
-			source.rerankModel = model.Identifier
+			source.rerankModel = model
 			sources = append(sources, source)
 		}
 	}
@@ -278,7 +260,7 @@ func (k *knowledgeSource) retrieve(ctx context.Context, query string) ([]Retriev
 		for _, item := range ordered {
 			documents = append(documents, textsplit.IndexText(item.hit.Context, item.hit.Content))
 		}
-		scores, err := k.service.reranker.Rerank(ctx, k.rerank, k.rerankModel, query, documents, len(documents))
+		scores, err := k.service.invoker.Rerank(ctx, k.scope, k.rerankModel, query, documents, len(documents))
 		if err != nil {
 			return nil, fmt.Errorf("rerank knowledge candidates: %w", err)
 		}

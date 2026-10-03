@@ -35,6 +35,7 @@ const (
 	KindPinOrderChanged          Kind = "pin_order_changed"
 	KindSessionLoggedOut         Kind = "session_logged_out"
 	KindUserDisabled             Kind = "user_disabled"
+	KindWorkspaceStatusChanged   Kind = "workspace_status_changed"
 	KindChannelDisabled          Kind = "channel_disabled"
 	KindCustomerIdentityRevoked  Kind = "customer_identity_revoked"
 	KindServiceAttention         Kind = "service_attention"
@@ -157,6 +158,11 @@ func UserSessionLoggedOut(organizationID, userID, tokenSessionID string) Notific
 // UserDisabled 构造账号停用撤销控制，Gateway 据此关闭该用户的全部连接。
 func UserDisabled(organizationID, userID string) Notification {
 	return Notification{OrganizationID: organizationID, AudienceKind: AudienceUser, AudienceID: userID, Kind: KindUserDisabled}
+}
+
+// UserWorkspaceStatusChanged 构造工作区暂停或恢复的撤销控制，Gateway 据此关闭该成员的全部连接，客户端重连后按新的工作区状态订阅。
+func UserWorkspaceStatusChanged(organizationID, userID string) Notification {
+	return Notification{OrganizationID: organizationID, AudienceKind: AudienceUser, AudienceID: userID, Kind: KindWorkspaceStatusChanged}
 }
 
 // UserServiceAttention 构造发往负责成员本人受众的服务周期提醒。

@@ -98,13 +98,14 @@ func (m *workspaceChatModel) Stream(ctx context.Context, input []*schema.Agentic
 // runWorkspace 以只含 ls 与 read_file 的有效配置执行一次运行。
 func runWorkspace(t *testing.T, chatModel *workspaceChatModel, modalities []domain.AIModelInputModality) RunResult {
 	t.Helper()
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+	runtime := &EinoRuntime{}
 	feed := &testInputFeed{}
 	feed.appendUser("看看 logo")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	result, err := runtime.Run(ctx, RunRequest{
 		RunID:      "workspace-run",
+		Models:     fixedModels(chatModel),
 		Assignment: Assignment{AgentName: "小码", Tools: []string{"ls", "read_file"}, Model: AssignmentModel{InputModalities: modalities}},
 		Workspace:  &imageWorkspace{Backend: filesystem.NewInMemoryBackend()},
 	}, feed)
@@ -196,14 +197,14 @@ func (m *sideEffectChatModel) Stream(ctx context.Context, input []*schema.Agenti
 func TestWorkspaceSideEffectsRunOnce(t *testing.T) {
 	chatModel := &sideEffectChatModel{}
 	workspace := &imageWorkspace{Backend: filesystem.NewInMemoryBackend()}
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+	runtime := &EinoRuntime{}
 	feed := &testInputFeed{}
 	feed.appendUser("清理一下")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	result, err := runtime.Run(ctx, RunRequest{
 		RunID: "workspace-side-effects", Assignment: Assignment{AgentName: "小码", Tools: LocalTools()}, Workspace: workspace,
-		LocalMCP: &stubLocalMCP{}, Skills: testSkills(t),
+		LocalMCP: &stubLocalMCP{}, Skills: testSkills(t), Models: fixedModels(chatModel),
 	}, feed)
 	if err != nil || result.Content != "已完成" {
 		t.Fatalf("result=%+v, err=%v", result, err)
@@ -224,12 +225,12 @@ func TestExecuteToolDescribesManagedToolchain(t *testing.T) {
 		chatModel := &customerHistoryChatModel{processChatModel: &processChatModel{generate: func(context.Context, []*schema.AgenticMessage) (*schema.AgenticMessage, error) {
 			return assistantReply("完成"), nil
 		}}}
-		runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+		runtime := &EinoRuntime{}
 		feed := &testInputFeed{}
 		feed.appendUser("运行脚本")
 		_, err := runtime.Run(context.Background(), RunRequest{
 			RunID: "managed-toolchain", Assignment: Assignment{AgentName: "小码", Tools: []string{"execute"}},
-			Workspace: &imageWorkspace{Backend: filesystem.NewInMemoryBackend()}, ManagedToolchain: managed,
+			Workspace: &imageWorkspace{Backend: filesystem.NewInMemoryBackend()}, ManagedToolchain: managed, Models: fixedModels(chatModel),
 		}, feed)
 		if err != nil {
 			t.Fatal(err)

@@ -103,7 +103,7 @@ func TestInboxSearch(t *testing.T) {
 		Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	model := &servermodels.AIModel{
+	model := &testAIModel{
 		ProviderID: provider.ID, Identifier: "chat-model", Name: "检索测试对话模型", Type: string(domain.AIModelTypeChat),
 		InputModalities: json.RawMessage(`["text"]`), ContextWindow: 128000, MaxOutputTokens: 4096,
 	}

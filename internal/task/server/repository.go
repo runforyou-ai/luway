@@ -14,6 +14,7 @@ import (
 	"uuid"
 
 	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
@@ -23,6 +24,7 @@ const (
 	statusPublished = "published"
 	statusRunning   = "running"
 	statusRetrying  = "retrying"
+	statusPaused    = "paused"
 	statusSucceeded = "succeeded"
 	statusFailed    = "failed"
 
@@ -81,7 +83,7 @@ func enqueueRunsIn(ctx context.Context, db bun.IDB, pending []pendingRun) ([]str
 			availableAt = now
 		}
 		runs[index] = &servermodels.TaskRun{
-			ID: uuid.New().String(), ActionName: item.actionName, QueueName: item.options.Queue, Payload: item.payload,
+			ID: uuid.New().String(), OrganizationID: common.OptionalString(item.options.OrganizationID), ActionName: item.actionName, QueueName: item.options.Queue, Payload: item.payload,
 			TriggerType: item.options.TriggerType, ScheduleKey: common.OptionalString(item.scheduleKey), Status: statusQueued,
 			MaxAttempts: item.options.MaxAttempts, AvailableAt: availableAt, IdempotencyKey: common.OptionalString(item.options.IdempotencyKey),
 			CreatedAt: now, UpdatedAt: now,
@@ -89,7 +91,7 @@ func enqueueRunsIn(ctx context.Context, db bun.IDB, pending []pendingRun) ([]str
 	}
 	insertedIDs := make([]string, 0, len(runs))
 	if err := db.NewInsert().Model(&runs).
-		Column("id", "action_name", "queue_name", "payload", "trigger_type", "schedule_key", "status", "max_attempts", "available_at", "idempotency_key", "created_at", "updated_at").
+		Column("id", "organization_id", "action_name", "queue_name", "payload", "trigger_type", "schedule_key", "status", "max_attempts", "available_at", "idempotency_key", "created_at", "updated_at").
 		On("CONFLICT DO NOTHING").
 		Returning("id").
 		Scan(ctx, &insertedIDs); err != nil && !errors.Is(err, sql.ErrNoRows) {
@@ -144,10 +146,10 @@ func findIdempotentRun(ctx context.Context, db bun.IDB, item pendingRun) (string
 			FROM task_runs
 			WHERE action_name = ?
 				AND idempotency_key = ?
-				AND status IN (?, ?, ?, ?)
+				AND status IN (?, ?, ?, ?, ?)
 			ORDER BY created_at DESC
 			LIMIT 1
-		`, item.actionName, item.options.IdempotencyKey, statusQueued, statusPublished, statusRunning, statusRetrying).Scan(ctx, &runID)
+		`, item.actionName, item.options.IdempotencyKey, statusQueued, statusPublished, statusRunning, statusRetrying, statusPaused).Scan(ctx, &runID)
 	}
 	if err != nil {
 		return "", fmt.Errorf("find idempotent task run: %w", err)
@@ -224,7 +226,7 @@ func (r *repository) releaseOutbox(ctx context.Context, record *servermodels.Tas
 	return nil
 }
 
-// claimRun 通过数据库租约串行认领单次任务运行。
+// claimRun 通过数据库租约串行认领单次任务运行；所属工作区不是正常状态时不认领。
 func (r *repository) claimRun(ctx context.Context, runID, workerID string) (*servermodels.TaskRun, error) {
 	now := time.Now().UTC()
 	var record servermodels.TaskRun
@@ -243,9 +245,13 @@ func (r *repository) claimRun(ctx context.Context, runID, workerID string) (*ser
 				status IN (?, ?, ?)
 				OR (status = ? AND lease_expires_at <= ?)
 			)
+			AND NOT EXISTS (
+				SELECT 1 FROM organizations AS o
+				WHERE o.id = task_runs.organization_id AND o.lifecycle_status <> ?
+			)
 		RETURNING *
 	`, statusRunning, now.Add(leaseDuration), workerID, now, now, runID, now,
-		statusQueued, statusPublished, statusRetrying, statusRunning, now).Scan(ctx, &record)
+		statusQueued, statusPublished, statusRetrying, statusRunning, now, domain.OrganizationLifecycleActive).Scan(ctx, &record)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -253,6 +259,61 @@ func (r *repository) claimRun(ctx context.Context, runID, workerID string) (*ser
 		return nil, fmt.Errorf("claim task run: %w", err)
 	}
 	return &record, nil
+}
+
+// pauseRun 把所属工作区不是正常状态、尚未开始执行或租约已过期的任务挂起，返回是否挂起；共享锁定工作区行，与恢复工作区的事务串行，恢复提交后读取到正常状态时不挂起。
+func (r *repository) pauseRun(ctx context.Context, runID string) (bool, error) {
+	now := time.Now().UTC()
+	result, err := r.db.NewRaw(`
+		UPDATE task_runs
+		SET status = ?, lease_expires_at = NULL, worker_id = NULL, updated_at = ?
+		WHERE id = ?
+			AND attempt < max_attempts
+			AND (
+				status IN (?, ?, ?)
+				OR (status = ? AND lease_expires_at <= ?)
+			)
+			AND EXISTS (
+				SELECT 1 FROM organizations AS o
+				WHERE o.id = task_runs.organization_id AND o.lifecycle_status <> ?
+				FOR SHARE
+			)
+	`, statusPaused, now, runID, statusQueued, statusPublished, statusRetrying, statusRunning, now, domain.OrganizationLifecycleActive).Exec(ctx)
+	if err != nil {
+		return false, fmt.Errorf("pause task run: %w", err)
+	}
+	count, _ := result.RowsAffected()
+	return count == 1, nil
+}
+
+// ResumeOrganizationRunsIn 在调用方事务内把工作区暂停期间挂起的任务重新排队并写入发件箱消息，原定执行时间未到的任务按原时间执行，返回恢复的任务数。
+func ResumeOrganizationRunsIn(ctx context.Context, db bun.IDB, organizationID string) (int, error) {
+	now := time.Now().UTC()
+	var runs []servermodels.TaskRun
+	if err := db.NewRaw(`
+		UPDATE task_runs
+		SET status = ?, available_at = GREATEST(available_at, ?), updated_at = ?
+		WHERE organization_id = ? AND status = ?
+		RETURNING id, queue_name, available_at
+	`, statusQueued, now, now, organizationID, statusPaused).Scan(ctx, &runs); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return 0, fmt.Errorf("resume organization task runs: %w", err)
+	}
+	if len(runs) == 0 {
+		return 0, nil
+	}
+	outbox := make([]*servermodels.TaskOutbox, 0, len(runs))
+	for _, run := range runs {
+		outbox = append(outbox, &servermodels.TaskOutbox{
+			TaskRunID: run.ID, MessageID: uuid.New().String(), QueueName: run.QueueName,
+			AvailableAt: run.AvailableAt, CreatedAt: now, UpdatedAt: now,
+		})
+	}
+	if _, err := db.NewInsert().Model(&outbox).On("CONFLICT (task_run_id) DO UPDATE").
+		Set("message_id = EXCLUDED.message_id, available_at = EXCLUDED.available_at, updated_at = EXCLUDED.updated_at").
+		Exec(ctx); err != nil {
+		return 0, fmt.Errorf("insert resumed task outbox: %w", err)
+	}
+	return len(runs), nil
 }
 
 // extendLease 延长正在运行任务的数据库租约并返回是否仍持有租约。

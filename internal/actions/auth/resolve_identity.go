@@ -20,6 +20,8 @@ var (
 	ErrIdentityNotFound = errors.New("session not found or account inactive")
 	// ErrMembershipNotFound 表示账号在目标工作区没有有效的成员身份。
 	ErrMembershipNotFound = errors.New("account is not an active member of the workspace")
+	// ErrWorkspaceSuspended 表示目标工作区已被部署管理员暂停。
+	ErrWorkspaceSuspended = errors.New("workspace is suspended")
 )
 
 // ResolveAccountQuery 解析登录会话令牌对应的账号。
@@ -80,6 +82,9 @@ func (q *ResolveIdentityQuery) Execute(ctx context.Context, organizationID strin
 	if identity.User.ID == "" || identity.User.Status != string(domain.IdentityStatusActive) {
 		return nil, ErrMembershipNotFound
 	}
+	if identity.Organization.LifecycleStatus != string(domain.OrganizationLifecycleActive) {
+		return nil, ErrWorkspaceSuspended
+	}
 	return identity, nil
 }
 
@@ -96,7 +101,7 @@ const memberTables = `
 
 // memberColumns 是工作区、成员用户与成员身份的查询列，扫描目标由 memberTargets 给出。
 const memberColumns = `
-	o.id::text, o.name, o.slug,
+	o.id::text, o.name, o.slug, o.lifecycle_status,
 	u.id::text, u.identity_id::text, u.organization_id::text, u.account_id::text, u.status,
 	u.translation_language, u.message_notifications_enabled, u.role_id::text,
 	oi.id::text, oi.organization_id::text, oi.type, oi.display_name, oi.avatar_file_id::text, oi.handles_service_requests, oi.work_status`
@@ -113,7 +118,7 @@ func accountSessionTargets(account *servermodels.Account, session *servermodels.
 // memberTargets 返回与 memberColumns 顺序一致的扫描目标。
 func memberTargets(identity *servermodels.Identity) []any {
 	return []any{
-		&identity.Organization.ID, &identity.Organization.Name, &identity.Organization.Slug,
+		&identity.Organization.ID, &identity.Organization.Name, &identity.Organization.Slug, &identity.Organization.LifecycleStatus,
 		&identity.User.ID, &identity.User.IdentityID, &identity.User.OrganizationID, &identity.User.AccountID, &identity.User.Status,
 		&identity.User.TranslationLanguage, &identity.User.MessageNotificationsEnabled, &identity.User.RoleID,
 		&identity.OrganizationIdentity.ID, &identity.OrganizationIdentity.OrganizationID, &identity.OrganizationIdentity.Type,
@@ -147,7 +152,7 @@ func resolveAccount(ctx context.Context, db bun.IDB, value string) (*servermodel
 	return identity, nil
 }
 
-// ResolveMember 返回账号在目标工作区中的有效成员身份；没有成员身份或成员已停用时返回 ErrMembershipNotFound。
+// ResolveMember 返回账号在目标工作区中的有效成员身份；没有成员身份或成员已停用时返回 ErrMembershipNotFound，工作区已暂停时返回 ErrWorkspaceSuspended。
 func ResolveMember(ctx context.Context, db bun.IDB, account *servermodels.AccountIdentity, organizationID string) (*servermodels.Identity, error) {
 	if !common.ValidUUID(organizationID) {
 		return nil, ErrMembershipNotFound
@@ -168,6 +173,9 @@ func ResolveMember(ctx context.Context, db bun.IDB, account *servermodels.Accoun
 	if identity.User.Status != string(domain.IdentityStatusActive) {
 		return nil, ErrMembershipNotFound
 	}
+	if identity.Organization.LifecycleStatus != string(domain.OrganizationLifecycleActive) {
+		return nil, ErrWorkspaceSuspended
+	}
 	return identity, nil
 }
 
@@ -177,14 +185,16 @@ type Membership struct {
 	UserID         string `bun:"user_id"`
 }
 
-// ListMemberships 返回账号的全部有效成员身份，按工作区编号排序。
+// ListMemberships 返回账号在正常或已暂停工作区中的全部有效成员身份，按工作区编号排序；工作区动态事件流据此订阅，已暂停工作区的恢复通知经本人受众送达。
 func ListMemberships(ctx context.Context, db bun.IDB, account *servermodels.AccountIdentity) ([]Membership, error) {
 	var memberships []Membership
 	if err := db.NewSelect().
 		TableExpr("users AS u").
 		ColumnExpr("u.organization_id::text AS organization_id, u.id::text AS user_id").
+		Join("JOIN organizations AS o ON o.id = u.organization_id").
 		Where("u.account_id = ?", account.Account.ID).
 		Where("u.status = ?", domain.IdentityStatusActive).
+		Where("o.lifecycle_status IN (?)", bun.In([]domain.OrganizationLifecycleStatus{domain.OrganizationLifecycleActive, domain.OrganizationLifecycleSuspended})).
 		OrderExpr("u.organization_id ASC").
 		Scan(ctx, &memberships); err != nil {
 		return nil, fmt.Errorf("list account memberships: %w", err)

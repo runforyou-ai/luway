@@ -168,7 +168,7 @@ func redraft(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, ga
 // enqueueDraft 在调用方事务中投递起草任务。
 func enqueueDraft(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, organizationID string, gap *servermodels.KnowledgeGap) error {
 	if _, err := enqueuer.EnqueueIn(ctx, db, DraftActionName, DraftInput{OrganizationID: organizationID, KnowledgeGapID: gap.ID, RequestedAt: gap.DraftRequestedAt},
-		servertask.EnqueueOptions{MaxAttempts: draftMaxAttempts}); err != nil {
+		servertask.EnqueueOptions{OrganizationID: organizationID, MaxAttempts: draftMaxAttempts}); err != nil {
 		return fmt.Errorf("enqueue %s: %w", DraftActionName, err)
 	}
 	return nil

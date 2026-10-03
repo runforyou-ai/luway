@@ -131,7 +131,7 @@ func insertAndDispatchRun(ctx context.Context, db bun.IDB, enqueuer servertask.T
 		return run.ID, advanceDeviceWork(ctx, db, spec.OrganizationID, *run.ExecutionDeviceID)
 	}
 	if _, err := enqueuer.EnqueueIn(ctx, db, RunActionName, RunInput{RunID: run.ID}, servertask.EnqueueOptions{
-		Queue: servertask.QueueAgent, MaxAttempts: 3,
+		OrganizationID: spec.OrganizationID, Queue: servertask.QueueAgent, MaxAttempts: 3,
 		IdempotencyKey: "agent:" + run.ID,
 		TriggerType:    servertask.TriggerBusiness,
 	}); err != nil {
