@@ -20,6 +20,13 @@ type Error struct {
 	status  int               `json:"-"`
 	// language 是错误文案实际使用的语言标签。
 	language string `json:"-"`
+	// cause 是操作失败的原始错误，只在服务端记录，不随错误传输。
+	cause error `json:"-"`
+}
+
+// Unwrap 返回操作失败的原始错误。
+func (e *Error) Unwrap() error {
+	return e.cause
 }
 
 // Language 返回错误文案实际使用的语言标签，未记录时为空。
@@ -124,9 +131,11 @@ func UnavailableError(meta RequestMeta, messageKey i18n.Key, fieldKeys map[strin
 	return newError(meta, ErrorKindUnavailable, "", messageKey, fieldKeys)
 }
 
-// FailedError 返回操作失败的业务错误。
-func FailedError(meta RequestMeta, messageKey i18n.Key) *Error {
-	return newError(meta, ErrorKindFailed, "", messageKey, nil)
+// FailedError 返回操作失败的业务错误，cause 是导致失败的原始错误。
+func FailedError(meta RequestMeta, messageKey i18n.Key, cause error) *Error {
+	failedError := newError(meta, ErrorKindFailed, "", messageKey, nil)
+	failedError.cause = cause
+	return failedError
 }
 
 // SessionError 返回应回到会话入口的业务错误。
@@ -145,13 +154,20 @@ func SessionStateOf(err error) SessionState {
 // methodNotAllowedError 返回当前平台不支持该操作的业务错误。
 func methodNotAllowedError(meta RequestMeta, operation string) *Error {
 	slog.Warn("当前平台不支持此操作", "operation", operation)
-	return FailedError(meta, i18n.ErrorMethodNotAllowed).WithStatus(http.StatusMethodNotAllowed)
+	return newError(meta, ErrorKindFailed, "", i18n.ErrorMethodNotAllowed, nil).WithStatus(http.StatusMethodNotAllowed)
 }
 
 // newError 构造本地化业务错误。
 func newError(meta RequestMeta, kind ErrorKind, state SessionState, messageKey i18n.Key, fieldKeys map[string]i18n.Key) *Error {
 	message, language := i18n.Localize(string(meta.Locale), messageKey)
 	return &Error{Kind: kind, State: state, Message: message, Fields: i18n.LocalizeMap(string(meta.Locale), fieldKeys), language: language}
+}
+
+// WebsiteVisitorFailedError 按对客语言构造返回给网站访客的操作失败错误，cause 是导致失败的原始错误。
+func WebsiteVisitorFailedError(locale CustomerLocale, messageKey i18n.Key, cause error) *Error {
+	failedError := WebsiteVisitorError(locale, ErrorKindFailed, messageKey, nil)
+	failedError.cause = cause
+	return failedError
 }
 
 // WebsiteVisitorError 按对客语言构造返回给网站访客的业务错误。

@@ -9,11 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"runtime/debug"
 	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/runforyou-ai/luway/internal/common"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
 
@@ -362,7 +362,7 @@ func resolveExecutionError(runErr, heartbeatErr error) error {
 func executeHandler(ctx context.Context, handler func(context.Context, json.RawMessage) error, payload json.RawMessage) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			err = fmt.Errorf("task action panic: %v\n%s", recovered, debug.Stack())
+			err = common.NewPanicError(recovered)
 		}
 	}()
 	return handler(ctx, payload)
@@ -432,7 +432,7 @@ func (r *Runtime) finishFailedMessage(ctx context.Context, run *servermodels.Tas
 		return
 	}
 	_ = message.TermWithReason(truncateError(runErr))
-	slog.Error("异步任务执行失败", "run_id", run.ID, "action", run.ActionName, "attempt", run.Attempt, "error", runErr)
+	slog.Error("异步任务执行失败", "run_id", run.ID, "queue", run.QueueName, "action", run.ActionName, "attempt", run.Attempt, "error", runErr)
 }
 
 // finalizeActionFailure 在任务最终失败前提交已注册的业务收尾。
@@ -483,7 +483,7 @@ func (r *Runtime) handleUnclaimedMessage(ctx context.Context, runID string, mess
 			_ = message.NakWithDelay(taskNakRetryDelay)
 			return
 		} else if exhausted {
-			slog.Error("异步任务在最终尝试中失去租约", "run_id", runID, "action", run.ActionName)
+			slog.Error("异步任务在最终尝试中失去租约", "run_id", runID, "queue", run.QueueName, "action", run.ActionName)
 			_ = message.TermWithReason(exhaustedErr.Error())
 			return
 		}

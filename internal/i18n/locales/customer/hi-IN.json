@@ -107,5 +107,6 @@
   "visitor_error.load_failed": "चैट लोड नहीं हो सकी। फिर से कोशिश करें।",
   "visitor_error.send_failed": "संदेश नहीं भेजा जा सका। फिर से कोशिश करें।",
   "visitor_error.upload_failed": "फ़ाइल अपलोड नहीं हो सकी। फिर से कोशिश करें।",
-  "visitor_error.rate_failed": "आपकी रेटिंग सबमिट नहीं हो सकी। फिर से कोशिश करें।"
+  "visitor_error.rate_failed": "आपकी रेटिंग सबमिट नहीं हो सकी। फिर से कोशिश करें।",
+  "visitor_error.internal": "सेवा अभी उपलब्ध नहीं है। कुछ देर बाद फिर से कोशिश करें।"
 }

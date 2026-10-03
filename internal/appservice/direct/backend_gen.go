@@ -11,27 +11,32 @@ import (
 )
 
 // InstallationStatus 返回部署名称、首次安装状态、是否开放注册、产品品牌和接口版本。
-func (b *Backend) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
+func (b *Backend) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (_ appservice.InstallationStatus, err error) {
+	defer settle(ctx, "InstallationStatus", &err, internalError(meta))
 	return b.ops.InstallationStatus(ctx, meta)
 }
 
 // GetProductDocPage 返回当前平台可见的产品文档页面正文，供应用内帮助显示。
-func (b *Backend) GetProductDocPage(ctx context.Context, meta appservice.RequestMeta, input appservice.ProductDocPageInput) (appservice.ProductDocPage, error) {
+func (b *Backend) GetProductDocPage(ctx context.Context, meta appservice.RequestMeta, input appservice.ProductDocPageInput) (_ appservice.ProductDocPage, err error) {
+	defer settle(ctx, "GetProductDocPage", &err, internalError(meta))
 	return b.ops.GetProductDocPage(ctx, meta, input)
 }
 
 // Login 校验账号密码并建立登录会话。
-func (b *Backend) Login(ctx context.Context, meta appservice.RequestMeta, input appservice.LoginInput) (appservice.Auth, error) {
+func (b *Backend) Login(ctx context.Context, meta appservice.RequestMeta, input appservice.LoginInput) (_ appservice.Auth, err error) {
+	defer settle(ctx, "Login", &err, internalError(meta))
 	return b.ops.Login(ctx, meta, input)
 }
 
 // Register 在平台开放注册或持有效邀请时注册本地账号并建立登录会话。
-func (b *Backend) Register(ctx context.Context, meta appservice.RequestMeta, input appservice.RegisterInput) (appservice.Auth, error) {
+func (b *Backend) Register(ctx context.Context, meta appservice.RequestMeta, input appservice.RegisterInput) (_ appservice.Auth, err error) {
+	defer settle(ctx, "Register", &err, internalError(meta))
 	return b.ops.Register(ctx, meta, input)
 }
 
 // Logout 退出当前登录会话。
-func (b *Backend) Logout(ctx context.Context, meta appservice.RequestMeta) error {
+func (b *Backend) Logout(ctx context.Context, meta appservice.RequestMeta) (err error) {
+	defer settle(ctx, "Logout", &err, internalError(meta))
 	account, err := b.ops.authenticateAccount(ctx, meta)
 	if err != nil {
 		return err
@@ -40,7 +45,8 @@ func (b *Backend) Logout(ctx context.Context, meta appservice.RequestMeta) error
 }
 
 // LoadAccount 返回当前登录账号。
-func (b *Backend) LoadAccount(ctx context.Context, meta appservice.RequestMeta) (appservice.Account, error) {
+func (b *Backend) LoadAccount(ctx context.Context, meta appservice.RequestMeta) (_ appservice.Account, err error) {
+	defer settle(ctx, "LoadAccount", &err, internalError(meta))
 	account, err := b.ops.authenticateAccount(ctx, meta)
 	if err != nil {
 		var zero appservice.Account
@@ -50,7 +56,8 @@ func (b *Backend) LoadAccount(ctx context.Context, meta appservice.RequestMeta) 
 }
 
 // ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
-func (b *Backend) ListWorkspaces(ctx context.Context, meta appservice.RequestMeta) (appservice.WorkspaceList, error) {
+func (b *Backend) ListWorkspaces(ctx context.Context, meta appservice.RequestMeta) (_ appservice.WorkspaceList, err error) {
+	defer settle(ctx, "ListWorkspaces", &err, internalError(meta))
 	account, err := b.ops.authenticateAccount(ctx, meta)
 	if err != nil {
 		var zero appservice.WorkspaceList
@@ -60,7 +67,8 @@ func (b *Backend) ListWorkspaces(ctx context.Context, meta appservice.RequestMet
 }
 
 // ListWorkspaceAttention 返回当前账号在各工作区的提醒数量，工作区切换器与应用角标据此提示其他工作区的未读。
-func (b *Backend) ListWorkspaceAttention(ctx context.Context, meta appservice.RequestMeta) (appservice.WorkspaceAttentionList, error) {
+func (b *Backend) ListWorkspaceAttention(ctx context.Context, meta appservice.RequestMeta) (_ appservice.WorkspaceAttentionList, err error) {
+	defer settle(ctx, "ListWorkspaceAttention", &err, internalError(meta))
 	account, err := b.ops.authenticateAccount(ctx, meta)
 	if err != nil {
 		var zero appservice.WorkspaceAttentionList
@@ -70,7 +78,8 @@ func (b *Backend) ListWorkspaceAttention(ctx context.Context, meta appservice.Re
 }
 
 // CreateWorkspace 创建工作区，当前账号成为首位管理员成员。
-func (b *Backend) CreateWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.WorkspaceInput) (appservice.Workspace, error) {
+func (b *Backend) CreateWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.WorkspaceInput) (_ appservice.Workspace, err error) {
+	defer settle(ctx, "CreateWorkspace", &err, internalError(meta))
 	account, err := b.ops.authenticateAccount(ctx, meta)
 	if err != nil {
 		var zero appservice.Workspace
@@ -80,7 +89,8 @@ func (b *Backend) CreateWorkspace(ctx context.Context, meta appservice.RequestMe
 }
 
 // LoadIdentity 返回当前账号在请求目标工作区中的成员身份。
-func (b *Backend) LoadIdentity(ctx context.Context, meta appservice.RequestMeta) (appservice.Identity, error) {
+func (b *Backend) LoadIdentity(ctx context.Context, meta appservice.RequestMeta) (_ appservice.Identity, err error) {
+	defer settle(ctx, "LoadIdentity", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Identity
@@ -90,7 +100,8 @@ func (b *Backend) LoadIdentity(ctx context.Context, meta appservice.RequestMeta)
 }
 
 // UpdateProfile 修改当前成员的头像和姓名，以及所属账号的邮箱。
-func (b *Backend) UpdateProfile(ctx context.Context, meta appservice.RequestMeta, input appservice.ProfileInput) (appservice.CurrentUser, error) {
+func (b *Backend) UpdateProfile(ctx context.Context, meta appservice.RequestMeta, input appservice.ProfileInput) (_ appservice.CurrentUser, err error) {
+	defer settle(ctx, "UpdateProfile", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.CurrentUser
@@ -100,7 +111,8 @@ func (b *Backend) UpdateProfile(ctx context.Context, meta appservice.RequestMeta
 }
 
 // CreateFileUpload 创建文件上传请求。
-func (b *Backend) CreateFileUpload(ctx context.Context, meta appservice.RequestMeta, input appservice.FileUploadInput) (appservice.FileUpload, error) {
+func (b *Backend) CreateFileUpload(ctx context.Context, meta appservice.RequestMeta, input appservice.FileUploadInput) (_ appservice.FileUpload, err error) {
+	defer settle(ctx, "CreateFileUpload", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.FileUpload
@@ -110,7 +122,8 @@ func (b *Backend) CreateFileUpload(ctx context.Context, meta appservice.RequestM
 }
 
 // CompleteFileUpload 核验并完成文件上传。
-func (b *Backend) CompleteFileUpload(ctx context.Context, meta appservice.RequestMeta, fileID string) (appservice.File, error) {
+func (b *Backend) CompleteFileUpload(ctx context.Context, meta appservice.RequestMeta, fileID string) (_ appservice.File, err error) {
+	defer settle(ctx, "CompleteFileUpload", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.File
@@ -120,7 +133,8 @@ func (b *Backend) CompleteFileUpload(ctx context.Context, meta appservice.Reques
 }
 
 // CreateFilePartUpload 创建一个分片的直传请求。
-func (b *Backend) CreateFilePartUpload(ctx context.Context, meta appservice.RequestMeta, fileID string, input appservice.FilePartUploadInput) (appservice.FileUploadRequest, error) {
+func (b *Backend) CreateFilePartUpload(ctx context.Context, meta appservice.RequestMeta, fileID string, input appservice.FilePartUploadInput) (_ appservice.FileUploadRequest, err error) {
+	defer settle(ctx, "CreateFilePartUpload", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.FileUploadRequest
@@ -130,7 +144,8 @@ func (b *Backend) CreateFilePartUpload(ctx context.Context, meta appservice.Requ
 }
 
 // CancelFileUpload 将未发送的临时文件交给清理任务。
-func (b *Backend) CancelFileUpload(ctx context.Context, meta appservice.RequestMeta, fileID string) error {
+func (b *Backend) CancelFileUpload(ctx context.Context, meta appservice.RequestMeta, fileID string) (err error) {
+	defer settle(ctx, "CancelFileUpload", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -139,7 +154,8 @@ func (b *Backend) CancelFileUpload(ctx context.Context, meta appservice.RequestM
 }
 
 // SendAttachmentMessage 发送已上传的单聊、群聊或 AI 聊天附件消息，首发时创建会话。
-func (b *Backend) SendAttachmentMessage(ctx context.Context, meta appservice.RequestMeta, input appservice.AttachmentMessageInput) (appservice.AttachmentMessageResult, error) {
+func (b *Backend) SendAttachmentMessage(ctx context.Context, meta appservice.RequestMeta, input appservice.AttachmentMessageInput) (_ appservice.AttachmentMessageResult, err error) {
+	defer settle(ctx, "SendAttachmentMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AttachmentMessageResult
@@ -149,7 +165,8 @@ func (b *Backend) SendAttachmentMessage(ctx context.Context, meta appservice.Req
 }
 
 // GetAttachmentDownload 签发当前成员可见消息附件的下载地址。
-func (b *Backend) GetAttachmentDownload(ctx context.Context, meta appservice.RequestMeta, conversationID string, messageID string) (appservice.FileDownload, error) {
+func (b *Backend) GetAttachmentDownload(ctx context.Context, meta appservice.RequestMeta, conversationID string, messageID string) (_ appservice.FileDownload, err error) {
+	defer settle(ctx, "GetAttachmentDownload", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.FileDownload
@@ -159,7 +176,8 @@ func (b *Backend) GetAttachmentDownload(ctx context.Context, meta appservice.Req
 }
 
 // ChangePassword 核验当前账号的密码并保存新密码。
-func (b *Backend) ChangePassword(ctx context.Context, meta appservice.RequestMeta, input appservice.ChangePasswordInput) error {
+func (b *Backend) ChangePassword(ctx context.Context, meta appservice.RequestMeta, input appservice.ChangePasswordInput) (err error) {
+	defer settle(ctx, "ChangePassword", &err, internalError(meta))
 	account, err := b.ops.authenticateAccount(ctx, meta)
 	if err != nil {
 		return err
@@ -168,7 +186,8 @@ func (b *Backend) ChangePassword(ctx context.Context, meta appservice.RequestMet
 }
 
 // UpdateUserPreferences 保存当前用户的偏好设置。
-func (b *Backend) UpdateUserPreferences(ctx context.Context, meta appservice.RequestMeta, input appservice.UserPreferencesInput) (appservice.CurrentUser, error) {
+func (b *Backend) UpdateUserPreferences(ctx context.Context, meta appservice.RequestMeta, input appservice.UserPreferencesInput) (_ appservice.CurrentUser, err error) {
+	defer settle(ctx, "UpdateUserPreferences", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.CurrentUser
@@ -178,7 +197,8 @@ func (b *Backend) UpdateUserPreferences(ctx context.Context, meta appservice.Req
 }
 
 // UpdateUserWorkStatus 保存当前用户主动设置的工作状态。
-func (b *Backend) UpdateUserWorkStatus(ctx context.Context, meta appservice.RequestMeta, input appservice.UserWorkStatusInput) (appservice.CurrentUser, error) {
+func (b *Backend) UpdateUserWorkStatus(ctx context.Context, meta appservice.RequestMeta, input appservice.UserWorkStatusInput) (_ appservice.CurrentUser, err error) {
+	defer settle(ctx, "UpdateUserWorkStatus", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.CurrentUser
@@ -188,7 +208,8 @@ func (b *Backend) UpdateUserWorkStatus(ctx context.Context, meta appservice.Requ
 }
 
 // LoadInbox 返回当前用户的统一收件箱。
-func (b *Backend) LoadInbox(ctx context.Context, meta appservice.RequestMeta, input appservice.LoadInboxInput) (appservice.Inbox, error) {
+func (b *Backend) LoadInbox(ctx context.Context, meta appservice.RequestMeta, input appservice.LoadInboxInput) (_ appservice.Inbox, err error) {
+	defer settle(ctx, "LoadInbox", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Inbox
@@ -198,7 +219,8 @@ func (b *Backend) LoadInbox(ctx context.Context, meta appservice.RequestMeta, in
 }
 
 // GetInboxContext 返回会话锚点的当前资格和原位置邻域。
-func (b *Backend) GetInboxContext(ctx context.Context, meta appservice.RequestMeta, input appservice.InboxContextInput) (appservice.InboxContext, error) {
+func (b *Backend) GetInboxContext(ctx context.Context, meta appservice.RequestMeta, input appservice.InboxContextInput) (_ appservice.InboxContext, err error) {
+	defer settle(ctx, "GetInboxContext", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InboxContext
@@ -208,7 +230,8 @@ func (b *Backend) GetInboxContext(ctx context.Context, meta appservice.RequestMe
 }
 
 // ReadInboxWindow 重读已加载双向边界之间的完整列表范围。
-func (b *Backend) ReadInboxWindow(ctx context.Context, meta appservice.RequestMeta, input appservice.InboxWindowInput) (appservice.InboxWindow, error) {
+func (b *Backend) ReadInboxWindow(ctx context.Context, meta appservice.RequestMeta, input appservice.InboxWindowInput) (_ appservice.InboxWindow, err error) {
+	defer settle(ctx, "ReadInboxWindow", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InboxWindow
@@ -218,7 +241,8 @@ func (b *Backend) ReadInboxWindow(ctx context.Context, meta appservice.RequestMe
 }
 
 // GetRequesterProfile 返回服务会话发起人的资料；发起人是客户时给出客户身份与当前周期访客上下文。
-func (b *Backend) GetRequesterProfile(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.RequesterProfile, error) {
+func (b *Backend) GetRequesterProfile(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.RequesterProfile, err error) {
+	defer settle(ctx, "GetRequesterProfile", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.RequesterProfile
@@ -228,7 +252,8 @@ func (b *Backend) GetRequesterProfile(ctx context.Context, meta appservice.Reque
 }
 
 // ListServiceBusinessQueries 返回服务会话当前周期内 AI 员工查询业务系统的记录。
-func (b *Backend) ListServiceBusinessQueries(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.ServiceBusinessQueryList, error) {
+func (b *Backend) ListServiceBusinessQueries(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.ServiceBusinessQueryList, err error) {
+	defer settle(ctx, "ListServiceBusinessQueries", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceBusinessQueryList
@@ -238,7 +263,8 @@ func (b *Backend) ListServiceBusinessQueries(ctx context.Context, meta appservic
 }
 
 // GetServiceSummaries 返回服务会话当前周期的交接摘要与同一发起人已关闭周期的小结。
-func (b *Backend) GetServiceSummaries(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.ServiceSummaries, error) {
+func (b *Backend) GetServiceSummaries(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.ServiceSummaries, err error) {
+	defer settle(ctx, "GetServiceSummaries", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceSummaries
@@ -248,7 +274,8 @@ func (b *Backend) GetServiceSummaries(ctx context.Context, meta appservice.Reque
 }
 
 // UpdateServiceSessionSummary 修改已关闭服务周期的小结、是否解决与咨询分类。
-func (b *Backend) UpdateServiceSessionSummary(ctx context.Context, meta appservice.RequestMeta, serviceSessionID string, input appservice.ServiceSessionSummaryInput) (appservice.ServiceSessionSummary, error) {
+func (b *Backend) UpdateServiceSessionSummary(ctx context.Context, meta appservice.RequestMeta, serviceSessionID string, input appservice.ServiceSessionSummaryInput) (_ appservice.ServiceSessionSummary, err error) {
+	defer settle(ctx, "UpdateServiceSessionSummary", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceSessionSummary
@@ -258,7 +285,8 @@ func (b *Backend) UpdateServiceSessionSummary(ctx context.Context, meta appservi
 }
 
 // GetInboxConversation 返回当前用户有权阅读的独立会话摘要。
-func (b *Backend) GetInboxConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.InboxConversation, error) {
+func (b *Backend) GetInboxConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.InboxConversation, err error) {
+	defer settle(ctx, "GetInboxConversation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InboxConversation
@@ -268,7 +296,8 @@ func (b *Backend) GetInboxConversation(ctx context.Context, meta appservice.Requ
 }
 
 // ReadInboxConversations 按 ID 批量返回会话摘要及当前筛选资格。
-func (b *Backend) ReadInboxConversations(ctx context.Context, meta appservice.RequestMeta, input appservice.ReadInboxConversationsInput) (appservice.InboxConversationResults, error) {
+func (b *Backend) ReadInboxConversations(ctx context.Context, meta appservice.RequestMeta, input appservice.ReadInboxConversationsInput) (_ appservice.InboxConversationResults, err error) {
+	defer settle(ctx, "ReadInboxConversations", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InboxConversationResults
@@ -278,7 +307,8 @@ func (b *Backend) ReadInboxConversations(ctx context.Context, meta appservice.Re
 }
 
 // ReadConversationAttention 返回会话摘要及已知消息之后计入本人提醒的未读消息，提醒口径与应用角标一致。
-func (b *Backend) ReadConversationAttention(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationAttentionInput) (appservice.ConversationAttention, error) {
+func (b *Backend) ReadConversationAttention(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationAttentionInput) (_ appservice.ConversationAttention, err error) {
+	defer settle(ctx, "ReadConversationAttention", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationAttention
@@ -288,7 +318,8 @@ func (b *Backend) ReadConversationAttention(ctx context.Context, meta appservice
 }
 
 // SearchInbox 按范围检索会话名称、消息正文与附件文件名、成员和外部联系人。
-func (b *Backend) SearchInbox(ctx context.Context, meta appservice.RequestMeta, input appservice.InboxSearchInput) (appservice.InboxSearchResult, error) {
+func (b *Backend) SearchInbox(ctx context.Context, meta appservice.RequestMeta, input appservice.InboxSearchInput) (_ appservice.InboxSearchResult, err error) {
+	defer settle(ctx, "SearchInbox", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InboxSearchResult
@@ -298,7 +329,8 @@ func (b *Backend) SearchInbox(ctx context.Context, meta appservice.RequestMeta, 
 }
 
 // ListServiceAssignees 返回可接待服务会话的有效真人和 AI 员工。
-func (b *Backend) ListServiceAssignees(ctx context.Context, meta appservice.RequestMeta) (appservice.ServiceAssigneeList, error) {
+func (b *Backend) ListServiceAssignees(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ServiceAssigneeList, err error) {
+	defer settle(ctx, "ListServiceAssignees", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceAssigneeList
@@ -308,7 +340,8 @@ func (b *Backend) ListServiceAssignees(ctx context.Context, meta appservice.Requ
 }
 
 // ListServiceQueueTeams 返回可作为客服队列的团队，本人所在团队排在前面。
-func (b *Backend) ListServiceQueueTeams(ctx context.Context, meta appservice.RequestMeta) (appservice.ServiceQueueTeamList, error) {
+func (b *Backend) ListServiceQueueTeams(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ServiceQueueTeamList, err error) {
+	defer settle(ctx, "ListServiceQueueTeams", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceQueueTeamList
@@ -318,7 +351,8 @@ func (b *Backend) ListServiceQueueTeams(ctx context.Context, meta appservice.Req
 }
 
 // ListInboxChannels 返回收件箱渠道筛选候选，含已停用渠道。
-func (b *Backend) ListInboxChannels(ctx context.Context, meta appservice.RequestMeta) (appservice.InboxChannelList, error) {
+func (b *Backend) ListInboxChannels(ctx context.Context, meta appservice.RequestMeta) (_ appservice.InboxChannelList, err error) {
+	defer settle(ctx, "ListInboxChannels", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InboxChannelList
@@ -328,7 +362,8 @@ func (b *Backend) ListInboxChannels(ctx context.Context, meta appservice.Request
 }
 
 // GetSyncHeads 返回当前用户可见会话与身份资料的同步探针值。
-func (b *Backend) GetSyncHeads(ctx context.Context, meta appservice.RequestMeta) (appservice.SyncHeads, error) {
+func (b *Backend) GetSyncHeads(ctx context.Context, meta appservice.RequestMeta) (_ appservice.SyncHeads, err error) {
+	defer settle(ctx, "GetSyncHeads", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.SyncHeads
@@ -338,7 +373,8 @@ func (b *Backend) GetSyncHeads(ctx context.Context, meta appservice.RequestMeta)
 }
 
 // ListConversationMessages 返回成员可见的会话消息。
-func (b *Backend) ListConversationMessages(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationMessageListInput) (appservice.ConversationMessageList, error) {
+func (b *Backend) ListConversationMessages(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationMessageListInput) (_ appservice.ConversationMessageList, err error) {
+	defer settle(ctx, "ListConversationMessages", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessageList
@@ -348,7 +384,8 @@ func (b *Backend) ListConversationMessages(ctx context.Context, meta appservice.
 }
 
 // ReadConversationMessageWindow 重读已加载首尾游标之间的完整消息范围。
-func (b *Backend) ReadConversationMessageWindow(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationMessageWindowInput) (appservice.ConversationMessageList, error) {
+func (b *Backend) ReadConversationMessageWindow(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationMessageWindowInput) (_ appservice.ConversationMessageList, err error) {
+	defer settle(ctx, "ReadConversationMessageWindow", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessageList
@@ -358,7 +395,8 @@ func (b *Backend) ReadConversationMessageWindow(ctx context.Context, meta appser
 }
 
 // GetConversationMessageContext 返回目标消息及其前后上下文。
-func (b *Backend) GetConversationMessageContext(ctx context.Context, meta appservice.RequestMeta, conversationID string, messageID string) (appservice.ConversationMessageList, error) {
+func (b *Backend) GetConversationMessageContext(ctx context.Context, meta appservice.RequestMeta, conversationID string, messageID string) (_ appservice.ConversationMessageList, err error) {
+	defer settle(ctx, "GetConversationMessageContext", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessageList
@@ -368,7 +406,8 @@ func (b *Backend) GetConversationMessageContext(ctx context.Context, meta appser
 }
 
 // GetConversationNavigationState 返回群聊提及进度和最新可见消息。
-func (b *Backend) GetConversationNavigationState(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.ConversationNavigationState, error) {
+func (b *Backend) GetConversationNavigationState(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.ConversationNavigationState, err error) {
+	defer settle(ctx, "GetConversationNavigationState", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationNavigationState
@@ -378,7 +417,8 @@ func (b *Backend) GetConversationNavigationState(ctx context.Context, meta appse
 }
 
 // ListPendingConversationMentions 返回本轮待查看提及目标。
-func (b *Backend) ListPendingConversationMentions(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.PendingConversationMentions, error) {
+func (b *Backend) ListPendingConversationMentions(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.PendingConversationMentions, err error) {
+	defer settle(ctx, "ListPendingConversationMentions", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PendingConversationMentions
@@ -388,7 +428,8 @@ func (b *Backend) ListPendingConversationMentions(ctx context.Context, meta apps
 }
 
 // MarkConversationMentionReviewed 确认已查看的群聊提及。
-func (b *Backend) MarkConversationMentionReviewed(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.MarkConversationMentionReviewedInput) (appservice.ConversationMentionReview, error) {
+func (b *Backend) MarkConversationMentionReviewed(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.MarkConversationMentionReviewedInput) (_ appservice.ConversationMentionReview, err error) {
+	defer settle(ctx, "MarkConversationMentionReviewed", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMentionReview
@@ -398,7 +439,8 @@ func (b *Backend) MarkConversationMentionReviewed(ctx context.Context, meta apps
 }
 
 // MarkConversationRead 单调推进当前用户的会话已读水位。
-func (b *Backend) MarkConversationRead(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.MarkConversationReadInput) (appservice.ConversationReadState, error) {
+func (b *Backend) MarkConversationRead(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.MarkConversationReadInput) (_ appservice.ConversationReadState, err error) {
+	defer settle(ctx, "MarkConversationRead", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationReadState
@@ -408,7 +450,8 @@ func (b *Backend) MarkConversationRead(ctx context.Context, meta appservice.Requ
 }
 
 // ReportConversationTyping 发布当前用户的输入状态：单聊与群聊发给其他真人成员，网站渠道客户会话发给该线程访客。
-func (b *Backend) ReportConversationTyping(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationTypingInput) error {
+func (b *Backend) ReportConversationTyping(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationTypingInput) (err error) {
+	defer settle(ctx, "ReportConversationTyping", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -417,7 +460,8 @@ func (b *Backend) ReportConversationTyping(ctx context.Context, meta appservice.
 }
 
 // UpdateConversationUnreadMark 保存当前用户独立于阅读水位的未读标记。
-func (b *Backend) UpdateConversationUnreadMark(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationUnreadMarkInput) error {
+func (b *Backend) UpdateConversationUnreadMark(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationUnreadMarkInput) (err error) {
+	defer settle(ctx, "UpdateConversationUnreadMark", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -426,7 +470,8 @@ func (b *Backend) UpdateConversationUnreadMark(ctx context.Context, meta appserv
 }
 
 // UpdateConversationPin 保存当前用户的会话置顶事实与置顶顺序。
-func (b *Backend) UpdateConversationPin(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationPinInput) (appservice.ConversationPinState, error) {
+func (b *Backend) UpdateConversationPin(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationPinInput) (_ appservice.ConversationPinState, err error) {
+	defer settle(ctx, "UpdateConversationPin", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationPinState
@@ -436,7 +481,8 @@ func (b *Backend) UpdateConversationPin(ctx context.Context, meta appservice.Req
 }
 
 // ListArchivedConversations 按最近活动倒序返回当前用户已归档的群聊、单聊与 AI 聊天。
-func (b *Backend) ListArchivedConversations(ctx context.Context, meta appservice.RequestMeta, input appservice.ArchivedConversationListInput) (appservice.ArchivedConversationList, error) {
+func (b *Backend) ListArchivedConversations(ctx context.Context, meta appservice.RequestMeta, input appservice.ArchivedConversationListInput) (_ appservice.ArchivedConversationList, err error) {
+	defer settle(ctx, "ListArchivedConversations", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ArchivedConversationList
@@ -446,7 +492,8 @@ func (b *Backend) ListArchivedConversations(ctx context.Context, meta appservice
 }
 
 // UpdateConversationArchive 保存当前用户对群聊、单聊或 AI 聊天的归档状态。
-func (b *Backend) UpdateConversationArchive(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationArchiveInput) error {
+func (b *Backend) UpdateConversationArchive(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationArchiveInput) (err error) {
+	defer settle(ctx, "UpdateConversationArchive", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -455,7 +502,8 @@ func (b *Backend) UpdateConversationArchive(ctx context.Context, meta appservice
 }
 
 // UpdateConversationNotificationSettings 保存当前用户的原生会话提醒设置。
-func (b *Backend) UpdateConversationNotificationSettings(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationNotificationSettingsInput) (appservice.ConversationNotificationSettings, error) {
+func (b *Backend) UpdateConversationNotificationSettings(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ConversationNotificationSettingsInput) (_ appservice.ConversationNotificationSettings, err error) {
+	defer settle(ctx, "UpdateConversationNotificationSettings", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationNotificationSettings
@@ -465,7 +513,8 @@ func (b *Backend) UpdateConversationNotificationSettings(ctx context.Context, me
 }
 
 // SendServiceTextMessage 在服务会话中发送回复或内部备注。
-func (b *Backend) SendServiceTextMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ServiceTextMessageInput) (appservice.ConversationMessage, error) {
+func (b *Backend) SendServiceTextMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ServiceTextMessageInput) (_ appservice.ConversationMessage, err error) {
+	defer settle(ctx, "SendServiceTextMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessage
@@ -475,7 +524,8 @@ func (b *Backend) SendServiceTextMessage(ctx context.Context, meta appservice.Re
 }
 
 // SendServiceAttachmentMessage 在服务会话中发送附件回复。
-func (b *Backend) SendServiceAttachmentMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ServiceAttachmentMessageInput) (appservice.ConversationMessage, error) {
+func (b *Backend) SendServiceAttachmentMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ServiceAttachmentMessageInput) (_ appservice.ConversationMessage, err error) {
+	defer settle(ctx, "SendServiceAttachmentMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessage
@@ -485,7 +535,8 @@ func (b *Backend) SendServiceAttachmentMessage(ctx context.Context, meta appserv
 }
 
 // GetConversationTranslation 返回当前成员在客户会话中的翻译状态。
-func (b *Backend) GetConversationTranslation(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.ConversationTranslation, error) {
+func (b *Backend) GetConversationTranslation(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.ConversationTranslation, err error) {
+	defer settle(ctx, "GetConversationTranslation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationTranslation
@@ -495,7 +546,8 @@ func (b *Backend) GetConversationTranslation(ctx context.Context, meta appservic
 }
 
 // TranslateConversationMessages 返回客户会话中指定对客消息面向当前成员语言的译文，尚无译文的消息即时翻译。
-func (b *Backend) TranslateConversationMessages(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.TranslateConversationMessagesInput) (appservice.ConversationMessageTranslationList, error) {
+func (b *Backend) TranslateConversationMessages(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.TranslateConversationMessagesInput) (_ appservice.ConversationMessageTranslationList, err error) {
+	defer settle(ctx, "TranslateConversationMessages", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessageTranslationList
@@ -505,7 +557,8 @@ func (b *Backend) TranslateConversationMessages(ctx context.Context, meta appser
 }
 
 // UpdateCustomerReplyLanguage 锁定或解除客户会话的对客回复语言。
-func (b *Backend) UpdateCustomerReplyLanguage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.CustomerReplyLanguageInput) (appservice.ConversationTranslation, error) {
+func (b *Backend) UpdateCustomerReplyLanguage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.CustomerReplyLanguageInput) (_ appservice.ConversationTranslation, err error) {
+	defer settle(ctx, "UpdateCustomerReplyLanguage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationTranslation
@@ -515,7 +568,8 @@ func (b *Backend) UpdateCustomerReplyLanguage(ctx context.Context, meta appservi
 }
 
 // PreviewCustomerReplyTranslation 把客服回复译为客户语言并回译为客服语言，供发送前核对。
-func (b *Backend) PreviewCustomerReplyTranslation(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.CustomerReplyTranslationInput) (appservice.CustomerReplyTranslationPreview, error) {
+func (b *Backend) PreviewCustomerReplyTranslation(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.CustomerReplyTranslationInput) (_ appservice.CustomerReplyTranslationPreview, err error) {
+	defer settle(ctx, "PreviewCustomerReplyTranslation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.CustomerReplyTranslationPreview
@@ -525,7 +579,8 @@ func (b *Backend) PreviewCustomerReplyTranslation(ctx context.Context, meta apps
 }
 
 // ListServiceReplyAgents 返回可用于 AI 写回复的 AI 员工。
-func (b *Backend) ListServiceReplyAgents(ctx context.Context, meta appservice.RequestMeta) (appservice.ServiceReplyAgentList, error) {
+func (b *Backend) ListServiceReplyAgents(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ServiceReplyAgentList, err error) {
+	defer settle(ctx, "ListServiceReplyAgents", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceReplyAgentList
@@ -535,7 +590,8 @@ func (b *Backend) ListServiceReplyAgents(ctx context.Context, meta appservice.Re
 }
 
 // GenerateServiceReplySuggestions 使用 AI 员工为服务会话生成回复候选。
-func (b *Backend) GenerateServiceReplySuggestions(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ServiceReplySuggestionsInput) (appservice.ServiceReplySuggestions, error) {
+func (b *Backend) GenerateServiceReplySuggestions(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.ServiceReplySuggestionsInput) (_ appservice.ServiceReplySuggestions, err error) {
+	defer settle(ctx, "GenerateServiceReplySuggestions", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceReplySuggestions
@@ -545,7 +601,8 @@ func (b *Backend) GenerateServiceReplySuggestions(ctx context.Context, meta apps
 }
 
 // ListServiceCopilotThreads 返回服务会话的全部 Copilot 线程。
-func (b *Backend) ListServiceCopilotThreads(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.ServiceCopilotThreadList, error) {
+func (b *Backend) ListServiceCopilotThreads(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.ServiceCopilotThreadList, err error) {
+	defer settle(ctx, "ListServiceCopilotThreads", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceCopilotThreadList
@@ -555,7 +612,8 @@ func (b *Backend) ListServiceCopilotThreads(ctx context.Context, meta appservice
 }
 
 // SendFirstServiceCopilotMessage 以首条提问创建服务会话的 Copilot 线程。
-func (b *Backend) SendFirstServiceCopilotMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.FirstServiceCopilotMessageInput) (appservice.FirstServiceCopilotMessageResult, error) {
+func (b *Backend) SendFirstServiceCopilotMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.FirstServiceCopilotMessageInput) (_ appservice.FirstServiceCopilotMessageResult, err error) {
+	defer settle(ctx, "SendFirstServiceCopilotMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.FirstServiceCopilotMessageResult
@@ -565,7 +623,8 @@ func (b *Backend) SendFirstServiceCopilotMessage(ctx context.Context, meta appse
 }
 
 // SendServiceCopilotTextMessage 向 Copilot 线程发送提问。
-func (b *Backend) SendServiceCopilotTextMessage(ctx context.Context, meta appservice.RequestMeta, threadID string, input appservice.ServiceCopilotTextMessageInput) (appservice.ConversationMessage, error) {
+func (b *Backend) SendServiceCopilotTextMessage(ctx context.Context, meta appservice.RequestMeta, threadID string, input appservice.ServiceCopilotTextMessageInput) (_ appservice.ConversationMessage, err error) {
+	defer settle(ctx, "SendServiceCopilotTextMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessage
@@ -575,7 +634,8 @@ func (b *Backend) SendServiceCopilotTextMessage(ctx context.Context, meta appser
 }
 
 // StopServiceCopilotReply 停止 Copilot 线程中指定的回复并返回实际运行状态。
-func (b *Backend) StopServiceCopilotReply(ctx context.Context, meta appservice.RequestMeta, threadID string, runID string) (appservice.AgentRunStatus, error) {
+func (b *Backend) StopServiceCopilotReply(ctx context.Context, meta appservice.RequestMeta, threadID string, runID string) (_ appservice.AgentRunStatus, err error) {
+	defer settle(ctx, "StopServiceCopilotReply", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentRunStatus
@@ -585,7 +645,8 @@ func (b *Backend) StopServiceCopilotReply(ctx context.Context, meta appservice.R
 }
 
 // ResolveCustomerMessageDelivery 人工处理失败或待确认的投递。
-func (b *Backend) ResolveCustomerMessageDelivery(ctx context.Context, meta appservice.RequestMeta, conversationID string, deliveryID string, input appservice.CustomerDeliveryResolveInput) error {
+func (b *Backend) ResolveCustomerMessageDelivery(ctx context.Context, meta appservice.RequestMeta, conversationID string, deliveryID string, input appservice.CustomerDeliveryResolveInput) (err error) {
+	defer settle(ctx, "ResolveCustomerMessageDelivery", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -594,7 +655,8 @@ func (b *Backend) ResolveCustomerMessageDelivery(ctx context.Context, meta appse
 }
 
 // ClaimServiceSession 领取或接管服务会话的当前周期。
-func (b *Backend) ClaimServiceSession(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.ServiceSession, error) {
+func (b *Backend) ClaimServiceSession(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.ServiceSession, err error) {
+	defer settle(ctx, "ClaimServiceSession", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceSession
@@ -604,7 +666,8 @@ func (b *Backend) ClaimServiceSession(ctx context.Context, meta appservice.Reque
 }
 
 // TransferServiceSession 把当前负责的处理周期转给成员、团队队列或公共队列。
-func (b *Backend) TransferServiceSession(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.TransferServiceSessionInput) (appservice.ServiceSession, error) {
+func (b *Backend) TransferServiceSession(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.TransferServiceSessionInput) (_ appservice.ServiceSession, err error) {
+	defer settle(ctx, "TransferServiceSession", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceSession
@@ -614,7 +677,8 @@ func (b *Backend) TransferServiceSession(ctx context.Context, meta appservice.Re
 }
 
 // CloseServiceSession 关闭服务会话的当前周期。
-func (b *Backend) CloseServiceSession(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.ServiceSession, error) {
+func (b *Backend) CloseServiceSession(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.ServiceSession, err error) {
+	defer settle(ctx, "CloseServiceSession", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceSession
@@ -624,7 +688,8 @@ func (b *Backend) CloseServiceSession(ctx context.Context, meta appservice.Reque
 }
 
 // ReopenServiceSession 重新打开服务会话的当前周期并分配给当前身份。
-func (b *Backend) ReopenServiceSession(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.ServiceSession, error) {
+func (b *Backend) ReopenServiceSession(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.ServiceSession, err error) {
+	defer settle(ctx, "ReopenServiceSession", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceSession
@@ -634,7 +699,8 @@ func (b *Backend) ReopenServiceSession(ctx context.Context, meta appservice.Requ
 }
 
 // SendFirstDirectTextMessage 向目标身份发送首条单聊消息并按需创建长期会话。
-func (b *Backend) SendFirstDirectTextMessage(ctx context.Context, meta appservice.RequestMeta, input appservice.FirstDirectTextMessageInput) (appservice.FirstDirectTextMessageResult, error) {
+func (b *Backend) SendFirstDirectTextMessage(ctx context.Context, meta appservice.RequestMeta, input appservice.FirstDirectTextMessageInput) (_ appservice.FirstDirectTextMessageResult, err error) {
+	defer settle(ctx, "SendFirstDirectTextMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.FirstDirectTextMessageResult
@@ -644,7 +710,8 @@ func (b *Backend) SendFirstDirectTextMessage(ctx context.Context, meta appservic
 }
 
 // SendFirstAgentTextMessage 在首次发送时创建独立 AI 聊天。
-func (b *Backend) SendFirstAgentTextMessage(ctx context.Context, meta appservice.RequestMeta, input appservice.FirstAgentTextMessageInput) (appservice.FirstAgentTextMessageResult, error) {
+func (b *Backend) SendFirstAgentTextMessage(ctx context.Context, meta appservice.RequestMeta, input appservice.FirstAgentTextMessageInput) (_ appservice.FirstAgentTextMessageResult, err error) {
+	defer settle(ctx, "SendFirstAgentTextMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.FirstAgentTextMessageResult
@@ -654,7 +721,8 @@ func (b *Backend) SendFirstAgentTextMessage(ctx context.Context, meta appservice
 }
 
 // SendAgentTextMessage 向已有 AI 会话发送文本消息。
-func (b *Backend) SendAgentTextMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.AgentTextMessageInput) (appservice.ConversationMessage, error) {
+func (b *Backend) SendAgentTextMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.AgentTextMessageInput) (_ appservice.ConversationMessage, err error) {
+	defer settle(ctx, "SendAgentTextMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessage
@@ -664,7 +732,8 @@ func (b *Backend) SendAgentTextMessage(ctx context.Context, meta appservice.Requ
 }
 
 // StopAgentReply 停止独立 AI 会话中指定的回复并返回实际运行状态。
-func (b *Backend) StopAgentReply(ctx context.Context, meta appservice.RequestMeta, conversationID string, runID string) (appservice.AgentRunStatus, error) {
+func (b *Backend) StopAgentReply(ctx context.Context, meta appservice.RequestMeta, conversationID string, runID string) (_ appservice.AgentRunStatus, err error) {
+	defer settle(ctx, "StopAgentReply", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentRunStatus
@@ -674,7 +743,8 @@ func (b *Backend) StopAgentReply(ctx context.Context, meta appservice.RequestMet
 }
 
 // FindDirectConversation 按目标身份查找当前成员的活跃单聊。
-func (b *Backend) FindDirectConversation(ctx context.Context, meta appservice.RequestMeta, targetIdentityID string) (appservice.DirectConversationLookup, error) {
+func (b *Backend) FindDirectConversation(ctx context.Context, meta appservice.RequestMeta, targetIdentityID string) (_ appservice.DirectConversationLookup, err error) {
+	defer settle(ctx, "FindDirectConversation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.DirectConversationLookup
@@ -684,7 +754,8 @@ func (b *Backend) FindDirectConversation(ctx context.Context, meta appservice.Re
 }
 
 // SendDirectTextMessage 发送内部单聊文本消息。
-func (b *Backend) SendDirectTextMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.DirectTextMessageInput) (appservice.ConversationMessage, error) {
+func (b *Backend) SendDirectTextMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.DirectTextMessageInput) (_ appservice.ConversationMessage, err error) {
+	defer settle(ctx, "SendDirectTextMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessage
@@ -694,7 +765,8 @@ func (b *Backend) SendDirectTextMessage(ctx context.Context, meta appservice.Req
 }
 
 // CreateGroupConversation 创建企业内部群聊。
-func (b *Backend) CreateGroupConversation(ctx context.Context, meta appservice.RequestMeta, input appservice.GroupConversationInput) (appservice.InboxConversation, error) {
+func (b *Backend) CreateGroupConversation(ctx context.Context, meta appservice.RequestMeta, input appservice.GroupConversationInput) (_ appservice.InboxConversation, err error) {
+	defer settle(ctx, "CreateGroupConversation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InboxConversation
@@ -704,7 +776,8 @@ func (b *Backend) CreateGroupConversation(ctx context.Context, meta appservice.R
 }
 
 // GetGroupConversation 返回当前成员可见的群聊资料。
-func (b *Backend) GetGroupConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.GroupConversation, error) {
+func (b *Backend) GetGroupConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.GroupConversation, err error) {
+	defer settle(ctx, "GetGroupConversation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.GroupConversation
@@ -714,7 +787,8 @@ func (b *Backend) GetGroupConversation(ctx context.Context, meta appservice.Requ
 }
 
 // UpdateGroupConversation 修改群聊资料。
-func (b *Backend) UpdateGroupConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupConversationProfileInput) (appservice.GroupConversation, error) {
+func (b *Backend) UpdateGroupConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupConversationProfileInput) (_ appservice.GroupConversation, err error) {
+	defer settle(ctx, "UpdateGroupConversation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.GroupConversation
@@ -724,7 +798,8 @@ func (b *Backend) UpdateGroupConversation(ctx context.Context, meta appservice.R
 }
 
 // AddGroupConversationMembers 批量增加群聊成员。
-func (b *Backend) AddGroupConversationMembers(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupConversationMembersInput) (appservice.GroupConversation, error) {
+func (b *Backend) AddGroupConversationMembers(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupConversationMembersInput) (_ appservice.GroupConversation, err error) {
+	defer settle(ctx, "AddGroupConversationMembers", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.GroupConversation
@@ -734,7 +809,8 @@ func (b *Backend) AddGroupConversationMembers(ctx context.Context, meta appservi
 }
 
 // RemoveGroupConversationMember 移除单个群聊成员。
-func (b *Backend) RemoveGroupConversationMember(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupConversationMemberInput) (appservice.GroupConversation, error) {
+func (b *Backend) RemoveGroupConversationMember(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupConversationMemberInput) (_ appservice.GroupConversation, err error) {
+	defer settle(ctx, "RemoveGroupConversationMember", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.GroupConversation
@@ -744,7 +820,8 @@ func (b *Backend) RemoveGroupConversationMember(ctx context.Context, meta appser
 }
 
 // TransferGroupConversationOwner 转让群主。
-func (b *Backend) TransferGroupConversationOwner(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupConversationOwnerInput) (appservice.GroupConversation, error) {
+func (b *Backend) TransferGroupConversationOwner(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupConversationOwnerInput) (_ appservice.GroupConversation, err error) {
+	defer settle(ctx, "TransferGroupConversationOwner", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.GroupConversation
@@ -754,7 +831,8 @@ func (b *Backend) TransferGroupConversationOwner(ctx context.Context, meta appse
 }
 
 // LeaveGroupConversation 退出普通成员参与的群聊。
-func (b *Backend) LeaveGroupConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string) error {
+func (b *Backend) LeaveGroupConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string) (err error) {
+	defer settle(ctx, "LeaveGroupConversation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -763,7 +841,8 @@ func (b *Backend) LeaveGroupConversation(ctx context.Context, meta appservice.Re
 }
 
 // DissolveGroupConversation 解散群聊并保留当前成员的只读历史。
-func (b *Backend) DissolveGroupConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string) (appservice.GroupConversation, error) {
+func (b *Backend) DissolveGroupConversation(ctx context.Context, meta appservice.RequestMeta, conversationID string) (_ appservice.GroupConversation, err error) {
+	defer settle(ctx, "DissolveGroupConversation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.GroupConversation
@@ -773,7 +852,8 @@ func (b *Backend) DissolveGroupConversation(ctx context.Context, meta appservice
 }
 
 // SendGroupTextMessage 发送企业内部群聊文本消息。
-func (b *Backend) SendGroupTextMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupTextMessageInput) (appservice.ConversationMessage, error) {
+func (b *Backend) SendGroupTextMessage(ctx context.Context, meta appservice.RequestMeta, conversationID string, input appservice.GroupTextMessageInput) (_ appservice.ConversationMessage, err error) {
+	defer settle(ctx, "SendGroupTextMessage", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ConversationMessage
@@ -783,7 +863,8 @@ func (b *Backend) SendGroupTextMessage(ctx context.Context, meta appservice.Requ
 }
 
 // StopGroupAgentReply 停止群聊中指定的 AI 员工回复并返回实际运行状态。
-func (b *Backend) StopGroupAgentReply(ctx context.Context, meta appservice.RequestMeta, conversationID string, runID string) (appservice.AgentRunStatus, error) {
+func (b *Backend) StopGroupAgentReply(ctx context.Context, meta appservice.RequestMeta, conversationID string, runID string) (_ appservice.AgentRunStatus, err error) {
+	defer settle(ctx, "StopGroupAgentReply", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentRunStatus
@@ -793,7 +874,8 @@ func (b *Backend) StopGroupAgentReply(ctx context.Context, meta appservice.Reque
 }
 
 // GetAgentRunProcess 返回一次已完成运行的有序过程内容和模型用量。
-func (b *Backend) GetAgentRunProcess(ctx context.Context, meta appservice.RequestMeta, runID string) (appservice.AgentRunProcess, error) {
+func (b *Backend) GetAgentRunProcess(ctx context.Context, meta appservice.RequestMeta, runID string) (_ appservice.AgentRunProcess, err error) {
+	defer settle(ctx, "GetAgentRunProcess", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentRunProcess
@@ -803,7 +885,8 @@ func (b *Backend) GetAgentRunProcess(ctx context.Context, meta appservice.Reques
 }
 
 // AuthorizeAgentRunStreamAccess 校验当前成员对运行所属会话的阅读资格，原生端读取本机执行中运行的过程流前调用。
-func (b *Backend) AuthorizeAgentRunStreamAccess(ctx context.Context, meta appservice.RequestMeta, runID string) error {
+func (b *Backend) AuthorizeAgentRunStreamAccess(ctx context.Context, meta appservice.RequestMeta, runID string) (err error) {
+	defer settle(ctx, "AuthorizeAgentRunStreamAccess", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -812,7 +895,8 @@ func (b *Backend) AuthorizeAgentRunStreamAccess(ctx context.Context, meta appser
 }
 
 // ListMessageChannels 返回消息渠道列表。
-func (b *Backend) ListMessageChannels(ctx context.Context, meta appservice.RequestMeta) (appservice.MessageChannelList, error) {
+func (b *Backend) ListMessageChannels(ctx context.Context, meta appservice.RequestMeta) (_ appservice.MessageChannelList, err error) {
+	defer settle(ctx, "ListMessageChannels", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MessageChannelList
@@ -822,7 +906,8 @@ func (b *Backend) ListMessageChannels(ctx context.Context, meta appservice.Reque
 }
 
 // GetWebsiteChannel 返回网站渠道详情。
-func (b *Backend) GetWebsiteChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.WebsiteChannel, error) {
+func (b *Backend) GetWebsiteChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (_ appservice.WebsiteChannel, err error) {
+	defer settle(ctx, "GetWebsiteChannel", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.WebsiteChannel
@@ -832,7 +917,8 @@ func (b *Backend) GetWebsiteChannel(ctx context.Context, meta appservice.Request
 }
 
 // GetTelegramChannel 返回 Telegram 渠道详情。
-func (b *Backend) GetTelegramChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.TelegramChannel, error) {
+func (b *Backend) GetTelegramChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (_ appservice.TelegramChannel, err error) {
+	defer settle(ctx, "GetTelegramChannel", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TelegramChannel
@@ -842,7 +928,8 @@ func (b *Backend) GetTelegramChannel(ctx context.Context, meta appservice.Reques
 }
 
 // TestTelegramChannelConnection 测试 Telegram 草稿 Token。
-func (b *Backend) TestTelegramChannelConnection(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.TelegramChannelConnectionTestInput) error {
+func (b *Backend) TestTelegramChannelConnection(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.TelegramChannelConnectionTestInput) (err error) {
+	defer settle(ctx, "TestTelegramChannelConnection", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -851,7 +938,8 @@ func (b *Backend) TestTelegramChannelConnection(ctx context.Context, meta appser
 }
 
 // SaveTelegramChannelConnection 保存 Telegram 机器人和 Webhook 设置。
-func (b *Backend) SaveTelegramChannelConnection(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.TelegramChannelConnectionInput) (appservice.TelegramChannel, error) {
+func (b *Backend) SaveTelegramChannelConnection(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.TelegramChannelConnectionInput) (_ appservice.TelegramChannel, err error) {
+	defer settle(ctx, "SaveTelegramChannelConnection", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TelegramChannel
@@ -861,7 +949,8 @@ func (b *Backend) SaveTelegramChannelConnection(ctx context.Context, meta appser
 }
 
 // RegenerateTelegramGatewaySecret 重新生成业务系统转发 Telegram 消息使用的转发密钥。
-func (b *Backend) RegenerateTelegramGatewaySecret(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.TelegramChannel, error) {
+func (b *Backend) RegenerateTelegramGatewaySecret(ctx context.Context, meta appservice.RequestMeta, channelID string) (_ appservice.TelegramChannel, err error) {
+	defer settle(ctx, "RegenerateTelegramGatewaySecret", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TelegramChannel
@@ -871,7 +960,8 @@ func (b *Backend) RegenerateTelegramGatewaySecret(ctx context.Context, meta apps
 }
 
 // GetMessageChannel 返回消息渠道基础信息。
-func (b *Backend) GetMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.MessageChannelSummary, error) {
+func (b *Backend) GetMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (_ appservice.MessageChannelSummary, err error) {
+	defer settle(ctx, "GetMessageChannel", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MessageChannelSummary
@@ -881,7 +971,8 @@ func (b *Backend) GetMessageChannel(ctx context.Context, meta appservice.Request
 }
 
 // CreateMessageChannel 创建消息渠道。
-func (b *Backend) CreateMessageChannel(ctx context.Context, meta appservice.RequestMeta, input appservice.CreateMessageChannelInput) (appservice.MessageChannelSummary, error) {
+func (b *Backend) CreateMessageChannel(ctx context.Context, meta appservice.RequestMeta, input appservice.CreateMessageChannelInput) (_ appservice.MessageChannelSummary, err error) {
+	defer settle(ctx, "CreateMessageChannel", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MessageChannelSummary
@@ -891,7 +982,8 @@ func (b *Backend) CreateMessageChannel(ctx context.Context, meta appservice.Requ
 }
 
 // UpdateMessageChannel 修改消息渠道基础信息。
-func (b *Backend) UpdateMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.MessageChannelBasicsInput) (appservice.MessageChannelSummary, error) {
+func (b *Backend) UpdateMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.MessageChannelBasicsInput) (_ appservice.MessageChannelSummary, err error) {
+	defer settle(ctx, "UpdateMessageChannel", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MessageChannelSummary
@@ -901,7 +993,8 @@ func (b *Backend) UpdateMessageChannel(ctx context.Context, meta appservice.Requ
 }
 
 // UpdateMessageChannelReception 修改消息渠道接待设置。
-func (b *Backend) UpdateMessageChannelReception(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.MessageChannelReceptionInput) (appservice.MessageChannelSummary, error) {
+func (b *Backend) UpdateMessageChannelReception(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.MessageChannelReceptionInput) (_ appservice.MessageChannelSummary, err error) {
+	defer settle(ctx, "UpdateMessageChannelReception", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MessageChannelSummary
@@ -911,7 +1004,8 @@ func (b *Backend) UpdateMessageChannelReception(ctx context.Context, meta appser
 }
 
 // UpdateWebsiteChannelChatInterface 修改网站渠道聊天窗口外观与对话功能。
-func (b *Backend) UpdateWebsiteChannelChatInterface(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.WebsiteChannelChatInterfaceInput) (appservice.WebsiteChannelChatInterface, error) {
+func (b *Backend) UpdateWebsiteChannelChatInterface(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.WebsiteChannelChatInterfaceInput) (_ appservice.WebsiteChannelChatInterface, err error) {
+	defer settle(ctx, "UpdateWebsiteChannelChatInterface", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.WebsiteChannelChatInterface
@@ -921,7 +1015,8 @@ func (b *Backend) UpdateWebsiteChannelChatInterface(ctx context.Context, meta ap
 }
 
 // UpdateWebsiteChannelAccess 修改网站渠道允许使用的网站。
-func (b *Backend) UpdateWebsiteChannelAccess(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.WebsiteChannelAccessInput) (appservice.WebsiteChannelAccess, error) {
+func (b *Backend) UpdateWebsiteChannelAccess(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.WebsiteChannelAccessInput) (_ appservice.WebsiteChannelAccess, err error) {
+	defer settle(ctx, "UpdateWebsiteChannelAccess", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.WebsiteChannelAccess
@@ -931,7 +1026,8 @@ func (b *Backend) UpdateWebsiteChannelAccess(ctx context.Context, meta appservic
 }
 
 // UpdateWebsiteChannelHome 修改网站渠道 Messenger 首页。
-func (b *Backend) UpdateWebsiteChannelHome(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.WebsiteChannelHomeInput) (appservice.WebsiteChannelHome, error) {
+func (b *Backend) UpdateWebsiteChannelHome(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.WebsiteChannelHomeInput) (_ appservice.WebsiteChannelHome, err error) {
+	defer settle(ctx, "UpdateWebsiteChannelHome", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.WebsiteChannelHome
@@ -941,7 +1037,8 @@ func (b *Backend) UpdateWebsiteChannelHome(ctx context.Context, meta appservice.
 }
 
 // UpdateWebsiteChannelHelpCenter 修改网站渠道帮助页签开关与发布的知识库。
-func (b *Backend) UpdateWebsiteChannelHelpCenter(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.WebsiteChannelHelpCenterInput) (appservice.WebsiteChannelHelpCenter, error) {
+func (b *Backend) UpdateWebsiteChannelHelpCenter(ctx context.Context, meta appservice.RequestMeta, channelID string, input appservice.WebsiteChannelHelpCenterInput) (_ appservice.WebsiteChannelHelpCenter, err error) {
+	defer settle(ctx, "UpdateWebsiteChannelHelpCenter", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.WebsiteChannelHelpCenter
@@ -951,7 +1048,8 @@ func (b *Backend) UpdateWebsiteChannelHelpCenter(ctx context.Context, meta appse
 }
 
 // DeactivateMessageChannel 停用消息渠道。
-func (b *Backend) DeactivateMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.MessageChannelSummary, error) {
+func (b *Backend) DeactivateMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (_ appservice.MessageChannelSummary, err error) {
+	defer settle(ctx, "DeactivateMessageChannel", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MessageChannelSummary
@@ -961,7 +1059,8 @@ func (b *Backend) DeactivateMessageChannel(ctx context.Context, meta appservice.
 }
 
 // ActivateMessageChannel 启用消息渠道。
-func (b *Backend) ActivateMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (appservice.MessageChannelSummary, error) {
+func (b *Backend) ActivateMessageChannel(ctx context.Context, meta appservice.RequestMeta, channelID string) (_ appservice.MessageChannelSummary, err error) {
+	defer settle(ctx, "ActivateMessageChannel", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MessageChannelSummary
@@ -971,7 +1070,8 @@ func (b *Backend) ActivateMessageChannel(ctx context.Context, meta appservice.Re
 }
 
 // ListChannelOptions 返回当前企业的渠道选择项。
-func (b *Backend) ListChannelOptions(ctx context.Context, meta appservice.RequestMeta) (appservice.ChannelOptionList, error) {
+func (b *Backend) ListChannelOptions(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ChannelOptionList, err error) {
+	defer settle(ctx, "ListChannelOptions", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ChannelOptionList
@@ -981,7 +1081,8 @@ func (b *Backend) ListChannelOptions(ctx context.Context, meta appservice.Reques
 }
 
 // ListMemberOptions 返回可分配的企业成员和 AI 员工。
-func (b *Backend) ListMemberOptions(ctx context.Context, meta appservice.RequestMeta, input appservice.MemberOptionListInput) (appservice.MemberOptionList, error) {
+func (b *Backend) ListMemberOptions(ctx context.Context, meta appservice.RequestMeta, input appservice.MemberOptionListInput) (_ appservice.MemberOptionList, err error) {
+	defer settle(ctx, "ListMemberOptions", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MemberOptionList
@@ -991,7 +1092,8 @@ func (b *Backend) ListMemberOptions(ctx context.Context, meta appservice.Request
 }
 
 // ListColleagues 返回通讯录同事目录，服务台排在成员之前。
-func (b *Backend) ListColleagues(ctx context.Context, meta appservice.RequestMeta, input appservice.ColleagueListInput) (appservice.ColleagueList, error) {
+func (b *Backend) ListColleagues(ctx context.Context, meta appservice.RequestMeta, input appservice.ColleagueListInput) (_ appservice.ColleagueList, err error) {
+	defer settle(ctx, "ListColleagues", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ColleagueList
@@ -1001,7 +1103,8 @@ func (b *Backend) ListColleagues(ctx context.Context, meta appservice.RequestMet
 }
 
 // ListAgentMCPServerOptions 返回当前企业可配置的 MCP 服务。
-func (b *Backend) ListAgentMCPServerOptions(ctx context.Context, meta appservice.RequestMeta) (appservice.AgentMCPServerOptionList, error) {
+func (b *Backend) ListAgentMCPServerOptions(ctx context.Context, meta appservice.RequestMeta) (_ appservice.AgentMCPServerOptionList, err error) {
+	defer settle(ctx, "ListAgentMCPServerOptions", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentMCPServerOptionList
@@ -1011,7 +1114,8 @@ func (b *Backend) ListAgentMCPServerOptions(ctx context.Context, meta appservice
 }
 
 // CreateAgent 创建企业 AI 员工。
-func (b *Backend) CreateAgent(ctx context.Context, meta appservice.RequestMeta, input appservice.CreateAgentInput) (appservice.Agent, error) {
+func (b *Backend) CreateAgent(ctx context.Context, meta appservice.RequestMeta, input appservice.CreateAgentInput) (_ appservice.Agent, err error) {
+	defer settle(ctx, "CreateAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Agent
@@ -1021,7 +1125,8 @@ func (b *Backend) CreateAgent(ctx context.Context, meta appservice.RequestMeta, 
 }
 
 // ListAgents 返回企业 AI 员工目录。
-func (b *Backend) ListAgents(ctx context.Context, meta appservice.RequestMeta, input appservice.AgentListInput) (appservice.AgentList, error) {
+func (b *Backend) ListAgents(ctx context.Context, meta appservice.RequestMeta, input appservice.AgentListInput) (_ appservice.AgentList, err error) {
+	defer settle(ctx, "ListAgents", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentList
@@ -1031,7 +1136,8 @@ func (b *Backend) ListAgents(ctx context.Context, meta appservice.RequestMeta, i
 }
 
 // GetAgent 返回企业 AI 员工详情。
-func (b *Backend) GetAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.Agent, error) {
+func (b *Backend) GetAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.Agent, err error) {
+	defer settle(ctx, "GetAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Agent
@@ -1041,7 +1147,8 @@ func (b *Backend) GetAgent(ctx context.Context, meta appservice.RequestMeta, age
 }
 
 // UpdateAgent 修改企业 AI 员工。
-func (b *Backend) UpdateAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.UpdateAgentInput) (appservice.Agent, error) {
+func (b *Backend) UpdateAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.UpdateAgentInput) (_ appservice.Agent, err error) {
+	defer settle(ctx, "UpdateAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Agent
@@ -1051,7 +1158,8 @@ func (b *Backend) UpdateAgent(ctx context.Context, meta appservice.RequestMeta, 
 }
 
 // UpdateAgentExecution 修改企业 AI 员工的执行配置。
-func (b *Backend) UpdateAgentExecution(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.UpdateAgentExecutionInput) (appservice.Agent, error) {
+func (b *Backend) UpdateAgentExecution(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.UpdateAgentExecutionInput) (_ appservice.Agent, err error) {
+	defer settle(ctx, "UpdateAgentExecution", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Agent
@@ -1061,7 +1169,8 @@ func (b *Backend) UpdateAgentExecution(ctx context.Context, meta appservice.Requ
 }
 
 // DeactivateAgent 禁用企业 AI 员工账号。
-func (b *Backend) DeactivateAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.Agent, error) {
+func (b *Backend) DeactivateAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.Agent, err error) {
+	defer settle(ctx, "DeactivateAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Agent
@@ -1071,7 +1180,8 @@ func (b *Backend) DeactivateAgent(ctx context.Context, meta appservice.RequestMe
 }
 
 // ReactivateAgent 恢复企业 AI 员工。
-func (b *Backend) ReactivateAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.Agent, error) {
+func (b *Backend) ReactivateAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.Agent, err error) {
+	defer settle(ctx, "ReactivateAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Agent
@@ -1081,7 +1191,8 @@ func (b *Backend) ReactivateAgent(ctx context.Context, meta appservice.RequestMe
 }
 
 // GetAgentEvaluation 返回 AI 员工评测页的最近两次运行与全部用例。
-func (b *Backend) GetAgentEvaluation(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.AgentEvaluation, error) {
+func (b *Backend) GetAgentEvaluation(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.AgentEvaluation, err error) {
+	defer settle(ctx, "GetAgentEvaluation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentEvaluation
@@ -1091,7 +1202,8 @@ func (b *Backend) GetAgentEvaluation(ctx context.Context, meta appservice.Reques
 }
 
 // StartAgentEvaluationRun 用 AI 员工当前生效的配置对全部用例发起一次评测运行。
-func (b *Backend) StartAgentEvaluationRun(ctx context.Context, meta appservice.RequestMeta, agentID string) error {
+func (b *Backend) StartAgentEvaluationRun(ctx context.Context, meta appservice.RequestMeta, agentID string) (err error) {
+	defer settle(ctx, "StartAgentEvaluationRun", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1100,7 +1212,8 @@ func (b *Backend) StartAgentEvaluationRun(ctx context.Context, meta appservice.R
 }
 
 // CreateAgentEvaluationCase 为 AI 员工新建手动评测用例。
-func (b *Backend) CreateAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.AgentEvaluationCaseInput) (appservice.AgentEvaluationCase, error) {
+func (b *Backend) CreateAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.AgentEvaluationCaseInput) (_ appservice.AgentEvaluationCase, err error) {
+	defer settle(ctx, "CreateAgentEvaluationCase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentEvaluationCase
@@ -1110,7 +1223,8 @@ func (b *Backend) CreateAgentEvaluationCase(ctx context.Context, meta appservice
 }
 
 // GetAgentEvaluationCase 返回评测用例与它在最近一次运行中的全部尝试。
-func (b *Backend) GetAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, caseID string) (appservice.AgentEvaluationCaseDetail, error) {
+func (b *Backend) GetAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, caseID string) (_ appservice.AgentEvaluationCaseDetail, err error) {
+	defer settle(ctx, "GetAgentEvaluationCase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentEvaluationCaseDetail
@@ -1120,7 +1234,8 @@ func (b *Backend) GetAgentEvaluationCase(ctx context.Context, meta appservice.Re
 }
 
 // UpdateAgentEvaluationCase 修改评测用例。
-func (b *Backend) UpdateAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, caseID string, input appservice.AgentEvaluationCaseInput) (appservice.AgentEvaluationCase, error) {
+func (b *Backend) UpdateAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, caseID string, input appservice.AgentEvaluationCaseInput) (_ appservice.AgentEvaluationCase, err error) {
+	defer settle(ctx, "UpdateAgentEvaluationCase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentEvaluationCase
@@ -1130,7 +1245,8 @@ func (b *Backend) UpdateAgentEvaluationCase(ctx context.Context, meta appservice
 }
 
 // DeleteAgentEvaluationCase 删除评测用例。
-func (b *Backend) DeleteAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, caseID string) error {
+func (b *Backend) DeleteAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, caseID string) (err error) {
+	defer settle(ctx, "DeleteAgentEvaluationCase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1139,7 +1255,8 @@ func (b *Backend) DeleteAgentEvaluationCase(ctx context.Context, meta appservice
 }
 
 // RerunAgentEvaluationCase 在最近一次运行中重新运行一条用例。
-func (b *Backend) RerunAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, caseID string) error {
+func (b *Backend) RerunAgentEvaluationCase(ctx context.Context, meta appservice.RequestMeta, agentID string, caseID string) (err error) {
+	defer settle(ctx, "RerunAgentEvaluationCase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1148,7 +1265,8 @@ func (b *Backend) RerunAgentEvaluationCase(ctx context.Context, meta appservice.
 }
 
 // ListPersonalAgents 返回当前成员负责的个人 AI 员工。
-func (b *Backend) ListPersonalAgents(ctx context.Context, meta appservice.RequestMeta) (appservice.PersonalAgentList, error) {
+func (b *Backend) ListPersonalAgents(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PersonalAgentList, err error) {
+	defer settle(ctx, "ListPersonalAgents", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgentList
@@ -1158,7 +1276,8 @@ func (b *Backend) ListPersonalAgents(ctx context.Context, meta appservice.Reques
 }
 
 // ListMemberPersonalAgents 返回指定成员负责的个人 AI 员工。
-func (b *Backend) ListMemberPersonalAgents(ctx context.Context, meta appservice.RequestMeta, userID string) (appservice.PersonalAgentList, error) {
+func (b *Backend) ListMemberPersonalAgents(ctx context.Context, meta appservice.RequestMeta, userID string) (_ appservice.PersonalAgentList, err error) {
+	defer settle(ctx, "ListMemberPersonalAgents", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgentList
@@ -1168,7 +1287,8 @@ func (b *Backend) ListMemberPersonalAgents(ctx context.Context, meta appservice.
 }
 
 // GetPersonalAgent 返回当前成员负责的个人 AI 员工详情。
-func (b *Backend) GetPersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgentDetail, error) {
+func (b *Backend) GetPersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.PersonalAgentDetail, err error) {
+	defer settle(ctx, "GetPersonalAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgentDetail
@@ -1178,7 +1298,8 @@ func (b *Backend) GetPersonalAgent(ctx context.Context, meta appservice.RequestM
 }
 
 // CreatePersonalAgent 在当前成员的电脑上创建个人 AI 员工。
-func (b *Backend) CreatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, input appservice.CreatePersonalAgentInput) (appservice.PersonalAgent, error) {
+func (b *Backend) CreatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, input appservice.CreatePersonalAgentInput) (_ appservice.PersonalAgent, err error) {
+	defer settle(ctx, "CreatePersonalAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgent
@@ -1188,7 +1309,8 @@ func (b *Backend) CreatePersonalAgent(ctx context.Context, meta appservice.Reque
 }
 
 // UpdatePersonalAgent 修改当前成员负责的个人 AI 员工。
-func (b *Backend) UpdatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentInput) (appservice.PersonalAgent, error) {
+func (b *Backend) UpdatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentInput) (_ appservice.PersonalAgent, err error) {
+	defer settle(ctx, "UpdatePersonalAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgent
@@ -1198,7 +1320,8 @@ func (b *Backend) UpdatePersonalAgent(ctx context.Context, meta appservice.Reque
 }
 
 // PausePersonalAgent 暂停当前成员负责的个人 AI 员工。
-func (b *Backend) PausePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
+func (b *Backend) PausePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.PersonalAgent, err error) {
+	defer settle(ctx, "PausePersonalAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgent
@@ -1208,7 +1331,8 @@ func (b *Backend) PausePersonalAgent(ctx context.Context, meta appservice.Reques
 }
 
 // ResumePersonalAgent 恢复当前成员负责的已暂停个人 AI 员工。
-func (b *Backend) ResumePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
+func (b *Backend) ResumePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.PersonalAgent, err error) {
+	defer settle(ctx, "ResumePersonalAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgent
@@ -1218,7 +1342,8 @@ func (b *Backend) ResumePersonalAgent(ctx context.Context, meta appservice.Reque
 }
 
 // MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentDeviceInput) (appservice.PersonalAgent, error) {
+func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentDeviceInput) (_ appservice.PersonalAgent, err error) {
+	defer settle(ctx, "MovePersonalAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgent
@@ -1228,7 +1353,8 @@ func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.Request
 }
 
 // DeactivatePersonalAgent 停用个人 AI 员工。
-func (b *Backend) DeactivatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
+func (b *Backend) DeactivatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.PersonalAgent, err error) {
+	defer settle(ctx, "DeactivatePersonalAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgent
@@ -1238,7 +1364,8 @@ func (b *Backend) DeactivatePersonalAgent(ctx context.Context, meta appservice.R
 }
 
 // ReactivatePersonalAgent 启用已停用的个人 AI 员工。
-func (b *Backend) ReactivatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.PersonalAgent, error) {
+func (b *Backend) ReactivatePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.PersonalAgent, err error) {
+	defer settle(ctx, "ReactivatePersonalAgent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgent
@@ -1248,7 +1375,8 @@ func (b *Backend) ReactivatePersonalAgent(ctx context.Context, meta appservice.R
 }
 
 // ListAgentMemories 返回当前成员负责的个人 AI 员工的记忆，按最近更新排列。
-func (b *Backend) ListAgentMemories(ctx context.Context, meta appservice.RequestMeta, agentID string) (appservice.AgentMemoryList, error) {
+func (b *Backend) ListAgentMemories(ctx context.Context, meta appservice.RequestMeta, agentID string) (_ appservice.AgentMemoryList, err error) {
+	defer settle(ctx, "ListAgentMemories", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentMemoryList
@@ -1258,7 +1386,8 @@ func (b *Backend) ListAgentMemories(ctx context.Context, meta appservice.Request
 }
 
 // UpdateAgentMemory 修改当前成员负责的个人 AI 员工的一条记忆。
-func (b *Backend) UpdateAgentMemory(ctx context.Context, meta appservice.RequestMeta, agentID string, memoryID string, input appservice.AgentMemoryInput) (appservice.AgentMemory, error) {
+func (b *Backend) UpdateAgentMemory(ctx context.Context, meta appservice.RequestMeta, agentID string, memoryID string, input appservice.AgentMemoryInput) (_ appservice.AgentMemory, err error) {
+	defer settle(ctx, "UpdateAgentMemory", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentMemory
@@ -1268,7 +1397,8 @@ func (b *Backend) UpdateAgentMemory(ctx context.Context, meta appservice.Request
 }
 
 // DeleteAgentMemory 删除当前成员负责的个人 AI 员工的一条记忆。
-func (b *Backend) DeleteAgentMemory(ctx context.Context, meta appservice.RequestMeta, agentID string, memoryID string) error {
+func (b *Backend) DeleteAgentMemory(ctx context.Context, meta appservice.RequestMeta, agentID string, memoryID string) (err error) {
+	defer settle(ctx, "DeleteAgentMemory", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1277,7 +1407,8 @@ func (b *Backend) DeleteAgentMemory(ctx context.Context, meta appservice.Request
 }
 
 // ListUsers 返回企业成员列表。
-func (b *Backend) ListUsers(ctx context.Context, meta appservice.RequestMeta, input appservice.UserListInput) (appservice.UserList, error) {
+func (b *Backend) ListUsers(ctx context.Context, meta appservice.RequestMeta, input appservice.UserListInput) (_ appservice.UserList, err error) {
+	defer settle(ctx, "ListUsers", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.UserList
@@ -1287,7 +1418,8 @@ func (b *Backend) ListUsers(ctx context.Context, meta appservice.RequestMeta, in
 }
 
 // GetUser 返回企业成员详情。
-func (b *Backend) GetUser(ctx context.Context, meta appservice.RequestMeta, userID string) (appservice.User, error) {
+func (b *Backend) GetUser(ctx context.Context, meta appservice.RequestMeta, userID string) (_ appservice.User, err error) {
+	defer settle(ctx, "GetUser", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.User
@@ -1297,7 +1429,8 @@ func (b *Backend) GetUser(ctx context.Context, meta appservice.RequestMeta, user
 }
 
 // ListInvitations 返回当前工作区待接受的成员邀请。
-func (b *Backend) ListInvitations(ctx context.Context, meta appservice.RequestMeta) (appservice.InvitationList, error) {
+func (b *Backend) ListInvitations(ctx context.Context, meta appservice.RequestMeta) (_ appservice.InvitationList, err error) {
+	defer settle(ctx, "ListInvitations", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InvitationList
@@ -1307,7 +1440,8 @@ func (b *Backend) ListInvitations(ctx context.Context, meta appservice.RequestMe
 }
 
 // CreateInvitation 邀请账号加入当前工作区，返回只展示一次的邀请链接。
-func (b *Backend) CreateInvitation(ctx context.Context, meta appservice.RequestMeta, input appservice.InvitationInput) (appservice.InvitationCreated, error) {
+func (b *Backend) CreateInvitation(ctx context.Context, meta appservice.RequestMeta, input appservice.InvitationInput) (_ appservice.InvitationCreated, err error) {
+	defer settle(ctx, "CreateInvitation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InvitationCreated
@@ -1317,7 +1451,8 @@ func (b *Backend) CreateInvitation(ctx context.Context, meta appservice.RequestM
 }
 
 // RegenerateInvitation 撤销原邀请并以相同内容重新生成邀请链接。
-func (b *Backend) RegenerateInvitation(ctx context.Context, meta appservice.RequestMeta, invitationID string) (appservice.InvitationCreated, error) {
+func (b *Backend) RegenerateInvitation(ctx context.Context, meta appservice.RequestMeta, invitationID string) (_ appservice.InvitationCreated, err error) {
+	defer settle(ctx, "RegenerateInvitation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.InvitationCreated
@@ -1327,7 +1462,8 @@ func (b *Backend) RegenerateInvitation(ctx context.Context, meta appservice.Requ
 }
 
 // RevokeInvitation 撤销待接受的邀请。
-func (b *Backend) RevokeInvitation(ctx context.Context, meta appservice.RequestMeta, invitationID string) error {
+func (b *Backend) RevokeInvitation(ctx context.Context, meta appservice.RequestMeta, invitationID string) (err error) {
+	defer settle(ctx, "RevokeInvitation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1336,12 +1472,14 @@ func (b *Backend) RevokeInvitation(ctx context.Context, meta appservice.RequestM
 }
 
 // PreviewInvitation 按邀请令牌返回工作区名称、邀请人和掩码后的受邀邮箱。
-func (b *Backend) PreviewInvitation(ctx context.Context, meta appservice.RequestMeta, input appservice.InvitationTokenInput) (appservice.InvitationPreview, error) {
+func (b *Backend) PreviewInvitation(ctx context.Context, meta appservice.RequestMeta, input appservice.InvitationTokenInput) (_ appservice.InvitationPreview, err error) {
+	defer settle(ctx, "PreviewInvitation", &err, internalError(meta))
 	return b.ops.PreviewInvitation(ctx, meta, input)
 }
 
 // AcceptInvitation 由当前账号接受邀请并加入工作区。
-func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestMeta, input appservice.InvitationTokenInput) (appservice.Workspace, error) {
+func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestMeta, input appservice.InvitationTokenInput) (_ appservice.Workspace, err error) {
+	defer settle(ctx, "AcceptInvitation", &err, internalError(meta))
 	account, err := b.ops.authenticateAccount(ctx, meta)
 	if err != nil {
 		var zero appservice.Workspace
@@ -1351,7 +1489,8 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 }
 
 // GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
-func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformOverview, error) {
+func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformOverview, err error) {
+	defer settle(ctx, "GetPlatformOverview", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformOverview
@@ -1360,8 +1499,9 @@ func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.Reque
 	return b.ops.GetPlatformOverview(ctx, meta, account)
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
-func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformSettings, error) {
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标与错误上报开关。
+func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformSettings, err error) {
+	defer settle(ctx, "GetPlatformSettings", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformSettings
@@ -1371,7 +1511,8 @@ func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.Reque
 }
 
 // UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
-func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformPoliciesInput) (appservice.PlatformSettings, error) {
+func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformPoliciesInput) (_ appservice.PlatformSettings, err error) {
+	defer settle(ctx, "UpdatePlatformSettings", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformSettings
@@ -1381,7 +1522,8 @@ func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.Re
 }
 
 // UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStatisticsTimeZoneInput) (appservice.PlatformSettings, error) {
+func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStatisticsTimeZoneInput) (_ appservice.PlatformSettings, err error) {
+	defer settle(ctx, "UpdatePlatformStatisticsTimeZone", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformSettings
@@ -1390,8 +1532,9 @@ func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta app
 	return b.ops.UpdatePlatformStatisticsTimeZone(ctx, meta, account, input)
 }
 
-// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
-func (b *Backend) UpdatePlatformTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTelemetryInput) (appservice.PlatformSettings, error) {
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
+func (b *Backend) UpdatePlatformTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTelemetryInput) (_ appservice.PlatformSettings, err error) {
+	defer settle(ctx, "UpdatePlatformTelemetry", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformSettings
@@ -1401,7 +1544,8 @@ func (b *Backend) UpdatePlatformTelemetry(ctx context.Context, meta appservice.R
 }
 
 // ListPlatformAccounts 返回平台内的账号。
-func (b *Backend) ListPlatformAccounts(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAccountListInput) (appservice.PlatformAccountList, error) {
+func (b *Backend) ListPlatformAccounts(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAccountListInput) (_ appservice.PlatformAccountList, err error) {
+	defer settle(ctx, "ListPlatformAccounts", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAccountList
@@ -1411,7 +1555,8 @@ func (b *Backend) ListPlatformAccounts(ctx context.Context, meta appservice.Requ
 }
 
 // DeactivatePlatformAccount 停用其他账号并使其登录会话失效。
-func (b *Backend) DeactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
+func (b *Backend) DeactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (_ appservice.PlatformAccount, err error) {
+	defer settle(ctx, "DeactivatePlatformAccount", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAccount
@@ -1421,7 +1566,8 @@ func (b *Backend) DeactivatePlatformAccount(ctx context.Context, meta appservice
 }
 
 // ReactivatePlatformAccount 恢复已停用的其他账号。
-func (b *Backend) ReactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
+func (b *Backend) ReactivatePlatformAccount(ctx context.Context, meta appservice.RequestMeta, accountID string) (_ appservice.PlatformAccount, err error) {
+	defer settle(ctx, "ReactivatePlatformAccount", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAccount
@@ -1431,7 +1577,8 @@ func (b *Backend) ReactivatePlatformAccount(ctx context.Context, meta appservice
 }
 
 // GrantPlatformAdmin 把其他账号设为平台管理员。
-func (b *Backend) GrantPlatformAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
+func (b *Backend) GrantPlatformAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (_ appservice.PlatformAccount, err error) {
+	defer settle(ctx, "GrantPlatformAdmin", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAccount
@@ -1441,7 +1588,8 @@ func (b *Backend) GrantPlatformAdmin(ctx context.Context, meta appservice.Reques
 }
 
 // RevokePlatformAdmin 撤销其他账号的平台管理员身份。
-func (b *Backend) RevokePlatformAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (appservice.PlatformAccount, error) {
+func (b *Backend) RevokePlatformAdmin(ctx context.Context, meta appservice.RequestMeta, accountID string) (_ appservice.PlatformAccount, err error) {
+	defer settle(ctx, "RevokePlatformAdmin", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAccount
@@ -1451,7 +1599,8 @@ func (b *Backend) RevokePlatformAdmin(ctx context.Context, meta appservice.Reque
 }
 
 // ListPlatformWorkspaces 返回平台内的全部工作区及其状态和当前规模。
-func (b *Backend) ListPlatformWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceListInput) (appservice.PlatformWorkspaceList, error) {
+func (b *Backend) ListPlatformWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceListInput) (_ appservice.PlatformWorkspaceList, err error) {
+	defer settle(ctx, "ListPlatformWorkspaces", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformWorkspaceList
@@ -1461,7 +1610,8 @@ func (b *Backend) ListPlatformWorkspaces(ctx context.Context, meta appservice.Re
 }
 
 // GetLicense 返回服务器标识与授权状态。
-func (b *Backend) GetLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.License, error) {
+func (b *Backend) GetLicense(ctx context.Context, meta appservice.RequestMeta) (_ appservice.License, err error) {
+	defer settle(ctx, "GetLicense", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.License
@@ -1471,7 +1621,8 @@ func (b *Backend) GetLicense(ctx context.Context, meta appservice.RequestMeta) (
 }
 
 // ActivateLicense 用 control 签发的授权码离线激活或替换授权。
-func (b *Backend) ActivateLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateLicenseInput) (appservice.License, error) {
+func (b *Backend) ActivateLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateLicenseInput) (_ appservice.License, err error) {
+	defer settle(ctx, "ActivateLicense", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.License
@@ -1481,7 +1632,8 @@ func (b *Backend) ActivateLicense(ctx context.Context, meta appservice.RequestMe
 }
 
 // ActivateLicenseOnline 用激活码经 control 在线激活授权。
-func (b *Backend) ActivateLicenseOnline(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateLicenseOnlineInput) (appservice.License, error) {
+func (b *Backend) ActivateLicenseOnline(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateLicenseOnlineInput) (_ appservice.License, err error) {
+	defer settle(ctx, "ActivateLicenseOnline", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.License
@@ -1491,7 +1643,8 @@ func (b *Backend) ActivateLicenseOnline(ctx context.Context, meta appservice.Req
 }
 
 // SyncLicense 立即向 control 登记服务器并拉取最新授权。
-func (b *Backend) SyncLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.License, error) {
+func (b *Backend) SyncLicense(ctx context.Context, meta appservice.RequestMeta) (_ appservice.License, err error) {
+	defer settle(ctx, "SyncLicense", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.License
@@ -1501,7 +1654,8 @@ func (b *Backend) SyncLicense(ctx context.Context, meta appservice.RequestMeta) 
 }
 
 // SuspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
-func (b *Backend) SuspendPlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.PlatformWorkspace, error) {
+func (b *Backend) SuspendPlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (_ appservice.PlatformWorkspace, err error) {
+	defer settle(ctx, "SuspendPlatformWorkspace", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformWorkspace
@@ -1511,7 +1665,8 @@ func (b *Backend) SuspendPlatformWorkspace(ctx context.Context, meta appservice.
 }
 
 // ResumePlatformWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
-func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.PlatformWorkspace, error) {
+func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (_ appservice.PlatformWorkspace, err error) {
+	defer settle(ctx, "ResumePlatformWorkspace", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformWorkspace
@@ -1521,7 +1676,8 @@ func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.R
 }
 
 // GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
-func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
+func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformUsageInput) (_ appservice.PlatformUsageMetrics, err error) {
+	defer settle(ctx, "GetPlatformUsage", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformUsageMetrics
@@ -1531,7 +1687,8 @@ func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestM
 }
 
 // ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
-func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceUsageListInput) (appservice.PlatformWorkspaceUsageList, error) {
+func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceUsageListInput) (_ appservice.PlatformWorkspaceUsageList, err error) {
+	defer settle(ctx, "ListPlatformWorkspaceUsage", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformWorkspaceUsageList
@@ -1541,7 +1698,8 @@ func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservic
 }
 
 // GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
-func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformRuntimeStatus, error) {
+func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformRuntimeStatus, err error) {
+	defer settle(ctx, "GetPlatformRuntimeStatus", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformRuntimeStatus
@@ -1551,7 +1709,8 @@ func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.
 }
 
 // ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
-func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformFailedTaskListInput) (appservice.PlatformFailedTaskList, error) {
+func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformFailedTaskListInput) (_ appservice.PlatformFailedTaskList, err error) {
+	defer settle(ctx, "ListPlatformFailedTasks", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformFailedTaskList
@@ -1561,7 +1720,8 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 }
 
 // ListPlatformAIProviders 返回平台供应商。
-func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIProviderList, error) {
+func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformAIProviderList, err error) {
+	defer settle(ctx, "ListPlatformAIProviders", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIProviderList
@@ -1571,7 +1731,8 @@ func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.R
 }
 
 // GetPlatformAIProvider 返回平台供应商详情。
-func (b *Backend) GetPlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) (appservice.PlatformAIProvider, error) {
+func (b *Backend) GetPlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) (_ appservice.PlatformAIProvider, err error) {
+	defer settle(ctx, "GetPlatformAIProvider", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIProvider
@@ -1581,7 +1742,8 @@ func (b *Backend) GetPlatformAIProvider(ctx context.Context, meta appservice.Req
 }
 
 // ListPlatformAIProviderModels 返回平台供应商可提供的模型。
-func (b *Backend) ListPlatformAIProviderModels(ctx context.Context, meta appservice.RequestMeta, providerID string) (appservice.AIProviderModelList, error) {
+func (b *Backend) ListPlatformAIProviderModels(ctx context.Context, meta appservice.RequestMeta, providerID string) (_ appservice.AIProviderModelList, err error) {
+	defer settle(ctx, "ListPlatformAIProviderModels", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.AIProviderModelList
@@ -1591,7 +1753,8 @@ func (b *Backend) ListPlatformAIProviderModels(ctx context.Context, meta appserv
 }
 
 // CreatePlatformAIProvider 创建平台供应商。
-func (b *Backend) CreatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIProviderInput) (appservice.PlatformAIProvider, error) {
+func (b *Backend) CreatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIProviderInput) (_ appservice.PlatformAIProvider, err error) {
+	defer settle(ctx, "CreatePlatformAIProvider", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIProvider
@@ -1601,7 +1764,8 @@ func (b *Backend) CreatePlatformAIProvider(ctx context.Context, meta appservice.
 }
 
 // UpdatePlatformAIProvider 修改平台供应商。
-func (b *Backend) UpdatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string, input appservice.PlatformAIProviderUpdateInput) (appservice.PlatformAIProvider, error) {
+func (b *Backend) UpdatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string, input appservice.PlatformAIProviderUpdateInput) (_ appservice.PlatformAIProvider, err error) {
+	defer settle(ctx, "UpdatePlatformAIProvider", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIProvider
@@ -1611,7 +1775,8 @@ func (b *Backend) UpdatePlatformAIProvider(ctx context.Context, meta appservice.
 }
 
 // DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
-func (b *Backend) DeletePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) error {
+func (b *Backend) DeletePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) (err error) {
+	defer settle(ctx, "DeletePlatformAIProvider", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		return err
@@ -1620,7 +1785,8 @@ func (b *Backend) DeletePlatformAIProvider(ctx context.Context, meta appservice.
 }
 
 // ListPlatformAIModels 返回平台模型目录。
-func (b *Backend) ListPlatformAIModels(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIModelList, error) {
+func (b *Backend) ListPlatformAIModels(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformAIModelList, err error) {
+	defer settle(ctx, "ListPlatformAIModels", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIModelList
@@ -1630,7 +1796,8 @@ func (b *Backend) ListPlatformAIModels(ctx context.Context, meta appservice.Requ
 }
 
 // GetPlatformAIModel 返回平台模型详情。
-func (b *Backend) GetPlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) (appservice.PlatformAIModel, error) {
+func (b *Backend) GetPlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) (_ appservice.PlatformAIModel, err error) {
+	defer settle(ctx, "GetPlatformAIModel", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIModel
@@ -1640,7 +1807,8 @@ func (b *Backend) GetPlatformAIModel(ctx context.Context, meta appservice.Reques
 }
 
 // CreatePlatformAIModel 创建对全部工作区可用的平台模型。
-func (b *Backend) CreatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
+func (b *Backend) CreatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelInput) (_ appservice.PlatformAIModel, err error) {
+	defer settle(ctx, "CreatePlatformAIModel", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIModel
@@ -1650,7 +1818,8 @@ func (b *Backend) CreatePlatformAIModel(ctx context.Context, meta appservice.Req
 }
 
 // UpdatePlatformAIModel 修改平台模型的属性与来源。
-func (b *Backend) UpdatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
+func (b *Backend) UpdatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string, input appservice.PlatformAIModelInput) (_ appservice.PlatformAIModel, err error) {
+	defer settle(ctx, "UpdatePlatformAIModel", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIModel
@@ -1660,7 +1829,8 @@ func (b *Backend) UpdatePlatformAIModel(ctx context.Context, meta appservice.Req
 }
 
 // DeletePlatformAIModel 删除没有被工作区引用的平台模型。
-func (b *Backend) DeletePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) error {
+func (b *Backend) DeletePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) (err error) {
+	defer settle(ctx, "DeletePlatformAIModel", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		return err
@@ -1669,7 +1839,8 @@ func (b *Backend) DeletePlatformAIModel(ctx context.Context, meta appservice.Req
 }
 
 // ListPlatformAIModelCalls 返回平台模型调用记录。
-func (b *Backend) ListPlatformAIModelCalls(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelCallListInput) (appservice.PlatformAIModelCallList, error) {
+func (b *Backend) ListPlatformAIModelCalls(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelCallListInput) (_ appservice.PlatformAIModelCallList, err error) {
+	defer settle(ctx, "ListPlatformAIModelCalls", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIModelCallList
@@ -1679,7 +1850,8 @@ func (b *Backend) ListPlatformAIModelCalls(ctx context.Context, meta appservice.
 }
 
 // GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
-func (b *Backend) GetPlatformAIModelCall(ctx context.Context, meta appservice.RequestMeta, callID string) (appservice.PlatformAIModelCallDetail, error) {
+func (b *Backend) GetPlatformAIModelCall(ctx context.Context, meta appservice.RequestMeta, callID string) (_ appservice.PlatformAIModelCallDetail, err error) {
+	defer settle(ctx, "GetPlatformAIModelCall", &err, internalError(meta))
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
 		var zero appservice.PlatformAIModelCallDetail
@@ -1689,7 +1861,8 @@ func (b *Backend) GetPlatformAIModelCall(ctx context.Context, meta appservice.Re
 }
 
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。
-func (b *Backend) UpdateUser(ctx context.Context, meta appservice.RequestMeta, userID string, input appservice.UpdateUserInput) (appservice.User, error) {
+func (b *Backend) UpdateUser(ctx context.Context, meta appservice.RequestMeta, userID string, input appservice.UpdateUserInput) (_ appservice.User, err error) {
+	defer settle(ctx, "UpdateUser", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.User
@@ -1699,7 +1872,8 @@ func (b *Backend) UpdateUser(ctx context.Context, meta appservice.RequestMeta, u
 }
 
 // UpdateRoleAssignments 在一个事务中批量调整成员角色。
-func (b *Backend) UpdateRoleAssignments(ctx context.Context, meta appservice.RequestMeta, input appservice.RoleAssignmentsInput) error {
+func (b *Backend) UpdateRoleAssignments(ctx context.Context, meta appservice.RequestMeta, input appservice.RoleAssignmentsInput) (err error) {
+	defer settle(ctx, "UpdateRoleAssignments", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1708,7 +1882,8 @@ func (b *Backend) UpdateRoleAssignments(ctx context.Context, meta appservice.Req
 }
 
 // DeactivateUser 禁用企业成员账号。
-func (b *Backend) DeactivateUser(ctx context.Context, meta appservice.RequestMeta, userID string) (appservice.User, error) {
+func (b *Backend) DeactivateUser(ctx context.Context, meta appservice.RequestMeta, userID string) (_ appservice.User, err error) {
+	defer settle(ctx, "DeactivateUser", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.User
@@ -1718,7 +1893,8 @@ func (b *Backend) DeactivateUser(ctx context.Context, meta appservice.RequestMet
 }
 
 // ReactivateUser 恢复企业成员账号。
-func (b *Backend) ReactivateUser(ctx context.Context, meta appservice.RequestMeta, userID string) (appservice.User, error) {
+func (b *Backend) ReactivateUser(ctx context.Context, meta appservice.RequestMeta, userID string) (_ appservice.User, err error) {
+	defer settle(ctx, "ReactivateUser", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.User
@@ -1728,7 +1904,8 @@ func (b *Backend) ReactivateUser(ctx context.Context, meta appservice.RequestMet
 }
 
 // ListTeams 返回企业团队列表。
-func (b *Backend) ListTeams(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamListInput) (appservice.TeamList, error) {
+func (b *Backend) ListTeams(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamListInput) (_ appservice.TeamList, err error) {
+	defer settle(ctx, "ListTeams", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TeamList
@@ -1738,7 +1915,8 @@ func (b *Backend) ListTeams(ctx context.Context, meta appservice.RequestMeta, in
 }
 
 // GetTeam 返回团队详情。
-func (b *Backend) GetTeam(ctx context.Context, meta appservice.RequestMeta, teamID string) (appservice.Team, error) {
+func (b *Backend) GetTeam(ctx context.Context, meta appservice.RequestMeta, teamID string) (_ appservice.Team, err error) {
+	defer settle(ctx, "GetTeam", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Team
@@ -1748,7 +1926,8 @@ func (b *Backend) GetTeam(ctx context.Context, meta appservice.RequestMeta, team
 }
 
 // CreateTeam 创建企业团队。
-func (b *Backend) CreateTeam(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamInput) (appservice.Team, error) {
+func (b *Backend) CreateTeam(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamInput) (_ appservice.Team, err error) {
+	defer settle(ctx, "CreateTeam", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Team
@@ -1758,7 +1937,8 @@ func (b *Backend) CreateTeam(ctx context.Context, meta appservice.RequestMeta, i
 }
 
 // UpdateTeam 修改企业团队。
-func (b *Backend) UpdateTeam(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamInput) (appservice.Team, error) {
+func (b *Backend) UpdateTeam(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamInput) (_ appservice.Team, err error) {
+	defer settle(ctx, "UpdateTeam", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Team
@@ -1768,7 +1948,8 @@ func (b *Backend) UpdateTeam(ctx context.Context, meta appservice.RequestMeta, t
 }
 
 // DeleteTeam 删除企业团队及其成员关系。
-func (b *Backend) DeleteTeam(ctx context.Context, meta appservice.RequestMeta, teamID string) error {
+func (b *Backend) DeleteTeam(ctx context.Context, meta appservice.RequestMeta, teamID string) (err error) {
+	defer settle(ctx, "DeleteTeam", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1777,7 +1958,8 @@ func (b *Backend) DeleteTeam(ctx context.Context, meta appservice.RequestMeta, t
 }
 
 // ListTeamMembers 返回团队成员列表。
-func (b *Backend) ListTeamMembers(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamMemberListInput) (appservice.TeamMemberList, error) {
+func (b *Backend) ListTeamMembers(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamMemberListInput) (_ appservice.TeamMemberList, err error) {
+	defer settle(ctx, "ListTeamMembers", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TeamMemberList
@@ -1787,7 +1969,8 @@ func (b *Backend) ListTeamMembers(ctx context.Context, meta appservice.RequestMe
 }
 
 // ListTeamMemberCandidates 返回尚未加入团队的企业身份。
-func (b *Backend) ListTeamMemberCandidates(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamMemberCandidateInput) (appservice.TeamMemberCandidateList, error) {
+func (b *Backend) ListTeamMemberCandidates(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamMemberCandidateInput) (_ appservice.TeamMemberCandidateList, err error) {
+	defer settle(ctx, "ListTeamMemberCandidates", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TeamMemberCandidateList
@@ -1797,7 +1980,8 @@ func (b *Backend) ListTeamMemberCandidates(ctx context.Context, meta appservice.
 }
 
 // AddTeamMembers 将企业身份批量加入团队。
-func (b *Backend) AddTeamMembers(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamMemberInput) (appservice.Team, error) {
+func (b *Backend) AddTeamMembers(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamMemberInput) (_ appservice.Team, err error) {
+	defer settle(ctx, "AddTeamMembers", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Team
@@ -1807,7 +1991,8 @@ func (b *Backend) AddTeamMembers(ctx context.Context, meta appservice.RequestMet
 }
 
 // RemoveTeamMembers 将企业身份批量移出团队。
-func (b *Backend) RemoveTeamMembers(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamMemberInput) (appservice.Team, error) {
+func (b *Backend) RemoveTeamMembers(ctx context.Context, meta appservice.RequestMeta, teamID string, input appservice.TeamMemberInput) (_ appservice.Team, err error) {
+	defer settle(ctx, "RemoveTeamMembers", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Team
@@ -1817,7 +2002,8 @@ func (b *Backend) RemoveTeamMembers(ctx context.Context, meta appservice.Request
 }
 
 // RetryKnowledgeDocument 按当前配置重新处理文档。
-func (b *Backend) RetryKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) error {
+func (b *Backend) RetryKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) (err error) {
+	defer settle(ctx, "RetryKnowledgeDocument", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1826,7 +2012,8 @@ func (b *Backend) RetryKnowledgeDocument(ctx context.Context, meta appservice.Re
 }
 
 // ListKnowledgeDocumentSegments 返回固定批次的分段页或锚点所在页。
-func (b *Backend) ListKnowledgeDocumentSegments(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string, input appservice.KnowledgeDocumentSegmentInput) (appservice.KnowledgeDocumentSegmentPage, error) {
+func (b *Backend) ListKnowledgeDocumentSegments(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string, input appservice.KnowledgeDocumentSegmentInput) (_ appservice.KnowledgeDocumentSegmentPage, err error) {
+	defer settle(ctx, "ListKnowledgeDocumentSegments", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocumentSegmentPage
@@ -1836,7 +2023,8 @@ func (b *Backend) ListKnowledgeDocumentSegments(ctx context.Context, meta appser
 }
 
 // RetrieveKnowledgeBase 在指定知识库中执行检索测试，返回混合召回与重排后的分段。
-func (b *Backend) RetrieveKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeRetrievalInput) (appservice.KnowledgeRetrievalResult, error) {
+func (b *Backend) RetrieveKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeRetrievalInput) (_ appservice.KnowledgeRetrievalResult, err error) {
+	defer settle(ctx, "RetrieveKnowledgeBase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeRetrievalResult
@@ -1846,7 +2034,8 @@ func (b *Backend) RetrieveKnowledgeBase(ctx context.Context, meta appservice.Req
 }
 
 // ListKnowledgeDocuments 返回当前分组的文档列表。
-func (b *Backend) ListKnowledgeDocuments(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeDocumentListInput) (appservice.KnowledgeDocumentList, error) {
+func (b *Backend) ListKnowledgeDocuments(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeDocumentListInput) (_ appservice.KnowledgeDocumentList, err error) {
+	defer settle(ctx, "ListKnowledgeDocuments", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocumentList
@@ -1856,7 +2045,8 @@ func (b *Backend) ListKnowledgeDocuments(ctx context.Context, meta appservice.Re
 }
 
 // GetKnowledgeDocument 返回文档详情。
-func (b *Backend) GetKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) (appservice.KnowledgeDocument, error) {
+func (b *Backend) GetKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) (_ appservice.KnowledgeDocument, err error) {
+	defer settle(ctx, "GetKnowledgeDocument", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocument
@@ -1866,7 +2056,8 @@ func (b *Backend) GetKnowledgeDocument(ctx context.Context, meta appservice.Requ
 }
 
 // CreateKnowledgeDocuments 保存最多十个已上传的文档原件。
-func (b *Backend) CreateKnowledgeDocuments(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeDocumentBatchInput) (appservice.KnowledgeDocumentBatch, error) {
+func (b *Backend) CreateKnowledgeDocuments(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeDocumentBatchInput) (_ appservice.KnowledgeDocumentBatch, err error) {
+	defer settle(ctx, "CreateKnowledgeDocuments", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocumentBatch
@@ -1876,7 +2067,8 @@ func (b *Backend) CreateKnowledgeDocuments(ctx context.Context, meta appservice.
 }
 
 // DeleteKnowledgeDocument 删除文档并释放原件。
-func (b *Backend) DeleteKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) error {
+func (b *Backend) DeleteKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) (err error) {
+	defer settle(ctx, "DeleteKnowledgeDocument", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1885,7 +2077,8 @@ func (b *Backend) DeleteKnowledgeDocument(ctx context.Context, meta appservice.R
 }
 
 // GetKnowledgeDocumentPreview 签发当前文档的原件预览请求。
-func (b *Backend) GetKnowledgeDocumentPreview(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) (appservice.KnowledgeDocumentPreviewRequest, error) {
+func (b *Backend) GetKnowledgeDocumentPreview(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) (_ appservice.KnowledgeDocumentPreviewRequest, err error) {
+	defer settle(ctx, "GetKnowledgeDocumentPreview", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocumentPreviewRequest
@@ -1895,7 +2088,8 @@ func (b *Backend) GetKnowledgeDocumentPreview(ctx context.Context, meta appservi
 }
 
 // CreateKnowledgeTextDocument 创建在线编写的文档并安排索引。
-func (b *Backend) CreateKnowledgeTextDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeTextDocumentInput) (appservice.KnowledgeDocument, error) {
+func (b *Backend) CreateKnowledgeTextDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeTextDocumentInput) (_ appservice.KnowledgeDocument, err error) {
+	defer settle(ctx, "CreateKnowledgeTextDocument", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocument
@@ -1905,7 +2099,8 @@ func (b *Backend) CreateKnowledgeTextDocument(ctx context.Context, meta appservi
 }
 
 // GetKnowledgeDocumentContent 返回在线文档正文或网页抓取快照。
-func (b *Backend) GetKnowledgeDocumentContent(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) (appservice.KnowledgeDocumentContent, error) {
+func (b *Backend) GetKnowledgeDocumentContent(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string) (_ appservice.KnowledgeDocumentContent, err error) {
+	defer settle(ctx, "GetKnowledgeDocumentContent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocumentContent
@@ -1915,7 +2110,8 @@ func (b *Backend) GetKnowledgeDocumentContent(ctx context.Context, meta appservi
 }
 
 // UpdateKnowledgeDocumentContent 修改在线文档的名称与正文并安排索引。
-func (b *Backend) UpdateKnowledgeDocumentContent(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string, input appservice.KnowledgeDocumentContentInput) (appservice.KnowledgeDocument, error) {
+func (b *Backend) UpdateKnowledgeDocumentContent(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string, input appservice.KnowledgeDocumentContentInput) (_ appservice.KnowledgeDocument, err error) {
+	defer settle(ctx, "UpdateKnowledgeDocumentContent", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocument
@@ -1925,7 +2121,8 @@ func (b *Backend) UpdateKnowledgeDocumentContent(ctx context.Context, meta appse
 }
 
 // RenameKnowledgeDocument 修改在线文档或网页文档的名称。
-func (b *Backend) RenameKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string, input appservice.KnowledgeDocumentRenameInput) (appservice.KnowledgeDocument, error) {
+func (b *Backend) RenameKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string, input appservice.KnowledgeDocumentRenameInput) (_ appservice.KnowledgeDocument, err error) {
+	defer settle(ctx, "RenameKnowledgeDocument", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocument
@@ -1935,7 +2132,8 @@ func (b *Backend) RenameKnowledgeDocument(ctx context.Context, meta appservice.R
 }
 
 // CreateKnowledgeWebDocument 导入网页并安排首次抓取。
-func (b *Backend) CreateKnowledgeWebDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeWebDocumentInput) (appservice.KnowledgeDocument, error) {
+func (b *Backend) CreateKnowledgeWebDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeWebDocumentInput) (_ appservice.KnowledgeDocument, err error) {
+	defer settle(ctx, "CreateKnowledgeWebDocument", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeDocument
@@ -1945,7 +2143,8 @@ func (b *Backend) CreateKnowledgeWebDocument(ctx context.Context, meta appservic
 }
 
 // RefetchKnowledgeDocument 重新抓取网页文档并重新索引。
-func (b *Backend) RefetchKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string, input appservice.KnowledgeDocumentRefetchInput) error {
+func (b *Backend) RefetchKnowledgeDocument(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, documentID string, input appservice.KnowledgeDocumentRefetchInput) (err error) {
+	defer settle(ctx, "RefetchKnowledgeDocument", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -1954,7 +2153,8 @@ func (b *Backend) RefetchKnowledgeDocument(ctx context.Context, meta appservice.
 }
 
 // ListKnowledgeQAEntries 返回分组中的本地问答列表。
-func (b *Backend) ListKnowledgeQAEntries(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeQAListInput) (appservice.KnowledgeQAList, error) {
+func (b *Backend) ListKnowledgeQAEntries(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeQAListInput) (_ appservice.KnowledgeQAList, err error) {
+	defer settle(ctx, "ListKnowledgeQAEntries", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeQAList
@@ -1964,7 +2164,8 @@ func (b *Backend) ListKnowledgeQAEntries(ctx context.Context, meta appservice.Re
 }
 
 // GetKnowledgeQAEntry 返回完整的本地问答。
-func (b *Backend) GetKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, entryID string) (appservice.KnowledgeQAEntry, error) {
+func (b *Backend) GetKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, entryID string) (_ appservice.KnowledgeQAEntry, err error) {
+	defer settle(ctx, "GetKnowledgeQAEntry", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeQAEntry
@@ -1974,7 +2175,8 @@ func (b *Backend) GetKnowledgeQAEntry(ctx context.Context, meta appservice.Reque
 }
 
 // CreateKnowledgeQAEntry 创建本地问答。
-func (b *Backend) CreateKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeQAInput) (appservice.KnowledgeQAEntry, error) {
+func (b *Backend) CreateKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeQAInput) (_ appservice.KnowledgeQAEntry, err error) {
+	defer settle(ctx, "CreateKnowledgeQAEntry", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeQAEntry
@@ -1984,7 +2186,8 @@ func (b *Backend) CreateKnowledgeQAEntry(ctx context.Context, meta appservice.Re
 }
 
 // UpdateKnowledgeQAEntry 修改本地问答。
-func (b *Backend) UpdateKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, entryID string, input appservice.KnowledgeQAInput) (appservice.KnowledgeQAEntry, error) {
+func (b *Backend) UpdateKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, entryID string, input appservice.KnowledgeQAInput) (_ appservice.KnowledgeQAEntry, err error) {
+	defer settle(ctx, "UpdateKnowledgeQAEntry", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeQAEntry
@@ -1994,7 +2197,8 @@ func (b *Backend) UpdateKnowledgeQAEntry(ctx context.Context, meta appservice.Re
 }
 
 // DeleteKnowledgeQAEntry 删除本地问答。
-func (b *Backend) DeleteKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, entryID string) error {
+func (b *Backend) DeleteKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, entryID string) (err error) {
+	defer settle(ctx, "DeleteKnowledgeQAEntry", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2003,7 +2207,8 @@ func (b *Backend) DeleteKnowledgeQAEntry(ctx context.Context, meta appservice.Re
 }
 
 // RetryKnowledgeQAEntry 按当前配置重新索引问答。
-func (b *Backend) RetryKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, entryID string) error {
+func (b *Backend) RetryKnowledgeQAEntry(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, entryID string) (err error) {
+	defer settle(ctx, "RetryKnowledgeQAEntry", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2012,7 +2217,8 @@ func (b *Backend) RetryKnowledgeQAEntry(ctx context.Context, meta appservice.Req
 }
 
 // ListKnowledgeBases 返回当前企业的知识库列表。
-func (b *Backend) ListKnowledgeBases(ctx context.Context, meta appservice.RequestMeta) (appservice.KnowledgeBaseList, error) {
+func (b *Backend) ListKnowledgeBases(ctx context.Context, meta appservice.RequestMeta) (_ appservice.KnowledgeBaseList, err error) {
+	defer settle(ctx, "ListKnowledgeBases", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeBaseList
@@ -2022,7 +2228,8 @@ func (b *Backend) ListKnowledgeBases(ctx context.Context, meta appservice.Reques
 }
 
 // GetKnowledgeBase 返回当前企业中的知识库详情。
-func (b *Backend) GetKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string) (appservice.KnowledgeBase, error) {
+func (b *Backend) GetKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string) (_ appservice.KnowledgeBase, err error) {
+	defer settle(ctx, "GetKnowledgeBase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeBase
@@ -2032,7 +2239,8 @@ func (b *Backend) GetKnowledgeBase(ctx context.Context, meta appservice.RequestM
 }
 
 // ListKnowledgeBaseAgents 返回当前配置版本绑定知识库的 AI 员工。
-func (b *Backend) ListKnowledgeBaseAgents(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string) (appservice.KnowledgeBaseAgentList, error) {
+func (b *Backend) ListKnowledgeBaseAgents(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string) (_ appservice.KnowledgeBaseAgentList, err error) {
+	defer settle(ctx, "ListKnowledgeBaseAgents", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeBaseAgentList
@@ -2042,7 +2250,8 @@ func (b *Backend) ListKnowledgeBaseAgents(ctx context.Context, meta appservice.R
 }
 
 // CreateKnowledgeBase 创建企业知识库。
-func (b *Backend) CreateKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, input appservice.KnowledgeBaseInput) (appservice.KnowledgeBase, error) {
+func (b *Backend) CreateKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, input appservice.KnowledgeBaseInput) (_ appservice.KnowledgeBase, err error) {
+	defer settle(ctx, "CreateKnowledgeBase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeBase
@@ -2052,7 +2261,8 @@ func (b *Backend) CreateKnowledgeBase(ctx context.Context, meta appservice.Reque
 }
 
 // UpdateKnowledgeBase 修改企业知识库。
-func (b *Backend) UpdateKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeBaseInput) (appservice.KnowledgeBase, error) {
+func (b *Backend) UpdateKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string, input appservice.KnowledgeBaseInput) (_ appservice.KnowledgeBase, err error) {
+	defer settle(ctx, "UpdateKnowledgeBase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeBase
@@ -2062,7 +2272,8 @@ func (b *Backend) UpdateKnowledgeBase(ctx context.Context, meta appservice.Reque
 }
 
 // DeleteKnowledgeBase 删除企业知识库。
-func (b *Backend) DeleteKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string) error {
+func (b *Backend) DeleteKnowledgeBase(ctx context.Context, meta appservice.RequestMeta, knowledgeBaseID string) (err error) {
+	defer settle(ctx, "DeleteKnowledgeBase", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2071,7 +2282,8 @@ func (b *Backend) DeleteKnowledgeBase(ctx context.Context, meta appservice.Reque
 }
 
 // ListContacts 返回联系人列表。
-func (b *Backend) ListContacts(ctx context.Context, meta appservice.RequestMeta, input appservice.ContactListInput) (appservice.ContactList, error) {
+func (b *Backend) ListContacts(ctx context.Context, meta appservice.RequestMeta, input appservice.ContactListInput) (_ appservice.ContactList, err error) {
+	defer settle(ctx, "ListContacts", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ContactList
@@ -2081,7 +2293,8 @@ func (b *Backend) ListContacts(ctx context.Context, meta appservice.RequestMeta,
 }
 
 // GetContact 返回联系人详情。
-func (b *Backend) GetContact(ctx context.Context, meta appservice.RequestMeta, contactID string) (appservice.Contact, error) {
+func (b *Backend) GetContact(ctx context.Context, meta appservice.RequestMeta, contactID string) (_ appservice.Contact, err error) {
+	defer settle(ctx, "GetContact", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Contact
@@ -2091,7 +2304,8 @@ func (b *Backend) GetContact(ctx context.Context, meta appservice.RequestMeta, c
 }
 
 // CreateContact 创建联系人。
-func (b *Backend) CreateContact(ctx context.Context, meta appservice.RequestMeta, input appservice.ContactInput) (appservice.Contact, error) {
+func (b *Backend) CreateContact(ctx context.Context, meta appservice.RequestMeta, input appservice.ContactInput) (_ appservice.Contact, err error) {
+	defer settle(ctx, "CreateContact", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Contact
@@ -2101,7 +2315,8 @@ func (b *Backend) CreateContact(ctx context.Context, meta appservice.RequestMeta
 }
 
 // UpdateContact 修改联系人。
-func (b *Backend) UpdateContact(ctx context.Context, meta appservice.RequestMeta, contactID string, input appservice.ContactInput) (appservice.Contact, error) {
+func (b *Backend) UpdateContact(ctx context.Context, meta appservice.RequestMeta, contactID string, input appservice.ContactInput) (_ appservice.Contact, err error) {
+	defer settle(ctx, "UpdateContact", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Contact
@@ -2111,7 +2326,8 @@ func (b *Backend) UpdateContact(ctx context.Context, meta appservice.RequestMeta
 }
 
 // DeleteContact 将联系人移入回收站。
-func (b *Backend) DeleteContact(ctx context.Context, meta appservice.RequestMeta, contactID string) error {
+func (b *Backend) DeleteContact(ctx context.Context, meta appservice.RequestMeta, contactID string) (err error) {
+	defer settle(ctx, "DeleteContact", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2120,7 +2336,8 @@ func (b *Backend) DeleteContact(ctx context.Context, meta appservice.RequestMeta
 }
 
 // RestoreContact 恢复联系人。
-func (b *Backend) RestoreContact(ctx context.Context, meta appservice.RequestMeta, contactID string) (appservice.Contact, error) {
+func (b *Backend) RestoreContact(ctx context.Context, meta appservice.RequestMeta, contactID string) (_ appservice.Contact, err error) {
+	defer settle(ctx, "RestoreContact", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Contact
@@ -2130,7 +2347,8 @@ func (b *Backend) RestoreContact(ctx context.Context, meta appservice.RequestMet
 }
 
 // SetContactFieldValue 由客服填写或清空联系人字段。
-func (b *Backend) SetContactFieldValue(ctx context.Context, meta appservice.RequestMeta, contactID string, fieldID string, input appservice.ContactFieldValueInput) error {
+func (b *Backend) SetContactFieldValue(ctx context.Context, meta appservice.RequestMeta, contactID string, fieldID string, input appservice.ContactFieldValueInput) (err error) {
+	defer settle(ctx, "SetContactFieldValue", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2139,7 +2357,8 @@ func (b *Backend) SetContactFieldValue(ctx context.Context, meta appservice.Requ
 }
 
 // AddContactTag 由客服给联系人添加标签。
-func (b *Backend) AddContactTag(ctx context.Context, meta appservice.RequestMeta, contactID string, tagID string) error {
+func (b *Backend) AddContactTag(ctx context.Context, meta appservice.RequestMeta, contactID string, tagID string) (err error) {
+	defer settle(ctx, "AddContactTag", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2148,7 +2367,8 @@ func (b *Backend) AddContactTag(ctx context.Context, meta appservice.RequestMeta
 }
 
 // RemoveContactTag 由客服移除联系人上的标签。
-func (b *Backend) RemoveContactTag(ctx context.Context, meta appservice.RequestMeta, contactID string, tagID string) error {
+func (b *Backend) RemoveContactTag(ctx context.Context, meta appservice.RequestMeta, contactID string, tagID string) (err error) {
+	defer settle(ctx, "RemoveContactTag", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2157,7 +2377,8 @@ func (b *Backend) RemoveContactTag(ctx context.Context, meta appservice.RequestM
 }
 
 // ListRoles 返回当前企业的角色和预定义权限目录。
-func (b *Backend) ListRoles(ctx context.Context, meta appservice.RequestMeta) (appservice.RoleList, error) {
+func (b *Backend) ListRoles(ctx context.Context, meta appservice.RequestMeta) (_ appservice.RoleList, err error) {
+	defer settle(ctx, "ListRoles", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.RoleList
@@ -2167,7 +2388,8 @@ func (b *Backend) ListRoles(ctx context.Context, meta appservice.RequestMeta) (a
 }
 
 // GetRole 返回当前企业的角色详情。
-func (b *Backend) GetRole(ctx context.Context, meta appservice.RequestMeta, roleID string) (appservice.Role, error) {
+func (b *Backend) GetRole(ctx context.Context, meta appservice.RequestMeta, roleID string) (_ appservice.Role, err error) {
+	defer settle(ctx, "GetRole", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Role
@@ -2177,7 +2399,8 @@ func (b *Backend) GetRole(ctx context.Context, meta appservice.RequestMeta, role
 }
 
 // CreateRole 创建自定义角色。
-func (b *Backend) CreateRole(ctx context.Context, meta appservice.RequestMeta, input appservice.RoleInput) (appservice.Role, error) {
+func (b *Backend) CreateRole(ctx context.Context, meta appservice.RequestMeta, input appservice.RoleInput) (_ appservice.Role, err error) {
+	defer settle(ctx, "CreateRole", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Role
@@ -2187,7 +2410,8 @@ func (b *Backend) CreateRole(ctx context.Context, meta appservice.RequestMeta, i
 }
 
 // UpdateRole 修改角色信息和权限。
-func (b *Backend) UpdateRole(ctx context.Context, meta appservice.RequestMeta, roleID string, input appservice.RoleInput) (appservice.Role, error) {
+func (b *Backend) UpdateRole(ctx context.Context, meta appservice.RequestMeta, roleID string, input appservice.RoleInput) (_ appservice.Role, err error) {
+	defer settle(ctx, "UpdateRole", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Role
@@ -2197,7 +2421,8 @@ func (b *Backend) UpdateRole(ctx context.Context, meta appservice.RequestMeta, r
 }
 
 // DeleteRole 删除自定义角色。
-func (b *Backend) DeleteRole(ctx context.Context, meta appservice.RequestMeta, roleID string) error {
+func (b *Backend) DeleteRole(ctx context.Context, meta appservice.RequestMeta, roleID string) (err error) {
+	defer settle(ctx, "DeleteRole", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2206,7 +2431,8 @@ func (b *Backend) DeleteRole(ctx context.Context, meta appservice.RequestMeta, r
 }
 
 // ListAIModelOptions 返回当前工作区满足指定用途的模型。
-func (b *Backend) ListAIModelOptions(ctx context.Context, meta appservice.RequestMeta, usage appservice.AIModelUsage) (appservice.AIModelOptionList, error) {
+func (b *Backend) ListAIModelOptions(ctx context.Context, meta appservice.RequestMeta, usage appservice.AIModelUsage) (_ appservice.AIModelOptionList, err error) {
+	defer settle(ctx, "ListAIModelOptions", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AIModelOptionList
@@ -2216,7 +2442,8 @@ func (b *Backend) ListAIModelOptions(ctx context.Context, meta appservice.Reques
 }
 
 // ListAIProviders 返回当前企业的模型服务供应商列表。
-func (b *Backend) ListAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.AIProviderList, error) {
+func (b *Backend) ListAIProviders(ctx context.Context, meta appservice.RequestMeta) (_ appservice.AIProviderList, err error) {
+	defer settle(ctx, "ListAIProviders", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AIProviderList
@@ -2226,7 +2453,8 @@ func (b *Backend) ListAIProviders(ctx context.Context, meta appservice.RequestMe
 }
 
 // GetAIProvider 返回当前企业中的模型服务供应商详情。
-func (b *Backend) GetAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) (appservice.AIProvider, error) {
+func (b *Backend) GetAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) (_ appservice.AIProvider, err error) {
+	defer settle(ctx, "GetAIProvider", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AIProvider
@@ -2236,7 +2464,8 @@ func (b *Backend) GetAIProvider(ctx context.Context, meta appservice.RequestMeta
 }
 
 // ListAvailableAIModels 返回指定品牌的预设模型目录。
-func (b *Backend) ListAvailableAIModels(ctx context.Context, meta appservice.RequestMeta, brand appservice.AIProviderBrand) (appservice.AIProviderModelList, error) {
+func (b *Backend) ListAvailableAIModels(ctx context.Context, meta appservice.RequestMeta, brand appservice.AIProviderBrand) (_ appservice.AIProviderModelList, err error) {
+	defer settle(ctx, "ListAvailableAIModels", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AIProviderModelList
@@ -2246,7 +2475,8 @@ func (b *Backend) ListAvailableAIModels(ctx context.Context, meta appservice.Req
 }
 
 // DiscoverAIProviderModels 读取模型服务实例当前可用的模型目录。
-func (b *Backend) DiscoverAIProviderModels(ctx context.Context, meta appservice.RequestMeta, input appservice.AIProviderConnectionInput) (appservice.AIProviderModelList, error) {
+func (b *Backend) DiscoverAIProviderModels(ctx context.Context, meta appservice.RequestMeta, input appservice.AIProviderConnectionInput) (_ appservice.AIProviderModelList, err error) {
+	defer settle(ctx, "DiscoverAIProviderModels", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AIProviderModelList
@@ -2256,7 +2486,8 @@ func (b *Backend) DiscoverAIProviderModels(ctx context.Context, meta appservice.
 }
 
 // TestAIProviderConnection 测试模型服务供应商草稿配置。
-func (b *Backend) TestAIProviderConnection(ctx context.Context, meta appservice.RequestMeta, input appservice.AIProviderConnectionInput) error {
+func (b *Backend) TestAIProviderConnection(ctx context.Context, meta appservice.RequestMeta, input appservice.AIProviderConnectionInput) (err error) {
+	defer settle(ctx, "TestAIProviderConnection", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2265,7 +2496,8 @@ func (b *Backend) TestAIProviderConnection(ctx context.Context, meta appservice.
 }
 
 // CreateAIProvider 创建模型服务供应商。
-func (b *Backend) CreateAIProvider(ctx context.Context, meta appservice.RequestMeta, input appservice.AIProviderInput) (appservice.AIProvider, error) {
+func (b *Backend) CreateAIProvider(ctx context.Context, meta appservice.RequestMeta, input appservice.AIProviderInput) (_ appservice.AIProvider, err error) {
+	defer settle(ctx, "CreateAIProvider", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AIProvider
@@ -2275,7 +2507,8 @@ func (b *Backend) CreateAIProvider(ctx context.Context, meta appservice.RequestM
 }
 
 // UpdateAIProvider 修改模型服务供应商。
-func (b *Backend) UpdateAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string, input appservice.AIProviderUpdateInput) (appservice.AIProvider, error) {
+func (b *Backend) UpdateAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string, input appservice.AIProviderUpdateInput) (_ appservice.AIProvider, err error) {
+	defer settle(ctx, "UpdateAIProvider", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AIProvider
@@ -2285,7 +2518,8 @@ func (b *Backend) UpdateAIProvider(ctx context.Context, meta appservice.RequestM
 }
 
 // DeleteAIProvider 删除模型服务供应商。
-func (b *Backend) DeleteAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) error {
+func (b *Backend) DeleteAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) (err error) {
+	defer settle(ctx, "DeleteAIProvider", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2294,7 +2528,8 @@ func (b *Backend) DeleteAIProvider(ctx context.Context, meta appservice.RequestM
 }
 
 // GetWebSearchSettings 读取当前企业的联网搜索设置。
-func (b *Backend) GetWebSearchSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.WebSearchSettings, error) {
+func (b *Backend) GetWebSearchSettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.WebSearchSettings, err error) {
+	defer settle(ctx, "GetWebSearchSettings", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.WebSearchSettings
@@ -2304,7 +2539,8 @@ func (b *Backend) GetWebSearchSettings(ctx context.Context, meta appservice.Requ
 }
 
 // UpdateWebSearchSettings 修改当前企业的联网搜索设置。
-func (b *Backend) UpdateWebSearchSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.WebSearchSettings) (appservice.WebSearchSettings, error) {
+func (b *Backend) UpdateWebSearchSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.WebSearchSettings) (_ appservice.WebSearchSettings, err error) {
+	defer settle(ctx, "UpdateWebSearchSettings", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.WebSearchSettings
@@ -2314,7 +2550,8 @@ func (b *Backend) UpdateWebSearchSettings(ctx context.Context, meta appservice.R
 }
 
 // TestWebSearchService 用草稿配置执行一次搜索，验证搜索服务可用。
-func (b *Backend) TestWebSearchService(ctx context.Context, meta appservice.RequestMeta, input appservice.WebSearchService) error {
+func (b *Backend) TestWebSearchService(ctx context.Context, meta appservice.RequestMeta, input appservice.WebSearchService) (err error) {
+	defer settle(ctx, "TestWebSearchService", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2323,7 +2560,8 @@ func (b *Backend) TestWebSearchService(ctx context.Context, meta appservice.Requ
 }
 
 // ListMCPServers 返回当前企业配置的 MCP 服务。
-func (b *Backend) ListMCPServers(ctx context.Context, meta appservice.RequestMeta) (appservice.MCPServerList, error) {
+func (b *Backend) ListMCPServers(ctx context.Context, meta appservice.RequestMeta) (_ appservice.MCPServerList, err error) {
+	defer settle(ctx, "ListMCPServers", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MCPServerList
@@ -2333,7 +2571,8 @@ func (b *Backend) ListMCPServers(ctx context.Context, meta appservice.RequestMet
 }
 
 // GetMCPServer 返回当前企业中的 MCP 服务详情。
-func (b *Backend) GetMCPServer(ctx context.Context, meta appservice.RequestMeta, mcpServerID string) (appservice.MCPServer, error) {
+func (b *Backend) GetMCPServer(ctx context.Context, meta appservice.RequestMeta, mcpServerID string) (_ appservice.MCPServer, err error) {
+	defer settle(ctx, "GetMCPServer", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MCPServer
@@ -2343,7 +2582,8 @@ func (b *Backend) GetMCPServer(ctx context.Context, meta appservice.RequestMeta,
 }
 
 // TestMCPServerConnection 测试 MCP 草稿连接配置。
-func (b *Backend) TestMCPServerConnection(ctx context.Context, meta appservice.RequestMeta, input appservice.MCPServerConnectionInput) error {
+func (b *Backend) TestMCPServerConnection(ctx context.Context, meta appservice.RequestMeta, input appservice.MCPServerConnectionInput) (err error) {
+	defer settle(ctx, "TestMCPServerConnection", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2352,7 +2592,8 @@ func (b *Backend) TestMCPServerConnection(ctx context.Context, meta appservice.R
 }
 
 // TestSavedMCPServerConnection 测试已保存的 MCP 服务。
-func (b *Backend) TestSavedMCPServerConnection(ctx context.Context, meta appservice.RequestMeta, mcpServerID string) error {
+func (b *Backend) TestSavedMCPServerConnection(ctx context.Context, meta appservice.RequestMeta, mcpServerID string) (err error) {
+	defer settle(ctx, "TestSavedMCPServerConnection", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2361,7 +2602,8 @@ func (b *Backend) TestSavedMCPServerConnection(ctx context.Context, meta appserv
 }
 
 // RefreshMCPServerTools 提交当前企业的 MCP 工具更新任务。
-func (b *Backend) RefreshMCPServerTools(ctx context.Context, meta appservice.RequestMeta) error {
+func (b *Backend) RefreshMCPServerTools(ctx context.Context, meta appservice.RequestMeta) (err error) {
+	defer settle(ctx, "RefreshMCPServerTools", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2370,7 +2612,8 @@ func (b *Backend) RefreshMCPServerTools(ctx context.Context, meta appservice.Req
 }
 
 // CreateMCPServer 创建 MCP 服务。
-func (b *Backend) CreateMCPServer(ctx context.Context, meta appservice.RequestMeta, input appservice.MCPServerInput) (appservice.MCPServer, error) {
+func (b *Backend) CreateMCPServer(ctx context.Context, meta appservice.RequestMeta, input appservice.MCPServerInput) (_ appservice.MCPServer, err error) {
+	defer settle(ctx, "CreateMCPServer", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MCPServer
@@ -2380,7 +2623,8 @@ func (b *Backend) CreateMCPServer(ctx context.Context, meta appservice.RequestMe
 }
 
 // UpdateMCPServer 修改 MCP 服务。
-func (b *Backend) UpdateMCPServer(ctx context.Context, meta appservice.RequestMeta, mcpServerID string, input appservice.MCPServerInput) (appservice.MCPServer, error) {
+func (b *Backend) UpdateMCPServer(ctx context.Context, meta appservice.RequestMeta, mcpServerID string, input appservice.MCPServerInput) (_ appservice.MCPServer, err error) {
+	defer settle(ctx, "UpdateMCPServer", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MCPServer
@@ -2390,7 +2634,8 @@ func (b *Backend) UpdateMCPServer(ctx context.Context, meta appservice.RequestMe
 }
 
 // UpdateMCPToolPurpose 标记 MCP 服务中一个工具的用途。
-func (b *Backend) UpdateMCPToolPurpose(ctx context.Context, meta appservice.RequestMeta, mcpServerID string, input appservice.MCPToolPurposeInput) (appservice.MCPServer, error) {
+func (b *Backend) UpdateMCPToolPurpose(ctx context.Context, meta appservice.RequestMeta, mcpServerID string, input appservice.MCPToolPurposeInput) (_ appservice.MCPServer, err error) {
+	defer settle(ctx, "UpdateMCPToolPurpose", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.MCPServer
@@ -2400,7 +2645,8 @@ func (b *Backend) UpdateMCPToolPurpose(ctx context.Context, meta appservice.Requ
 }
 
 // DeleteMCPServer 删除 MCP 服务。
-func (b *Backend) DeleteMCPServer(ctx context.Context, meta appservice.RequestMeta, mcpServerID string) error {
+func (b *Backend) DeleteMCPServer(ctx context.Context, meta appservice.RequestMeta, mcpServerID string) (err error) {
+	defer settle(ctx, "DeleteMCPServer", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2409,7 +2655,8 @@ func (b *Backend) DeleteMCPServer(ctx context.Context, meta appservice.RequestMe
 }
 
 // UpdateOrganization 修改当前工作区的名称。
-func (b *Backend) UpdateOrganization(ctx context.Context, meta appservice.RequestMeta, input appservice.OrganizationInput) (appservice.Organization, error) {
+func (b *Backend) UpdateOrganization(ctx context.Context, meta appservice.RequestMeta, input appservice.OrganizationInput) (_ appservice.Organization, err error) {
+	defer settle(ctx, "UpdateOrganization", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Organization
@@ -2419,7 +2666,8 @@ func (b *Backend) UpdateOrganization(ctx context.Context, meta appservice.Reques
 }
 
 // GetCustomerIdentitySecret 读取当前企业的客户身份密钥，未生成时为空。
-func (b *Backend) GetCustomerIdentitySecret(ctx context.Context, meta appservice.RequestMeta) (appservice.CustomerIdentitySecret, error) {
+func (b *Backend) GetCustomerIdentitySecret(ctx context.Context, meta appservice.RequestMeta) (_ appservice.CustomerIdentitySecret, err error) {
+	defer settle(ctx, "GetCustomerIdentitySecret", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.CustomerIdentitySecret
@@ -2429,7 +2677,8 @@ func (b *Backend) GetCustomerIdentitySecret(ctx context.Context, meta appservice
 }
 
 // RegenerateCustomerIdentitySecret 生成或重新生成当前企业的客户身份密钥，旧密钥立即失效。
-func (b *Backend) RegenerateCustomerIdentitySecret(ctx context.Context, meta appservice.RequestMeta) (appservice.CustomerIdentitySecret, error) {
+func (b *Backend) RegenerateCustomerIdentitySecret(ctx context.Context, meta appservice.RequestMeta) (_ appservice.CustomerIdentitySecret, err error) {
+	defer settle(ctx, "RegenerateCustomerIdentitySecret", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.CustomerIdentitySecret
@@ -2439,7 +2688,8 @@ func (b *Backend) RegenerateCustomerIdentitySecret(ctx context.Context, meta app
 }
 
 // GetBusinessHours 读取当前企业的客服工作时间。
-func (b *Backend) GetBusinessHours(ctx context.Context, meta appservice.RequestMeta) (appservice.BusinessHours, error) {
+func (b *Backend) GetBusinessHours(ctx context.Context, meta appservice.RequestMeta) (_ appservice.BusinessHours, err error) {
+	defer settle(ctx, "GetBusinessHours", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.BusinessHours
@@ -2449,7 +2699,8 @@ func (b *Backend) GetBusinessHours(ctx context.Context, meta appservice.RequestM
 }
 
 // UpdateBusinessHours 修改当前企业的客服工作时间。
-func (b *Backend) UpdateBusinessHours(ctx context.Context, meta appservice.RequestMeta, input appservice.BusinessHours) (appservice.BusinessHours, error) {
+func (b *Backend) UpdateBusinessHours(ctx context.Context, meta appservice.RequestMeta, input appservice.BusinessHours) (_ appservice.BusinessHours, err error) {
+	defer settle(ctx, "UpdateBusinessHours", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.BusinessHours
@@ -2459,7 +2710,8 @@ func (b *Backend) UpdateBusinessHours(ctx context.Context, meta appservice.Reque
 }
 
 // GetServiceTimeouts 读取当前企业的客服超时时长。
-func (b *Backend) GetServiceTimeouts(ctx context.Context, meta appservice.RequestMeta) (appservice.ServiceTimeouts, error) {
+func (b *Backend) GetServiceTimeouts(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ServiceTimeouts, err error) {
+	defer settle(ctx, "GetServiceTimeouts", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceTimeouts
@@ -2469,7 +2721,8 @@ func (b *Backend) GetServiceTimeouts(ctx context.Context, meta appservice.Reques
 }
 
 // UpdateServiceTimeouts 修改当前企业的客服超时时长。
-func (b *Backend) UpdateServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, input appservice.ServiceTimeouts) (appservice.ServiceTimeouts, error) {
+func (b *Backend) UpdateServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, input appservice.ServiceTimeouts) (_ appservice.ServiceTimeouts, err error) {
+	defer settle(ctx, "UpdateServiceTimeouts", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceTimeouts
@@ -2479,7 +2732,8 @@ func (b *Backend) UpdateServiceTimeouts(ctx context.Context, meta appservice.Req
 }
 
 // GetServiceSummarySettings 读取当前企业的周期小结设置。
-func (b *Backend) GetServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta) (appservice.ServiceSummarySettings, error) {
+func (b *Backend) GetServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ServiceSummarySettings, err error) {
+	defer settle(ctx, "GetServiceSummarySettings", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceSummarySettings
@@ -2489,7 +2743,8 @@ func (b *Backend) GetServiceSummarySettings(ctx context.Context, meta appservice
 }
 
 // UpdateServiceSummarySettings 修改当前企业的周期小结设置。
-func (b *Backend) UpdateServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, input appservice.ServiceSummarySettings) (appservice.ServiceSummarySettings, error) {
+func (b *Backend) UpdateServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, input appservice.ServiceSummarySettings) (_ appservice.ServiceSummarySettings, err error) {
+	defer settle(ctx, "UpdateServiceSummarySettings", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceSummarySettings
@@ -2499,7 +2754,8 @@ func (b *Backend) UpdateServiceSummarySettings(ctx context.Context, meta appserv
 }
 
 // GetTranslationSettings 读取当前企业的翻译设置。
-func (b *Backend) GetTranslationSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.TranslationSettings, error) {
+func (b *Backend) GetTranslationSettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.TranslationSettings, err error) {
+	defer settle(ctx, "GetTranslationSettings", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TranslationSettings
@@ -2509,7 +2765,8 @@ func (b *Backend) GetTranslationSettings(ctx context.Context, meta appservice.Re
 }
 
 // UpdateTranslationSettings 修改当前企业的翻译设置。
-func (b *Backend) UpdateTranslationSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.TranslationSettings) (appservice.TranslationSettings, error) {
+func (b *Backend) UpdateTranslationSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.TranslationSettings) (_ appservice.TranslationSettings, err error) {
+	defer settle(ctx, "UpdateTranslationSettings", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TranslationSettings
@@ -2519,7 +2776,8 @@ func (b *Backend) UpdateTranslationSettings(ctx context.Context, meta appservice
 }
 
 // ListServiceCategories 返回当前企业的咨询分类目录。
-func (b *Backend) ListServiceCategories(ctx context.Context, meta appservice.RequestMeta) (appservice.ServiceCategoryList, error) {
+func (b *Backend) ListServiceCategories(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ServiceCategoryList, err error) {
+	defer settle(ctx, "ListServiceCategories", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceCategoryList
@@ -2529,7 +2787,8 @@ func (b *Backend) ListServiceCategories(ctx context.Context, meta appservice.Req
 }
 
 // CreateServiceCategory 新增咨询分类。
-func (b *Backend) CreateServiceCategory(ctx context.Context, meta appservice.RequestMeta, input appservice.ServiceCategoryInput) (appservice.ServiceCategory, error) {
+func (b *Backend) CreateServiceCategory(ctx context.Context, meta appservice.RequestMeta, input appservice.ServiceCategoryInput) (_ appservice.ServiceCategory, err error) {
+	defer settle(ctx, "CreateServiceCategory", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceCategory
@@ -2539,7 +2798,8 @@ func (b *Backend) CreateServiceCategory(ctx context.Context, meta appservice.Req
 }
 
 // UpdateServiceCategory 修改咨询分类。
-func (b *Backend) UpdateServiceCategory(ctx context.Context, meta appservice.RequestMeta, categoryID string, input appservice.ServiceCategoryInput) (appservice.ServiceCategory, error) {
+func (b *Backend) UpdateServiceCategory(ctx context.Context, meta appservice.RequestMeta, categoryID string, input appservice.ServiceCategoryInput) (_ appservice.ServiceCategory, err error) {
+	defer settle(ctx, "UpdateServiceCategory", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceCategory
@@ -2549,7 +2809,8 @@ func (b *Backend) UpdateServiceCategory(ctx context.Context, meta appservice.Req
 }
 
 // DeleteServiceCategory 删除咨询分类，历史记录保留分类名称。
-func (b *Backend) DeleteServiceCategory(ctx context.Context, meta appservice.RequestMeta, categoryID string) error {
+func (b *Backend) DeleteServiceCategory(ctx context.Context, meta appservice.RequestMeta, categoryID string) (err error) {
+	defer settle(ctx, "DeleteServiceCategory", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2558,7 +2819,8 @@ func (b *Backend) DeleteServiceCategory(ctx context.Context, meta appservice.Req
 }
 
 // ListContactFields 返回当前企业的联系人字段。
-func (b *Backend) ListContactFields(ctx context.Context, meta appservice.RequestMeta) (appservice.ContactFieldList, error) {
+func (b *Backend) ListContactFields(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ContactFieldList, err error) {
+	defer settle(ctx, "ListContactFields", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ContactFieldList
@@ -2568,7 +2830,8 @@ func (b *Backend) ListContactFields(ctx context.Context, meta appservice.Request
 }
 
 // CreateContactField 新增联系人字段。
-func (b *Backend) CreateContactField(ctx context.Context, meta appservice.RequestMeta, input appservice.ContactFieldInput) (appservice.ContactField, error) {
+func (b *Backend) CreateContactField(ctx context.Context, meta appservice.RequestMeta, input appservice.ContactFieldInput) (_ appservice.ContactField, err error) {
+	defer settle(ctx, "CreateContactField", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ContactField
@@ -2578,7 +2841,8 @@ func (b *Backend) CreateContactField(ctx context.Context, meta appservice.Reques
 }
 
 // UpdateContactField 修改联系人字段，被移除的单选选项对应的取值随之清空。
-func (b *Backend) UpdateContactField(ctx context.Context, meta appservice.RequestMeta, fieldID string, input appservice.ContactFieldInput) (appservice.ContactField, error) {
+func (b *Backend) UpdateContactField(ctx context.Context, meta appservice.RequestMeta, fieldID string, input appservice.ContactFieldInput) (_ appservice.ContactField, err error) {
+	defer settle(ctx, "UpdateContactField", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ContactField
@@ -2588,7 +2852,8 @@ func (b *Backend) UpdateContactField(ctx context.Context, meta appservice.Reques
 }
 
 // DeleteContactField 删除联系人字段及其全部取值。
-func (b *Backend) DeleteContactField(ctx context.Context, meta appservice.RequestMeta, fieldID string) error {
+func (b *Backend) DeleteContactField(ctx context.Context, meta appservice.RequestMeta, fieldID string) (err error) {
+	defer settle(ctx, "DeleteContactField", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2597,7 +2862,8 @@ func (b *Backend) DeleteContactField(ctx context.Context, meta appservice.Reques
 }
 
 // ListContactTags 返回当前企业的联系人标签。
-func (b *Backend) ListContactTags(ctx context.Context, meta appservice.RequestMeta) (appservice.ContactTagList, error) {
+func (b *Backend) ListContactTags(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ContactTagList, err error) {
+	defer settle(ctx, "ListContactTags", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ContactTagList
@@ -2607,7 +2873,8 @@ func (b *Backend) ListContactTags(ctx context.Context, meta appservice.RequestMe
 }
 
 // CreateContactTag 新增联系人标签。
-func (b *Backend) CreateContactTag(ctx context.Context, meta appservice.RequestMeta, input appservice.ContactTagInput) (appservice.ContactTag, error) {
+func (b *Backend) CreateContactTag(ctx context.Context, meta appservice.RequestMeta, input appservice.ContactTagInput) (_ appservice.ContactTag, err error) {
+	defer settle(ctx, "CreateContactTag", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ContactTag
@@ -2617,7 +2884,8 @@ func (b *Backend) CreateContactTag(ctx context.Context, meta appservice.RequestM
 }
 
 // UpdateContactTag 修改联系人标签。
-func (b *Backend) UpdateContactTag(ctx context.Context, meta appservice.RequestMeta, tagID string, input appservice.ContactTagInput) (appservice.ContactTag, error) {
+func (b *Backend) UpdateContactTag(ctx context.Context, meta appservice.RequestMeta, tagID string, input appservice.ContactTagInput) (_ appservice.ContactTag, err error) {
+	defer settle(ctx, "UpdateContactTag", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ContactTag
@@ -2627,7 +2895,8 @@ func (b *Backend) UpdateContactTag(ctx context.Context, meta appservice.RequestM
 }
 
 // DeleteContactTag 删除联系人标签并从所有联系人上移除。
-func (b *Backend) DeleteContactTag(ctx context.Context, meta appservice.RequestMeta, tagID string) error {
+func (b *Backend) DeleteContactTag(ctx context.Context, meta appservice.RequestMeta, tagID string) (err error) {
+	defer settle(ctx, "DeleteContactTag", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2636,7 +2905,8 @@ func (b *Backend) DeleteContactTag(ctx context.Context, meta appservice.RequestM
 }
 
 // GetAIPerformanceReport 返回当前企业指定范围内的 AI 客服表现概览。
-func (b *Backend) GetAIPerformanceReport(ctx context.Context, meta appservice.RequestMeta, input appservice.AIPerformanceReportInput) (appservice.AIPerformanceReport, error) {
+func (b *Backend) GetAIPerformanceReport(ctx context.Context, meta appservice.RequestMeta, input appservice.AIPerformanceReportInput) (_ appservice.AIPerformanceReport, err error) {
+	defer settle(ctx, "GetAIPerformanceReport", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AIPerformanceReport
@@ -2646,7 +2916,8 @@ func (b *Backend) GetAIPerformanceReport(ctx context.Context, meta appservice.Re
 }
 
 // ListAIPerformanceBreakdowns 返回按渠道或咨询分类拆分的一页 AI 客服表现。
-func (b *Backend) ListAIPerformanceBreakdowns(ctx context.Context, meta appservice.RequestMeta, input appservice.AIPerformanceBreakdownInput) (appservice.AIPerformanceBreakdownList, error) {
+func (b *Backend) ListAIPerformanceBreakdowns(ctx context.Context, meta appservice.RequestMeta, input appservice.AIPerformanceBreakdownInput) (_ appservice.AIPerformanceBreakdownList, err error) {
+	defer settle(ctx, "ListAIPerformanceBreakdowns", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AIPerformanceBreakdownList
@@ -2656,7 +2927,8 @@ func (b *Backend) ListAIPerformanceBreakdowns(ctx context.Context, meta appservi
 }
 
 // ListAIPerformanceIssues 返回一页指定类型的 AI 表现问题会话。
-func (b *Backend) ListAIPerformanceIssues(ctx context.Context, meta appservice.RequestMeta, input appservice.AIPerformanceIssueListInput) (appservice.ServiceIssueList, error) {
+func (b *Backend) ListAIPerformanceIssues(ctx context.Context, meta appservice.RequestMeta, input appservice.AIPerformanceIssueListInput) (_ appservice.ServiceIssueList, err error) {
+	defer settle(ctx, "ListAIPerformanceIssues", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceIssueList
@@ -2666,7 +2938,8 @@ func (b *Backend) ListAIPerformanceIssues(ctx context.Context, meta appservice.R
 }
 
 // GetTeamPerformanceReport 返回当前企业指定范围内的真人客服表现概览。
-func (b *Backend) GetTeamPerformanceReport(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamPerformanceReportInput) (appservice.TeamPerformanceReport, error) {
+func (b *Backend) GetTeamPerformanceReport(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamPerformanceReportInput) (_ appservice.TeamPerformanceReport, err error) {
+	defer settle(ctx, "GetTeamPerformanceReport", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TeamPerformanceReport
@@ -2676,7 +2949,8 @@ func (b *Backend) GetTeamPerformanceReport(ctx context.Context, meta appservice.
 }
 
 // ListTeamPerformanceMembers 返回按客服拆分的一页真人客服表现。
-func (b *Backend) ListTeamPerformanceMembers(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamPerformanceMemberListInput) (appservice.TeamPerformanceMemberList, error) {
+func (b *Backend) ListTeamPerformanceMembers(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamPerformanceMemberListInput) (_ appservice.TeamPerformanceMemberList, err error) {
+	defer settle(ctx, "ListTeamPerformanceMembers", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TeamPerformanceMemberList
@@ -2686,7 +2960,8 @@ func (b *Backend) ListTeamPerformanceMembers(ctx context.Context, meta appservic
 }
 
 // ListTeamPerformanceBreakdowns 返回按渠道或咨询分类拆分的一页真人客服表现。
-func (b *Backend) ListTeamPerformanceBreakdowns(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamPerformanceBreakdownInput) (appservice.TeamPerformanceBreakdownList, error) {
+func (b *Backend) ListTeamPerformanceBreakdowns(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamPerformanceBreakdownInput) (_ appservice.TeamPerformanceBreakdownList, err error) {
+	defer settle(ctx, "ListTeamPerformanceBreakdowns", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.TeamPerformanceBreakdownList
@@ -2696,7 +2971,8 @@ func (b *Backend) ListTeamPerformanceBreakdowns(ctx context.Context, meta appser
 }
 
 // ListTeamPerformanceIssues 返回一页指定类型的真人接待问题会话。
-func (b *Backend) ListTeamPerformanceIssues(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamPerformanceIssueListInput) (appservice.ServiceIssueList, error) {
+func (b *Backend) ListTeamPerformanceIssues(ctx context.Context, meta appservice.RequestMeta, input appservice.TeamPerformanceIssueListInput) (_ appservice.ServiceIssueList, err error) {
+	defer settle(ctx, "ListTeamPerformanceIssues", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceIssueList
@@ -2706,7 +2982,8 @@ func (b *Backend) ListTeamPerformanceIssues(ctx context.Context, meta appservice
 }
 
 // GetServiceIssue 返回客服周期的质检结论与对客沟通。
-func (b *Backend) GetServiceIssue(ctx context.Context, meta appservice.RequestMeta, serviceSessionID string) (appservice.ServiceIssueDetail, error) {
+func (b *Backend) GetServiceIssue(ctx context.Context, meta appservice.RequestMeta, serviceSessionID string) (_ appservice.ServiceIssueDetail, err error) {
+	defer settle(ctx, "GetServiceIssue", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.ServiceIssueDetail
@@ -2716,7 +2993,8 @@ func (b *Backend) GetServiceIssue(ctx context.Context, meta appservice.RequestMe
 }
 
 // ListAgentServiceSessions 返回 AI 员工接待的一页服务周期。
-func (b *Backend) ListAgentServiceSessions(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.AgentServiceSessionListInput) (appservice.AgentServiceSessionList, error) {
+func (b *Backend) ListAgentServiceSessions(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.AgentServiceSessionListInput) (_ appservice.AgentServiceSessionList, err error) {
+	defer settle(ctx, "ListAgentServiceSessions", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentServiceSessionList
@@ -2726,7 +3004,8 @@ func (b *Backend) ListAgentServiceSessions(ctx context.Context, meta appservice.
 }
 
 // ListKnowledgeGaps 返回一页指定处理状态的待补知识。
-func (b *Backend) ListKnowledgeGaps(ctx context.Context, meta appservice.RequestMeta, input appservice.KnowledgeGapListInput) (appservice.KnowledgeGapList, error) {
+func (b *Backend) ListKnowledgeGaps(ctx context.Context, meta appservice.RequestMeta, input appservice.KnowledgeGapListInput) (_ appservice.KnowledgeGapList, err error) {
+	defer settle(ctx, "ListKnowledgeGaps", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeGapList
@@ -2736,7 +3015,8 @@ func (b *Backend) ListKnowledgeGaps(ctx context.Context, meta appservice.Request
 }
 
 // GetKnowledgeGap 返回待补知识详情。
-func (b *Backend) GetKnowledgeGap(ctx context.Context, meta appservice.RequestMeta, gapID string) (appservice.KnowledgeGap, error) {
+func (b *Backend) GetKnowledgeGap(ctx context.Context, meta appservice.RequestMeta, gapID string) (_ appservice.KnowledgeGap, err error) {
+	defer settle(ctx, "GetKnowledgeGap", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.KnowledgeGap
@@ -2746,7 +3026,8 @@ func (b *Backend) GetKnowledgeGap(ctx context.Context, meta appservice.RequestMe
 }
 
 // AcceptKnowledgeGap 把待补知识整理的问答加入知识库。
-func (b *Backend) AcceptKnowledgeGap(ctx context.Context, meta appservice.RequestMeta, gapID string, input appservice.KnowledgeGapAcceptInput) error {
+func (b *Backend) AcceptKnowledgeGap(ctx context.Context, meta appservice.RequestMeta, gapID string, input appservice.KnowledgeGapAcceptInput) (err error) {
+	defer settle(ctx, "AcceptKnowledgeGap", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2755,7 +3036,8 @@ func (b *Backend) AcceptKnowledgeGap(ctx context.Context, meta appservice.Reques
 }
 
 // AddServiceIssueToEvaluation 把应转人工未转的问题会话以选定的客户消息为提问加入负责 AI 员工的评测。
-func (b *Backend) AddServiceIssueToEvaluation(ctx context.Context, meta appservice.RequestMeta, serviceSessionID string, input appservice.ServiceIssueEvaluationInput) (appservice.AgentEvaluationCase, error) {
+func (b *Backend) AddServiceIssueToEvaluation(ctx context.Context, meta appservice.RequestMeta, serviceSessionID string, input appservice.ServiceIssueEvaluationInput) (_ appservice.AgentEvaluationCase, err error) {
+	defer settle(ctx, "AddServiceIssueToEvaluation", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.AgentEvaluationCase
@@ -2765,7 +3047,8 @@ func (b *Backend) AddServiceIssueToEvaluation(ctx context.Context, meta appservi
 }
 
 // DismissKnowledgeGap 忽略待补知识。
-func (b *Backend) DismissKnowledgeGap(ctx context.Context, meta appservice.RequestMeta, gapID string) error {
+func (b *Backend) DismissKnowledgeGap(ctx context.Context, meta appservice.RequestMeta, gapID string) (err error) {
+	defer settle(ctx, "DismissKnowledgeGap", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
@@ -2774,7 +3057,8 @@ func (b *Backend) DismissKnowledgeGap(ctx context.Context, meta appservice.Reque
 }
 
 // RegisterDevice 注册当前用户的本机设备。
-func (b *Backend) RegisterDevice(ctx context.Context, meta appservice.RequestMeta, input appservice.DeviceRegistrationInput) (appservice.Device, error) {
+func (b *Backend) RegisterDevice(ctx context.Context, meta appservice.RequestMeta, input appservice.DeviceRegistrationInput) (_ appservice.Device, err error) {
+	defer settle(ctx, "RegisterDevice", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.Device
@@ -2784,7 +3068,8 @@ func (b *Backend) RegisterDevice(ctx context.Context, meta appservice.RequestMet
 }
 
 // ListDevices 返回当前用户已注册的设备。
-func (b *Backend) ListDevices(ctx context.Context, meta appservice.RequestMeta) (appservice.DeviceList, error) {
+func (b *Backend) ListDevices(ctx context.Context, meta appservice.RequestMeta) (_ appservice.DeviceList, err error) {
+	defer settle(ctx, "ListDevices", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceList
@@ -2794,7 +3079,8 @@ func (b *Backend) ListDevices(ctx context.Context, meta appservice.RequestMeta) 
 }
 
 // RevokeDevice 撤销当前用户的设备。
-func (b *Backend) RevokeDevice(ctx context.Context, meta appservice.RequestMeta, deviceID string) error {
+func (b *Backend) RevokeDevice(ctx context.Context, meta appservice.RequestMeta, deviceID string) (err error) {
+	defer settle(ctx, "RevokeDevice", &err, internalError(meta))
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err

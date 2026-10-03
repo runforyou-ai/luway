@@ -30,6 +30,7 @@ const (
 	VisitorErrorSendFailed           Key = "visitor_error.send_failed"
 	VisitorErrorUploadFailed         Key = "visitor_error.upload_failed"
 	VisitorErrorRateFailed           Key = "visitor_error.rate_failed"
+	VisitorErrorInternal             Key = "visitor_error.internal"
 )
 
 // customerKeyPrefixes 是对客词条的键前缀，每种对客语言都须完整提供这些词条；messenger.preview_ 开头的管理端预览词条除外。
@@ -91,7 +92,7 @@ func PreferredCustomerLocale(languages string) domain.CustomerLocale {
 	return domain.CustomerLocaleEnglishUnitedStates
 }
 
-// LocalizeCustomerTemplate 按对客语言用模板数据渲染对客文案；词条缺失或本地化失败时记录错误并回退返回键本身。
+// LocalizeCustomerTemplate 按对客语言用模板数据渲染对客文案；词条缺失或本地化失败时记录警告并回退返回键本身。
 func LocalizeCustomerTemplate(locale domain.CustomerLocale, key Key, data map[string]any) string {
 	localizer := goi18n.NewLocalizer(customerBundle, string(locale))
 	merged := make(map[string]any, len(data)+1)
@@ -99,13 +100,13 @@ func LocalizeCustomerTemplate(locale domain.CustomerLocale, key Key, data map[st
 	merged["Product"] = brand.Current().Name(string(locale))
 	message, err := localizer.Localize(&goi18n.LocalizeConfig{MessageID: string(key), TemplateData: merged})
 	if err != nil {
-		slog.Error("本地化对客文案失败，回退返回文案键", "key", string(key), "locale", string(locale), "error", err)
+		slog.Warn("本地化对客文案失败，回退返回文案键", "key", string(key), "locale", string(locale), "error", err)
 		return string(key)
 	}
 	return message
 }
 
-// LocalizeCustomerMap 按对客语言将一组文案键翻译为对应文案；词条缺失或本地化失败时记录错误并回退返回键本身。
+// LocalizeCustomerMap 按对客语言将一组文案键翻译为对应文案；词条缺失或本地化失败时记录警告并回退返回键本身。
 func LocalizeCustomerMap[K comparable](locale domain.CustomerLocale, keys map[K]Key) map[K]string {
 	messages := make(map[K]string, len(keys))
 	for name, key := range keys {

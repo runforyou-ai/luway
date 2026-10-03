@@ -229,7 +229,7 @@ func (b *Backend) openEventStream(ctx context.Context, meta appservice.RequestMe
 	request, err := http.NewRequestWithContext(streamCtx, http.MethodGet, remoteEndpoint(state.baseURL, path, ""), nil)
 	if err != nil {
 		cancel()
-		return nil, nil, appservice.FailedError(meta, i18n.ErrorRemoteRequestCreateFailed)
+		return nil, nil, appservice.FailedError(meta, i18n.ErrorRemoteRequestCreateFailed, err)
 	}
 	request.Header.Set("Accept", "text/event-stream")
 	request.Header.Set("Accept-Language", string(meta.Locale))

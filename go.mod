@@ -20,6 +20,7 @@ require (
 	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.18-0.20260923024851-c21d73d93527
 	github.com/coder/acp-go-sdk v0.13.5
 	github.com/eino-contrib/jsonschema v1.0.3
+	github.com/getsentry/sentry-go v0.49.0
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-ego/gse v1.1.0
 	github.com/goccy/go-yaml v1.19.2

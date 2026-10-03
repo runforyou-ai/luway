@@ -4555,7 +4555,7 @@ export interface PlatformRuntimeStatus {
 }
 
 /**
- * PlatformSettings 定义平台注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
+ * PlatformSettings 定义平台注册策略、工作区创建策略、运营数据统计时区和运行指标与错误上报开关。
  */
 export interface PlatformSettings {
     "registrationPolicy": RegistrationPolicy;
@@ -4586,7 +4586,7 @@ export interface PlatformTaskQueue {
 }
 
 /**
- * PlatformTelemetryInput 定义运行指标上报开关的修改值。
+ * PlatformTelemetryInput 定义运行指标与错误上报开关的修改值。
  */
 export interface PlatformTelemetryInput {
     "telemetryEnabled": boolean;

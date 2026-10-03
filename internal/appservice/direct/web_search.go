@@ -5,7 +5,6 @@ package direct
 import (
 	"context"
 	"errors"
-	"log/slog"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	websearchaction "github.com/runforyou-ai/luway/internal/actions/websearch"
@@ -39,11 +38,7 @@ func newWebSearchOps(db *bun.DB, connectionRunner *connectiontest.Runner) webSea
 func (o *directOperations) GetWebSearchSettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.WebSearchSettings, error) {
 	config, err := o.getWebSearchSettings.Execute(ctx, identity)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.WebSearchSettings{}, ctx.Err()
-		}
-		slog.Warn("读取联网搜索设置失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.WebSearchSettings{}, appservice.FailedError(meta, i18n.ErrorWebSearchSettingsLoadFailed)
+		return appservice.WebSearchSettings{}, appservice.FailedError(meta, i18n.ErrorWebSearchSettingsLoadFailed, err)
 	}
 	return webSearchSettingsFromConfig(config), nil
 }
@@ -57,17 +52,13 @@ func (o *directOperations) UpdateWebSearchSettings(ctx context.Context, meta app
 	}
 	saved, err := o.updateWebSearchSettings.Execute(ctx, identity, config)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.WebSearchSettings{}, ctx.Err()
-		}
 		if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 			return appservice.WebSearchSettings{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, webSearchFieldKeys(validationError.Fields))
 		}
 		if errors.Is(err, identityaction.ErrInvalid) {
 			return appservice.WebSearchSettings{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 		}
-		slog.Warn("修改联网搜索设置失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.WebSearchSettings{}, appservice.FailedError(meta, i18n.ErrorWebSearchSettingsUpdateFailed)
+		return appservice.WebSearchSettings{}, appservice.FailedError(meta, i18n.ErrorWebSearchSettingsUpdateFailed, err)
 	}
 	return webSearchSettingsFromConfig(saved), nil
 }
@@ -81,14 +72,11 @@ func (o *directOperations) TestWebSearchService(ctx context.Context, meta appser
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, webSearchFieldKeys(validationError.Fields))
 	}
-	return webSearchError(ctx, meta, err)
+	return webSearchError(meta, err)
 }
 
 // webSearchError 按连接失败原因转换调用搜索服务产生的错误。
-func webSearchError(ctx context.Context, meta appservice.RequestMeta, err error) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func webSearchError(meta appservice.RequestMeta, err error) error {
 	_, kind, _ := connectiontest.Details(err)
 	switch kind {
 	case connectiontest.FailureUnauthorized:

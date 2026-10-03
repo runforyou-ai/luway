@@ -102,7 +102,7 @@ func (d *Desktop) UpdateLocalToolchain(ctx context.Context, meta appservice.Requ
 		toolchain.FailureVerify:   i18n.ErrorLocalToolchainVerify,
 		toolchain.FailureInstall:  i18n.ErrorLocalToolchainInstall,
 	}[toolchain.FailureOf(err)]
-	return appservice.LocalToolchainUpdate{}, appservice.FailedError(meta, key)
+	return appservice.LocalToolchainUpdate{}, appservice.FailedError(meta, key, err)
 }
 
 // UninstallLocalToolchain 删除运行环境的全部文件与下载缓存，重新安装前不再自动安装。
@@ -115,7 +115,7 @@ func (d *Desktop) UninstallLocalToolchain(_ context.Context, meta appservice.Req
 		return appservice.ConflictError(meta, i18n.ErrorLocalToolchainBusy, "toolchain_busy")
 	}
 	slog.Warn("卸载 Agent 运行环境失败", "error", err)
-	return appservice.FailedError(meta, i18n.ErrorLocalToolchainUninstall)
+	return appservice.FailedError(meta, i18n.ErrorLocalToolchainUninstall, err)
 }
 
 // InstallLocalToolchain 清除卸载记录并在后台重新安装运行环境。

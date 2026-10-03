@@ -922,7 +922,7 @@ func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.Reque
 	return output, err
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标与错误上报开关。
 func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
 	err := b.do(ctx, meta, http.MethodGet, "/platform/settings", nil, nil, &output)
@@ -943,7 +943,7 @@ func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta app
 	return output, err
 }
 
-// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (b *Backend) UpdatePlatformTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTelemetryInput) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
 	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/telemetry", nil, input, &output)

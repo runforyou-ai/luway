@@ -5,12 +5,14 @@ package api
 
 import (
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
@@ -76,7 +78,11 @@ func NewService(application *appservice.Service, options ...ServiceOption) *Serv
 	}
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(gin.Recovery())
+	// 处理请求时发生的 panic 记录为带调用栈的错误并返回 500。
+	router.Use(gin.CustomRecoveryWithWriter(io.Discard, func(c *gin.Context, recovered any) {
+		slog.Error("处理接口请求时发生 panic", "path", c.FullPath(), "error", common.NewPanicError(recovered))
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}))
 
 	service.registerGeneratedRoutes(router)
 	if service.deviceRuns != nil {
@@ -191,7 +197,7 @@ func writeApplicationError(c *gin.Context, err error) bool {
 		appservice.WriteHTTPError(c.Writer, c.Request, applicationError)
 		return true
 	}
-	slog.Warn("应用服务调用失败", "error", err)
-	appservice.WriteHTTPError(c.Writer, c.Request, appservice.FailedError(requestMeta(c), i18n.ErrorInternal))
+	slog.Error("接口返回非业务错误", "path", c.FullPath(), "error", err)
+	appservice.WriteHTTPError(c.Writer, c.Request, appservice.FailedError(requestMeta(c), i18n.ErrorInternal, err))
 	return true
 }

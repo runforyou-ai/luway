@@ -23,7 +23,7 @@ import (
 func (o *directOperations) MarkConversationRead(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string, input appservice.MarkConversationReadInput) (appservice.ConversationReadState, error) {
 	state, err := o.markConversationRead.Execute(ctx, identity, conversationID, input.LastReadMessageID, input.ClearUnreadMark)
 	if err != nil {
-		return appservice.ConversationReadState{}, conversationReadError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationReadState{}, conversationReadError(meta, err)
 	}
 	return appservice.ConversationReadState{ReadSeq: strconv.FormatInt(state.ReadSeq, 10), LastReadMessageID: state.LastReadMessageID, LastReadAt: state.LastReadAt}, nil
 }
@@ -33,9 +33,6 @@ func (o *directOperations) ReportConversationTyping(ctx context.Context, meta ap
 	err := o.reportConversationTyping.Execute(ctx, identity, conversationID, input.Active)
 	if err == nil {
 		return nil
-	}
-	if ctx.Err() != nil {
-		return ctx.Err()
 	}
 	if errors.Is(err, conversationaction.ErrConversationNotFound) {
 		return appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
@@ -47,7 +44,7 @@ func (o *directOperations) ReportConversationTyping(ctx context.Context, meta ap
 // UpdateConversationUnreadMark 保存个人未读标记并保留已读和提及查看水位。
 func (o *directOperations) UpdateConversationUnreadMark(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string, input appservice.ConversationUnreadMarkInput) error {
 	if err := o.updateConversationUnreadMark.Execute(ctx, identity, conversationID, input.MarkedUnread); err != nil {
-		return conversationReadError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return conversationReadError(meta, err)
 	}
 	if input.MarkedUnread {
 		slog.Info("会话已标为未读", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "user_id", identity.User.ID)
@@ -67,15 +64,15 @@ func (o *directOperations) UpdateConversationPin(ctx context.Context, meta appse
 		Position: domain.ConversationPinPosition(input.Position), ExpectedPinOrderVersion: expectedVersion,
 	})
 	if err != nil {
-		return appservice.ConversationPinState{}, conversationPinError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationPinState{}, conversationPinError(meta, err)
 	}
 	slog.Info("会话置顶已保存", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "user_id", identity.User.ID, "pinned", state.Pinned)
 	return appservice.ConversationPinState{Pinned: state.Pinned, PinOrderVersion: strconv.FormatInt(state.PinOrderVersion, 10)}, nil
 }
 
 // conversationPinError 转换个人置顶写入错误，顺序版本过期与邻居失效都要求客户端整区重读。
-func conversationPinError(ctx context.Context, meta appservice.RequestMeta, err error, organizationID, conversationID string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func conversationPinError(meta appservice.RequestMeta, err error) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, conversationaction.ErrConversationNotFound) {
@@ -87,8 +84,7 @@ func conversationPinError(ctx context.Context, meta appservice.RequestMeta, err 
 	if conflictError, ok := errors.AsType[*conversationaction.ConflictError](err); ok {
 		return appservice.ConflictError(meta, i18n.ErrorConversationPinOrderStale, conflictError.Reason)
 	}
-	slog.Warn("更新会话置顶失败", "organization_id", organizationID, "conversation_id", conversationID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorConversationPinUpdateFailed)
+	return appservice.FailedError(meta, i18n.ErrorConversationPinUpdateFailed, err)
 }
 
 // UpdateConversationArchive 保存个人归档状态，归档同时取消置顶。
@@ -98,9 +94,6 @@ func (o *directOperations) UpdateConversationArchive(ctx context.Context, meta a
 		slog.Info("会话归档状态已保存", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "user_id", identity.User.ID, "archived", input.Archived)
 		return nil
 	}
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
 	if errors.Is(err, identityaction.ErrInvalid) {
 		return appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
@@ -110,25 +103,21 @@ func (o *directOperations) UpdateConversationArchive(ctx context.Context, meta a
 	if validationError, ok := errors.AsType[*conversationaction.ValidationError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, conversationMessageValidationKeys))
 	}
-	slog.Warn("更新会话归档状态失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorConversationArchiveUpdateFailed)
+	return appservice.FailedError(meta, i18n.ErrorConversationArchiveUpdateFailed, err)
 }
 
 // UpdateConversationNotificationSettings 保存当前用户的原生会话提醒设置。
 func (o *directOperations) UpdateConversationNotificationSettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string, input appservice.ConversationNotificationSettingsInput) (appservice.ConversationNotificationSettings, error) {
 	settings, err := o.updateConversationNotifications.Execute(ctx, identity, conversationID, input.Muted)
 	if err != nil {
-		return appservice.ConversationNotificationSettings{}, conversationNotificationSettingsError(ctx, meta, err, identity.Organization.ID, conversationID)
+		return appservice.ConversationNotificationSettings{}, conversationNotificationSettingsError(meta, err)
 	}
 	slog.Info("会话提醒设置已保存", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "user_id", identity.User.ID, "muted", settings.Muted)
 	return appservice.ConversationNotificationSettings{Muted: settings.Muted}, nil
 }
 
 // conversationNotificationSettingsError 转换会话提醒设置更新错误。
-func conversationNotificationSettingsError(ctx context.Context, meta appservice.RequestMeta, err error, organizationID, conversationID string) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func conversationNotificationSettingsError(meta appservice.RequestMeta, err error) error {
 	if errors.Is(err, identityaction.ErrInvalid) {
 		return appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
@@ -138,15 +127,11 @@ func conversationNotificationSettingsError(ctx context.Context, meta appservice.
 	if validationError, ok := errors.AsType[*conversationaction.ValidationError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, conversationMessageValidationKeys))
 	}
-	slog.Warn("更新会话提醒设置失败", "organization_id", organizationID, "conversation_id", conversationID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorConversationNotifyUpdateFailed)
+	return appservice.FailedError(meta, i18n.ErrorConversationNotifyUpdateFailed, err)
 }
 
 // conversationReadError 转换会话阅读状态更新错误。
-func conversationReadError(ctx context.Context, meta appservice.RequestMeta, err error, organizationID, conversationID string) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func conversationReadError(meta appservice.RequestMeta, err error) error {
 	if errors.Is(err, identityaction.ErrInvalid) {
 		return appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
@@ -156,6 +141,5 @@ func conversationReadError(ctx context.Context, meta appservice.RequestMeta, err
 	if validationError, ok := errors.AsType[*conversationaction.ValidationError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, conversationMessageValidationKeys))
 	}
-	slog.Warn("更新会话阅读状态失败", "organization_id", organizationID, "conversation_id", conversationID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorConversationReadUpdateFailed)
+	return appservice.FailedError(meta, i18n.ErrorConversationReadUpdateFailed, err)
 }

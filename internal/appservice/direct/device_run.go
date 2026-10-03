@@ -31,7 +31,8 @@ type deviceIdentity struct {
 }
 
 // AuthenticateDevice 校验实时事件流请求携带的登录令牌与本人未撤销设备，并返回成员会话。
-func (b *Backend) AuthenticateDevice(ctx context.Context, meta appservice.RequestMeta) (MemberSession, error) {
+func (b *Backend) AuthenticateDevice(ctx context.Context, meta appservice.RequestMeta) (_ MemberSession, err error) {
+	defer settle(ctx, "AuthenticateDevice", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		return MemberSession{}, err
@@ -50,11 +51,7 @@ func (o *directOperations) authenticateDevice(ctx context.Context, meta appservi
 		return deviceIdentity{}, appservice.NotFoundError(meta, i18n.ErrorDeviceNotFound)
 	}
 	if err != nil {
-		if ctx.Err() != nil {
-			return deviceIdentity{}, ctx.Err()
-		}
-		slog.Warn("设备认证失败", "organization_id", identity.Organization.ID, "error", err)
-		return deviceIdentity{}, appservice.FailedError(meta, i18n.ErrorDeviceRunRequestFailed)
+		return deviceIdentity{}, appservice.FailedError(meta, i18n.ErrorDeviceRunRequestFailed, err)
 	}
 	return deviceIdentity{identity: identity, device: agentrunaction.RunDevice{
 		OrganizationID: identity.Organization.ID, UserID: identity.User.ID, DeviceID: record.ID,
@@ -65,7 +62,7 @@ func (o *directOperations) authenticateDevice(ctx context.Context, meta appservi
 func (o *directOperations) GetDeviceWork(ctx context.Context, meta appservice.RequestMeta, device deviceIdentity) (appservice.DeviceWork, error) {
 	work, err := o.agentCoordinator.DeviceWork(ctx, device.device)
 	if err != nil {
-		return appservice.DeviceWork{}, o.deviceRunError(ctx, meta, err, device, "")
+		return appservice.DeviceWork{}, o.deviceRunError(meta, err)
 	}
 	output := appservice.DeviceWork{WorkSeq: work.WorkSeq, Runs: make([]appservice.DeviceWorkRun, 0, len(work.Runs))}
 	for _, run := range work.Runs {
@@ -84,7 +81,7 @@ func (o *directOperations) ReportDeviceLocalAgents(ctx context.Context, meta app
 		if errors.Is(err, deviceaction.ErrNotFound) {
 			return appservice.NotFoundError(meta, i18n.ErrorDeviceNotFound)
 		}
-		return o.deviceRunError(ctx, meta, err, device, "")
+		return o.deviceRunError(meta, err)
 	}
 	return nil
 }
@@ -96,7 +93,7 @@ func (o *directOperations) ClaimDeviceRun(ctx context.Context, meta appservice.R
 	}
 	claim, err := o.agentCoordinator.ClaimDeviceRun(ctx, device.device, runID)
 	if err != nil {
-		return appservice.DeviceRunClaim{}, o.deviceRunError(ctx, meta, err, device, runID)
+		return appservice.DeviceRunClaim{}, o.deviceRunError(meta, err)
 	}
 	return appservice.DeviceRunClaim{
 		Assignment: claim.Assignment, LeaseExpiresAt: claim.LeaseExpiresAt,
@@ -112,7 +109,7 @@ func (o *directOperations) RenewDeviceRunLease(ctx context.Context, meta appserv
 	}
 	lease, err := o.agentCoordinator.RenewDeviceRunLease(ctx, device.device, runID)
 	if err != nil {
-		return appservice.DeviceRunLease{}, o.deviceRunError(ctx, meta, err, device, runID)
+		return appservice.DeviceRunLease{}, o.deviceRunError(meta, err)
 	}
 	if lease.Ended {
 		return appservice.DeviceRunLease{Ended: true}, nil
@@ -127,7 +124,7 @@ func (o *directOperations) PeekDeviceRunInputs(ctx context.Context, meta appserv
 	}
 	triggers, err := o.agentCoordinator.PeekDeviceRunInputs(ctx, device.device, runID, int64(input.AfterSeq))
 	if err != nil {
-		return appservice.DeviceRunInputSignals{}, o.deviceRunError(ctx, meta, err, device, runID)
+		return appservice.DeviceRunInputSignals{}, o.deviceRunError(meta, err)
 	}
 	output := appservice.DeviceRunInputSignals{Seqs: make([]int64, 0, len(triggers))}
 	for _, trigger := range triggers {
@@ -143,14 +140,14 @@ func (o *directOperations) ClaimDeviceRunInputs(ctx context.Context, meta appser
 	}
 	claimed, err := o.agentCoordinator.ClaimDeviceRunInputs(ctx, device.device, runID, input.ThroughSeq)
 	if err != nil {
-		return appservice.DeviceRunClaimedInput{}, o.deviceRunError(ctx, meta, err, device, runID)
+		return appservice.DeviceRunClaimedInput{}, o.deviceRunError(meta, err)
 	}
 	if claimed.Suppressed {
 		return appservice.DeviceRunClaimedInput{Suppressed: true, Messages: json.RawMessage("[]")}, nil
 	}
 	messages, err := json.Marshal(claimed.Input.Messages)
 	if err != nil {
-		return appservice.DeviceRunClaimedInput{}, o.deviceRunError(ctx, meta, fmt.Errorf("encode claimed messages: %w", err), device, runID)
+		return appservice.DeviceRunClaimedInput{}, o.deviceRunError(meta, fmt.Errorf("encode claimed messages: %w", err))
 	}
 	return appservice.DeviceRunClaimedInput{EndSeq: claimed.Input.EndSeq, Messages: messages}, nil
 }
@@ -166,11 +163,11 @@ func (o *directOperations) SearchDeviceRunKnowledge(ctx context.Context, meta ap
 	}
 	result, err := o.agentCoordinator.SearchDeviceRunKnowledge(ctx, device.device, runID, request)
 	if err != nil {
-		return appservice.DeviceRunKnowledgeSearchResult{}, o.deviceRunError(ctx, meta, err, device, runID)
+		return appservice.DeviceRunKnowledgeSearchResult{}, o.deviceRunError(meta, err)
 	}
 	encoded, err := json.Marshal(result)
 	if err != nil {
-		return appservice.DeviceRunKnowledgeSearchResult{}, o.deviceRunError(ctx, meta, fmt.Errorf("encode knowledge search result: %w", err), device, runID)
+		return appservice.DeviceRunKnowledgeSearchResult{}, o.deviceRunError(meta, fmt.Errorf("encode knowledge search result: %w", err))
 	}
 	return appservice.DeviceRunKnowledgeSearchResult{Result: encoded}, nil
 }
@@ -182,11 +179,11 @@ func (o *directOperations) GetDeviceRunMemory(ctx context.Context, meta appservi
 	}
 	entries, err := o.agentCoordinator.LoadDeviceRunMemory(ctx, device.device, runID)
 	if err != nil {
-		return appservice.DeviceRunMemory{}, o.deviceRunError(ctx, meta, err, device, runID)
+		return appservice.DeviceRunMemory{}, o.deviceRunError(meta, err)
 	}
 	encoded, err := json.Marshal(entries)
 	if err != nil {
-		return appservice.DeviceRunMemory{}, o.deviceRunError(ctx, meta, fmt.Errorf("encode device run memory: %w", err), device, runID)
+		return appservice.DeviceRunMemory{}, o.deviceRunError(meta, fmt.Errorf("encode device run memory: %w", err))
 	}
 	return appservice.DeviceRunMemory{Entries: encoded}, nil
 }
@@ -198,7 +195,7 @@ func (o *directOperations) ListDeviceRunMCPTools(ctx context.Context, meta appse
 	}
 	servers, err := o.agentCoordinator.ListDeviceRunMCPTools(ctx, device.device, runID)
 	if err != nil {
-		return appservice.DeviceRunMCPToolList{}, o.deviceRunError(ctx, meta, err, device, runID)
+		return appservice.DeviceRunMCPToolList{}, o.deviceRunError(meta, err)
 	}
 	output := appservice.DeviceRunMCPToolList{Servers: make([]appservice.DeviceRunMCPServer, 0, len(servers))}
 	for _, server := range servers {
@@ -224,7 +221,7 @@ func (o *directOperations) CallDeviceRunMCPTool(ctx context.Context, meta appser
 		return appservice.DeviceRunMCPToolCallResult{}, appservice.NotFoundError(meta, i18n.ErrorMCPToolNotFound)
 	}
 	if err != nil {
-		return appservice.DeviceRunMCPToolCallResult{}, o.deviceRunError(ctx, meta, err, device, runID)
+		return appservice.DeviceRunMCPToolCallResult{}, o.deviceRunError(meta, err)
 	}
 	return appservice.DeviceRunMCPToolCallResult{Result: result.Result, Error: result.Error}, nil
 }
@@ -239,7 +236,7 @@ func (o *directOperations) CompleteDeviceRun(ctx context.Context, meta appservic
 		return err
 	}
 	if err := o.agentCoordinator.CompleteDeviceRun(ctx, device.device, runID, result); err != nil {
-		return o.deviceRunError(ctx, meta, err, device, runID)
+		return o.deviceRunError(meta, err)
 	}
 	return nil
 }
@@ -254,7 +251,7 @@ func (o *directOperations) FailDeviceRun(ctx context.Context, meta appservice.Re
 		return err
 	}
 	if err := o.agentCoordinator.FailDeviceRun(ctx, device.device, runID, domain.AgentRunErrorCode(input.ErrorCode), input.Message, partial); err != nil {
-		return o.deviceRunError(ctx, meta, err, device, runID)
+		return o.deviceRunError(meta, err)
 	}
 	return nil
 }
@@ -284,7 +281,8 @@ func decodeDeviceRunProcess(meta appservice.RequestMeta, device deviceIdentity, 
 }
 
 // DeviceRunModels 校验模型网关请求来自持有该运行有效租约的本人未撤销设备，并返回经统一调用入口记为该运行调用的对话模型组件工厂。
-func (b *Backend) DeviceRunModels(ctx context.Context, meta appservice.RequestMeta, runID string) (agentruntime.ModelFactory, error) {
+func (b *Backend) DeviceRunModels(ctx context.Context, meta appservice.RequestMeta, runID string) (_ agentruntime.ModelFactory, err error) {
+	defer settle(ctx, "DeviceRunModels", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		return nil, err
@@ -294,13 +292,14 @@ func (b *Backend) DeviceRunModels(ctx context.Context, meta appservice.RequestMe
 	}
 	models, err := b.ops.agentCoordinator.DeviceRunModels(ctx, device.device, runID)
 	if err != nil {
-		return nil, b.ops.deviceRunError(ctx, meta, err, device, runID)
+		return nil, b.ops.deviceRunError(meta, err)
 	}
 	return models, nil
 }
 
 // ReadDeviceRunAttachment 校验请求来自持有该运行有效租约的本人未撤销设备，并返回运行所属会话中指定附件消息的文件内容。
-func (b *Backend) ReadDeviceRunAttachment(ctx context.Context, meta appservice.RequestMeta, runID, messageID string) ([]byte, error) {
+func (b *Backend) ReadDeviceRunAttachment(ctx context.Context, meta appservice.RequestMeta, runID, messageID string) (_ []byte, err error) {
+	defer settle(ctx, "ReadDeviceRunAttachment", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		return nil, err
@@ -313,16 +312,13 @@ func (b *Backend) ReadDeviceRunAttachment(ctx context.Context, meta appservice.R
 		return nil, appservice.NotFoundError(meta, i18n.ErrorFileNotFound)
 	}
 	if err != nil {
-		return nil, b.ops.deviceRunError(ctx, meta, err, device, runID)
+		return nil, b.ops.deviceRunError(meta, err)
 	}
 	return content, nil
 }
 
-// deviceRunError 转换设备运行期错误：运行不存在、不可领取与租约失效给出稳定原因码，其余记录日志后按请求失败收敛。
-func (o *directOperations) deviceRunError(ctx context.Context, meta appservice.RequestMeta, err error, device deviceIdentity, runID string) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+// deviceRunError 转换设备运行期错误：运行不存在、不可领取与租约失效给出稳定原因码，其余按请求失败收敛。
+func (o *directOperations) deviceRunError(meta appservice.RequestMeta, err error) error {
 	switch {
 	case errors.Is(err, agentrunaction.ErrDeviceRunNotFound):
 		return appservice.NotFoundError(meta, i18n.ErrorDeviceRunNotFound)
@@ -333,9 +329,7 @@ func (o *directOperations) deviceRunError(ctx context.Context, meta appservice.R
 	case errors.Is(err, agentrunaction.ErrDeviceRunFailureCodeInvalid):
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 	}
-	slog.Warn("设备运行请求失败", "organization_id", device.device.OrganizationID, "device_id", device.device.DeviceID,
-		"agent_run_id", runID, "error", err)
-	return appservice.FailedError(meta, i18n.ErrorDeviceRunRequestFailed)
+	return appservice.FailedError(meta, i18n.ErrorDeviceRunRequestFailed, err)
 }
 
 // SearchDeviceRunWeb 用企业配置的搜索服务为本设备持有的运行搜索互联网，搜索服务的失败按原因转换。
@@ -349,14 +343,14 @@ func (o *directOperations) SearchDeviceRunWeb(ctx context.Context, meta appservi
 	}
 	result, err := o.agentCoordinator.SearchDeviceRunWeb(ctx, device.device, runID, request)
 	if _, _, classified := connectiontest.Details(err); classified {
-		return appservice.DeviceRunWebSearchResult{}, webSearchError(ctx, meta, err)
+		return appservice.DeviceRunWebSearchResult{}, webSearchError(meta, err)
 	}
 	if err != nil {
-		return appservice.DeviceRunWebSearchResult{}, o.deviceRunError(ctx, meta, err, device, runID)
+		return appservice.DeviceRunWebSearchResult{}, o.deviceRunError(meta, err)
 	}
 	encoded, err := json.Marshal(result)
 	if err != nil {
-		return appservice.DeviceRunWebSearchResult{}, o.deviceRunError(ctx, meta, fmt.Errorf("encode web search result: %w", err), device, runID)
+		return appservice.DeviceRunWebSearchResult{}, o.deviceRunError(meta, fmt.Errorf("encode web search result: %w", err))
 	}
 	return appservice.DeviceRunWebSearchResult{Result: encoded}, nil
 }

@@ -89,7 +89,7 @@ func (b *Backend) establishSession(ctx context.Context, meta appservice.RequestM
 		ExpiresAt: output.ExpiresAt,
 	}); err != nil {
 		slog.Warn("保存原生端登录凭据失败", "server_url", state.baseURL.String(), "account_id", output.Account.ID, "error", err)
-		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorLoginFailed)
+		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorLoginFailed, err)
 	}
 	// 新登录会话不沿用上一会话的实时连接。
 	b.realtime.disconnectAll()
@@ -114,7 +114,7 @@ func (b *Backend) Logout(ctx context.Context, meta appservice.RequestMeta) error
 	// 远程请求取消后仍清除本地凭据。
 	if err := b.sessions.Clear(context.WithoutCancel(ctx)); err != nil {
 		slog.Warn("清理原生端登录凭据失败", "error", err)
-		return appservice.FailedError(meta, i18n.ErrorLogoutFailed)
+		return appservice.FailedError(meta, i18n.ErrorLogoutFailed, err)
 	}
 	return remoteErr
 }
@@ -151,7 +151,7 @@ func (b *Backend) ConnectServer(ctx context.Context, meta appservice.RequestMeta
 	if changed {
 		if err := b.sessions.Clear(ctx); err != nil {
 			slog.Warn("切换服务器前清理登录凭据失败", "server_url", state.baseURL.String(), "error", err)
-			return appservice.FailedError(meta, i18n.ErrorServerConnectionSaveFailed)
+			return appservice.FailedError(meta, i18n.ErrorServerConnectionSaveFailed, err)
 		}
 		b.realtime.disconnectAll()
 	}
@@ -160,7 +160,7 @@ func (b *Backend) ConnectServer(ctx context.Context, meta appservice.RequestMeta
 			return ctx.Err()
 		}
 		slog.Warn("保存服务器配置失败", "server_url", state.baseURL.String(), "error", err)
-		return appservice.FailedError(meta, i18n.ErrorServerConnectionSaveFailed)
+		return appservice.FailedError(meta, i18n.ErrorServerConnectionSaveFailed, err)
 	}
 	b.connection.mu.Lock()
 	b.connection.state = state
@@ -255,7 +255,7 @@ func (b *Backend) sendVia(ctx context.Context, meta appservice.RequestMeta, cont
 	endpoint := remoteEndpoint(state.baseURL, path, rawQuery)
 	request, err := http.NewRequestWithContext(ctx, method, endpoint, body)
 	if err != nil {
-		return nil, appservice.FailedError(meta, i18n.ErrorRemoteRequestCreateFailed)
+		return nil, appservice.FailedError(meta, i18n.ErrorRemoteRequestCreateFailed, err)
 	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Accept-Language", string(meta.Locale))

@@ -679,7 +679,7 @@ func (s *Service) GetPlatformOverview(ctx context.Context, meta RequestMeta) (Pl
 	return WithNormalizedSlices(s.backend.GetPlatformOverview(ctx, meta))
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标与错误上报开关。
 func (s *Service) GetPlatformSettings(ctx context.Context, meta RequestMeta) (PlatformSettings, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformSettings(ctx, meta))
 }
@@ -694,7 +694,7 @@ func (s *Service) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta Req
 	return WithNormalizedSlices(s.backend.UpdatePlatformStatisticsTimeZone(ctx, meta, input))
 }
 
-// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (s *Service) UpdatePlatformTelemetry(ctx context.Context, meta RequestMeta, input PlatformTelemetryInput) (PlatformSettings, error) {
 	return WithNormalizedSlices(s.backend.UpdatePlatformTelemetry(ctx, meta, input))
 }

@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os/signal"
 	"syscall"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/realtime"
 	"github.com/runforyou-ai/luway/internal/realtime/gateway"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
-	"github.com/uptrace/bun"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -76,18 +76,27 @@ func (l *realtimeLifecycle) ServiceShutdown() error {
 	return l.publisher.Stop()
 }
 
-// telemetryLifecycle 将向 control 上报运行指标接入 Wails 服务生命周期。
+// telemetryLifecycle 将向 control 上报运行指标与错误接入 Wails 服务生命周期。
 type telemetryLifecycle struct {
-	db      *bun.DB
-	control *control.Client
-	metrics *control.Metrics
+	telemetry *platformaction.Telemetry
+	control   *control.Client
+	metrics   *control.Metrics
+	errors    *control.ErrorReporter
 }
 
-// ServiceStartup 开始每分钟采集并上报运行指标，平台关闭上报时不上报。
+// ServiceStartup 读取上报开关并定期刷新，把 Error 级别日志接入错误上报，开始每分钟采集并上报运行指标；关闭上报时不上报。
 func (l *telemetryLifecycle) ServiceStartup(ctx context.Context, _ application.ServiceOptions) error {
-	metrics, err := l.control.StartMetrics(ctx, platformaction.TelemetryGauges, func(ctx context.Context) (map[string]int64, error) {
-		return platformaction.TelemetryMetrics(ctx, l.db)
-	})
+	if err := l.telemetry.Refresh(ctx); err != nil {
+		return err
+	}
+	go l.telemetry.Run(ctx)
+	errors, err := l.control.NewErrorReporter(l.telemetry.Enabled)
+	if err != nil {
+		return err
+	}
+	l.errors = errors
+	slog.SetDefault(slog.New(errors.Handler(slog.Default().Handler())))
+	metrics, err := l.control.StartMetrics(ctx, platformaction.TelemetryGauges, l.telemetry.Metrics)
 	if err != nil {
 		return err
 	}
@@ -95,9 +104,11 @@ func (l *telemetryLifecycle) ServiceStartup(ctx context.Context, _ application.S
 	return nil
 }
 
-// ServiceShutdown 上报剩余指标后停止采集。
+// ServiceShutdown 上报剩余指标后停止采集，并等待已上报的错误发送完成。
 func (l *telemetryLifecycle) ServiceShutdown() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return l.metrics.Shutdown(ctx)
+	err := l.metrics.Shutdown(ctx)
+	l.errors.Flush(5 * time.Second)
+	return err
 }

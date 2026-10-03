@@ -11,7 +11,8 @@ import (
 )
 
 // GetDeviceWork 返回本设备的工作水位与待领取运行。
-func (b *Backend) GetDeviceWork(ctx context.Context, meta appservice.RequestMeta) (appservice.DeviceWork, error) {
+func (b *Backend) GetDeviceWork(ctx context.Context, meta appservice.RequestMeta) (_ appservice.DeviceWork, err error) {
+	defer settle(ctx, "GetDeviceWork", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceWork
@@ -21,7 +22,8 @@ func (b *Backend) GetDeviceWork(ctx context.Context, meta appservice.RequestMeta
 }
 
 // ReportDeviceLocalAgents 上报本设备上已安装且可用的本机 Agent。
-func (b *Backend) ReportDeviceLocalAgents(ctx context.Context, meta appservice.RequestMeta, input appservice.DeviceLocalAgentsInput) error {
+func (b *Backend) ReportDeviceLocalAgents(ctx context.Context, meta appservice.RequestMeta, input appservice.DeviceLocalAgentsInput) (err error) {
+	defer settle(ctx, "ReportDeviceLocalAgents", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		return err
@@ -30,7 +32,8 @@ func (b *Backend) ReportDeviceLocalAgents(ctx context.Context, meta appservice.R
 }
 
 // ClaimDeviceRun 领取派发给本设备的排队运行并取得租约。
-func (b *Backend) ClaimDeviceRun(ctx context.Context, meta appservice.RequestMeta, runID string) (appservice.DeviceRunClaim, error) {
+func (b *Backend) ClaimDeviceRun(ctx context.Context, meta appservice.RequestMeta, runID string) (_ appservice.DeviceRunClaim, err error) {
+	defer settle(ctx, "ClaimDeviceRun", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceRunClaim
@@ -40,7 +43,8 @@ func (b *Backend) ClaimDeviceRun(ctx context.Context, meta appservice.RequestMet
 }
 
 // RenewDeviceRunLease 为本设备持有的运行续租，运行已结束时返回 ended。
-func (b *Backend) RenewDeviceRunLease(ctx context.Context, meta appservice.RequestMeta, runID string) (appservice.DeviceRunLease, error) {
+func (b *Backend) RenewDeviceRunLease(ctx context.Context, meta appservice.RequestMeta, runID string) (_ appservice.DeviceRunLease, err error) {
+	defer settle(ctx, "RenewDeviceRunLease", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceRunLease
@@ -50,7 +54,8 @@ func (b *Backend) RenewDeviceRunLease(ctx context.Context, meta appservice.Reque
 }
 
 // PeekDeviceRunInputs 返回本设备持有运行尚未认领的输入信号。
-func (b *Backend) PeekDeviceRunInputs(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunInputPeekInput) (appservice.DeviceRunInputSignals, error) {
+func (b *Backend) PeekDeviceRunInputs(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunInputPeekInput) (_ appservice.DeviceRunInputSignals, err error) {
+	defer settle(ctx, "PeekDeviceRunInputs", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceRunInputSignals
@@ -60,7 +65,8 @@ func (b *Backend) PeekDeviceRunInputs(ctx context.Context, meta appservice.Reque
 }
 
 // ClaimDeviceRunInputs 为本设备持有的运行认领输入并返回截至该边界的上下文消息。
-func (b *Backend) ClaimDeviceRunInputs(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunInputClaimInput) (appservice.DeviceRunClaimedInput, error) {
+func (b *Backend) ClaimDeviceRunInputs(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunInputClaimInput) (_ appservice.DeviceRunClaimedInput, err error) {
+	defer settle(ctx, "ClaimDeviceRunInputs", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceRunClaimedInput
@@ -70,7 +76,8 @@ func (b *Backend) ClaimDeviceRunInputs(ctx context.Context, meta appservice.Requ
 }
 
 // SearchDeviceRunKnowledge 在本设备持有运行绑定的知识库中检索。
-func (b *Backend) SearchDeviceRunKnowledge(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunKnowledgeSearchInput) (appservice.DeviceRunKnowledgeSearchResult, error) {
+func (b *Backend) SearchDeviceRunKnowledge(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunKnowledgeSearchInput) (_ appservice.DeviceRunKnowledgeSearchResult, err error) {
+	defer settle(ctx, "SearchDeviceRunKnowledge", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceRunKnowledgeSearchResult
@@ -80,7 +87,8 @@ func (b *Backend) SearchDeviceRunKnowledge(ctx context.Context, meta appservice.
 }
 
 // GetDeviceRunMemory 返回本设备持有运行所属个人 AI 员工的记忆，有效配置未启用记忆时为空。
-func (b *Backend) GetDeviceRunMemory(ctx context.Context, meta appservice.RequestMeta, runID string) (appservice.DeviceRunMemory, error) {
+func (b *Backend) GetDeviceRunMemory(ctx context.Context, meta appservice.RequestMeta, runID string) (_ appservice.DeviceRunMemory, err error) {
+	defer settle(ctx, "GetDeviceRunMemory", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceRunMemory
@@ -90,7 +98,8 @@ func (b *Backend) GetDeviceRunMemory(ctx context.Context, meta appservice.Reques
 }
 
 // SearchDeviceRunWeb 用企业配置的搜索服务为本设备持有的运行搜索互联网。
-func (b *Backend) SearchDeviceRunWeb(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunWebSearchInput) (appservice.DeviceRunWebSearchResult, error) {
+func (b *Backend) SearchDeviceRunWeb(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunWebSearchInput) (_ appservice.DeviceRunWebSearchResult, err error) {
+	defer settle(ctx, "SearchDeviceRunWeb", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceRunWebSearchResult
@@ -100,7 +109,8 @@ func (b *Backend) SearchDeviceRunWeb(ctx context.Context, meta appservice.Reques
 }
 
 // ListDeviceRunMCPTools 列出本设备持有运行绑定的企业 MCP 服务及其工具目录，不可用的服务不列出。
-func (b *Backend) ListDeviceRunMCPTools(ctx context.Context, meta appservice.RequestMeta, runID string) (appservice.DeviceRunMCPToolList, error) {
+func (b *Backend) ListDeviceRunMCPTools(ctx context.Context, meta appservice.RequestMeta, runID string) (_ appservice.DeviceRunMCPToolList, err error) {
+	defer settle(ctx, "ListDeviceRunMCPTools", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceRunMCPToolList
@@ -110,7 +120,8 @@ func (b *Backend) ListDeviceRunMCPTools(ctx context.Context, meta appservice.Req
 }
 
 // CallDeviceRunMCPTool 为本设备持有的运行调用企业 MCP 工具。
-func (b *Backend) CallDeviceRunMCPTool(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunMCPToolCallInput) (appservice.DeviceRunMCPToolCallResult, error) {
+func (b *Backend) CallDeviceRunMCPTool(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunMCPToolCallInput) (_ appservice.DeviceRunMCPToolCallResult, err error) {
+	defer settle(ctx, "CallDeviceRunMCPTool", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		var zero appservice.DeviceRunMCPToolCallResult
@@ -120,7 +131,8 @@ func (b *Backend) CallDeviceRunMCPTool(ctx context.Context, meta appservice.Requ
 }
 
 // CompleteDeviceRun 以成功结果收尾本设备持有的运行。
-func (b *Backend) CompleteDeviceRun(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunResultInput) error {
+func (b *Backend) CompleteDeviceRun(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunResultInput) (err error) {
+	defer settle(ctx, "CompleteDeviceRun", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		return err
@@ -129,7 +141,8 @@ func (b *Backend) CompleteDeviceRun(ctx context.Context, meta appservice.Request
 }
 
 // FailDeviceRun 以失败原因收尾派发给本设备的运行。
-func (b *Backend) FailDeviceRun(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunFailureInput) error {
+func (b *Backend) FailDeviceRun(ctx context.Context, meta appservice.RequestMeta, runID string, input appservice.DeviceRunFailureInput) (err error) {
+	defer settle(ctx, "FailDeviceRun", &err, internalError(meta))
 	device, err := b.ops.authenticateDevice(ctx, meta)
 	if err != nil {
 		return err

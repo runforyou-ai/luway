@@ -752,7 +752,7 @@ export function GetPlatformRuntimeStatus(meta: $models.RequestMeta): $Cancellabl
 }
 
 /**
- * GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+ * GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标与错误上报开关。
  */
 export function GetPlatformSettings(meta: $models.RequestMeta): $CancellablePromise<$models.PlatformSettings> {
     return $Call.ByID(3295853609, meta);
@@ -2075,7 +2075,7 @@ export function UpdatePlatformStatisticsTimeZone(meta: $models.RequestMeta, inpu
 }
 
 /**
- * UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+ * UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
  */
 export function UpdatePlatformTelemetry(meta: $models.RequestMeta, input: $models.PlatformTelemetryInput): $CancellablePromise<$models.PlatformSettings> {
     return $Call.ByID(396298102, meta, input);

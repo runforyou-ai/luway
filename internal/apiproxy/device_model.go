@@ -30,7 +30,7 @@ func (b *Backend) DeviceModelEndpoint(ctx context.Context, meta appservice.Reque
 	endpoint := remoteEndpoint(state.baseURL, "/agent-runs/"+url.PathEscape(runID)+"/model", "")
 	parsed, err := url.Parse(endpoint)
 	if err != nil {
-		return "", nil, appservice.FailedError(meta, i18n.ErrorRemoteRequestCreateFailed)
+		return "", nil, appservice.FailedError(meta, i18n.ErrorRemoteRequestCreateFailed, err)
 	}
 	return endpoint, &deviceModelTransport{base: base, endpoint: parsed, token: credential.Token, deviceID: meta.DeviceID}, nil
 }

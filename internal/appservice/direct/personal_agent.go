@@ -82,7 +82,7 @@ func (o *directOperations) ListMemberPersonalAgents(ctx context.Context, meta ap
 func (o *directOperations) listResponsiblePersonalAgents(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, userID string) (appservice.PersonalAgentList, error) {
 	records, err := o.listPersonalAgents.Execute(ctx, identity, userID)
 	if err != nil {
-		return appservice.PersonalAgentList{}, o.personalAgentError(ctx, meta, err, i18n.ErrorAgentListFailed, identity.Organization.ID, "")
+		return appservice.PersonalAgentList{}, o.personalAgentError(meta, err, i18n.ErrorAgentListFailed)
 	}
 	avatarFileIDs := make([]*string, 0, len(records))
 	for _, record := range records {
@@ -90,7 +90,7 @@ func (o *directOperations) listResponsiblePersonalAgents(ctx context.Context, me
 	}
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, avatarFileIDs...)
 	if err != nil {
-		return appservice.PersonalAgentList{}, o.personalAgentError(ctx, meta, err, i18n.ErrorAgentListFailed, identity.Organization.ID, "")
+		return appservice.PersonalAgentList{}, o.personalAgentError(meta, err, i18n.ErrorAgentListFailed)
 	}
 	now := time.Now()
 	personalAgents := make([]appservice.PersonalAgent, 0, len(records))
@@ -104,7 +104,7 @@ func (o *directOperations) listResponsiblePersonalAgents(ctx context.Context, me
 func (o *directOperations) GetPersonalAgent(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string) (appservice.PersonalAgentDetail, error) {
 	record, execution, err := o.getPersonalAgent.Execute(ctx, identity, agentID)
 	if err != nil {
-		return appservice.PersonalAgentDetail{}, o.personalAgentError(ctx, meta, err, i18n.ErrorAgentReadFailed, identity.Organization.ID, agentID)
+		return appservice.PersonalAgentDetail{}, o.personalAgentError(meta, err, i18n.ErrorAgentReadFailed)
 	}
 	personalAgent, err := o.personalAgentWithAvatar(ctx, meta, identity, record, i18n.ErrorAgentReadFailed)
 	if err != nil {
@@ -133,7 +133,7 @@ func (o *directOperations) CreatePersonalAgent(ctx context.Context, meta appserv
 		MCPServerIDs: input.MCPServerIDs,
 	})
 	if err != nil {
-		return appservice.PersonalAgent{}, o.personalAgentError(ctx, meta, err, i18n.ErrorAgentCreateFailed, identity.Organization.ID, "")
+		return appservice.PersonalAgent{}, o.personalAgentError(meta, err, i18n.ErrorAgentCreateFailed)
 	}
 	return o.personalAgentWithAvatar(ctx, meta, identity, record, i18n.ErrorAgentCreateFailed)
 }
@@ -145,7 +145,7 @@ func (o *directOperations) UpdatePersonalAgent(ctx context.Context, meta appserv
 		MCPServerIDs: input.MCPServerIDs,
 	})
 	if err != nil {
-		return appservice.PersonalAgent{}, o.personalAgentError(ctx, meta, err, i18n.ErrorAgentUpdateFailed, identity.Organization.ID, agentID)
+		return appservice.PersonalAgent{}, o.personalAgentError(meta, err, i18n.ErrorAgentUpdateFailed)
 	}
 	slog.Info("个人 AI 员工已保存", "organization_id", identity.Organization.ID, "agent_id", agentID, "revision_id", record.Execution.RevisionID)
 	return o.personalAgentWithAvatar(ctx, meta, identity, record, i18n.ErrorAgentUpdateFailed)
@@ -165,7 +165,7 @@ func (o *directOperations) ResumePersonalAgent(ctx context.Context, meta appserv
 func (o *directOperations) changePersonalAgentPaused(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string, paused bool) (appservice.PersonalAgent, error) {
 	record, err := o.setPersonalAgentPaused.Execute(ctx, identity, agentID, paused)
 	if err != nil {
-		return appservice.PersonalAgent{}, o.personalAgentError(ctx, meta, err, i18n.ErrorAgentPauseFailed, identity.Organization.ID, agentID)
+		return appservice.PersonalAgent{}, o.personalAgentError(meta, err, i18n.ErrorAgentPauseFailed)
 	}
 	slog.Info("个人 AI 员工暂停状态已修改", "organization_id", identity.Organization.ID, "agent_id", agentID, "paused", paused)
 	return o.personalAgentWithAvatar(ctx, meta, identity, record, i18n.ErrorAgentPauseFailed)
@@ -175,7 +175,7 @@ func (o *directOperations) changePersonalAgentPaused(ctx context.Context, meta a
 func (o *directOperations) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string, input appservice.PersonalAgentDeviceInput) (appservice.PersonalAgent, error) {
 	record, err := o.movePersonalAgent.Execute(ctx, identity, agentID, input.DeviceID)
 	if err != nil {
-		return appservice.PersonalAgent{}, o.personalAgentError(ctx, meta, err, i18n.ErrorAgentMoveFailed, identity.Organization.ID, agentID)
+		return appservice.PersonalAgent{}, o.personalAgentError(meta, err, i18n.ErrorAgentMoveFailed)
 	}
 	return o.personalAgentWithAvatar(ctx, meta, identity, record, i18n.ErrorAgentMoveFailed)
 }
@@ -194,7 +194,7 @@ func (o *directOperations) ReactivatePersonalAgent(ctx context.Context, meta app
 func (o *directOperations) changePersonalAgentStatus(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string, status domain.IdentityStatus) (appservice.PersonalAgent, error) {
 	record, err := o.updatePersonalAgentStatus.Execute(ctx, identity, agentID, status)
 	if err != nil {
-		return appservice.PersonalAgent{}, o.personalAgentError(ctx, meta, err, i18n.ErrorAgentStatusUpdateFailed, identity.Organization.ID, agentID)
+		return appservice.PersonalAgent{}, o.personalAgentError(meta, err, i18n.ErrorAgentStatusUpdateFailed)
 	}
 	slog.Info("个人 AI 员工状态已修改", "organization_id", identity.Organization.ID, "agent_id", agentID, "status", status)
 	return o.personalAgentWithAvatar(ctx, meta, identity, record, i18n.ErrorAgentStatusUpdateFailed)
@@ -204,7 +204,7 @@ func (o *directOperations) changePersonalAgentStatus(ctx context.Context, meta a
 func (o *directOperations) personalAgentWithAvatar(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, record *agentaction.PersonalAgent, failureKey i18n.Key) (appservice.PersonalAgent, error) {
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, record.AvatarFileID)
 	if err != nil {
-		return appservice.PersonalAgent{}, o.personalAgentError(ctx, meta, err, failureKey, identity.Organization.ID, record.ID)
+		return appservice.PersonalAgent{}, o.personalAgentError(meta, err, failureKey)
 	}
 	return personalAgentFromAction(*record, optionalFileURL(avatarURLs, record.AvatarFileID), time.Now()), nil
 }
@@ -213,7 +213,7 @@ func (o *directOperations) personalAgentWithAvatar(ctx context.Context, meta app
 func (o *directOperations) ListAgentMemories(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID string) (appservice.AgentMemoryList, error) {
 	records, err := o.listMemories.Execute(ctx, identity, agentID)
 	if err != nil {
-		return appservice.AgentMemoryList{}, o.personalAgentError(ctx, meta, err, i18n.ErrorMemoryListFailed, identity.Organization.ID, agentID)
+		return appservice.AgentMemoryList{}, o.personalAgentError(meta, err, i18n.ErrorMemoryListFailed)
 	}
 	memories := make([]appservice.AgentMemory, 0, len(records))
 	for _, record := range records {
@@ -228,7 +228,7 @@ func (o *directOperations) UpdateAgentMemory(ctx context.Context, meta appservic
 		Name: input.Name, Description: input.Description, Body: input.Body,
 	})
 	if err != nil {
-		return appservice.AgentMemory{}, o.personalAgentError(ctx, meta, err, i18n.ErrorMemoryUpdateFailed, identity.Organization.ID, agentID)
+		return appservice.AgentMemory{}, o.personalAgentError(meta, err, i18n.ErrorMemoryUpdateFailed)
 	}
 	slog.Info("个人 AI 员工记忆已修改", "organization_id", identity.Organization.ID, "agent_id", agentID, "memory_id", memoryID)
 	return agentMemoryFromAction(*record), nil
@@ -237,7 +237,7 @@ func (o *directOperations) UpdateAgentMemory(ctx context.Context, meta appservic
 // DeleteAgentMemory 删除当前成员名下个人 AI 员工的一条记忆。
 func (o *directOperations) DeleteAgentMemory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, agentID, memoryID string) error {
 	if err := o.deleteMemory.Execute(ctx, identity, agentID, memoryID); err != nil {
-		return o.personalAgentError(ctx, meta, err, i18n.ErrorMemoryDeleteFailed, identity.Organization.ID, agentID)
+		return o.personalAgentError(meta, err, i18n.ErrorMemoryDeleteFailed)
 	}
 	slog.Info("个人 AI 员工记忆已删除", "organization_id", identity.Organization.ID, "agent_id", agentID, "memory_id", memoryID)
 	return nil
@@ -249,8 +249,8 @@ func agentMemoryFromAction(record agentaction.AgentMemory) appservice.AgentMemor
 }
 
 // personalAgentError 转换个人 AI 员工操作错误。
-func (o *directOperations) personalAgentError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID, agentID string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func (o *directOperations) personalAgentError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
@@ -271,8 +271,7 @@ func (o *directOperations) personalAgentError(ctx context.Context, meta appservi
 	if errors.Is(err, fileaction.ErrLinkedImageNotFound) {
 		return appservice.NotFoundError(meta, i18n.ErrorFileNotFound)
 	}
-	slog.Warn("个人 AI 员工操作失败", "organization_id", organizationID, "agent_id", agentID, "failure", failureKey, "error", err)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // personalAgentExecutionInput 转换个人 AI 员工的执行配置输入。

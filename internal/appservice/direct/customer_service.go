@@ -67,11 +67,7 @@ func newCustomerServiceOps(db *bun.DB) customerServiceOps {
 func (o *directOperations) GetCustomerIdentitySecret(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.CustomerIdentitySecret, error) {
 	secret, err := o.getIdentitySecret.Execute(ctx, identity)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.CustomerIdentitySecret{}, ctx.Err()
-		}
-		slog.Warn("读取客户身份密钥失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.CustomerIdentitySecret{}, appservice.FailedError(meta, i18n.ErrorCustomerIdentitySecretLoadFailed)
+		return appservice.CustomerIdentitySecret{}, appservice.FailedError(meta, i18n.ErrorCustomerIdentitySecretLoadFailed, err)
 	}
 	return appservice.CustomerIdentitySecret{Secret: secret}, nil
 }
@@ -80,14 +76,10 @@ func (o *directOperations) GetCustomerIdentitySecret(ctx context.Context, meta a
 func (o *directOperations) RegenerateCustomerIdentitySecret(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.CustomerIdentitySecret, error) {
 	secret, err := o.regenerateSecret.Execute(ctx, identity)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.CustomerIdentitySecret{}, ctx.Err()
-		}
 		if errors.Is(err, identityaction.ErrInvalid) {
 			return appservice.CustomerIdentitySecret{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 		}
-		slog.Warn("生成客户身份密钥失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.CustomerIdentitySecret{}, appservice.FailedError(meta, i18n.ErrorIdentitySecretRegenerateFailed)
+		return appservice.CustomerIdentitySecret{}, appservice.FailedError(meta, i18n.ErrorIdentitySecretRegenerateFailed, err)
 	}
 	slog.Info("客户身份密钥已重新生成", "organization_id", identity.Organization.ID, "user_id", identity.User.ID)
 	return appservice.CustomerIdentitySecret{Secret: secret}, nil
@@ -97,14 +89,10 @@ func (o *directOperations) RegenerateCustomerIdentitySecret(ctx context.Context,
 func (o *directOperations) GetRequesterProfile(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.RequesterProfile, error) {
 	profile, err := o.getRequesterProfile.Execute(ctx, identity, conversationID)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.RequesterProfile{}, ctx.Err()
-		}
 		if errors.Is(err, contactaction.ErrNotFound) {
 			return appservice.RequesterProfile{}, appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
 		}
-		slog.Warn("读取客户资料失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "error", err)
-		return appservice.RequesterProfile{}, appservice.FailedError(meta, i18n.ErrorCustomerProfileLoadFailed)
+		return appservice.RequesterProfile{}, appservice.FailedError(meta, i18n.ErrorCustomerProfileLoadFailed, err)
 	}
 	result := appservice.CustomerProfile{ContactID: profile.ContactID, IdentityVerified: profile.IdentityVerified, ExternalUserID: profile.ExternalUserID, Email: profile.Email}
 	if visit := profile.VisitorContext; visit != nil {
@@ -120,14 +108,10 @@ func (o *directOperations) GetRequesterProfile(ctx context.Context, meta appserv
 func (o *directOperations) ListServiceBusinessQueries(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.ServiceBusinessQueryList, error) {
 	queries, err := o.listBusinessQueries.Execute(ctx, identity, conversationID)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.ServiceBusinessQueryList{}, ctx.Err()
-		}
 		if errors.Is(err, conversationaction.ErrConversationNotFound) {
 			return appservice.ServiceBusinessQueryList{}, appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
 		}
-		slog.Warn("读取业务查询记录失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "error", err)
-		return appservice.ServiceBusinessQueryList{}, appservice.FailedError(meta, i18n.ErrorBusinessQueriesLoadFailed)
+		return appservice.ServiceBusinessQueryList{}, appservice.FailedError(meta, i18n.ErrorBusinessQueriesLoadFailed, err)
 	}
 	result := appservice.ServiceBusinessQueryList{Queries: make([]appservice.ServiceBusinessQuery, 0, len(queries))}
 	for _, query := range queries {
@@ -144,11 +128,7 @@ func (o *directOperations) ListServiceBusinessQueries(ctx context.Context, meta 
 func (o *directOperations) GetBusinessHours(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.BusinessHours, error) {
 	hours, err := o.getBusinessHours.Execute(ctx, identity)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.BusinessHours{}, ctx.Err()
-		}
-		slog.Warn("读取客服工作时间失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.BusinessHours{}, appservice.FailedError(meta, i18n.ErrorBusinessHoursLoadFailed)
+		return appservice.BusinessHours{}, appservice.FailedError(meta, i18n.ErrorBusinessHoursLoadFailed, err)
 	}
 	return businessHoursFromDomain(hours), nil
 }
@@ -168,9 +148,6 @@ func (o *directOperations) UpdateBusinessHours(ctx context.Context, meta appserv
 	}
 	saved, err := o.updateBusinessHours.Execute(ctx, identity, hours)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.BusinessHours{}, ctx.Err()
-		}
 		if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 			// 把客服工作时间校验错误码映射为本地化文案键。
 			keys := map[common.FieldCode]i18n.Key{
@@ -183,8 +160,7 @@ func (o *directOperations) UpdateBusinessHours(ctx context.Context, meta appserv
 		if errors.Is(err, identityaction.ErrInvalid) {
 			return appservice.BusinessHours{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 		}
-		slog.Warn("修改客服工作时间失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.BusinessHours{}, appservice.FailedError(meta, i18n.ErrorBusinessHoursUpdateFailed)
+		return appservice.BusinessHours{}, appservice.FailedError(meta, i18n.ErrorBusinessHoursUpdateFailed, err)
 	}
 	slog.Info("客服工作时间已更新", "organization_id", identity.Organization.ID, "enabled", saved.Enabled, "time_zone", saved.TimeZone)
 	return businessHoursFromDomain(saved), nil
@@ -194,11 +170,7 @@ func (o *directOperations) UpdateBusinessHours(ctx context.Context, meta appserv
 func (o *directOperations) GetServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ServiceTimeouts, error) {
 	timeouts, err := o.getServiceTimeouts.Execute(ctx, identity)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.ServiceTimeouts{}, ctx.Err()
-		}
-		slog.Warn("读取客服超时时长失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.ServiceTimeouts{}, appservice.FailedError(meta, i18n.ErrorServiceTimeoutsLoadFailed)
+		return appservice.ServiceTimeouts{}, appservice.FailedError(meta, i18n.ErrorServiceTimeoutsLoadFailed, err)
 	}
 	return appservice.ServiceTimeouts(timeouts), nil
 }
@@ -207,9 +179,6 @@ func (o *directOperations) GetServiceTimeouts(ctx context.Context, meta appservi
 func (o *directOperations) UpdateServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ServiceTimeouts) (appservice.ServiceTimeouts, error) {
 	saved, err := o.updateServiceTimeouts.Execute(ctx, identity, domain.ServiceTimeouts(input))
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.ServiceTimeouts{}, ctx.Err()
-		}
 		if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 			// 把客服超时时长校验错误码映射为本地化文案键。
 			keys := map[common.FieldCode]i18n.Key{
@@ -221,8 +190,7 @@ func (o *directOperations) UpdateServiceTimeouts(ctx context.Context, meta appse
 		if errors.Is(err, identityaction.ErrInvalid) {
 			return appservice.ServiceTimeouts{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 		}
-		slog.Warn("修改客服超时时长失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.ServiceTimeouts{}, appservice.FailedError(meta, i18n.ErrorServiceTimeoutsUpdateFailed)
+		return appservice.ServiceTimeouts{}, appservice.FailedError(meta, i18n.ErrorServiceTimeoutsUpdateFailed, err)
 	}
 	slog.Info("客服超时时长已更新", "organization_id", identity.Organization.ID,
 		"response_reminder_minutes", saved.ResponseReminderMinutes, "response_reclaim_minutes", saved.ResponseReclaimMinutes,
@@ -234,7 +202,7 @@ func (o *directOperations) UpdateServiceTimeouts(ctx context.Context, meta appse
 func (o *directOperations) ListServiceCategories(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ServiceCategoryList, error) {
 	records, err := o.listCategories.Execute(ctx, identity)
 	if err != nil {
-		return appservice.ServiceCategoryList{}, serviceCategoryError(ctx, meta, err, i18n.ErrorServiceCategoryListFailed, identity.Organization.ID, "")
+		return appservice.ServiceCategoryList{}, serviceCategoryError(meta, err, i18n.ErrorServiceCategoryListFailed)
 	}
 	categories := make([]appservice.ServiceCategory, 0, len(records))
 	for _, record := range records {
@@ -247,7 +215,7 @@ func (o *directOperations) ListServiceCategories(ctx context.Context, meta appse
 func (o *directOperations) CreateServiceCategory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ServiceCategoryInput) (appservice.ServiceCategory, error) {
 	record, err := o.createCategory.Execute(ctx, identity, servicecategoryaction.Input{Name: input.Name, Description: input.Description, TeamID: input.TeamID})
 	if err != nil {
-		return appservice.ServiceCategory{}, serviceCategoryError(ctx, meta, err, i18n.ErrorServiceCategoryCreateFailed, identity.Organization.ID, "")
+		return appservice.ServiceCategory{}, serviceCategoryError(meta, err, i18n.ErrorServiceCategoryCreateFailed)
 	}
 	slog.Info("咨询分类已新增", "organization_id", identity.Organization.ID, "service_category_id", record.ID)
 	return serviceCategoryFromAction(*record), nil
@@ -257,7 +225,7 @@ func (o *directOperations) CreateServiceCategory(ctx context.Context, meta appse
 func (o *directOperations) UpdateServiceCategory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, categoryID string, input appservice.ServiceCategoryInput) (appservice.ServiceCategory, error) {
 	record, err := o.updateCategory.Execute(ctx, identity, categoryID, servicecategoryaction.Input{Name: input.Name, Description: input.Description, TeamID: input.TeamID})
 	if err != nil {
-		return appservice.ServiceCategory{}, serviceCategoryError(ctx, meta, err, i18n.ErrorServiceCategoryUpdateFailed, identity.Organization.ID, categoryID)
+		return appservice.ServiceCategory{}, serviceCategoryError(meta, err, i18n.ErrorServiceCategoryUpdateFailed)
 	}
 	slog.Info("咨询分类已更新", "organization_id", identity.Organization.ID, "service_category_id", categoryID)
 	return serviceCategoryFromAction(*record), nil
@@ -266,15 +234,15 @@ func (o *directOperations) UpdateServiceCategory(ctx context.Context, meta appse
 // DeleteServiceCategory 归档咨询分类。
 func (o *directOperations) DeleteServiceCategory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, categoryID string) error {
 	if err := o.archiveCategory.Execute(ctx, identity, categoryID); err != nil {
-		return serviceCategoryError(ctx, meta, err, i18n.ErrorServiceCategoryDeleteFailed, identity.Organization.ID, categoryID)
+		return serviceCategoryError(meta, err, i18n.ErrorServiceCategoryDeleteFailed)
 	}
 	slog.Info("咨询分类已删除", "organization_id", identity.Organization.ID, "service_category_id", categoryID)
 	return nil
 }
 
 // serviceCategoryError 把咨询分类操作错误转换为结构化、本地化错误。
-func serviceCategoryError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID, categoryID string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func serviceCategoryError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
@@ -294,8 +262,7 @@ func serviceCategoryError(ctx context.Context, meta appservice.RequestMeta, err 
 	if errors.Is(err, servicecategoryaction.ErrLimitReached) {
 		return appservice.InvalidError(meta, i18n.ErrorServiceCategoryLimitReached, nil)
 	}
-	slog.Warn("咨询分类操作失败", "organization_id", organizationID, "service_category_id", categoryID, "failure", failureKey, "error", err)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // serviceCategoryFromAction 转换咨询分类契约。
@@ -341,11 +308,7 @@ func businessHoursPeriodsToDomain(periods []appservice.BusinessHoursPeriod) []do
 func (o *directOperations) GetServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ServiceSummarySettings, error) {
 	settings, err := o.getSummarySettings.Execute(ctx, identity)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.ServiceSummarySettings{}, ctx.Err()
-		}
-		slog.Warn("读取周期小结设置失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.ServiceSummarySettings{}, appservice.FailedError(meta, i18n.ErrorSummarySettingsLoadFailed)
+		return appservice.ServiceSummarySettings{}, appservice.FailedError(meta, i18n.ErrorSummarySettingsLoadFailed, err)
 	}
 	return serviceSummarySettingsFromDomain(settings), nil
 }
@@ -355,9 +318,6 @@ func (o *directOperations) UpdateServiceSummarySettings(ctx context.Context, met
 	settings := domain.ServiceSummarySettings{DecisionModelID: input.DecisionModelID, SummaryModelID: input.SummaryModelID, Locale: domain.Locale(input.Locale)}
 	saved, err := o.updateSummarySettings.Execute(ctx, identity, settings)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.ServiceSummarySettings{}, ctx.Err()
-		}
 		if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 			// 把周期小结设置校验错误码映射为本地化文案键。
 			keys := map[common.FieldCode]i18n.Key{
@@ -369,8 +329,7 @@ func (o *directOperations) UpdateServiceSummarySettings(ctx context.Context, met
 		if errors.Is(err, identityaction.ErrInvalid) {
 			return appservice.ServiceSummarySettings{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 		}
-		slog.Warn("修改周期小结设置失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.ServiceSummarySettings{}, appservice.FailedError(meta, i18n.ErrorSummarySettingsUpdateFailed)
+		return appservice.ServiceSummarySettings{}, appservice.FailedError(meta, i18n.ErrorSummarySettingsUpdateFailed, err)
 	}
 	slog.Info("周期小结设置已更新", "organization_id", identity.Organization.ID,
 		"decision_configured", saved.DecisionModelID != nil, "summary_configured", saved.SummaryModelID != nil, "locale", saved.Locale)
@@ -388,14 +347,10 @@ func serviceSummarySettingsFromDomain(settings domain.ServiceSummarySettings) ap
 func (o *directOperations) GetServiceSummaries(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID string) (appservice.ServiceSummaries, error) {
 	summaries, err := o.listSummaries.Execute(ctx, identity, conversationID)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.ServiceSummaries{}, ctx.Err()
-		}
 		if errors.Is(err, conversationaction.ErrConversationNotFound) {
 			return appservice.ServiceSummaries{}, appservice.NotFoundError(meta, i18n.ErrorConversationNotFound)
 		}
-		slog.Warn("读取周期小结失败", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "error", err)
-		return appservice.ServiceSummaries{}, appservice.FailedError(meta, i18n.ErrorServiceSummariesLoadFailed)
+		return appservice.ServiceSummaries{}, appservice.FailedError(meta, i18n.ErrorServiceSummariesLoadFailed, err)
 	}
 	result := appservice.ServiceSummaries{Sessions: make([]appservice.ServiceSessionSummary, 0, len(summaries.Sessions))}
 	if handoff := summaries.Handoff; handoff != nil {
@@ -413,9 +368,6 @@ func (o *directOperations) UpdateServiceSessionSummary(ctx context.Context, meta
 		ServiceSessionID: serviceSessionID, Summary: input.Summary, Resolved: input.Resolved, CategoryID: input.CategoryID,
 	})
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.ServiceSessionSummary{}, ctx.Err()
-		}
 		if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 			// 把小结校验错误码映射为本地化文案键。
 			keys := map[common.FieldCode]i18n.Key{
@@ -433,8 +385,7 @@ func (o *directOperations) UpdateServiceSessionSummary(ctx context.Context, meta
 		if errors.Is(err, identityaction.ErrInvalid) {
 			return appservice.ServiceSessionSummary{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 		}
-		slog.Warn("修改周期小结失败", "organization_id", identity.Organization.ID, "service_session_id", serviceSessionID, "error", err)
-		return appservice.ServiceSessionSummary{}, appservice.FailedError(meta, i18n.ErrorSessionSummaryUpdateFailed)
+		return appservice.ServiceSessionSummary{}, appservice.FailedError(meta, i18n.ErrorSessionSummaryUpdateFailed, err)
 	}
 	slog.Info("周期小结已由客服修改", "organization_id", identity.Organization.ID, "service_session_id", serviceSessionID, "identity_id", identity.OrganizationIdentity.ID)
 	return serviceSessionSummaryFromAction(summary), nil

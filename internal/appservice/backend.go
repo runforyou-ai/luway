@@ -435,7 +435,7 @@ type Backend interface {
 	// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
 	//appservice:route GET /platform/overview auth=admin
 	GetPlatformOverview(context.Context, RequestMeta) (PlatformOverview, error)
-	// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+	// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标与错误上报开关。
 	//appservice:route GET /platform/settings auth=admin
 	GetPlatformSettings(context.Context, RequestMeta) (PlatformSettings, error)
 	// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
@@ -444,7 +444,7 @@ type Backend interface {
 	// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
 	//appservice:route PUT /platform/settings/statistics-time-zone auth=admin
 	UpdatePlatformStatisticsTimeZone(context.Context, RequestMeta, PlatformStatisticsTimeZoneInput) (PlatformSettings, error)
-	// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+	// UpdatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 	//appservice:route PUT /platform/settings/telemetry auth=admin
 	UpdatePlatformTelemetry(context.Context, RequestMeta, PlatformTelemetryInput) (PlatformSettings, error)
 	// ListPlatformAccounts 返回平台内的账号。

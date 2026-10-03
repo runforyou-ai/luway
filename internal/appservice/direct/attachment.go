@@ -28,7 +28,7 @@ func (o *directOperations) SendAttachmentMessage(ctx context.Context, meta appse
 		return appservice.AttachmentMessageResult{}, appservice.NotFoundError(meta, i18n.ErrorFileNotFound)
 	}
 	if err != nil {
-		return appservice.AttachmentMessageResult{}, individualConversationError(ctx, meta, err, identity.Organization.ID, input.ConversationID, "send_attachment")
+		return appservice.AttachmentMessageResult{}, individualConversationError(meta, err, "send_attachment")
 	}
 	output := appservice.AttachmentMessageResult{ConversationID: result.ConversationID, Message: o.conversationMessageWithAvatar(ctx, identity, result.Message)}
 	if result.Conversation != nil {
@@ -55,22 +55,22 @@ func (o *directOperations) SendAttachmentMessage(ctx context.Context, meta appse
 func (o *directOperations) GetAttachmentDownload(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, conversationID, messageID string) (appservice.FileDownload, error) {
 	record, err := o.listConversationMessages.GetAttachmentFile(ctx, identity, conversationID, messageID)
 	if err != nil {
-		return appservice.FileDownload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileNotFound)
+		return appservice.FileDownload{}, o.fileOperationError(meta, err, i18n.ErrorFileNotFound)
 	}
 	if record.StorageBackend == string(domain.FileStorageBackendLocal) {
 		contentURL, err := o.links.URL(domain.FileStorageBackendLocal, record.StorageKey)
 		if err != nil {
-			return appservice.FileDownload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileNotFound)
+			return appservice.FileDownload{}, o.fileOperationError(meta, err, i18n.ErrorFileNotFound)
 		}
 		return appservice.FileDownload{URL: contentURL + "?download=" + url.QueryEscape(record.OriginalName), PreviewURL: contentURL + "?inline=1"}, nil
 	}
 	request, err := serverfilecontent.PresignDownload(ctx, o.s3, record.StorageKey, mime.FormatMediaType("attachment", map[string]string{"filename": record.OriginalName}))
 	if err != nil {
-		return appservice.FileDownload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileNotFound)
+		return appservice.FileDownload{}, o.fileOperationError(meta, err, i18n.ErrorFileNotFound)
 	}
 	preview, err := serverfilecontent.PresignDownload(ctx, o.s3, record.StorageKey, "inline")
 	if err != nil {
-		return appservice.FileDownload{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileNotFound)
+		return appservice.FileDownload{}, o.fileOperationError(meta, err, i18n.ErrorFileNotFound)
 	}
 	return appservice.FileDownload{URL: request.URL, PreviewURL: preview.URL}, nil
 }

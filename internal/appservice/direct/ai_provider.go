@@ -24,7 +24,7 @@ func (o *directOperations) ListAIModelOptions(ctx context.Context, meta appservi
 		return appservice.AIModelOptionList{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, map[string]i18n.Key{"usage": i18n.FieldAIModelUsageInvalid})
 	}
 	if err != nil {
-		return appservice.AIModelOptionList{}, o.aiProviderError(ctx, meta, err, i18n.ErrorAIModelListFailed, identity.Organization.ID, "usage", usage)
+		return appservice.AIModelOptionList{}, o.aiProviderError(meta, err, i18n.ErrorAIModelListFailed)
 	}
 	output := make([]appservice.AIModelOption, 0, len(options))
 	for _, option := range options {
@@ -53,7 +53,7 @@ func aiModelOptionFromAction(option aimodelaction.Option) appservice.AIModelOpti
 func (o *directOperations) ListAIProviders(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.AIProviderList, error) {
 	providers, err := o.listAIProviders.Execute(ctx, identity)
 	if err != nil {
-		return appservice.AIProviderList{}, o.aiProviderError(ctx, meta, err, i18n.ErrorAIProviderListFailed, identity.Organization.ID)
+		return appservice.AIProviderList{}, o.aiProviderError(meta, err, i18n.ErrorAIProviderListFailed)
 	}
 	output := make([]appservice.AIProviderSummary, 0, len(providers))
 	for _, provider := range providers {
@@ -78,7 +78,7 @@ func (o *directOperations) ListAIProviders(ctx context.Context, meta appservice.
 func (o *directOperations) GetAIProvider(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, providerID string) (appservice.AIProvider, error) {
 	provider, err := o.getAIProvider.Execute(ctx, identity, providerID)
 	if err != nil {
-		return appservice.AIProvider{}, o.aiProviderError(ctx, meta, err, i18n.ErrorAIProviderReadFailed, identity.Organization.ID, "provider_id", providerID)
+		return appservice.AIProvider{}, o.aiProviderError(meta, err, i18n.ErrorAIProviderReadFailed)
 	}
 	return aiProviderFromAction(*provider), nil
 }
@@ -96,7 +96,7 @@ func (o *directOperations) ListAvailableAIModels(ctx context.Context, meta appse
 func (o *directOperations) DiscoverAIProviderModels(ctx context.Context, meta appservice.RequestMeta, _ *servermodels.Identity, input appservice.AIProviderConnectionInput) (appservice.AIProviderModelList, error) {
 	models, err := o.discoverAIProviderModels.Execute(ctx, aiProviderConnectionInput(input))
 	if err != nil {
-		return appservice.AIProviderModelList{}, o.aiProviderConnectionError(ctx, meta, err, input.Brand)
+		return appservice.AIProviderModelList{}, o.aiProviderConnectionError(meta, err, input.Brand)
 	}
 	return appservice.AIProviderModelList{Models: aiProviderModelsFromAction(models)}, nil
 }
@@ -107,14 +107,11 @@ func (o *directOperations) TestAIProviderConnection(ctx context.Context, meta ap
 	if err == nil {
 		return nil
 	}
-	return o.aiProviderConnectionError(ctx, meta, err, input.Brand)
+	return o.aiProviderConnectionError(meta, err, input.Brand)
 }
 
 // aiProviderConnectionError 转换访问模型服务实例产生的校验和连接错误。
-func (o *directOperations) aiProviderConnectionError(ctx context.Context, meta appservice.RequestMeta, err error, brand appservice.AIProviderBrand) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func (o *directOperations) aiProviderConnectionError(meta appservice.RequestMeta, err error, brand appservice.AIProviderBrand) error {
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, aiProviderFieldKeys(validationError.Fields))
 	}
@@ -149,7 +146,7 @@ func aiProviderConnectionInput(input appservice.AIProviderConnectionInput) aipro
 func (o *directOperations) CreateAIProvider(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.AIProviderInput) (appservice.AIProvider, error) {
 	provider, err := o.createAIProvider.Execute(ctx, identity, aiProviderInput(input))
 	if err != nil {
-		return appservice.AIProvider{}, o.aiProviderMutationError(ctx, meta, err, i18n.ErrorAIProviderCreateFailed, identity.Organization.ID)
+		return appservice.AIProvider{}, o.aiProviderMutationError(meta, err, i18n.ErrorAIProviderCreateFailed)
 	}
 	slog.Info("模型服务供应商创建成功", "organization_id", identity.Organization.ID, "provider_id", provider.ID, "brand", provider.Brand, "model_count", len(provider.Models))
 	return aiProviderFromAction(*provider), nil
@@ -162,7 +159,7 @@ func (o *directOperations) UpdateAIProvider(ctx context.Context, meta appservice
 		APIKey: input.APIKey, APIURL: input.APIURL, Models: aiProviderModelsInput(input.Models),
 	})
 	if err != nil {
-		return appservice.AIProvider{}, o.aiProviderMutationError(ctx, meta, err, i18n.ErrorAIProviderUpdateFailed, identity.Organization.ID, "provider_id", providerID)
+		return appservice.AIProvider{}, o.aiProviderMutationError(meta, err, i18n.ErrorAIProviderUpdateFailed)
 	}
 	slog.Info("模型服务供应商保存成功", "organization_id", identity.Organization.ID, "provider_id", provider.ID, "brand", provider.Brand, "model_count", len(provider.Models))
 	return aiProviderFromAction(*provider), nil
@@ -171,23 +168,23 @@ func (o *directOperations) UpdateAIProvider(ctx context.Context, meta appservice
 // DeleteAIProvider 删除模型服务供应商。
 func (o *directOperations) DeleteAIProvider(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, providerID string) error {
 	if err := o.deleteAIProvider.Execute(ctx, identity, providerID); err != nil {
-		return o.aiProviderError(ctx, meta, err, i18n.ErrorAIProviderDeleteFailed, identity.Organization.ID, "provider_id", providerID)
+		return o.aiProviderError(meta, err, i18n.ErrorAIProviderDeleteFailed)
 	}
 	slog.Info("模型服务供应商删除成功", "organization_id", identity.Organization.ID, "provider_id", providerID)
 	return nil
 }
 
 // aiProviderMutationError 转换模型服务供应商写入错误。
-func (o *directOperations) aiProviderMutationError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID string, attributes ...any) error {
+func (o *directOperations) aiProviderMutationError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, aiProviderFieldKeys(validationError.Fields))
 	}
-	return o.aiProviderError(ctx, meta, err, failureKey, organizationID, attributes...)
+	return o.aiProviderError(meta, err, failureKey)
 }
 
 // aiProviderError 转换模型服务供应商操作错误。
-func (o *directOperations) aiProviderError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID string, attributes ...any) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func (o *directOperations) aiProviderError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, aiprovideraction.ErrNotFound) {
@@ -196,9 +193,7 @@ func (o *directOperations) aiProviderError(ctx context.Context, meta appservice.
 	if errors.Is(err, aiprovideraction.ErrInUse) {
 		return appservice.InvalidError(meta, i18n.ErrorAIProviderInUse, nil)
 	}
-	logAttributes := []any{"organization_id", organizationID, "failure", failureKey, "error", err}
-	slog.Warn("模型服务供应商操作失败", append(logAttributes, attributes...)...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // aiProviderInput 转换模型服务供应商输入。

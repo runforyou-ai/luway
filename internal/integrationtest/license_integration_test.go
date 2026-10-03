@@ -231,7 +231,8 @@ func TestLicenseOnline(t *testing.T) {
 	client := control.New(server.URL, "test", func(ctx context.Context) (control.Identity, error) {
 		return platformaction.ControlIdentity(ctx, db)
 	})
-	backend := direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL, LicenseKeys: keys, Control: client},
+	telemetry := platformaction.NewTelemetry(db)
+	backend := direct.New(db, direct.DeploymentConfig{PublicURL: testPublicURL, LicenseKeys: keys, Control: client, Telemetry: telemetry},
 		nil, serverfilecontent.S3Config{}, nil, nil, newTestTasks(db), nil, nil, nil)
 	service := appservice.New(backend)
 	online := platformaction.NewOnlineLicenseAction(db, keys, client)
@@ -240,6 +241,10 @@ func TestLicenseOnline(t *testing.T) {
 	// 未安装时后台同步直接跳过。
 	if err := online.SyncTask(ctx, platformaction.SyncLicenseInput{}); err != nil {
 		t.Fatalf("sync before install: %v", err)
+	}
+	// 未安装时上报开关为关闭。
+	if err := telemetry.Refresh(ctx); err != nil || telemetry.Enabled() {
+		t.Fatalf("refresh before install = %v, enabled = %v", err, telemetry.Enabled())
 	}
 	admin, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: appservice.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
 		WorkspaceName: "在线授权", WorkspaceSlug: "online-license", DisplayName: "管理员", Email: "admin@example.test",
@@ -367,17 +372,27 @@ func TestLicenseOnline(t *testing.T) {
 		t.Fatalf("expired missing = %#v, err = %v", expiredMissing, err)
 	}
 
-	// 关闭上报后不再采集运行指标。
-	values, err := platformaction.TelemetryMetrics(ctx, db)
+	// 上报开关读取平台设置；本实例关闭上报后立即停止采集运行指标，其他实例刷新后同样关闭。
+	if telemetry.Enabled() {
+		t.Fatal("telemetry enabled before refresh")
+	}
+	if err := telemetry.Refresh(ctx); err != nil || !telemetry.Enabled() {
+		t.Fatalf("refresh = %v, enabled = %v", err, telemetry.Enabled())
+	}
+	values, err := telemetry.Metrics(ctx)
 	if err != nil || values == nil || values["platform.accounts"] != 1 {
 		t.Fatalf("metrics = %#v, err = %v", values, err)
 	}
 	settings, err := service.UpdatePlatformTelemetry(ctx, adminMeta, appservice.PlatformTelemetryInput{TelemetryEnabled: false})
-	if err != nil || settings.TelemetryEnabled {
+	if err != nil || settings.TelemetryEnabled || telemetry.Enabled() {
 		t.Fatalf("settings = %#v, err = %v", settings, err)
 	}
-	if values, err := platformaction.TelemetryMetrics(ctx, db); err != nil || values != nil {
+	if values, err := telemetry.Metrics(ctx); err != nil || values != nil {
 		t.Fatalf("metrics after disable = %#v, err = %v", values, err)
+	}
+	other := platformaction.NewTelemetry(db)
+	if err := other.Refresh(ctx); err != nil || other.Enabled() {
+		t.Fatalf("other refresh = %v, enabled = %v", err, other.Enabled())
 	}
 
 	// control 不可用时提示改用离线授权。
