@@ -68,6 +68,10 @@ const platform = {
   runtime: {
     title: "Runtime status",
     description: "See how servers, external dependencies and background tasks are running.",
+    exportDiagnostics: "Export diagnostics",
+    exportingDiagnostics: "Exporting…",
+    diagnosticsExported: "Diagnostics exported",
+    exportDiagnosticsError: "Couldn't export the diagnostics. Try again later.",
     servers: "Online servers",
     serverVersion: "Version {{version}}",
     mixedVersions: "{{formatted}} versions running",

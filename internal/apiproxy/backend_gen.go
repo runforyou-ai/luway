@@ -1062,6 +1062,13 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 	return output, err
 }
 
+// GetPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (b *Backend) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformDiagnostics, error) {
+	var output appservice.PlatformDiagnostics
+	err := b.do(ctx, meta, http.MethodGet, "/platform/diagnostics", nil, nil, &output)
+	return output, err
+}
+
 // ListPlatformAIProviders 返回平台供应商及其近 24 小时上游尝试的结果。
 func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIProviderList, error) {
 	var output appservice.PlatformAIProviderList

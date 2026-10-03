@@ -111,6 +111,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	deployment := directDeploymentConfig(config, emailSender)
 	deployment.ProductDocs = productDocs
 	deployment.Control = controlClient
+	deployment.InstanceID = tasks.InstanceID()
 	translator := translationaction.NewTranslator(db, agentRuntime, modelInvoker)
 	directBackend := direct.New(db, deployment, localFiles, fileS3, agentRunScheduler, executeAgentRun, tasks, serviceReplySuggestions, translator, knowledgeRetrieval)
 	boundService := appservice.New(directBackend)
@@ -133,7 +134,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	publicLookup := channelaction.NewGetPublicWebsiteChannelQuery(db).Execute
 	hostname, err := os.Hostname()
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("read hostname: %w", err)
+		return nil, nil, fmt.Errorf("read hostname: %w", err)
 	}
 
 	// 注册健康检查、业务与文件路由、公开聊天入口及后台服务生命周期。
@@ -146,7 +147,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewServiceWithOptions(httpAPI, application.ServiceOptions{Route: "/api"}),
 		application.NewServiceWithOptions(api.NewLocalObjectService(direct.NewLocalObjectAuthorizer(db), localFiles), application.ServiceOptions{Route: domain.LocalFilePublicPath + "/"}),
 		application.NewService(&serverTaskLifecycle{runtime: tasks}),
-		application.NewService(&serverInstanceLifecycle{db: db, tasks: tasks, publisher: realtimePublisher, hostname: hostname}),
+		application.NewService(&serverInstanceLifecycle{db: db, tasks: tasks, publisher: realtimePublisher, hostname: hostname, config: config.Diagnostics()}),
 		application.NewService(&telemetryLifecycle{db: db, control: controlClient}),
 		application.NewServiceWithOptions(publicweb.NewEmbedService(publicLookup), application.ServiceOptions{Route: "/embed"}),
 		application.NewServiceWithOptions(publicweb.NewChatService(publicLookup), application.ServiceOptions{Route: "/chat/"}),

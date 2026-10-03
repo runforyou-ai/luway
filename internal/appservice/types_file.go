@@ -51,6 +51,12 @@ type ImageFile struct {
 	DataBase64  string `json:"dataBase64"`
 }
 
+// TextFileInput 定义原生端保存的文本文件：Name 为建议文件名，Content 为 UTF-8 文本内容。
+type TextFileInput struct {
+	Name    string `json:"name"`
+	Content string `json:"content"`
+}
+
 // FilePartUploadInput 定义待上传分片的序号。
 type FilePartUploadInput struct {
 	PartNumber int32 `json:"partNumber"`

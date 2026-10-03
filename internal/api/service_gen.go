@@ -172,6 +172,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/platform/usage/workspaces", s.listPlatformWorkspaceUsage)
 	router.GET("/platform/runtime", s.getPlatformRuntimeStatus)
 	router.GET("/platform/runtime/failed-tasks", s.listPlatformFailedTasks)
+	router.GET("/platform/diagnostics", s.getPlatformDiagnostics)
 	router.GET("/platform/model-providers", s.listPlatformAIProviders)
 	router.GET("/platform/model-providers/:providerID", s.getPlatformAIProvider)
 	router.GET("/platform/model-providers/:providerID/models", s.listPlatformAIProviderModels)
@@ -1569,6 +1570,12 @@ func (s *Service) listPlatformFailedTasks(c *gin.Context) {
 		return
 	}
 	output, err := s.application.ListPlatformFailedTasks(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (s *Service) getPlatformDiagnostics(c *gin.Context) {
+	output, err := s.application.GetPlatformDiagnostics(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 

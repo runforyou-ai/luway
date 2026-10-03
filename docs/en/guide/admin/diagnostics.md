@@ -43,7 +43,21 @@ Records of finished tasks are kept for 7 days and then cleaned up automatically.
 
 ## Export diagnostics
 
-This section is being written.
+When you need help from your operations team or technical support, click **Export diagnostics** at the top of the **Runtime status** page to create a JSON file. The web app downloads it directly; the desktop app asks where to save it. The file name is `diagnostics-` followed by the export time.
+
+The file contains:
+
+| Content | Details |
+| --- | --- |
+| Basics | When the file was created, and the instance ID of the server that created it |
+| Platform overview | Server ID, statistics time zone, number of accounts, workspaces, and members, active and new accounts and workspaces in the last 7 and 30 days, the daily trend for the last 30 days, and license status |
+| Servers | Each server's version, start time, last heartbeat, NATS connection status, and the configuration it started with |
+| External dependencies | The object storage check and the last licensing service sync. Object storage is checked by the server that creates the file |
+| Database | PostgreSQL version and the latest applied migration |
+| Background tasks | Task counts for each queue, every task waiting to retry and tasks that failed in the last 7 days, with full error messages |
+| Model providers | Attempts, failures, and the latest error for each platform provider in the last 24 hours |
+
+Server configuration includes only settings such as the public URL, listen address, TLS mode, database and NATS addresses, storage mode and bucket, and mail server address. The database password, object storage keys, and SMTP user name and password are never written to the file, and user names and passwords are removed from addresses. Background tasks show only their workspace ID, not the workspace name. The file contains no messages, customer data, or other business content, and no server logs. To read logs, see [Monitoring and diagnostics](/docs/en/deployment/operate/monitoring/).
 
 ## Reporting settings
 

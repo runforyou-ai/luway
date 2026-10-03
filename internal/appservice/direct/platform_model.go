@@ -65,11 +65,7 @@ func (o *directOperations) ListPlatformAIProviders(ctx context.Context, meta app
 	}
 	output := make([]appservice.PlatformAIProviderSummary, 0, len(providers))
 	for _, provider := range providers {
-		output = append(output, appservice.PlatformAIProviderSummary{
-			ID: provider.ID, Brand: appservice.AIProviderBrand(provider.Brand), Name: provider.Name, APIURL: provider.APIURL,
-			ModelCount: provider.ModelCount, RecentAttempts: provider.RecentAttempts, RecentFailures: provider.RecentFailures,
-			LastError: provider.LastError, LastFailedAt: provider.LastFailedAt,
-		})
+		output = append(output, platformAIProviderSummaryFromAction(provider))
 	}
 	return appservice.PlatformAIProviderList{Providers: output}, nil
 }
@@ -257,6 +253,15 @@ func platformModelError(ctx context.Context, meta appservice.RequestMeta, err er
 	logAttributes := []any{"account_id", account.Account.ID, "failure", failureKey, "error", err}
 	slog.Warn("平台模型服务操作失败", append(logAttributes, attributes...)...)
 	return appservice.FailedError(meta, failureKey)
+}
+
+// platformAIProviderSummaryFromAction 把平台供应商列表项转换为应用契约。
+func platformAIProviderSummaryFromAction(provider aiprovideraction.PlatformSummary) appservice.PlatformAIProviderSummary {
+	return appservice.PlatformAIProviderSummary{
+		ID: provider.ID, Brand: appservice.AIProviderBrand(provider.Brand), Name: provider.Name, APIURL: provider.APIURL,
+		ModelCount: provider.ModelCount, RecentAttempts: provider.RecentAttempts, RecentFailures: provider.RecentFailures,
+		LastError: provider.LastError, LastFailedAt: provider.LastFailedAt,
+	}
 }
 
 // platformAIProviderFromAction 转换平台供应商详情。

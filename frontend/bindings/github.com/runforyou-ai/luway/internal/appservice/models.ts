@@ -4505,6 +4505,43 @@ export interface PlatformDailyActivity {
 }
 
 /**
+ * PlatformDatabaseStatus 定义 PostgreSQL 服务端版本与已执行的最新迁移版本。
+ */
+export interface PlatformDatabaseStatus {
+    "version": string;
+    "migration": number;
+}
+
+/**
+ * PlatformDiagnosticTask 定义诊断信息中一次等待重试或失败的后台任务运行；WorkspaceID 为所属工作区编号，平台级任务为空，FailedAt 为最近一次执行失败的时间。
+ */
+export interface PlatformDiagnosticTask {
+    "id": string;
+    "action": string;
+    "queue": string;
+    "workspaceId": string | null;
+    "retrying": boolean;
+    "attempt": number;
+    "maxAttempts": number;
+    "error": string;
+    "failedAt": string;
+}
+
+/**
+ * PlatformDiagnostics 定义平台管理员导出的诊断信息：GeneratedAt 为生成时间，ExportedBy 为生成诊断信息并检查对象存储的服务端进程编号；
+ * FailedTasks 为全部等待重试与近 7 天失败的任务，AIProviders 为平台供应商及其近 24 小时上游尝试的结果。
+ */
+export interface PlatformDiagnostics {
+    "generatedAt": string;
+    "exportedBy": string;
+    "overview": PlatformOverview;
+    "runtime": PlatformRuntimeStatus;
+    "database": PlatformDatabaseStatus;
+    "failedTasks": PlatformDiagnosticTask[] | null;
+    "aiProviders": PlatformAIProviderSummary[] | null;
+}
+
+/**
  * PlatformFailedTask 定义一次等待重试或近 7 天内失败的后台任务运行；WorkspaceName 为所属工作区名称，平台级任务为空，FailedAt 为最近一次执行失败的时间。
  */
 export interface PlatformFailedTask {
@@ -4580,7 +4617,7 @@ export interface PlatformRuntimeStatus {
 }
 
 /**
- * PlatformServer 定义一个服务端进程及其最近一次心跳；TasksNATSConnected 与 RealtimeNATSConnected 为最近一次心跳时后台任务与实时通知的 NATS 连接是否可用，Online 表示 2 分钟内有心跳。
+ * PlatformServer 定义一个服务端进程及其最近一次心跳；TasksNATSConnected 与 RealtimeNATSConnected 为最近一次心跳时后台任务与实时通知的 NATS 连接是否可用，Online 表示 2 分钟内有心跳，Config 为进程启动时的服务端配置。
  */
 export interface PlatformServer {
     "id": string;
@@ -4591,6 +4628,65 @@ export interface PlatformServer {
     "tasksNatsConnected": boolean;
     "realtimeNatsConnected": boolean;
     "online": boolean;
+    "config": PlatformServerConfig;
+}
+
+/**
+ * PlatformServerConfig 定义服务端进程的配置，只包含不含密码、密钥和地址凭据的字段；Listen 为监听地址与端口。
+ */
+export interface PlatformServerConfig {
+    "deploymentName": string;
+    "publicURL": string;
+    "listen": string;
+    "tlsMode": string;
+    "database": PlatformServerDatabaseConfig;
+    "nats": PlatformServerNATSConfig;
+    "storage": PlatformServerStorageConfig;
+    "smtp": PlatformServerSMTPConfig;
+    "clientsDirectory": string;
+}
+
+/**
+ * PlatformServerDatabaseConfig 定义 PostgreSQL 连接的地址、账号名、库名与 SSL 模式。
+ */
+export interface PlatformServerDatabaseConfig {
+    "host": string;
+    "port": number;
+    "user": string;
+    "name": string;
+    "sslMode": string;
+}
+
+/**
+ * PlatformServerNATSConfig 定义去掉凭据的 NATS 地址与命名空间。
+ */
+export interface PlatformServerNATSConfig {
+    "url": string;
+    "namespace": string;
+}
+
+/**
+ * PlatformServerSMTPConfig 定义邮件发送配置，Enabled 为假表示未配置 SMTP 主机。
+ */
+export interface PlatformServerSMTPConfig {
+    "enabled": boolean;
+    "host": string;
+    "port": number;
+    "security": string;
+    "fromAddress": string;
+}
+
+/**
+ * PlatformServerStorageConfig 定义文件存储方式：S3Enabled 为假时文件写入 LocalDirectory，为真时写入对象存储桶。
+ */
+export interface PlatformServerStorageConfig {
+    "localDirectory": string;
+    "s3Enabled": boolean;
+    "endpoint": string;
+    "publicBaseURL": string;
+    "region": string;
+    "bucket": string;
+    "forcePathStyle": boolean;
 }
 
 /**
@@ -5875,6 +5971,14 @@ export enum TelegramWebhookStatus {
     TelegramWebhookStatusWaiting = "waiting",
     TelegramWebhookStatusNormal = "normal",
 };
+
+/**
+ * TextFileInput 定义原生端保存的文本文件：Name 为建议文件名，Content 为 UTF-8 文本内容。
+ */
+export interface TextFileInput {
+    "name": string;
+    "content": string;
+}
 
 /**
  * TransferServiceSessionInput 定义服务周期的转交去向；成员去向填 identityId，团队去向填 teamId，公共队列两者都不填。

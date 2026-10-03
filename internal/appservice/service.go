@@ -13,6 +13,7 @@ import (
 type Service struct {
 	backend             Backend
 	imageSelector       ImageSelector
+	fileSaver           FileSaver
 	nativeLocaleUpdater NativeLocaleUpdater
 	nativeNotification  NativeNotification
 	nativeServerLink    NativeServerLink
@@ -29,6 +30,13 @@ type Option func(*Service)
 func WithImageSelector(selector ImageSelector) Option {
 	return func(service *Service) {
 		service.imageSelector = selector
+	}
+}
+
+// WithFileSaver 注入原生端文件保存器。
+func WithFileSaver(saver FileSaver) Option {
+	return func(service *Service) {
+		service.fileSaver = saver
 	}
 }
 
@@ -152,6 +160,14 @@ func (s *Service) SelectImage(ctx context.Context, meta RequestMeta) (ImageFile,
 		return ImageFile{}, methodNotAllowedError(meta, "SelectImage")
 	}
 	return WithNormalizedSlices(s.imageSelector.SelectImage(ctx, meta))
+}
+
+// SaveTextFile 在原生端让用户选择保存位置并写入文本文件，用户取消时返回 false。
+func (s *Service) SaveTextFile(ctx context.Context, meta RequestMeta, input TextFileInput) (bool, error) {
+	if s.fileSaver == nil {
+		return false, methodNotAllowedError(meta, "SaveTextFile")
+	}
+	return s.fileSaver.SaveTextFile(ctx, meta, input)
 }
 
 // OpenConversationWindow 在桌面端独立窗口打开指定会话，同一会话已打开时聚焦现有窗口。
