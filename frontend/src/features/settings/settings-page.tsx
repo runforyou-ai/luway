@@ -6,6 +6,7 @@ import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { ArchivedChatsPage } from "@/features/settings/archived-chats-page"
 import { ChangePasswordForm } from "@/features/settings/change-password-form"
+import { CreditsPage } from "@/features/settings/credits-page"
 import { CustomerServiceSettings } from "@/features/settings/customer-service-settings"
 import { DeviceListPage } from "@/features/settings/device-list-page"
 import { LocalEnvironmentSettings } from "@/features/settings/local-environment-settings"
@@ -34,6 +35,7 @@ type SettingsFormSection = (typeof formSections)[number]
 type SettingsSection =
   | SettingsFormSection
   | "archivedChats"
+  | "credits"
   | "members"
   | "roles"
   | "modelServices"
@@ -87,6 +89,8 @@ export function SettingsPage({
         </>
       ) : section === "archivedChats" ? (
         <ArchivedChatsPage />
+      ) : section === "credits" ? (
+        <CreditsPage />
       ) : section === "members" ? (
         <MemberListPage />
       ) : (

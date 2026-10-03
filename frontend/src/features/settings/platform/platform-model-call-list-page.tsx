@@ -21,6 +21,7 @@ import {
   PlatformModelCallStatus,
 } from "@/features/settings/platform/platform-model-call-sheet"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { useCreditFormat } from "@/hooks/use-credit-format"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useListSearchParams } from "@/hooks/use-list-search-params"
 import { usePagedResource, useResource } from "@/hooks/use-resource"
@@ -35,9 +36,10 @@ const statusOptions: AIModelCallStatusId[] = [
   AIModelCallStatus.AIModelCallStatusRunning,
 ]
 
-/** 列出平台模型调用：主行为模型与工作区，第二行为用途与 Token 用量，非成功状态在名称旁标记。 */
+/** 列出平台模型调用：主行为模型与工作区，第二行为用途与 Token 用量，扣除积分与开始时间独立成列，非成功状态在名称旁标记。 */
 export function PlatformModelCallListPage() {
-  const { t } = useTranslation("platform")
+  const { t } = useTranslation(["platform", "common"])
+  const credit = useCreditFormat()
   const { formatDateTime } = useDateTime()
   const { searchParams, setParameters, query, search, setSearch } = useListSearchParams()
   const status = optionalWailsEnum(AIModelCallStatus, searchParams.get("status")) ?? AIModelCallStatus.$zero
@@ -74,7 +76,7 @@ export function PlatformModelCallListPage() {
           label={t("platformCalls.statusFilter")}
           allLabel={t("platformCalls.all")}
           value={status}
-          options={statusOptions.map((value) => ({ value, label: t(`platformCalls.statuses.${value}`) }))}
+          options={statusOptions.map((value) => ({ value, label: t(`common:aiModels.callStatuses.${value}`) }))}
           onValueChange={(next) => setParameters({ status: next || null })}
         />
         <ListToolbarTotal count={list.data?.total} />
@@ -98,8 +100,8 @@ export function PlatformModelCallListPage() {
                     )
                   }
                   description={[
-                    t(`platformCalls.usages.${call.usage}`),
-                    t("platformCalls.tokens", {
+                    t(`common:aiModels.usages.${call.usage}`),
+                    t("common:aiModels.tokens", {
                       input: call.inputTokens.toLocaleString(),
                       output: call.outputTokens.toLocaleString(),
                     }),
@@ -109,6 +111,15 @@ export function PlatformModelCallListPage() {
                     .join(" · ")}
                 />
               ),
+            },
+            {
+              key: "credits",
+              header: t("platformCalls.credits"),
+              cellClassName: "hidden w-px whitespace-nowrap text-right text-muted-foreground tabular-nums sm:table-cell",
+              cell: (call) =>
+                call.status === AIModelCallStatus.AIModelCallStatusRunning
+                  ? t("platformCalls.reservedAmount", { amount: credit.amount(call.credits) })
+                  : credit.amount(call.credits),
             },
             {
               key: "time",

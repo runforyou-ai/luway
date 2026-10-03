@@ -47,9 +47,9 @@ func TelemetryMetrics(ctx context.Context, db bun.IDB) (map[string]int64, error)
 	if err := scaleQuery(db).Scan(ctx, &accounts, &workspaces, &members); err != nil {
 		return nil, fmt.Errorf("count platform scale: %w", err)
 	}
-	today := statsToday(time.Now(), statsLocation(platform.StatisticsTimeZone))
+	today := statsToday(time.Now(), statsLocation(platform.TimeZone))
 	var activity ActivityWindow
-	if err := activityQuery(db, today.AddDate(0, 0, -6), today, platform.StatisticsTimeZone).Scan(ctx, &activity); err != nil {
+	if err := activityQuery(db, today.AddDate(0, 0, -6), today, platform.TimeZone).Scan(ctx, &activity); err != nil {
 		return nil, fmt.Errorf("read platform activity window: %w", err)
 	}
 	return map[string]int64{

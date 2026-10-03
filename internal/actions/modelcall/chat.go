@@ -69,7 +69,7 @@ func (m *chatModel) component(ctx context.Context, route aimodel.Route) (model.A
 // Generate 记录一次调用并按来源顺序请求完整输出。
 func (m *chatModel) Generate(ctx context.Context, input []*schema.AgenticMessage, opts ...model.Option) (*schema.AgenticMessage, error) {
 	var message *schema.AgenticMessage
-	err := m.invoker.run(ctx, m.scope, m.target, func(ctx context.Context, route aimodel.Route) (Usage, error) {
+	err := m.invoker.run(ctx, m.scope, m.target, m.estimate(input), func(ctx context.Context, route aimodel.Route) (Usage, error) {
 		component, err := m.component(ctx, route)
 		if err != nil {
 			return Usage{}, err
@@ -85,7 +85,7 @@ func (m *chatModel) Generate(ctx context.Context, input []*schema.AgenticMessage
 
 // Stream 记录一次调用并按来源顺序请求流式输出：来源在首个分片前失败时尝试下一来源，收到首个分片后固定该来源，流结束时写入结果与用量。
 func (m *chatModel) Stream(ctx context.Context, input []*schema.AgenticMessage, opts ...model.Option) (*schema.StreamReader[*schema.AgenticMessage], error) {
-	record, err := m.invoker.begin(ctx, m.scope, m.target)
+	record, err := m.invoker.begin(ctx, m.scope, m.target, m.estimate(input))
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +113,15 @@ func (m *chatModel) Stream(ctx context.Context, input []*schema.AgenticMessage, 
 	}
 	record.finish(ctx, err)
 	return nil, err
+}
+
+// estimate 返回一次请求的预估用量：输入按消息编码长度预估，输出取本次请求的最大输出 Token 数。
+func (m *chatModel) estimate(input []*schema.AgenticMessage) Usage {
+	output := int64(m.options.MaxOutputTokens)
+	if output <= 0 {
+		output = m.target.MaxOutputTokens
+	}
+	return Usage{InputTokens: estimateValueTokens(input, m.target.ContextWindow), OutputTokens: output}
 }
 
 // open 请求来源的流式输出并读取首个分片；上游未输出任何分片即结束时返回空流与空分片。

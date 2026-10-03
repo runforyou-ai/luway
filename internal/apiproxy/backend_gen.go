@@ -922,7 +922,7 @@ func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.Reque
 	return output, err
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
 func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
 	err := b.do(ctx, meta, http.MethodGet, "/platform/settings", nil, nil, &output)
@@ -936,10 +936,17 @@ func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.Re
 	return output, err
 }
 
-// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (b *Backend) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStatisticsTimeZoneInput) (appservice.PlatformSettings, error) {
+// UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+func (b *Backend) UpdatePlatformTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformTimeZoneInput) (appservice.PlatformSettings, error) {
 	var output appservice.PlatformSettings
-	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/statistics-time-zone", nil, input, &output)
+	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/time-zone", nil, input, &output)
+	return output, err
+}
+
+// UpdatePlatformDailyCreditGrant 修改每个工作区每天赠送的积分。
+func (b *Backend) UpdatePlatformDailyCreditGrant(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformDailyCreditGrantInput) (appservice.PlatformSettings, error) {
+	var output appservice.PlatformSettings
+	err := b.do(ctx, meta, http.MethodPut, "/platform/settings/daily-credit-grant", nil, input, &output)
 	return output, err
 }
 
@@ -1059,6 +1066,27 @@ func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.
 func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformFailedTaskListInput) (appservice.PlatformFailedTaskList, error) {
 	var output appservice.PlatformFailedTaskList
 	err := b.do(ctx, meta, http.MethodGet, "/platform/runtime/failed-tasks", encodePlatformFailedTaskListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// GetPlatformWorkspaceCredits 返回工作区的可用积分与今天的每日赠送。
+func (b *Backend) GetPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.CreditBalance, error) {
+	var output appservice.CreditBalance
+	err := b.do(ctx, meta, http.MethodGet, "/platform/workspaces/"+url.PathEscape(workspaceID)+"/credits", nil, nil, &output)
+	return output, err
+}
+
+// ListPlatformWorkspaceCreditEntries 返回工作区的积分流水。
+func (b *Backend) ListPlatformWorkspaceCreditEntries(ctx context.Context, meta appservice.RequestMeta, workspaceID string, input appservice.CreditEntryListInput) (appservice.CreditEntryList, error) {
+	var output appservice.CreditEntryList
+	err := b.do(ctx, meta, http.MethodGet, "/platform/workspaces/"+url.PathEscape(workspaceID)+"/credits/entries", encodeCreditEntryListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// AdjustPlatformWorkspaceCredits 手动增加或扣减工作区积分，扣减最多扣到余额为 0。
+func (b *Backend) AdjustPlatformWorkspaceCredits(ctx context.Context, meta appservice.RequestMeta, workspaceID string, input appservice.PlatformCreditAdjustmentInput) (appservice.PlatformCreditAdjustment, error) {
+	var output appservice.PlatformCreditAdjustment
+	err := b.do(ctx, meta, http.MethodPost, "/platform/workspaces/"+url.PathEscape(workspaceID)+"/credits/adjustments", nil, input, &output)
 	return output, err
 }
 
@@ -1500,6 +1528,20 @@ func (b *Backend) ListAIModelOptions(ctx context.Context, meta appservice.Reques
 	query.Set("usage", string(usage))
 	var output appservice.AIModelOptionList
 	err := b.do(ctx, meta, http.MethodGet, "/ai-models", query, nil, &output)
+	return output, err
+}
+
+// GetCreditBalance 返回当前工作区的可用积分与今天的每日赠送。
+func (b *Backend) GetCreditBalance(ctx context.Context, meta appservice.RequestMeta) (appservice.CreditBalance, error) {
+	var output appservice.CreditBalance
+	err := b.do(ctx, meta, http.MethodGet, "/credits", nil, nil, &output)
+	return output, err
+}
+
+// ListCreditEntries 返回当前工作区的积分流水。
+func (b *Backend) ListCreditEntries(ctx context.Context, meta appservice.RequestMeta, input appservice.CreditEntryListInput) (appservice.CreditEntryList, error) {
+	var output appservice.CreditEntryList
+	err := b.do(ctx, meta, http.MethodGet, "/credits/entries", encodeCreditEntryListInputQuery(input), nil, &output)
 	return output, err
 }
 
@@ -2007,6 +2049,14 @@ func encodeConversationMessageWindowInputQuery(input appservice.ConversationMess
 	query := url.Values{}
 	setQuery(query, "start", input.Start)
 	setQuery(query, "end", input.End)
+	return query
+}
+
+// encodeCreditEntryListInputQuery 将 appservice.CreditEntryListInput 编码为查询参数。
+func encodeCreditEntryListInputQuery(input appservice.CreditEntryListInput) url.Values {
+	query := url.Values{}
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
 	return query
 }
 

@@ -55,13 +55,14 @@ type PlatformAIModelRouteInput struct {
 	Enabled    bool   `json:"enabled"`
 }
 
-// PlatformAIModelInput 定义平台模型的属性与按尝试顺序排列的来源。
+// PlatformAIModelInput 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价，工作区不可使用。
 type PlatformAIModelInput struct {
 	Name            string                      `json:"name"`
 	Type            AIModelType                 `json:"type"`
 	InputModalities []AIModelInputModality      `json:"inputModalities"`
 	ContextWindow   int64                       `json:"contextWindow"`
 	MaxOutputTokens int64                       `json:"maxOutputTokens"`
+	Price           *CreditPrice                `json:"price"`
 	Routes          []PlatformAIModelRouteInput `json:"routes"`
 }
 
@@ -75,7 +76,7 @@ type PlatformAIModelRoute struct {
 	Enabled       bool            `json:"enabled"`
 }
 
-// PlatformAIModel 定义平台模型的属性与按尝试顺序排列的来源。
+// PlatformAIModel 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价。
 type PlatformAIModel struct {
 	ID              string                 `json:"id"`
 	Name            string                 `json:"name"`
@@ -83,6 +84,7 @@ type PlatformAIModel struct {
 	InputModalities []AIModelInputModality `json:"inputModalities"`
 	ContextWindow   int64                  `json:"contextWindow"`
 	MaxOutputTokens int64                  `json:"maxOutputTokens"`
+	Price           *CreditPrice           `json:"price"`
 	Routes          []PlatformAIModelRoute `json:"routes"`
 }
 
@@ -120,7 +122,7 @@ type PlatformAIModelCallListInput struct {
 	PageSize int               `json:"pageSize" query:"pageSize,default=50"`
 }
 
-// PlatformAIModelCall 定义一次平台模型调用及其归属工作区。
+// PlatformAIModelCall 定义一次平台模型调用及其归属工作区；Credits 进行中为预占积分，结束后为实际扣除积分，CreditShortfall 为余额不足未能补扣的积分。
 type PlatformAIModelCall struct {
 	ID                string            `json:"id"`
 	CreatedAt         time.Time         `json:"createdAt"`
@@ -137,6 +139,8 @@ type PlatformAIModelCall struct {
 	OutputTokens      int64             `json:"outputTokens"`
 	ErrorMessage      string            `json:"errorMessage"`
 	AttemptCount      int               `json:"attemptCount"`
+	Credits           int64             `json:"credits"`
+	CreditShortfall   int64             `json:"creditShortfall"`
 }
 
 // PlatformAIModelCallList 定义平台模型调用记录分页结果。

@@ -122,6 +122,13 @@ func registerServerTasks(deps serverTaskDeps) error {
 	partitions.Payload, partitions.MaxAttempts = messagepartition.EnsureInput{}, 5
 	deps.tasks.RegisterSchedule(partitions)
 
+	// 每 10 分钟结束开始超过一小时仍在进行中的模型调用，结算或退回预占的积分。
+	sweepModelCalls := modelcall.NewSweepInterruptedAction(db)
+	if err := registry.RegisterJSON(modelcall.SweepInterruptedActionName, sweepModelCalls.Execute); err != nil {
+		return err
+	}
+	deps.tasks.RegisterSchedule(maintenanceSchedule(modelcall.SweepInterruptedScheduleKey, modelcall.SweepInterruptedActionName, "@every 10m"))
+
 	// 运营数据每 10 分钟按平台统计时区重算昨天与今天的账号活跃明细和工作区按日指标。
 	aggregateStats := platformaction.NewAggregateStatsAction(db)
 	if err := registry.RegisterJSON(platformaction.AggregateStatsActionName, aggregateStats.Execute); err != nil {

@@ -55,7 +55,7 @@ export enum AIModelInputModality {
 };
 
 /**
- * AIModelOption 定义模型选择器中的模型；工作区模型带所属供应商，平台模型的 Provider 为空。
+ * AIModelOption 定义模型选择器中的模型；工作区模型带所属供应商，平台模型带积分价格，另一项为空。
  */
 export interface AIModelOption {
     "id": string;
@@ -64,6 +64,7 @@ export interface AIModelOption {
     "type": AIModelType;
     "inputModalities": AIModelInputModality[] | null;
     "provider": AIModelOptionProvider | null;
+    "price": CreditPrice | null;
 }
 
 /**
@@ -2131,6 +2132,72 @@ export interface CreatePersonalAgentInput {
     "execution": AgentExecutionInput;
     "mcpServerIds": string[] | null;
     "deviceId": string;
+}
+
+/**
+ * CreditBalance 定义工作区可用积分与今天的每日赠送；今天没有发放每日赠送时 DailyGrantExpiresAt 为空。
+ */
+export interface CreditBalance {
+    "available": number;
+    "dailyGrant": number;
+    "dailyGrantRemaining": number;
+    "dailyGrantExpiresAt": string | null;
+}
+
+/**
+ * CreditEntry 定义积分流水中的一个业务事件：入账为正数，扣除为负数；模型调用一次一条，进行中时为当前预占积分，模型字段只对模型调用有值，备注只对平台管理员调整有值。
+ */
+export interface CreditEntry {
+    "id": string;
+    "kind": CreditEntryKind;
+    "occurredAt": string;
+    "amount": number;
+    "note": string;
+    "modelName": string;
+    "modelUsage": AIModelUsage;
+    "callStatus": AIModelCallStatus;
+    "inputTokens": number;
+    "outputTokens": number;
+}
+
+/**
+ * CreditEntryKind 表示积分流水的业务事件类型。
+ */
+export enum CreditEntryKind {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    CreditEntryKindDailyGrant = "daily_grant",
+    CreditEntryKindAdjustment = "adjustment",
+    CreditEntryKindModelCall = "model_call",
+    CreditEntryKindExpiration = "expiration",
+};
+
+/**
+ * CreditEntryList 定义积分流水分页结果。
+ */
+export interface CreditEntryList {
+    "entries": CreditEntry[] | null;
+    "page": PageInfo;
+}
+
+/**
+ * CreditEntryListInput 定义积分流水的分页条件。
+ */
+export interface CreditEntryListInput {
+    "page": number;
+    "pageSize": number;
+}
+
+/**
+ * CreditPrice 定义平台模型的积分价格：每百万输入 Token、每百万输出 Token 与每次调用的积分。
+ */
+export interface CreditPrice {
+    "input": number;
+    "output": number;
+    "request": number;
 }
 
 /**
@@ -4269,7 +4336,7 @@ export interface PersonalAgentResponsible {
 }
 
 /**
- * PlatformAIModel 定义平台模型的属性与按尝试顺序排列的来源。
+ * PlatformAIModel 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价。
  */
 export interface PlatformAIModel {
     "id": string;
@@ -4278,11 +4345,12 @@ export interface PlatformAIModel {
     "inputModalities": AIModelInputModality[] | null;
     "contextWindow": number;
     "maxOutputTokens": number;
+    "price": CreditPrice | null;
     "routes": PlatformAIModelRoute[] | null;
 }
 
 /**
- * PlatformAIModelCall 定义一次平台模型调用及其归属工作区。
+ * PlatformAIModelCall 定义一次平台模型调用及其归属工作区；Credits 进行中为预占积分，结束后为实际扣除积分，CreditShortfall 为余额不足未能补扣的积分。
  */
 export interface PlatformAIModelCall {
     "id": string;
@@ -4300,6 +4368,8 @@ export interface PlatformAIModelCall {
     "outputTokens": number;
     "errorMessage": string;
     "attemptCount": number;
+    "credits": number;
+    "creditShortfall": number;
 }
 
 /**
@@ -4346,7 +4416,7 @@ export interface PlatformAIModelCallListInput {
 }
 
 /**
- * PlatformAIModelInput 定义平台模型的属性与按尝试顺序排列的来源。
+ * PlatformAIModelInput 定义平台模型的属性、积分价格与按尝试顺序排列的来源；价格为空表示未定价，工作区不可使用。
  */
 export interface PlatformAIModelInput {
     "name": string;
@@ -4354,6 +4424,7 @@ export interface PlatformAIModelInput {
     "inputModalities": AIModelInputModality[] | null;
     "contextWindow": number;
     "maxOutputTokens": number;
+    "price": CreditPrice | null;
     "routes": PlatformAIModelRouteInput[] | null;
 }
 
@@ -4479,6 +4550,22 @@ export interface PlatformActivityWindow {
 }
 
 /**
+ * PlatformCreditAdjustment 定义积分调整结果：实际变动积分与调整后的余额，扣减最多扣到余额为 0。
+ */
+export interface PlatformCreditAdjustment {
+    "amount": number;
+    "balance": CreditBalance;
+}
+
+/**
+ * PlatformCreditAdjustmentInput 定义平台管理员对工作区积分的调整：正数为增加，负数为扣减。
+ */
+export interface PlatformCreditAdjustmentInput {
+    "amount": number;
+    "note": string;
+}
+
+/**
  * PlatformDailyActivity 定义一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数，Date 为 YYYY-MM-DD。
  */
 export interface PlatformDailyActivity {
@@ -4487,6 +4574,13 @@ export interface PlatformDailyActivity {
     "activeWorkspaces": number;
     "newAccounts": number;
     "newWorkspaces": number;
+}
+
+/**
+ * PlatformDailyCreditGrantInput 定义每日赠送积分的修改值，0 表示不赠送。
+ */
+export interface PlatformDailyCreditGrantInput {
+    "dailyCreditGrant": number;
 }
 
 /**
@@ -4521,12 +4615,12 @@ export interface PlatformFailedTaskListInput {
 }
 
 /**
- * PlatformOverview 定义服务器标识、安装时间、规模、活跃情况和平台能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
+ * PlatformOverview 定义服务器标识、安装时间、规模、活跃情况和平台能力；活跃与新增按 TimeZone 划分日期，StatsRebuilding 表示正在按新时区重建。
  */
 export interface PlatformOverview {
     "serverId": string;
     "installedAt": string;
-    "statisticsTimeZone": string;
+    "timeZone": string;
     "statsRebuilding": boolean;
     "accountCount": number;
     "workspaceCount": number;
@@ -4554,20 +4648,14 @@ export interface PlatformRuntimeStatus {
 }
 
 /**
- * PlatformSettings 定义平台注册策略、工作区创建策略、运营数据统计时区和运行指标上报开关。
+ * PlatformSettings 定义平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
  */
 export interface PlatformSettings {
     "registrationPolicy": RegistrationPolicy;
     "workspaceCreationPolicy": WorkspaceCreationPolicy;
-    "statisticsTimeZone": string;
+    "timeZone": string;
     "telemetryEnabled": boolean;
-}
-
-/**
- * PlatformStatisticsTimeZoneInput 定义运营数据统计时区的修改值。
- */
-export interface PlatformStatisticsTimeZoneInput {
-    "statisticsTimeZone": string;
+    "dailyCreditGrant": number;
 }
 
 /**
@@ -4589,6 +4677,13 @@ export interface PlatformTaskQueue {
  */
 export interface PlatformTelemetryInput {
     "telemetryEnabled": boolean;
+}
+
+/**
+ * PlatformTimeZoneInput 定义平台时区的修改值。
+ */
+export interface PlatformTimeZoneInput {
+    "timeZone": string;
 }
 
 /**

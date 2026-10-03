@@ -20,6 +20,7 @@ const settings = {
     customerService: "客服",
     members: "成员",
     roles: "角色与权限",
+    credits: "积分",
     modelServices: "模型服务",
     webSearch: "联网搜索",
     platformOverview: "平台概览",
@@ -32,6 +33,7 @@ const settings = {
     platformModels: "平台模型",
     platformProviders: "平台供应商",
     platformCalls: "模型调用",
+    platformCredits: "积分",
   },
   profile: {
     title: "个人资料",
@@ -71,6 +73,30 @@ const settings = {
   security: {
     title: "登录与安全",
     description: "修改登录密码",
+  },
+  credits: {
+    title: "积分",
+    description: "使用平台模型时按价格扣除积分，积分不足时暂停使用平台模型",
+    loadError: "读取积分失败，请稍后重试。",
+    available: "可用积分",
+    dailyGrant: "每天赠送 {{amount}}",
+    noDailyGrant: "未开启每日赠送",
+    dailyGrantRemaining: "今日赠送剩余",
+    dailyGrantExpires: "{{time}} 清零",
+    noDailyGrantToday: "今天没有赠送",
+    entries: {
+      title: "积分流水",
+      amount: "积分",
+      time: "时间",
+      empty: "还没有积分记录",
+      reserved: "预占中",
+      kinds: {
+        daily_grant: "每日赠送",
+        adjustment: "平台调整",
+        model_call: "模型调用",
+        expiration: "赠送过期",
+      },
+    },
   },
   archivedChats: {
     title: "已归档的聊天",

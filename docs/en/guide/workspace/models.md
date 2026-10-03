@@ -11,6 +11,8 @@ This page is being written.
 
 Platform models are set up by platform admins and every workspace can use them directly. When you choose a model, they appear in the **Platform models** group above the models your workspace configured. Platform models only show the model name. Platform admins maintain which providers serve them; see [Platform model service](/docs/en/guide/admin/platform-models/).
 
+Platform models are paid for with workspace credits at the price shown after the model name; see [Credits](/docs/en/guide/workspace/credits/). Models your workspace configures itself don't use credits.
+
 ## Your own model providers
 
 ## Model types

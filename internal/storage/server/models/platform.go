@@ -17,8 +17,9 @@ type Platform struct {
 	UpdatedAt                time.Time `bun:"updated_at,nullzero,default:now()"`
 	RegistrationPolicy       string    `bun:"registration_policy"`
 	WorkspaceCreationPolicy  string    `bun:"workspace_creation_policy"`
-	StatisticsTimeZone       string    `bun:"statistics_time_zone"`
+	TimeZone                 string    `bun:"time_zone"`
 	StatisticsRebuildPending bool      `bun:"statistics_rebuild_pending"`
 	ServerPrivateKey         []byte    `bun:"server_private_key"`
 	TelemetryEnabled         bool      `bun:"telemetry_enabled"`
+	DailyCreditGrant         int64     `bun:"daily_credit_grant"`
 }

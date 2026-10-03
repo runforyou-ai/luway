@@ -23,41 +23,41 @@ import (
 
 // platformOps 持有平台管理的 Action 和 Query。
 type platformOps struct {
-	platformOverview         *platformaction.OverviewQuery
-	platformSettingsRead     *platformaction.SettingsQuery
-	updatePlatformPolicies   *platformaction.UpdatePoliciesAction
-	updateStatisticsTimeZone *platformaction.UpdateStatisticsTimeZoneAction
-	listPlatformAccounts     *platformaction.ListAccountsQuery
-	updatePlatformAccount    *platformaction.UpdateAccountAction
-	listPlatformWorkspaces   *platformaction.ListWorkspacesQuery
-	setWorkspaceStatus       *platformaction.SetWorkspaceStatusAction
-	platformUsage            *platformaction.UsageQuery
-	platformTaskQueues       *platformaction.TaskQueuesQuery
-	platformFailedTasks      *platformaction.FailedTaskListQuery
-	licenseRead              *platformaction.LicenseQuery
-	activateLicense          *platformaction.ActivateLicenseAction
-	onlineLicense            *platformaction.OnlineLicenseAction
-	updateTelemetry          *platformaction.UpdateTelemetryAction
+	platformOverview       *platformaction.OverviewQuery
+	platformSettingsRead   *platformaction.SettingsQuery
+	updatePlatformPolicies *platformaction.UpdatePoliciesAction
+	updateTimeZone         *platformaction.UpdateTimeZoneAction
+	listPlatformAccounts   *platformaction.ListAccountsQuery
+	updatePlatformAccount  *platformaction.UpdateAccountAction
+	listPlatformWorkspaces *platformaction.ListWorkspacesQuery
+	setWorkspaceStatus     *platformaction.SetWorkspaceStatusAction
+	platformUsage          *platformaction.UsageQuery
+	platformTaskQueues     *platformaction.TaskQueuesQuery
+	platformFailedTasks    *platformaction.FailedTaskListQuery
+	licenseRead            *platformaction.LicenseQuery
+	activateLicense        *platformaction.ActivateLicenseAction
+	onlineLicense          *platformaction.OnlineLicenseAction
+	updateTelemetry        *platformaction.UpdateTelemetryAction
 }
 
 // newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权。
 func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys license.Keys, controlClient *control.Client) platformOps {
 	return platformOps{
-		platformOverview:         platformaction.NewOverviewQuery(db),
-		platformSettingsRead:     platformaction.NewSettingsQuery(db),
-		updatePlatformPolicies:   platformaction.NewUpdatePoliciesAction(db),
-		updateStatisticsTimeZone: platformaction.NewUpdateStatisticsTimeZoneAction(db, taskEnqueuer),
-		listPlatformAccounts:     platformaction.NewListAccountsQuery(db),
-		updatePlatformAccount:    platformaction.NewUpdateAccountAction(db),
-		listPlatformWorkspaces:   platformaction.NewListWorkspacesQuery(db),
-		setWorkspaceStatus:       platformaction.NewSetWorkspaceStatusAction(db),
-		platformUsage:            platformaction.NewUsageQuery(db),
-		platformTaskQueues:       platformaction.NewTaskQueuesQuery(db),
-		platformFailedTasks:      platformaction.NewFailedTaskListQuery(db),
-		licenseRead:              platformaction.NewLicenseQuery(db),
-		activateLicense:          platformaction.NewActivateLicenseAction(db, licenseKeys),
-		onlineLicense:            platformaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
-		updateTelemetry:          platformaction.NewUpdateTelemetryAction(db),
+		platformOverview:       platformaction.NewOverviewQuery(db),
+		platformSettingsRead:   platformaction.NewSettingsQuery(db),
+		updatePlatformPolicies: platformaction.NewUpdatePoliciesAction(db),
+		updateTimeZone:         platformaction.NewUpdateTimeZoneAction(db, taskEnqueuer),
+		listPlatformAccounts:   platformaction.NewListAccountsQuery(db),
+		updatePlatformAccount:  platformaction.NewUpdateAccountAction(db),
+		listPlatformWorkspaces: platformaction.NewListWorkspacesQuery(db),
+		setWorkspaceStatus:     platformaction.NewSetWorkspaceStatusAction(db),
+		platformUsage:          platformaction.NewUsageQuery(db),
+		platformTaskQueues:     platformaction.NewTaskQueuesQuery(db),
+		platformFailedTasks:    platformaction.NewFailedTaskListQuery(db),
+		licenseRead:            platformaction.NewLicenseQuery(db),
+		activateLicense:        platformaction.NewActivateLicenseAction(db, licenseKeys),
+		onlineLicense:          platformaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
+		updateTelemetry:        platformaction.NewUpdateTelemetryAction(db),
 	}
 }
 
@@ -75,7 +75,7 @@ func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appserv
 		})
 	}
 	return appservice.PlatformOverview{
-		ServerID: overview.ServerID, InstalledAt: overview.InstalledAt, StatisticsTimeZone: overview.StatisticsTimeZone,
+		ServerID: overview.ServerID, InstalledAt: overview.InstalledAt, TimeZone: overview.TimeZone,
 		StatsRebuilding: overview.StatsRebuilding,
 		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
 		Last7Days: appservice.PlatformActivityWindow(overview.Last7Days), Last30Days: appservice.PlatformActivityWindow(overview.Last30Days),
@@ -86,7 +86,7 @@ func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appserv
 	}, nil
 }
 
-// GetPlatformSettings 返回平台注册策略、工作区创建策略、统计时区和运行指标上报开关。
+// GetPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
 func (o *directOperations) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformSettings, error) {
 	settings, err := o.platformSettingsRead.Execute(ctx)
 	if err != nil {
@@ -109,13 +109,13 @@ func (o *directOperations) UpdatePlatformSettings(ctx context.Context, meta apps
 	return platformSettingsFromAction(settings), nil
 }
 
-// UpdatePlatformStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
-func (o *directOperations) UpdatePlatformStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformStatisticsTimeZoneInput) (appservice.PlatformSettings, error) {
-	settings, err := o.updateStatisticsTimeZone.Execute(ctx, account, input.StatisticsTimeZone)
+// UpdatePlatformTimeZone 修改平台时区，并按新时区在后台重建运营数据。
+func (o *directOperations) UpdatePlatformTimeZone(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformTimeZoneInput) (appservice.PlatformSettings, error) {
+	settings, err := o.updateTimeZone.Execute(ctx, account, input.TimeZone)
 	if err != nil {
 		return appservice.PlatformSettings{}, platformError(ctx, meta, err, i18n.ErrorPlatformSettingsUpdateFailed, account, "")
 	}
-	slog.Info("统计时区已修改", "account_id", account.Account.ID, "statistics_time_zone", settings.StatisticsTimeZone)
+	slog.Info("平台时区已修改", "account_id", account.Account.ID, "time_zone", settings.TimeZone)
 	return platformSettingsFromAction(settings), nil
 }
 
@@ -347,8 +347,9 @@ func platformSettingsFromAction(settings platformaction.Settings) appservice.Pla
 	return appservice.PlatformSettings{
 		RegistrationPolicy:      appservice.RegistrationPolicy(settings.RegistrationPolicy),
 		WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicy(settings.WorkspaceCreationPolicy),
-		StatisticsTimeZone:      settings.StatisticsTimeZone,
+		TimeZone:                settings.TimeZone,
 		TelemetryEnabled:        settings.TelemetryEnabled,
+		DailyCreditGrant:        settings.DailyCreditGrant,
 	}
 }
 
@@ -381,7 +382,7 @@ func platformError(ctx context.Context, meta appservice.RequestMeta, err error, 
 			platformaction.ValidationAccountStatusInvalid:           i18n.FieldUserStatusInvalid,
 			platformaction.ValidationRegistrationPolicyInvalid:      i18n.FieldRegistrationPolicyInvalid,
 			platformaction.ValidationWorkspaceCreationPolicyInvalid: i18n.FieldWorkspaceCreationPolicyInvalid,
-			platformaction.ValidationStatisticsTimeZoneInvalid:      i18n.FieldTimeZoneInvalid,
+			platformaction.ValidationTimeZoneInvalid:                i18n.FieldTimeZoneInvalid,
 			platformaction.ValidationWorkspaceSortInvalid:           i18n.FieldPlatformQueryInvalid,
 			platformaction.ValidationWorkspaceStatusInvalid:         i18n.FieldPlatformQueryInvalid,
 			platformaction.ValidationUsageSortInvalid:               i18n.FieldPlatformQueryInvalid,

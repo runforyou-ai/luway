@@ -89,7 +89,32 @@ const common = {
     member: "成员",
   },
   aiModels: {
+    pricedOption: "{{name}}（{{price}}）",
     platformGroup: "平台模型",
+    usages: {
+      agent: "AI 员工",
+      summary: "小结",
+      translation: "翻译",
+      decision: "判断",
+      embedding: "向量化",
+      rerank: "重排序",
+    },
+    callStatuses: {
+      running: "进行中",
+      succeeded: "成功",
+      failed: "失败",
+      canceled: "已取消",
+      timed_out: "超时",
+    },
+    tokens: "输入 {{input}} · 输出 {{output}}",
+  },
+  credits: {
+    amount_one: "{{formatted}} 积分",
+    amount_other: "{{formatted}} 积分",
+    free: "免费",
+    tokenPrice: "输入 {{input}} · 输出 {{output}} 积分/百万 Token",
+    inputPrice: "{{input}} 积分/百万 Token",
+    requestPrice: "每次 {{request}} 积分",
   },
   agentBehavior: {
     tools: "可用工具",

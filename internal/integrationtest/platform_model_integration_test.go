@@ -76,7 +76,7 @@ func TestPlatformModels(t *testing.T) {
 	input := appservice.PlatformAIModelInput{
 		Name: "DeepSeek V4.1 Flash", Type: appservice.AIModelTypeChat,
 		InputModalities: []appservice.AIModelInputModality{appservice.AIModelInputModalityText},
-		ContextWindow:   131072, MaxOutputTokens: 8192,
+		ContextWindow:   131072, MaxOutputTokens: 8192, Price: &appservice.CreditPrice{},
 		Routes: []appservice.PlatformAIModelRouteInput{
 			{ProviderID: primary.ID, Identifier: "deepseek/flash", Enabled: true},
 			{ProviderID: backup.ID, Identifier: "deepseek-flash", Enabled: true},

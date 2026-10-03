@@ -14,19 +14,19 @@ import (
 // overviewTrendDays 是平台概览趋势覆盖的天数，含今天。
 const overviewTrendDays = 30
 
-// Overview 定义服务器标识、安装时间、规模、活跃情况和当前能力；StatsRebuilding 表示正在按新统计时区重建运营数据。
+// Overview 定义服务器标识、安装时间、规模、活跃情况和当前能力；StatsRebuilding 表示正在按新时区重建运营数据。
 type Overview struct {
-	ServerID           string
-	InstalledAt        time.Time
-	StatisticsTimeZone string
-	StatsRebuilding    bool
-	AccountCount       int
-	WorkspaceCount     int
-	MemberCount        int
-	Last7Days          ActivityWindow
-	Last30Days         ActivityWindow
-	Trend              []DailyActivity
-	Capabilities       domain.Capabilities
+	ServerID        string
+	InstalledAt     time.Time
+	TimeZone        string
+	StatsRebuilding bool
+	AccountCount    int
+	WorkspaceCount  int
+	MemberCount     int
+	Last7Days       ActivityWindow
+	Last30Days      ActivityWindow
+	Trend           []DailyActivity
+	Capabilities    domain.Capabilities
 }
 
 // ActivityWindow 定义截至今天的若干天内去重后的活跃账号数、活跃工作区数以及新增账号数和新增工作区数。
@@ -37,7 +37,7 @@ type ActivityWindow struct {
 	NewWorkspaces    int `bun:"new_workspaces"`
 }
 
-// DailyActivity 定义统计时区一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数。
+// DailyActivity 定义平台时区一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数。
 type DailyActivity struct {
 	Date             time.Time `bun:"day"`
 	ActiveAccounts   int       `bun:"active_accounts"`
@@ -64,17 +64,17 @@ func (q *OverviewQuery) Execute(ctx context.Context) (Overview, error) {
 	}
 	overview := Overview{
 		ServerID: platform.ServerID, InstalledAt: platform.CreatedAt,
-		StatisticsTimeZone: platform.StatisticsTimeZone, StatsRebuilding: platform.StatisticsRebuildPending,
+		TimeZone: platform.TimeZone, StatsRebuilding: platform.StatisticsRebuildPending,
 	}
 	if err := scaleQuery(q.db).Scan(ctx, &overview.AccountCount, &overview.WorkspaceCount, &overview.MemberCount); err != nil {
 		return Overview{}, fmt.Errorf("count platform scale: %w", err)
 	}
-	today := statsToday(time.Now(), statsLocation(platform.StatisticsTimeZone))
+	today := statsToday(time.Now(), statsLocation(platform.TimeZone))
 	for _, window := range []struct {
 		days   int
 		target *ActivityWindow
 	}{{7, &overview.Last7Days}, {30, &overview.Last30Days}} {
-		if err := activityQuery(q.db, today.AddDate(0, 0, 1-window.days), today, platform.StatisticsTimeZone).
+		if err := activityQuery(q.db, today.AddDate(0, 0, 1-window.days), today, platform.TimeZone).
 			Scan(ctx, window.target); err != nil {
 			return Overview{}, fmt.Errorf("read platform activity window: %w", err)
 		}
@@ -91,7 +91,7 @@ func (q *OverviewQuery) Execute(ctx context.Context) (Overview, error) {
 		FROM days
 		ORDER BY days.day
 	`, today.AddDate(0, 0, 1-overviewTrendDays).Format(time.DateOnly), today.Format(time.DateOnly),
-		platform.StatisticsTimeZone, platform.StatisticsTimeZone).
+		platform.TimeZone, platform.TimeZone).
 		Scan(ctx, &overview.Trend); err != nil {
 		return Overview{}, fmt.Errorf("read platform activity trend: %w", err)
 	}
@@ -116,7 +116,7 @@ func scaleQuery(db bun.IDB) *bun.RawQuery {
 	`, bun.In(listedLifecycleStatuses), domain.IdentityStatusActive, bun.In(listedLifecycleStatuses))
 }
 
-// activityQuery 返回统计时区 from 至 to（含）之间去重活跃账号数、活跃工作区数、新增账号数和新增工作区数的查询。
+// activityQuery 返回平台时区 from 至 to（含）之间去重活跃账号数、活跃工作区数、新增账号数和新增工作区数的查询。
 func activityQuery(db bun.IDB, from, to time.Time, timeZone string) *bun.RawQuery {
 	fromDate, toDate := from.Format(time.DateOnly), to.Format(time.DateOnly)
 	return db.NewRaw(`
