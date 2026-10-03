@@ -1,6 +1,6 @@
 //go:build server
 
-// Package deployment 实现部署实例、部署级策略与部署管理员的查询和操作。
+// Package deployment 实现部署实例、部署级策略、部署管理员与运营数据的查询和操作。
 package deployment
 
 import (
@@ -23,8 +23,12 @@ var (
 	ErrAccountNotFound = errors.New("account not found")
 	// ErrSelfChange 表示部署管理员试图修改自己的账号状态或管理员身份。
 	ErrSelfChange = errors.New("deployment admin cannot change own account")
-	// ErrNoActiveMembership 表示目标账号没有有效的工作区成员身份，不能设为部署管理员。
+	// ErrNoActiveMembership 表示目标账号在正常状态的工作区中没有有效成员身份，不能设为部署管理员。
 	ErrNoActiveMembership = errors.New("account has no active workspace membership")
+	// ErrWorkspaceNotFound 表示目标工作区不存在。
+	ErrWorkspaceNotFound = errors.New("workspace not found")
+	// ErrWorkspaceHasDeploymentAdmin 表示工作区中有有效部署管理员成员，不能暂停。
+	ErrWorkspaceHasDeploymentAdmin = errors.New("workspace has an active deployment admin")
 )
 
 const (
@@ -32,16 +36,20 @@ const (
 	ValidationAccountStatusInvalid           common.FieldCode = "DEPLOYMENT_ACCOUNT_STATUS_INVALID"
 	ValidationRegistrationPolicyInvalid      common.FieldCode = "DEPLOYMENT_REGISTRATION_POLICY_INVALID"
 	ValidationWorkspaceCreationPolicyInvalid common.FieldCode = "DEPLOYMENT_WORKSPACE_CREATION_POLICY_INVALID"
+	ValidationStatisticsTimeZoneInvalid      common.FieldCode = "DEPLOYMENT_STATISTICS_TIME_ZONE_INVALID"
+	ValidationWorkspaceSortInvalid           common.FieldCode = "DEPLOYMENT_WORKSPACE_SORT_INVALID"
+	ValidationWorkspaceStatusInvalid         common.FieldCode = "DEPLOYMENT_WORKSPACE_STATUS_INVALID"
 )
 
-// Create 在首次安装事务内写入部署实例行，实例标识由数据库生成，注册仅限受邀邮箱，工作区仅部署管理员可创建。
-func Create(ctx context.Context, tx bun.Tx) (*servermodels.Deployment, error) {
+// Create 在首次安装事务内写入部署实例行，实例标识由数据库生成，注册仅限受邀邮箱，工作区仅部署管理员可创建，统计时区取部署管理员的时区。
+func Create(ctx context.Context, tx bun.Tx, statisticsTimeZone string) (*servermodels.Deployment, error) {
 	deployment := &servermodels.Deployment{
 		RegistrationPolicy:      string(domain.RegistrationPolicyInvitationOnly),
 		WorkspaceCreationPolicy: string(domain.WorkspaceCreationPolicyDeploymentAdmin),
+		StatisticsTimeZone:      statisticsTimeZone,
 	}
 	if _, err := tx.NewInsert().Model(deployment).
-		Column("registration_policy", "workspace_creation_policy").
+		Column("registration_policy", "workspace_creation_policy", "statistics_time_zone").
 		Returning("instance_id, created_at, updated_at").
 		Exec(ctx); err != nil {
 		return nil, err

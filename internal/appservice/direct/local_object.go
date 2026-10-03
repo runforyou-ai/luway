@@ -124,9 +124,9 @@ func (a *LocalObjectAuthorizer) ContentType(ctx context.Context, storageKey stri
 	return contentType, err
 }
 
-// localObjectIdentityError 把成员身份解析错误转换为本地对象错误，令牌无效或不是该工作区成员时视为未认证。
+// localObjectIdentityError 把成员身份解析错误转换为本地对象错误，令牌无效、不是该工作区成员或工作区已暂停时视为未认证。
 func localObjectIdentityError(err error) error {
-	if errors.Is(err, authaction.ErrIdentityNotFound) || errors.Is(err, authaction.ErrMembershipNotFound) {
+	if errors.Is(err, authaction.ErrIdentityNotFound) || errors.Is(err, authaction.ErrMembershipNotFound) || errors.Is(err, authaction.ErrWorkspaceSuspended) {
 		return ErrLocalObjectUnauthorized
 	}
 	return err

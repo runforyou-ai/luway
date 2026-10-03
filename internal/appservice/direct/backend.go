@@ -121,7 +121,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
-		deploymentOps:      newDeploymentOps(db),
+		deploymentOps:      newDeploymentOps(db, taskEnqueuer),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}
 	return &Backend{ops: ops}
@@ -225,6 +225,10 @@ func (g sessionGuard) authenticate(ctx context.Context, meta appservice.RequestM
 	if errors.Is(err, authaction.ErrMembershipNotFound) {
 		slog.Info("账号不是目标工作区的有效成员", "workspace_id", meta.WorkspaceID)
 		return nil, appservice.SessionError(meta, appservice.SessionStateWorkspace, i18n.ErrorWorkspaceUnavailable)
+	}
+	if errors.Is(err, authaction.ErrWorkspaceSuspended) {
+		slog.Info("目标工作区已暂停", "workspace_id", meta.WorkspaceID)
+		return nil, appservice.SessionError(meta, appservice.SessionStateWorkspace, i18n.ErrorWorkspaceSuspended)
 	}
 	if err != nil {
 		if ctx.Err() != nil {

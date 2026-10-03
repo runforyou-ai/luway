@@ -1,4 +1,4 @@
-/** 客服报表概览共用的指标卡、分区、条形列表与空状态说明。 */
+/** 报表概览共用的指标卡、分区、条形列表、逐日柱状图与空状态说明。 */
 import type { ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
@@ -102,4 +102,45 @@ export function MeterList({
 /** 分区内没有数据时的说明。 */
 export function EmptyNote({ children }: { children: ReactNode }) {
   return <p className="py-6 text-center text-sm text-muted-foreground">{children}</p>
+}
+
+/** 逐日柱状图：每天一根柱，柱高按区间最大值缩放，悬停显示当天说明；下方标出首尾日期，并为读屏提供逐日数据表。 */
+export function DailyBarChart({
+  label,
+  days,
+}: {
+  label: string
+  days: { key: string; label: string; value: number; detail: string }[]
+}) {
+  const max = Math.max(1, ...days.map((day) => day.value))
+  return (
+    <figure aria-label={label}>
+      <div className="flex h-32 items-end gap-0.5 border-b border-border/55" aria-hidden="true">
+        {days.map((day) => (
+          <div key={day.key} className="group flex h-full min-w-0 flex-1 items-end" title={day.detail}>
+            <div
+              className="w-full rounded-t-[4px] bg-primary/75 transition-colors group-hover:bg-primary"
+              style={{ height: `${(day.value / max) * 100}%`, minHeight: day.value > 0 ? 2 : 0 }}
+            />
+          </div>
+        ))}
+      </div>
+      {days.length > 0 ? (
+        <div className="mt-1.5 flex justify-between text-xs text-muted-foreground tabular-nums" aria-hidden="true">
+          <span>{days[0].label}</span>
+          <span>{days[days.length - 1].label}</span>
+        </div>
+      ) : null}
+      <table className="sr-only">
+        <caption>{label}</caption>
+        <tbody>
+          {days.map((day) => (
+            <tr key={day.key}>
+              <td>{day.detail}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </figure>
+  )
 }

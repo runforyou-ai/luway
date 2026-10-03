@@ -42,6 +42,7 @@ export {
     CustomerDeliveryResolution,
     CustomerDeliveryStatus,
     CustomerLocale,
+    DeploymentWorkspaceSort,
     DevicePlatform,
     FilePurpose,
     GroupParticipantRole,
@@ -102,7 +103,8 @@ export {
     WebSearchProvider,
     WebsiteHomeBlockType,
     WorkStatus,
-    WorkspaceCreationPolicy
+    WorkspaceCreationPolicy,
+    WorkspaceStatus
 } from "./models.js";
 
 export type {
@@ -251,6 +253,8 @@ export type {
     DeploymentAccount,
     DeploymentAccountList,
     DeploymentAccountListInput,
+    DeploymentActivityWindow,
+    DeploymentDailyActivity,
     DeploymentOverview,
     DeploymentSettings,
     DeploymentWorkspace,

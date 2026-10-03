@@ -71,7 +71,7 @@ func enqueueAgentChatTitle(ctx context.Context, db bun.IDB, enqueuer servertask.
 		return nil
 	}
 	input := AgentChatTitleInput{OrganizationID: conversation.OrganizationID, ConversationID: conversation.ID, MessageID: messageID, ExpectedTitle: conversation.Title}
-	options := servertask.EnqueueOptions{MaxAttempts: agentChatTitleMaxAttempts, IdempotencyKey: "agent-chat-title:" + conversation.ID}
+	options := servertask.EnqueueOptions{OrganizationID: input.OrganizationID, MaxAttempts: agentChatTitleMaxAttempts, IdempotencyKey: "agent-chat-title:" + conversation.ID}
 	if _, err := enqueuer.EnqueueIn(ctx, db, AgentChatTitleActionName, input, options); err != nil {
 		return fmt.Errorf("enqueue AI chat title: %w", err)
 	}

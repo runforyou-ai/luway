@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"time"
 
 	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	"github.com/runforyou-ai/luway/internal/appservice"
@@ -14,6 +15,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
 )
 
@@ -25,36 +27,48 @@ type deploymentOps struct {
 	listDeploymentAccounts   *deploymentaction.ListAccountsQuery
 	updateDeploymentAccount  *deploymentaction.UpdateAccountAction
 	listDeploymentWorkspaces *deploymentaction.ListWorkspacesQuery
+	setWorkspaceStatus       *deploymentaction.SetWorkspaceStatusAction
 }
 
 // newDeploymentOps 创建部署管理的业务实现依赖。
-func newDeploymentOps(db *bun.DB) deploymentOps {
+func newDeploymentOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer) deploymentOps {
 	return deploymentOps{
 		deploymentOverview:       deploymentaction.NewOverviewQuery(db),
 		deploymentSettingsRead:   deploymentaction.NewSettingsQuery(db),
-		updateDeploymentSettings: deploymentaction.NewUpdateSettingsAction(db),
+		updateDeploymentSettings: deploymentaction.NewUpdateSettingsAction(db, taskEnqueuer),
 		listDeploymentAccounts:   deploymentaction.NewListAccountsQuery(db),
 		updateDeploymentAccount:  deploymentaction.NewUpdateAccountAction(db),
 		listDeploymentWorkspaces: deploymentaction.NewListWorkspacesQuery(db),
+		setWorkspaceStatus:       deploymentaction.NewSetWorkspaceStatusAction(db),
 	}
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
 func (o *directOperations) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.DeploymentOverview, error) {
 	overview, err := o.deploymentOverview.Execute(ctx)
 	if err != nil {
 		return appservice.DeploymentOverview{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentOverviewFailed, account, "")
 	}
+	trend := make([]appservice.DeploymentDailyActivity, 0, len(overview.Trend))
+	for _, day := range overview.Trend {
+		trend = append(trend, appservice.DeploymentDailyActivity{
+			Date: day.Date.Format(time.DateOnly), ActiveAccounts: day.ActiveAccounts, ActiveWorkspaces: day.ActiveWorkspaces,
+			NewAccounts: day.NewAccounts, NewWorkspaces: day.NewWorkspaces,
+		})
+	}
 	return appservice.DeploymentOverview{
-		InstanceID: overview.InstanceID, Version: buildinfo.Version, InstalledAt: overview.InstalledAt,
-		AccountCount: overview.AccountCount, WorkspaceCount: overview.WorkspaceCount,
+		InstanceID: overview.InstanceID, Version: buildinfo.Version, InstalledAt: overview.InstalledAt, StatisticsTimeZone: overview.StatisticsTimeZone,
+		StatsRebuilding: overview.StatsRebuilding,
+		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
+		Last7Days: appservice.DeploymentActivityWindow(overview.Last7Days), Last30Days: appservice.DeploymentActivityWindow(overview.Last30Days),
+		Trend: trend,
 		Capabilities: appservice.InstanceCapabilities{
 			WorkspaceLimit: overview.Capabilities.WorkspaceLimit, CustomBranding: overview.Capabilities.CustomBranding,
 		},
 	}, nil
 }
 
-// GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
 func (o *directOperations) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.DeploymentSettings, error) {
 	settings, err := o.deploymentSettingsRead.Execute(ctx)
 	if err != nil {
@@ -63,17 +77,19 @@ func (o *directOperations) GetDeploymentSettings(ctx context.Context, meta appse
 	return deploymentSettingsFromAction(settings), nil
 }
 
-// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+// UpdateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
 func (o *directOperations) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentSettings) (appservice.DeploymentSettings, error) {
 	settings, err := o.updateDeploymentSettings.Execute(ctx, account, deploymentaction.Settings{
 		RegistrationPolicy:      domain.RegistrationPolicy(input.RegistrationPolicy),
 		WorkspaceCreationPolicy: domain.WorkspaceCreationPolicy(input.WorkspaceCreationPolicy),
+		StatisticsTimeZone:      input.StatisticsTimeZone,
 	})
 	if err != nil {
 		return appservice.DeploymentSettings{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentSettingsUpdateFailed, account, "")
 	}
 	slog.Info("部署设置已修改", "account_id", account.Account.ID,
-		"registration_policy", settings.RegistrationPolicy, "workspace_creation_policy", settings.WorkspaceCreationPolicy)
+		"registration_policy", settings.RegistrationPolicy, "workspace_creation_policy", settings.WorkspaceCreationPolicy,
+		"statistics_time_zone", settings.StatisticsTimeZone)
 	return deploymentSettingsFromAction(settings), nil
 }
 
@@ -116,19 +132,60 @@ func (o *directOperations) RevokeDeploymentAdmin(ctx context.Context, meta appse
 	return deploymentAccountResult(ctx, meta, account, accountID, record, err, "已撤销部署管理员")
 }
 
-// ListDeploymentWorkspaces 返回部署内的全部工作区。
+// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
 func (o *directOperations) ListDeploymentWorkspaces(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.DeploymentWorkspaceListInput) (appservice.DeploymentWorkspaceList, error) {
-	output, err := o.listDeploymentWorkspaces.Execute(ctx, deploymentaction.WorkspaceListInput{Query: input.Query, Page: input.Page, PageSize: input.PageSize})
+	output, err := o.listDeploymentWorkspaces.Execute(ctx, deploymentaction.WorkspaceListInput{
+		Query: input.Query, Status: domain.OrganizationLifecycleStatus(input.Status), Sort: deploymentaction.WorkspaceSort(input.Sort),
+		Page: input.Page, PageSize: input.PageSize,
+	})
 	if err != nil {
 		return appservice.DeploymentWorkspaceList{}, deploymentError(ctx, meta, err, i18n.ErrorWorkspaceListFailed, account, "")
 	}
 	workspaces := make([]appservice.DeploymentWorkspace, 0, len(output.Workspaces))
 	for _, record := range output.Workspaces {
-		workspaces = append(workspaces, appservice.DeploymentWorkspace{
-			ID: record.ID, Name: record.Name, Slug: record.Slug, MemberCount: record.MemberCount, CreatedAt: record.CreatedAt,
-		})
+		workspaces = append(workspaces, deploymentWorkspaceFromAction(record))
 	}
 	return appservice.DeploymentWorkspaceList{Workspaces: workspaces, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total}}, nil
+}
+
+// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+func (o *directOperations) SuspendDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, workspaceID string) (appservice.DeploymentWorkspace, error) {
+	return o.setDeploymentWorkspaceStatus(ctx, meta, account, workspaceID, domain.OrganizationLifecycleSuspended, "工作区已暂停")
+}
+
+// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+func (o *directOperations) ResumeDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, workspaceID string) (appservice.DeploymentWorkspace, error) {
+	return o.setDeploymentWorkspaceStatus(ctx, meta, account, workspaceID, domain.OrganizationLifecycleActive, "工作区已恢复")
+}
+
+// setDeploymentWorkspaceStatus 切换工作区状态并转换结果，成功时记录日志。
+func (o *directOperations) setDeploymentWorkspaceStatus(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, workspaceID string, status domain.OrganizationLifecycleStatus, message string) (appservice.DeploymentWorkspace, error) {
+	record, err := o.setWorkspaceStatus.Execute(ctx, account, workspaceID, status)
+	if errors.Is(err, deploymentaction.ErrWorkspaceNotFound) {
+		return appservice.DeploymentWorkspace{}, appservice.NotFoundError(meta, i18n.ErrorDeploymentWorkspaceNotFound)
+	}
+	if errors.Is(err, deploymentaction.ErrWorkspaceHasDeploymentAdmin) {
+		return appservice.DeploymentWorkspace{}, appservice.InvalidError(meta, i18n.ErrorDeploymentWorkspaceHasAdmin, nil)
+	}
+	if err != nil {
+		return appservice.DeploymentWorkspace{}, deploymentError(ctx, meta, err, i18n.ErrorDeploymentWorkspaceUpdateFailed, account, "")
+	}
+	slog.Info(message, "operator_account_id", account.Account.ID, "workspace_id", workspaceID)
+	return deploymentWorkspaceFromAction(record), nil
+}
+
+// deploymentWorkspaceFromAction 把部署工作区记录转换为应用契约。
+func deploymentWorkspaceFromAction(record deploymentaction.WorkspaceRecord) appservice.DeploymentWorkspace {
+	var lastActiveOn *string
+	if record.LastActiveOn != nil {
+		value := record.LastActiveOn.Format(time.DateOnly)
+		lastActiveOn = &value
+	}
+	return appservice.DeploymentWorkspace{
+		ID: record.ID, Name: record.Name, Slug: record.Slug, Status: appservice.WorkspaceStatus(record.Status),
+		MemberCount: record.MemberCount, AIEmployeeCount: record.AIEmployeeCount, ChannelCount: record.ChannelCount,
+		DeviceCount: record.DeviceCount, HasDeploymentAdmin: record.HasAdmin, StorageBytes: record.StorageBytes, LastActiveOn: lastActiveOn, CreatedAt: record.CreatedAt,
+	}
 }
 
 // deploymentSettingsFromAction 把部署级策略转换为应用契约。
@@ -136,6 +193,7 @@ func deploymentSettingsFromAction(settings deploymentaction.Settings) appservice
 	return appservice.DeploymentSettings{
 		RegistrationPolicy:      appservice.RegistrationPolicy(settings.RegistrationPolicy),
 		WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicy(settings.WorkspaceCreationPolicy),
+		StatisticsTimeZone:      settings.StatisticsTimeZone,
 	}
 }
 
@@ -168,6 +226,9 @@ func deploymentError(ctx context.Context, meta appservice.RequestMeta, err error
 			deploymentaction.ValidationAccountStatusInvalid:           i18n.FieldUserStatusInvalid,
 			deploymentaction.ValidationRegistrationPolicyInvalid:      i18n.FieldRegistrationPolicyInvalid,
 			deploymentaction.ValidationWorkspaceCreationPolicyInvalid: i18n.FieldWorkspaceCreationPolicyInvalid,
+			deploymentaction.ValidationStatisticsTimeZoneInvalid:      i18n.FieldTimeZoneInvalid,
+			deploymentaction.ValidationWorkspaceSortInvalid:           i18n.FieldDeploymentQueryInvalid,
+			deploymentaction.ValidationWorkspaceStatusInvalid:         i18n.FieldDeploymentQueryInvalid,
 		}
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, keys))
 	}

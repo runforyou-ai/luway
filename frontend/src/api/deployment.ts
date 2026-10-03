@@ -1,4 +1,4 @@
-/** 部署管理调用：部署概况、注册与创建策略、部署账号和部署工作区。 */
+/** 部署管理调用：部署概况、部署设置、部署账号和部署工作区。 */
 import {
   DeactivateDeploymentAccount,
   GetDeploymentOverview,
@@ -7,11 +7,15 @@ import {
   ListDeploymentAccounts,
   ListDeploymentWorkspaces,
   ReactivateDeploymentAccount,
+  ResumeDeploymentWorkspace,
   RevokeDeploymentAdmin,
+  SuspendDeploymentWorkspace,
   UpdateDeploymentSettings,
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   AccountStatus,
+  DeploymentWorkspaceSort,
+  WorkspaceStatus,
   type DeploymentAccountListInput,
   type DeploymentWorkspaceListInput,
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
@@ -20,13 +24,13 @@ import { bind } from "@/api/client"
 const listDeploymentAccountsBound = bind(ListDeploymentAccounts)
 const listDeploymentWorkspacesBound = bind(ListDeploymentWorkspaces)
 
-/** 读取部署实例标识、服务端版本、规模和实例能力。 */
+/** 读取部署实例标识、服务端版本、规模、活跃趋势和实例能力。 */
 export const getDeploymentOverview = bind(GetDeploymentOverview)
 
-/** 读取部署注册策略和工作区创建策略。 */
+/** 读取部署注册策略、工作区创建策略和统计时区。 */
 export const getDeploymentSettings = bind(GetDeploymentSettings)
 
-/** 修改部署注册策略和工作区创建策略。 */
+/** 修改部署注册策略、工作区创建策略和统计时区。 */
 export const updateDeploymentSettings = bind(UpdateDeploymentSettings)
 
 /** 停用其他账号并使其登录会话失效。 */
@@ -54,11 +58,19 @@ export function listDeploymentAccounts(query: Partial<DeploymentAccountListInput
   )
 }
 
-/** 读取部署内的全部工作区。 */
+/** 暂停工作区：成员无法进入，渠道停止接待客户，后台任务挂起。 */
+export const suspendDeploymentWorkspace = bind(SuspendDeploymentWorkspace)
+
+/** 恢复已暂停的工作区。 */
+export const resumeDeploymentWorkspace = bind(ResumeDeploymentWorkspace)
+
+/** 读取部署内的全部工作区及其状态和当前规模，状态缺省为全部，排序缺省按创建时间。 */
 export function listDeploymentWorkspaces(query: Partial<DeploymentWorkspaceListInput>, signal?: AbortSignal) {
   return listDeploymentWorkspacesBound(
     {
       query: query.query ?? "",
+      status: query.status ?? WorkspaceStatus.$zero,
+      sort: query.sort ?? DeploymentWorkspaceSort.DeploymentWorkspaceSortCreatedAt,
       page: query.page ?? 1,
       pageSize: query.pageSize ?? 50,
     },

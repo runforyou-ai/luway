@@ -35,7 +35,7 @@ func NewToolsScheduler(enqueuer servertask.TxEnqueuer) *ToolsScheduler {
 func (s *ToolsScheduler) EnqueueIn(ctx context.Context, tx bun.IDB, record *servermodels.MCPServer) error {
 	refreshID := uuid.NewV7().String()
 	input := RefreshToolsInput{OrganizationID: record.OrganizationID, MCPServerID: record.ID, RefreshID: refreshID}
-	if _, err := s.enqueuer.EnqueueIn(ctx, tx, RefreshToolsActionName, input, servertask.EnqueueOptions{MaxAttempts: 1}); err != nil {
+	if _, err := s.enqueuer.EnqueueIn(ctx, tx, RefreshToolsActionName, input, servertask.EnqueueOptions{OrganizationID: record.OrganizationID, MaxAttempts: 1}); err != nil {
 		return err
 	}
 	record.ToolsRefreshID = &refreshID

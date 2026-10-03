@@ -91,7 +91,7 @@ func (a *InstallWorkspaceAction) Execute(ctx context.Context, input InstallWorks
 		if installed {
 			return ErrAlreadyInstalled
 		}
-		if _, err := deploymentaction.Create(ctx, tx); err != nil {
+		if _, err := deploymentaction.Create(ctx, tx, account.TimeZone); err != nil {
 			return err
 		}
 		admin, err := identityaction.CreateAccount(ctx, tx, identityaction.NewAccount{

@@ -40,7 +40,7 @@ func (p *QAProcessing) enqueue(ctx context.Context, tx bun.IDB, organizationID s
 		requests[index] = servertask.EnqueueRequest{ActionName: ProcessQAEntryActionName, Payload: ProcessQAInput{
 			OrganizationID: organizationID, KnowledgeBaseID: base.ID, EntryID: entry.ID, ProcessingID: entry.ProcessingID,
 			EmbeddingModelID: base.EmbeddingModelID, EmbeddingDimension: base.EmbeddingDimension,
-		}, Options: servertask.EnqueueOptions{Queue: servertask.QueueKnowledge, MaxAttempts: 1, IdempotencyKey: entry.ProcessingID, TriggerType: servertask.TriggerBusiness}}
+		}, Options: servertask.EnqueueOptions{OrganizationID: organizationID, Queue: servertask.QueueKnowledge, MaxAttempts: 1, IdempotencyKey: entry.ProcessingID, TriggerType: servertask.TriggerBusiness}}
 	}
 	if _, err := tx.NewUpdate().Model((*servermodels.KnowledgeQAEntry)(nil)).
 		TableExpr("unnest(?::uuid[], ?::uuid[]) AS batch(id, processing_id)", pgdialect.Array(ids), pgdialect.Array(processingIDs)).

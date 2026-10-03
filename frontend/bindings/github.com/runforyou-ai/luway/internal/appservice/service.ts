@@ -577,14 +577,14 @@ export function GetCustomerIdentitySecret(meta: $models.RequestMeta): $Cancellab
 }
 
 /**
- * GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+ * GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
  */
 export function GetDeploymentOverview(meta: $models.RequestMeta): $CancellablePromise<$models.DeploymentOverview> {
     return $Call.ByID(546094695, meta);
 }
 
 /**
- * GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+ * GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
  */
 export function GetDeploymentSettings(meta: $models.RequestMeta): $CancellablePromise<$models.DeploymentSettings> {
     return $Call.ByID(1568829417, meta);
@@ -941,7 +941,7 @@ export function ListDeploymentAccounts(meta: $models.RequestMeta, input: $models
 }
 
 /**
- * ListDeploymentWorkspaces 返回部署内的全部工作区。
+ * ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
  */
 export function ListDeploymentWorkspaces(meta: $models.RequestMeta, input: $models.DeploymentWorkspaceListInput): $CancellablePromise<$models.DeploymentWorkspaceList> {
     return $Call.ByID(3765846964, meta, input);
@@ -1459,6 +1459,13 @@ export function RestoreContact(meta: $models.RequestMeta, contactID: string): $C
 }
 
 /**
+ * ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+ */
+export function ResumeDeploymentWorkspace(meta: $models.RequestMeta, workspaceID: string): $CancellablePromise<$models.DeploymentWorkspace> {
+    return $Call.ByID(2037069926, meta, workspaceID);
+}
+
+/**
  * ResumePersonalAgent 恢复当前成员负责的已暂停个人 AI 员工。
  */
 export function ResumePersonalAgent(meta: $models.RequestMeta, agentID: string): $CancellablePromise<$models.PersonalAgent> {
@@ -1648,6 +1655,13 @@ export function StopServiceCopilotReply(meta: $models.RequestMeta, threadID: str
 }
 
 /**
+ * SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+ */
+export function SuspendDeploymentWorkspace(meta: $models.RequestMeta, workspaceID: string): $CancellablePromise<$models.DeploymentWorkspace> {
+    return $Call.ByID(1229259157, meta, workspaceID);
+}
+
+/**
  * TakeOpenedNotificationPath 返回并清除最近一次被点击的系统通知要打开的页面地址；没有待打开的页面或当前端不投递原生通知时返回空串。
  */
 export function TakeOpenedNotificationPath(meta: $models.RequestMeta): $CancellablePromise<string> {
@@ -1823,7 +1837,7 @@ export function UpdateCustomerReplyLanguage(meta: $models.RequestMeta, conversat
 }
 
 /**
- * UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+ * UpdateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
  */
 export function UpdateDeploymentSettings(meta: $models.RequestMeta, input: $models.DeploymentSettings): $CancellablePromise<$models.DeploymentSettings> {
     return $Call.ByID(2154649026, meta, input);

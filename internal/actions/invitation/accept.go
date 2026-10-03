@@ -28,9 +28,10 @@ type Preview struct {
 
 // Workspace 描述接受邀请后加入的工作区。
 type Workspace struct {
-	ID   string
-	Name string
-	Slug string
+	ID     string
+	Name   string
+	Slug   string
+	Status domain.OrganizationLifecycleStatus
 }
 
 // PreviewQuery 按邀请令牌读取邀请信息。
@@ -192,10 +193,10 @@ func (a *AcceptAction) Execute(ctx context.Context, account *servermodels.Accoun
 			return err
 		}
 		organization := &servermodels.Organization{}
-		if err := tx.NewSelect().Model(organization).Column("id", "name", "slug").Where("o.id = ?", invitation.OrganizationID).Scan(ctx); err != nil {
+		if err := tx.NewSelect().Model(organization).Column("id", "name", "slug", "lifecycle_status").Where("o.id = ?", invitation.OrganizationID).Scan(ctx); err != nil {
 			return err
 		}
-		workspace = Workspace{ID: organization.ID, Name: organization.Name, Slug: organization.Slug}
+		workspace = Workspace{ID: organization.ID, Name: organization.Name, Slug: organization.Slug, Status: domain.OrganizationLifecycleStatus(organization.LifecycleStatus)}
 		return nil
 	})
 	if err != nil {

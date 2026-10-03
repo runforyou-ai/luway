@@ -33,7 +33,7 @@ func NewVerifyWebsiteCustomerQuery(db *bun.DB) *VerifyWebsiteCustomerQuery {
 	return &VerifyWebsiteCustomerQuery{db: db}
 }
 
-// Execute 按启用的网站渠道所属企业校验签名身份；渠道停用或不存在返回 ErrChannelNotFound，签名无效返回 ErrCustomerIdentityInvalid。
+// Execute 按接待客户的网站渠道所属企业校验签名身份；渠道停用、所属工作区已暂停或渠道不存在返回 ErrChannelNotFound，签名无效返回 ErrCustomerIdentityInvalid。
 func (q *VerifyWebsiteCustomerQuery) Execute(ctx context.Context, channelID, token string) (VerifiedWebsiteCustomer, error) {
 	if !common.ValidUUID(channelID) {
 		return VerifiedWebsiteCustomer{}, &conversationaction.ValidationError{Fields: map[string]conversationaction.ValidationCode{"channelId": ValidationChannelIDInvalid}}

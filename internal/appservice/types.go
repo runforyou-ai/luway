@@ -168,11 +168,20 @@ type Account struct {
 	IsDeploymentAdmin bool   `json:"isDeploymentAdmin"`
 }
 
-// Workspace 定义账号可进入的工作区。
+// WorkspaceStatus 表示工作区状态：active 正常，suspended 已被部署管理员暂停。
+type WorkspaceStatus string
+
+const (
+	WorkspaceStatusActive    WorkspaceStatus = WorkspaceStatus(domain.OrganizationLifecycleActive)
+	WorkspaceStatusSuspended WorkspaceStatus = WorkspaceStatus(domain.OrganizationLifecycleSuspended)
+)
+
+// Workspace 定义账号加入的工作区；已暂停的工作区不能进入。
 type Workspace struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Slug string `json:"slug"`
+	ID     string          `json:"id"`
+	Name   string          `json:"name"`
+	Slug   string          `json:"slug"`
+	Status WorkspaceStatus `json:"status"`
 }
 
 // WorkspaceAttention 定义账号在一个工作区中的提醒数量，口径与该工作区收件箱的提醒数量一致。

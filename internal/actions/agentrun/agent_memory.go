@@ -76,7 +76,7 @@ func enqueueAgentMemory(ctx context.Context, db bun.IDB, enqueuer servertask.TxE
 
 // enqueueAgentMemoryExtraction 在调用方事务中把记忆提取任务投递到 Agent 队列。
 func enqueueAgentMemoryExtraction(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, input AgentMemoryInput, idempotencyKey string) error {
-	options := servertask.EnqueueOptions{Queue: servertask.QueueAgent, MaxAttempts: agentMemoryMaxAttempts, IdempotencyKey: idempotencyKey}
+	options := servertask.EnqueueOptions{OrganizationID: input.OrganizationID, Queue: servertask.QueueAgent, MaxAttempts: agentMemoryMaxAttempts, IdempotencyKey: idempotencyKey}
 	if _, err := enqueuer.EnqueueIn(ctx, db, AgentMemoryActionName, input, options); err != nil {
 		return fmt.Errorf("enqueue agent memory extraction: %w", err)
 	}

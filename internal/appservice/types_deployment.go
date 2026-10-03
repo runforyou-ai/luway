@@ -36,20 +36,44 @@ type InstanceCapabilities struct {
 	CustomBranding bool `json:"customBranding"`
 }
 
-// DeploymentOverview 定义部署实例标识、服务端版本、安装时间、规模和实例能力。
+// DeploymentOverview 定义部署实例标识、服务端版本、安装时间、规模、活跃情况和实例能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
 type DeploymentOverview struct {
-	InstanceID     string               `json:"instanceId"`
-	Version        string               `json:"version"`
-	InstalledAt    time.Time            `json:"installedAt"`
-	AccountCount   int                  `json:"accountCount"`
-	WorkspaceCount int                  `json:"workspaceCount"`
-	Capabilities   InstanceCapabilities `json:"capabilities"`
+	InstanceID         string                    `json:"instanceId"`
+	Version            string                    `json:"version"`
+	InstalledAt        time.Time                 `json:"installedAt"`
+	StatisticsTimeZone string                    `json:"statisticsTimeZone"`
+	StatsRebuilding    bool                      `json:"statsRebuilding"`
+	AccountCount       int                       `json:"accountCount"`
+	WorkspaceCount     int                       `json:"workspaceCount"`
+	MemberCount        int                       `json:"memberCount"`
+	Last7Days          DeploymentActivityWindow  `json:"last7Days"`
+	Last30Days         DeploymentActivityWindow  `json:"last30Days"`
+	Trend              []DeploymentDailyActivity `json:"trend"`
+	Capabilities       InstanceCapabilities      `json:"capabilities"`
 }
 
-// DeploymentSettings 定义部署注册策略和工作区创建策略。
+// DeploymentActivityWindow 定义截至今天若干天内去重后的活跃账号数和活跃工作区数，以及新增账号数和新增工作区数。
+type DeploymentActivityWindow struct {
+	ActiveAccounts   int `json:"activeAccounts"`
+	ActiveWorkspaces int `json:"activeWorkspaces"`
+	NewAccounts      int `json:"newAccounts"`
+	NewWorkspaces    int `json:"newWorkspaces"`
+}
+
+// DeploymentDailyActivity 定义一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数，Date 为 YYYY-MM-DD。
+type DeploymentDailyActivity struct {
+	Date             string `json:"date"`
+	ActiveAccounts   int    `json:"activeAccounts"`
+	ActiveWorkspaces int    `json:"activeWorkspaces"`
+	NewAccounts      int    `json:"newAccounts"`
+	NewWorkspaces    int    `json:"newWorkspaces"`
+}
+
+// DeploymentSettings 定义部署注册策略、工作区创建策略和运营数据统计时区。
 type DeploymentSettings struct {
 	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy"`
 	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
+	StatisticsTimeZone      string                  `json:"statisticsTimeZone"`
 }
 
 // DeploymentAccountListInput 定义部署账号列表的筛选与分页条件，Status 缺省为有效账号。
@@ -77,20 +101,39 @@ type DeploymentAccountList struct {
 	Page     PageInfo            `json:"page"`
 }
 
-// DeploymentWorkspaceListInput 定义部署工作区列表的关键词与分页条件。
+// DeploymentWorkspaceSort 表示部署工作区列表的排序方式，均为降序。
+type DeploymentWorkspaceSort string
+
+const (
+	DeploymentWorkspaceSortCreatedAt   DeploymentWorkspaceSort = "created_at"
+	DeploymentWorkspaceSortLastActive  DeploymentWorkspaceSort = "last_active"
+	DeploymentWorkspaceSortMemberCount DeploymentWorkspaceSort = "member_count"
+	DeploymentWorkspaceSortStorage     DeploymentWorkspaceSort = "storage"
+)
+
+// DeploymentWorkspaceListInput 定义部署工作区列表的关键词、状态、排序与分页条件；Status 为空表示全部状态，Sort 缺省按创建时间。
 type DeploymentWorkspaceListInput struct {
-	Query    string `json:"query" query:"query"`
-	Page     int    `json:"page" query:"page,default=1"`
-	PageSize int    `json:"pageSize" query:"pageSize,default=50"`
+	Query    string                  `json:"query" query:"query"`
+	Status   WorkspaceStatus         `json:"status" query:"status"`
+	Sort     DeploymentWorkspaceSort `json:"sort" query:"sort,default=created_at"`
+	Page     int                     `json:"page" query:"page,default=1"`
+	PageSize int                     `json:"pageSize" query:"pageSize,default=50"`
 }
 
-// DeploymentWorkspace 定义部署工作区列表中的一个工作区及其有效成员数量。
+// DeploymentWorkspace 定义部署工作区列表中的一个工作区、状态与当前规模；HasDeploymentAdmin 表示有有效部署管理员成员，此时不能暂停；LastActiveOn 为最近有活跃的日期 YYYY-MM-DD，从未活跃时为空。
 type DeploymentWorkspace struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Slug        string    `json:"slug"`
-	MemberCount int       `json:"memberCount"`
-	CreatedAt   time.Time `json:"createdAt"`
+	ID                 string          `json:"id"`
+	Name               string          `json:"name"`
+	Slug               string          `json:"slug"`
+	Status             WorkspaceStatus `json:"status"`
+	MemberCount        int             `json:"memberCount"`
+	AIEmployeeCount    int             `json:"aiEmployeeCount"`
+	ChannelCount       int             `json:"channelCount"`
+	DeviceCount        int             `json:"deviceCount"`
+	HasDeploymentAdmin bool            `json:"hasDeploymentAdmin"`
+	StorageBytes       int64           `json:"storageBytes"`
+	LastActiveOn       *string         `json:"lastActiveOn"`
+	CreatedAt          time.Time       `json:"createdAt"`
 }
 
 // DeploymentWorkspaceList 定义部署工作区分页结果。

@@ -47,7 +47,7 @@ func NewGetPublicWebsiteChannelQuery(db *bun.DB) *GetPublicWebsiteChannelQuery {
 	return &GetPublicWebsiteChannelQuery{db: db}
 }
 
-// Execute 返回已启用的网站渠道访客界面设置。
+// Execute 返回接待客户的网站渠道访客界面设置。
 func (q *GetPublicWebsiteChannelQuery) Execute(ctx context.Context, channelID string) (*PublicWebsiteChannel, error) {
 	if !common.ValidUUID(channelID) {
 		return nil, ErrNotFound
@@ -58,7 +58,7 @@ func (q *GetPublicWebsiteChannelQuery) Execute(ctx context.Context, channelID st
 		Column("id", "default_locale").
 		Where("c.id = ?", channelID).
 		Where("c.type = ?", domain.ChannelTypeWebsite).
-		Where("c.enabled = TRUE").
+		Where(AcceptsCustomersCondition("c")).
 		Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrNotFound

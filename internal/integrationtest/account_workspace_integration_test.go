@@ -134,7 +134,7 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 		t.Fatalf("closed registration error = %#v", err)
 	}
 	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
-		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin, StatisticsTimeZone: "Asia/Shanghai",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestFirstInstallationAndRegistration(t *testing.T) {
 	requireErrorKind(t, err, appservice.ErrorKindForbidden)
 	// 所有账号可创建时，普通账号同样受实例工作区上限约束。
 	if _, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
-		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyAnyAccount,
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyAnyAccount, StatisticsTimeZone: "Asia/Shanghai",
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -189,8 +189,9 @@ func TestDeploymentAdministration(t *testing.T) {
 	_, err = backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{RegistrationPolicy: "closed", WorkspaceCreationPolicy: "everyone"})
 	requireFieldError(t, err, "registrationPolicy", i18n.FieldRegistrationPolicyInvalid)
 	requireFieldError(t, err, "workspaceCreationPolicy", i18n.FieldWorkspaceCreationPolicyInvalid)
+	requireFieldError(t, err, "statisticsTimeZone", i18n.FieldTimeZoneInvalid)
 	settings, err := backend.UpdateDeploymentSettings(ctx, adminMeta, appservice.DeploymentSettings{
-		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin,
+		RegistrationPolicy: appservice.RegistrationPolicyOpen, WorkspaceCreationPolicy: appservice.WorkspaceCreationPolicyDeploymentAdmin, StatisticsTimeZone: "Asia/Shanghai",
 	})
 	if err != nil || settings.RegistrationPolicy != appservice.RegistrationPolicyOpen {
 		t.Fatalf("settings = %#v, err = %v", settings, err)

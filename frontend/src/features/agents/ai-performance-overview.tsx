@@ -10,7 +10,7 @@ import {
 import { handoffReasonKey } from "@/lib/handoff-reason-labels"
 
 import { useReportFormat } from "./report-format"
-import { EmptyNote, MeterList, ReportSection, StatTile } from "./report-parts"
+import { EmptyNote, MeterList, ReportSection, StatTile } from "@/components/report-parts"
 
 /** 模型调用 handoff_to_human 时可给出的业务原因，其余为系统原因。 */
 const businessReasons: readonly AgentHandoffReason[] = [

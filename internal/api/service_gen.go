@@ -160,6 +160,8 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.POST("/deployment/accounts/:accountID/admin", s.grantDeploymentAdmin)
 	router.DELETE("/deployment/accounts/:accountID/admin", s.revokeDeploymentAdmin)
 	router.GET("/deployment/workspaces", s.listDeploymentWorkspaces)
+	router.POST("/deployment/workspaces/:workspaceID/suspend", s.suspendDeploymentWorkspace)
+	router.POST("/deployment/workspaces/:workspaceID/resume", s.resumeDeploymentWorkspace)
 	router.PUT("/users/:userID", s.updateUser)
 	router.PATCH("/roles/assignments", s.updateRoleAssignments)
 	router.POST("/users/:userID/deactivate", s.deactivateUser)
@@ -1381,19 +1383,19 @@ func (s *Service) acceptInvitation(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+// getDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
 func (s *Service) getDeploymentOverview(c *gin.Context) {
 	output, err := s.application.GetDeploymentOverview(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getDeploymentSettings 返回部署注册策略和工作区创建策略。
+// getDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
 func (s *Service) getDeploymentSettings(c *gin.Context) {
 	output, err := s.application.GetDeploymentSettings(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updateDeploymentSettings 修改部署注册策略和工作区创建策略。
+// updateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
 func (s *Service) updateDeploymentSettings(c *gin.Context) {
 	var input appservice.DeploymentSettings
 	if !bindJSON(c, &input) {
@@ -1437,13 +1439,25 @@ func (s *Service) revokeDeploymentAdmin(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listDeploymentWorkspaces 返回部署内的全部工作区。
+// listDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
 func (s *Service) listDeploymentWorkspaces(c *gin.Context) {
 	input, ok := bindDeploymentWorkspaceListInputQuery(c)
 	if !ok {
 		return
 	}
 	output, err := s.application.ListDeploymentWorkspaces(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// suspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+func (s *Service) suspendDeploymentWorkspace(c *gin.Context) {
+	output, err := s.application.SuspendDeploymentWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// resumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+func (s *Service) resumeDeploymentWorkspace(c *gin.Context) {
+	output, err := s.application.ResumeDeploymentWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -2562,6 +2576,8 @@ func bindDeploymentWorkspaceListInputQuery(c *gin.Context) (appservice.Deploymen
 	}
 	return appservice.DeploymentWorkspaceListInput{
 		Query:    c.Query("query"),
+		Status:   appservice.WorkspaceStatus(c.Query("status")),
+		Sort:     appservice.DeploymentWorkspaceSort(c.DefaultQuery("sort", "created_at")),
 		Page:     page,
 		PageSize: pageSize,
 	}, true

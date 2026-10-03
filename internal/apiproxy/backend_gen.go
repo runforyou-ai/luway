@@ -915,21 +915,21 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return output, err
 }
 
-// GetDeploymentOverview 返回实例标识、服务端版本、账号与工作区数量和实例能力。
+// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
 func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentOverview, error) {
 	var output appservice.DeploymentOverview
 	err := b.do(ctx, meta, http.MethodGet, "/deployment/overview", nil, nil, &output)
 	return output, err
 }
 
-// GetDeploymentSettings 返回部署注册策略和工作区创建策略。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
 func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentSettings, error) {
 	var output appservice.DeploymentSettings
 	err := b.do(ctx, meta, http.MethodGet, "/deployment/settings", nil, nil, &output)
 	return output, err
 }
 
-// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
+// UpdateDeploymentSettings 修改部署注册策略、工作区创建策略和统计时区。
 func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentSettings) (appservice.DeploymentSettings, error) {
 	var output appservice.DeploymentSettings
 	err := b.do(ctx, meta, http.MethodPut, "/deployment/settings", nil, input, &output)
@@ -971,10 +971,24 @@ func (b *Backend) RevokeDeploymentAdmin(ctx context.Context, meta appservice.Req
 	return output, err
 }
 
-// ListDeploymentWorkspaces 返回部署内的全部工作区。
+// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
 func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentWorkspaceListInput) (appservice.DeploymentWorkspaceList, error) {
 	var output appservice.DeploymentWorkspaceList
 	err := b.do(ctx, meta, http.MethodGet, "/deployment/workspaces", encodeDeploymentWorkspaceListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
+func (b *Backend) SuspendDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
+	var output appservice.DeploymentWorkspace
+	err := b.do(ctx, meta, http.MethodPost, "/deployment/workspaces/"+url.PathEscape(workspaceID)+"/suspend", nil, nil, &output)
+	return output, err
+}
+
+// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
+func (b *Backend) ResumeDeploymentWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.DeploymentWorkspace, error) {
+	var output appservice.DeploymentWorkspace
+	err := b.do(ctx, meta, http.MethodPost, "/deployment/workspaces/"+url.PathEscape(workspaceID)+"/resume", nil, nil, &output)
 	return output, err
 }
 
@@ -1853,6 +1867,8 @@ func encodeDeploymentAccountListInputQuery(input appservice.DeploymentAccountLis
 func encodeDeploymentWorkspaceListInputQuery(input appservice.DeploymentWorkspaceListInput) url.Values {
 	query := url.Values{}
 	setQuery(query, "query", input.Query)
+	setQuery(query, "status", string(input.Status))
+	setQuery(query, "sort", string(input.Sort))
 	setPositiveQuery(query, "page", input.Page)
 	setPositiveQuery(query, "pageSize", input.PageSize)
 	return query

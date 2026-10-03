@@ -95,7 +95,7 @@ func (a *ReceiveTelegramWebhookAction) Execute(ctx context.Context, channelID st
 				Where("c.id = ?", channelID).
 				Where("c.organization_id = ?", setting.OrganizationID).
 				Where("c.type = ?", domain.ChannelTypeTelegram).
-				Where("c.enabled = TRUE").
+				Where(channelaction.AcceptsCustomersCondition("c")).
 				Scan(ctx); err != nil {
 				return fmt.Errorf("load Telegram webhook channel: %w", err)
 			}
@@ -137,7 +137,7 @@ func (a *ReceiveTelegramWebhookAction) Execute(ctx context.Context, channelID st
 						OrganizationID: channel.OrganizationID, ChannelID: channelID, ConversationID: received.Message.ConversationID,
 						MessageID: received.Message.ID, FileID: received.Attachment.ID, BotID: *setting.BotID, TelegramFileID: input.Message.Media.FileID,
 					}, servertask.EnqueueOptions{
-						Queue: "files", MaxAttempts: telegramMediaRetrieveMaxAttempts,
+						OrganizationID: channel.OrganizationID, Queue: "files", MaxAttempts: telegramMediaRetrieveMaxAttempts,
 						IdempotencyKey: "tgmedia:" + received.Attachment.ID, TriggerType: servertask.TriggerBusiness,
 					}); err != nil {
 						return fmt.Errorf("enqueue Telegram media retrieval: %w", err)
@@ -165,7 +165,7 @@ func (a *ReceiveTelegramWebhookAction) Execute(ctx context.Context, channelID st
 					if _, err := a.tasks.EnqueueIn(ctx, tx, channelaction.RefreshTelegramContactAvatarActionName, channelaction.RefreshTelegramContactAvatarInput{
 						OrganizationID: channel.OrganizationID, ChannelID: channelID, ChannelIdentityID: received.ChannelIdentityID, SenderID: input.Message.SenderID,
 					}, servertask.EnqueueOptions{
-						MaxAttempts: 1, IdempotencyKey: "tgavatar:" + received.ChannelIdentityID, TriggerType: servertask.TriggerBusiness,
+						OrganizationID: channel.OrganizationID, MaxAttempts: 1, IdempotencyKey: "tgavatar:" + received.ChannelIdentityID, TriggerType: servertask.TriggerBusiness,
 					}); err != nil {
 						return fmt.Errorf("enqueue Telegram contact avatar refresh: %w", err)
 					}
@@ -202,7 +202,7 @@ func (a *ReceiveTelegramWebhookAction) Execute(ctx context.Context, channelID st
 	return nil
 }
 
-// loadActiveTelegramWebhookSetting 读取启用渠道当前可接收回调的设置。
+// loadActiveTelegramWebhookSetting 读取接待客户的渠道当前可接收回调的设置。
 //
 // 所属企业由本次查询结果确定，调用方随后按 setting.OrganizationID 限定企业。
 func loadActiveTelegramWebhookSetting(ctx context.Context, db bun.IDB, channelID string, lock bool) (*servermodels.TelegramChannelSetting, error) {
@@ -212,7 +212,7 @@ func loadActiveTelegramWebhookSetting(ctx context.Context, db bun.IDB, channelID
 		Join("JOIN channels AS c ON c.id = tcs.channel_id AND c.organization_id = tcs.organization_id").
 		Where("tcs.channel_id = ?", channelID).
 		Where("c.type = ?", domain.ChannelTypeTelegram).
-		Where("c.enabled = TRUE").
+		Where(channelaction.AcceptsCustomersCondition("c")).
 		Where("tcs.webhook_secret IS NOT NULL").
 		Where("tcs.bot_id IS NOT NULL")
 	if lock {
