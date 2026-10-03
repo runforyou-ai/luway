@@ -241,6 +241,10 @@ func TestForkSkillRunsInSubagent(t *testing.T) {
 		t.Fatal(err)
 	}
 	skills := localskill.NewStore([]localskill.Dir{{Path: dir, Source: localskill.SourceManaged}}, func() {})
+	listed, err := skills.List(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
 	chatModel := &orchestrationChatModel{
 		main: func(call int, _ []*schema.AgenticMessage) *schema.AgenticMessage {
 			switch call {
@@ -260,7 +264,7 @@ func TestForkSkillRunsInSubagent(t *testing.T) {
 		},
 	}
 	result, _ := runOrchestration(t, chatModel, RunRequest{
-		Assignment: Assignment{Tools: []string{skillToolName}}, Workspace: &imageWorkspace{}, Skills: skills,
+		Assignment: Assignment{Tools: []string{skillToolName}}, Computer: &fakeComputer{skills: skills}, ComputerCapabilities: domain.ComputerCapabilities{Skills: computerSkills(listed)},
 	})
 	if result.Content != "周报好了" || len(chatModel.subInput) != 1 {
 		t.Fatalf("result = %+v, subagent calls = %d", result, len(chatModel.subInput))

@@ -108,10 +108,10 @@ export function WorkspaceSettingsMenu({
         </PagePaneLink>
         <PagePaneLink
           collapsed={collapsed}
-          to="/settings/devices"
+          to="/settings/computers"
           icon={MonitorSmartphoneIcon}
         >
-          {t("navigation.devices")}
+          {t("navigation.computers")}
         </PagePaneLink>
         {resolveAppPlatform() === "desktop" ? (
           <PagePaneLink

@@ -172,11 +172,11 @@ wails3 task build:server
 
 - `actions/` 按领域组织 Action 与 Query；`api/` 是 Gin 对外 HTTP 适配器；`apiproxy/` 是原生端到服务端的类型化代理；`appservice/` 只放跨平台应用服务与传输契约，`appservice/direct/` 放服务端 Backend 实现，`appservice/native/` 放原生端平台能力。
 - 仓库根目录的 `pkg/` 只放与产品业务无关、可独立复用的完整能力，接口不出现业务概念，不得导入 `internal/`，由 `wails3 task check:pkg` 校验并在 `test:server`、`test:desktop` 前执行。
-- 原生端构建不得依赖 `appservice/direct`、`actions`、`storage/server` 等服务端实现，移动端构建不得依赖 `integration/agentruntime`，由 `wails3 task check:deps` 校验并在 `test:server`、`test:desktop` 前执行。
+- 原生端构建不得依赖 `appservice/direct`、`actions`、`storage/server` 等服务端实现与 `integration/agentruntime`，移动端构建不得依赖 `executor`、`computerhost`，由 `wails3 task check:deps` 校验并在 `test:server`、`test:desktop` 前执行。
 - `internal/common` 放产品内部共用、无数据库、无传输层、无平台依赖的工具，小函数和错误放包内，带业务语义的完整能力使用子包。`domain` 只放各层共用的领域值，按概念拆文件。
 - 服务端 PostgreSQL 模型放 `storage/server`；桌面端与移动端共用的 SQLite 连接、迁移执行与模型放 `storage/native`，各端专有模型放 `storage/desktop`、`storage/mobile`；桌面端和移动端的 SQLite 迁移保持独立。
 - `task/server` 是服务端可靠任务运行时，承载 Action 执行语义、投递参数、存储与运行机制。
-- `integration/` 放外部服务客户端与本机能力，`devicehost/` 放桌面端本机设备注册与运行执行，`clientsession/` 放原生端登录会话，`realtime/` 放服务端通知发布，`realtime/gateway` 与 `realtime/protocol` 分别是 SSE 网关和跨端事件契约。
+- `integration/` 放外部服务客户端与本机能力，`executor/` 放电脑执行器（以电脑凭据连接服务端，执行派发给这台电脑的命令、文件与本机 MCP 操作），`computerhost/` 放桌面端电脑注册与执行器接线，`clientsession/` 放原生端登录会话，`realtime/` 放服务端通知发布，`realtime/gateway` 与 `realtime/protocol` 分别是 SSE 网关和跨端事件契约。
 - 仓库根目录只放按构建标签选择的组合根：创建依赖、注册服务与后台任务，不承载业务适配。
 - 跨 Action、应用服务和存储的真实数据库集成测试放 `integrationtest/`。
 

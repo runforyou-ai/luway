@@ -1218,7 +1218,7 @@ func (b *Backend) ResumePersonalAgent(ctx context.Context, meta appservice.Reque
 }
 
 // MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentDeviceInput) (appservice.PersonalAgent, error) {
+func (b *Backend) MovePersonalAgent(ctx context.Context, meta appservice.RequestMeta, agentID string, input appservice.PersonalAgentComputerInput) (appservice.PersonalAgent, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		var zero appservice.PersonalAgent
@@ -2773,31 +2773,31 @@ func (b *Backend) DismissKnowledgeGap(ctx context.Context, meta appservice.Reque
 	return b.ops.DismissKnowledgeGap(ctx, meta, identity, gapID)
 }
 
-// RegisterDevice 注册当前用户的本机设备。
-func (b *Backend) RegisterDevice(ctx context.Context, meta appservice.RequestMeta, input appservice.DeviceRegistrationInput) (appservice.Device, error) {
+// RegisterComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+func (b *Backend) RegisterComputer(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerRegistrationInput) (appservice.ComputerRegistration, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.Device
+		var zero appservice.ComputerRegistration
 		return zero, err
 	}
-	return b.ops.RegisterDevice(ctx, meta, identity, input)
+	return b.ops.RegisterComputer(ctx, meta, identity, input)
 }
 
-// ListDevices 返回当前用户已注册的设备。
-func (b *Backend) ListDevices(ctx context.Context, meta appservice.RequestMeta) (appservice.DeviceList, error) {
+// ListComputers 返回当前成员未撤销的电脑。
+func (b *Backend) ListComputers(ctx context.Context, meta appservice.RequestMeta) (appservice.ComputerList, error) {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
-		var zero appservice.DeviceList
+		var zero appservice.ComputerList
 		return zero, err
 	}
-	return b.ops.ListDevices(ctx, meta, identity)
+	return b.ops.ListComputers(ctx, meta, identity)
 }
 
-// RevokeDevice 撤销当前用户的设备。
-func (b *Backend) RevokeDevice(ctx context.Context, meta appservice.RequestMeta, deviceID string) error {
+// RevokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+func (b *Backend) RevokeComputer(ctx context.Context, meta appservice.RequestMeta, computerID string) error {
 	identity, err := b.ops.authenticate(ctx, meta)
 	if err != nil {
 		return err
 	}
-	return b.ops.RevokeDevice(ctx, meta, identity, deviceID)
+	return b.ops.RevokeComputer(ctx, meta, identity, computerID)
 }

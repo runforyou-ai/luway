@@ -338,7 +338,7 @@ func platformWorkspaceFromAction(record platformaction.WorkspaceRecord) appservi
 	return appservice.PlatformWorkspace{
 		ID: record.ID, Name: record.Name, Slug: record.Slug, Status: appservice.WorkspaceStatus(record.Status),
 		MemberCount: record.MemberCount, AIEmployeeCount: record.AIEmployeeCount, ChannelCount: record.ChannelCount,
-		DeviceCount: record.DeviceCount, HasPlatformAdmin: record.HasAdmin, StorageBytes: record.StorageBytes, LastActiveOn: lastActiveOn, CreatedAt: record.CreatedAt,
+		ComputerCount: record.ComputerCount, HasPlatformAdmin: record.HasAdmin, StorageBytes: record.StorageBytes, LastActiveOn: lastActiveOn, CreatedAt: record.CreatedAt,
 	}
 }
 

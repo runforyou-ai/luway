@@ -145,7 +145,7 @@ export function PlatformWorkspaceListPage() {
                   description={t("workspaces.scale", {
                     agents: item.aiEmployeeCount,
                     channels: item.channelCount,
-                    devices: item.deviceCount,
+                    computers: item.computerCount,
                   })}
                 />
               ),

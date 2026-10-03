@@ -605,7 +605,7 @@ func (s *Service) ResumePersonalAgent(ctx context.Context, meta RequestMeta, age
 }
 
 // MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-func (s *Service) MovePersonalAgent(ctx context.Context, meta RequestMeta, agentID string, input PersonalAgentDeviceInput) (PersonalAgent, error) {
+func (s *Service) MovePersonalAgent(ctx context.Context, meta RequestMeta, agentID string, input PersonalAgentComputerInput) (PersonalAgent, error) {
 	return WithNormalizedSlices(s.backend.MovePersonalAgent(ctx, meta, agentID, input))
 }
 
@@ -1399,17 +1399,17 @@ func (s *Service) DismissKnowledgeGap(ctx context.Context, meta RequestMeta, gap
 	return s.backend.DismissKnowledgeGap(ctx, meta, gapID)
 }
 
-// RegisterDevice 注册当前用户的本机设备。
-func (s *Service) RegisterDevice(ctx context.Context, meta RequestMeta, input DeviceRegistrationInput) (Device, error) {
-	return WithNormalizedSlices(s.backend.RegisterDevice(ctx, meta, input))
+// RegisterComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+func (s *Service) RegisterComputer(ctx context.Context, meta RequestMeta, input ComputerRegistrationInput) (ComputerRegistration, error) {
+	return WithNormalizedSlices(s.backend.RegisterComputer(ctx, meta, input))
 }
 
-// ListDevices 返回当前用户已注册的设备。
-func (s *Service) ListDevices(ctx context.Context, meta RequestMeta) (DeviceList, error) {
-	return WithNormalizedSlices(s.backend.ListDevices(ctx, meta))
+// ListComputers 返回当前成员未撤销的电脑。
+func (s *Service) ListComputers(ctx context.Context, meta RequestMeta) (ComputerList, error) {
+	return WithNormalizedSlices(s.backend.ListComputers(ctx, meta))
 }
 
-// RevokeDevice 撤销当前用户的设备。
-func (s *Service) RevokeDevice(ctx context.Context, meta RequestMeta, deviceID string) error {
-	return s.backend.RevokeDevice(ctx, meta, deviceID)
+// RevokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+func (s *Service) RevokeComputer(ctx context.Context, meta RequestMeta, computerID string) error {
+	return s.backend.RevokeComputer(ctx, meta, computerID)
 }

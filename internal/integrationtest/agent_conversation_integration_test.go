@@ -248,8 +248,8 @@ func TestAgentConversations(t *testing.T) {
 	t.Run("运行状态实时通知", func(t *testing.T) {
 		testAgentRunNotifications(t, db, identity, agent.IdentityID, tasks)
 	})
-	t.Run("本机设备执行", func(t *testing.T) {
-		testDeviceAgentRuns(t, db, identity, agent, tasks)
+	t.Run("个人 AI 员工使用电脑", func(t *testing.T) {
+		testPersonalAgentComputer(t, db, identity, agent, tasks)
 	})
 }
 

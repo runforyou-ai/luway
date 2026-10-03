@@ -10,15 +10,7 @@ import (
 type AgentExecutionMode string
 
 const (
-	AgentExecutionModeManaged    AgentExecutionMode = AgentExecutionMode(domain.AgentExecutionModeManaged)
-	AgentExecutionModeLocalAgent AgentExecutionMode = AgentExecutionMode(domain.AgentExecutionModeLocalAgent)
-)
-
-// LocalAgentKind 表示经 ACP 驱动的本机 Agent 种类。
-type LocalAgentKind string
-
-const (
-	LocalAgentKindCodex LocalAgentKind = LocalAgentKind(domain.LocalAgentKindCodex)
+	AgentExecutionModeManaged AgentExecutionMode = AgentExecutionMode(domain.AgentExecutionModeManaged)
 )
 
 // CreateAgentInput 定义新增 AI 员工字段，AvatarFileID 为空时不设置头像。
@@ -41,17 +33,10 @@ type UpdateAgentInput struct {
 	AvatarFileID      string            `json:"avatarFileId"`
 }
 
-// AgentExecutionInput 定义执行配置输入，按执行方式填写 managed 或 localAgent；localAgent 只用于个人 AI 员工。
+// AgentExecutionInput 定义执行配置输入，按执行方式填写 managed。
 type AgentExecutionInput struct {
-	Mode       AgentExecutionMode             `json:"mode"`
-	Managed    *AgentManagedExecutionInput    `json:"managed,omitempty"`
-	LocalAgent *AgentLocalAgentExecutionInput `json:"localAgent,omitempty"`
-}
-
-// AgentLocalAgentExecutionInput 定义由本机 Agent 执行的配置输入。
-type AgentLocalAgentExecutionInput struct {
-	Kind              LocalAgentKind `json:"kind"`
-	SystemInstruction string         `json:"systemInstruction"`
+	Mode    AgentExecutionMode          `json:"mode"`
+	Managed *AgentManagedExecutionInput `json:"managed,omitempty"`
 }
 
 // UpdateAgentExecutionInput 定义运行配置表单整体保存的字段。
@@ -135,26 +120,19 @@ type AgentListItem struct {
 	CreatedAt        time.Time              `json:"createdAt"`
 }
 
-// AgentListPersonalItem 定义个人 AI 员工目录项的绑定电脑与在线状态。
+// AgentListPersonalItem 定义个人 AI 员工目录项使用的电脑与在线状态。
 type AgentListPersonalItem struct {
-	DeviceID   string                `json:"deviceId"`
-	DeviceName string                `json:"deviceName"`
-	Presence   PersonalAgentPresence `json:"presence"`
+	ComputerID   string                `json:"computerId"`
+	ComputerName string                `json:"computerName"`
+	Presence     PersonalAgentPresence `json:"presence"`
 }
 
 // AgentExecution 定义当前生效的执行配置。
 type AgentExecution struct {
-	MCPServerIDs []string                  `json:"mcpServerIds"`
-	RevisionID   string                    `json:"revisionId"`
-	Mode         AgentExecutionMode        `json:"mode"`
-	Managed      *AgentManagedExecution    `json:"managed,omitempty"`
-	LocalAgent   *AgentLocalAgentExecution `json:"localAgent,omitempty"`
-}
-
-// AgentLocalAgentExecution 定义由本机 Agent 执行的配置。
-type AgentLocalAgentExecution struct {
-	Kind              LocalAgentKind `json:"kind"`
-	SystemInstruction string         `json:"systemInstruction"`
+	MCPServerIDs []string               `json:"mcpServerIds"`
+	RevisionID   string                 `json:"revisionId"`
+	Mode         AgentExecutionMode     `json:"mode"`
+	Managed      *AgentManagedExecution `json:"managed,omitempty"`
 }
 
 // AgentManagedExecution 定义平台托管执行配置。
@@ -166,15 +144,9 @@ type AgentManagedExecution struct {
 
 // AgentExecutionSummary 定义当前执行配置摘要。
 type AgentExecutionSummary struct {
-	RevisionID string                           `json:"revisionId"`
-	Mode       AgentExecutionMode               `json:"mode"`
-	Managed    *AgentManagedExecutionSummary    `json:"managed,omitempty"`
-	LocalAgent *AgentLocalAgentExecutionSummary `json:"localAgent,omitempty"`
-}
-
-// AgentLocalAgentExecutionSummary 定义由本机 Agent 执行的配置摘要。
-type AgentLocalAgentExecutionSummary struct {
-	Kind LocalAgentKind `json:"kind"`
+	RevisionID string                        `json:"revisionId"`
+	Mode       AgentExecutionMode            `json:"mode"`
+	Managed    *AgentManagedExecutionSummary `json:"managed,omitempty"`
 }
 
 // AgentManagedExecutionSummary 定义平台托管执行配置摘要。

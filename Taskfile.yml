@@ -258,19 +258,19 @@ tasks:
 
   check:deps:
     silent: true
-    summary: 校验原生端构建不依赖服务端实现，移动端构建不依赖本机 Agent 运行能力
+    summary: 校验原生端构建不依赖服务端实现与 Agent 运行时，移动端构建不依赖执行器
     cmds:
       - |
-        server='^github.com/runforyou-ai/luway/internal/(appservice/direct|actions|api|storage/server|task|ingress|config/server|publicweb|realtime|realtime/gateway|servertest|integrationtest)(/|$)'
-        mobile='^github.com/runforyou-ai/luway/internal/(devicehost|integration/(agentruntime|toolchain|localmcp|localskill|localworkspace|mcp|websearch|knowledgeretrieval))(/|$)'
+        server='^github.com/runforyou-ai/luway/internal/(appservice/direct|actions|api|storage/server|task|ingress|config/server|publicweb|realtime|realtime/gateway|servertest|integrationtest|integration/agentruntime)(/|$)'
+        mobile='^github.com/runforyou-ai/luway/internal/(computerhost|executor|integration/(toolchain|localmcp|localskill|localworkspace|mcp))(/|$)'
         for target in darwin: windows: linux: ios:ios android:android; do
           goos=${target%%:*}
           tags=${target#*:}
           packages=$(GOOS=$goos GOARCH=arm64 CGO_ENABLED=1 go list -deps -tags="$tags" .) || exit 1
           # realtime/protocol 是跨端事件契约，runstream 是跨端运行流类型，原生端均可依赖。
-          deps=$(echo "$packages" | grep -E "$server" | grep -v '/internal/realtime/protocol$' || true)
+          deps=$(echo "$packages" | grep -E "$server" | grep -v '/internal/realtime/protocol$' | grep -v '/internal/integration/agentruntime/runstream$' || true)
           if [ "$goos" = ios ] || [ "$goos" = android ]; then
-            deps="$deps$(echo "$packages" | grep -E "$mobile" | grep -v '/internal/integration/agentruntime/runstream$' || true)"
+            deps="$deps$(echo "$packages" | grep -E "$mobile" || true)"
           fi
           if [ -n "$deps" ]; then
             echo "原生端构建引入了不应依赖的包（GOOS=$goos tags=$tags）：$deps"

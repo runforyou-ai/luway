@@ -137,7 +137,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.PUT("/personal-agents/:agentID", s.updatePersonalAgent)
 	router.POST("/personal-agents/:agentID/pause", s.pausePersonalAgent)
 	router.POST("/personal-agents/:agentID/resume", s.resumePersonalAgent)
-	router.PUT("/personal-agents/:agentID/device", s.movePersonalAgent)
+	router.PUT("/personal-agents/:agentID/computer", s.movePersonalAgent)
 	router.POST("/personal-agents/:agentID/deactivate", s.deactivatePersonalAgent)
 	router.POST("/personal-agents/:agentID/reactivate", s.reactivatePersonalAgent)
 	router.GET("/personal-agents/:agentID/memories", s.listAgentMemories)
@@ -296,9 +296,9 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.POST("/knowledge-gaps/:gapID/accept", s.acceptKnowledgeGap)
 	router.POST("/reports/issues/:serviceSessionID/evaluation", s.addServiceIssueToEvaluation)
 	router.POST("/knowledge-gaps/:gapID/dismiss", s.dismissKnowledgeGap)
-	router.POST("/devices", s.registerDevice)
-	router.GET("/devices", s.listDevices)
-	router.DELETE("/devices/:deviceID", s.revokeDevice)
+	router.POST("/computers", s.registerComputer)
+	router.GET("/computers", s.listComputers)
+	router.DELETE("/computers/:computerID", s.revokeComputer)
 }
 
 // installationStatus 返回部署名称、首次安装状态、是否开放注册、产品品牌和接口版本。
@@ -1302,7 +1302,7 @@ func (s *Service) resumePersonalAgent(c *gin.Context) {
 
 // movePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
 func (s *Service) movePersonalAgent(c *gin.Context) {
-	var input appservice.PersonalAgentDeviceInput
+	var input appservice.PersonalAgentComputerInput
 	if !bindJSON(c, &input) {
 		return
 	}
@@ -2553,25 +2553,25 @@ func (s *Service) dismissKnowledgeGap(c *gin.Context) {
 	writeEmpty(c, s.application.DismissKnowledgeGap(c.Request.Context(), requestMeta(c), c.Param("gapID")))
 }
 
-// registerDevice 注册当前用户的本机设备。
-func (s *Service) registerDevice(c *gin.Context) {
-	var input appservice.DeviceRegistrationInput
+// registerComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+func (s *Service) registerComputer(c *gin.Context) {
+	var input appservice.ComputerRegistrationInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.RegisterDevice(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.RegisterComputer(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listDevices 返回当前用户已注册的设备。
-func (s *Service) listDevices(c *gin.Context) {
-	output, err := s.application.ListDevices(c.Request.Context(), requestMeta(c))
+// listComputers 返回当前成员未撤销的电脑。
+func (s *Service) listComputers(c *gin.Context) {
+	output, err := s.application.ListComputers(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// revokeDevice 撤销当前用户的设备。
-func (s *Service) revokeDevice(c *gin.Context) {
-	writeEmpty(c, s.application.RevokeDevice(c.Request.Context(), requestMeta(c), c.Param("deviceID")))
+// revokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+func (s *Service) revokeComputer(c *gin.Context) {
+	writeEmpty(c, s.application.RevokeComputer(c.Request.Context(), requestMeta(c), c.Param("computerID")))
 }
 
 // bindAIPerformanceBreakdownInputQuery 从查询参数解析 appservice.AIPerformanceBreakdownInput。

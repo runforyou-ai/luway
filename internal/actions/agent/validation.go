@@ -24,8 +24,6 @@ const (
 	ValidationKnowledgeBaseInvalid     common.FieldCode = "AGENT_KNOWLEDGE_BASE_INVALID"
 	ValidationModelInvalid             common.FieldCode = "AGENT_MODEL_INVALID"
 	ValidationSystemInstructionTooLong common.FieldCode = "AGENT_SYSTEM_INSTRUCTION_TOO_LONG"
-	ValidationLocalAgentInvalid        common.FieldCode = "AGENT_LOCAL_AGENT_INVALID"
-	ValidationLocalAgentUnavailable    common.FieldCode = "AGENT_LOCAL_AGENT_UNAVAILABLE"
 )
 
 // normalizeServiceAudiences 去重并按展示顺序排列服务对象，包含 AI 员工不可选择的服务对象时返回字段错误。

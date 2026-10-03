@@ -147,7 +147,7 @@ func loadGroupAgentRevision(ctx context.Context, db bun.IDB, organizationID, con
 	var revisionID string
 	query := db.NewSelect().TableExpr("agents AS a").
 		ColumnExpr("a.active_revision_id").
-		Join("JOIN agent_revisions AS ar ON ar.id = a.active_revision_id AND ar.agent_id = a.id AND ar.organization_id = a.organization_id AND ar.execution_mode IN (?) AND ar.schema_version = 1", bun.In([]domain.AgentExecutionMode{domain.AgentExecutionModeManaged, domain.AgentExecutionModeLocalAgent})).
+		Join("JOIN agent_revisions AS ar ON ar.id = a.active_revision_id AND ar.agent_id = a.id AND ar.organization_id = a.organization_id AND ar.execution_mode = ? AND ar.schema_version = 1", domain.AgentExecutionModeManaged).
 		Join("JOIN chat_subjects AS cs ON cs.organization_id = a.organization_id AND cs.source_id = a.identity_id AND cs.kind = ?", domain.ChatSubjectKindOrganizationIdentity).
 		Join("JOIN conversation_participants AS cp ON cp.organization_id = cs.organization_id AND cp.subject_id = cs.id AND cp.conversation_id = ? AND cp.left_at IS NULL", conversationID).
 		Where("a.organization_id = ?", organizationID).

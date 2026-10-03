@@ -198,7 +198,7 @@ const platform = {
     },
     memberCount_one: "1 member",
     memberCount_other: "{{count}} members",
-    scale: "AI employees {{agents}} · Channels {{channels}} · Computers {{devices}}",
+    scale: "AI employees {{agents}} · Channels {{channels}} · Computers {{computers}}",
     storageColumn: "Storage",
     lastActiveColumn: "Last active",
     activeToday: "Active today",

@@ -138,10 +138,11 @@ internal/
 │   └── native/                     # 原生端应用服务平台能力实现
 ├── clientsession/                  # 原生端当前登录凭据管理
 ├── common/                         # 无存储、无传输、无平台依赖的通用能力
+├── computerhost/                   # 桌面端电脑注册与执行器接线
 ├── config/
 │   └── server/                     # 企业服务端运行配置加载与校验
-├── devicehost/                     # 桌面端本机设备注册与 Agent 运行执行
 ├── domain/                         # 各层共用的领域值
+├── executor/                       # 电脑执行器：以电脑凭据领取并执行命令、文件与本机 MCP 操作
 ├── i18n/                           # 后端本地化能力和翻译词条
 ├── ingress/                        # 企业服务端 HTTPS 与公网流量入口
 ├── integration/                    # 外部服务客户端与本机能力（Agent 运行时、模型服务、Telegram、MCP 等）

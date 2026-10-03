@@ -391,8 +391,8 @@ type Backend interface {
 	//appservice:route POST /personal-agents/:agentID/resume
 	ResumePersonalAgent(context.Context, RequestMeta, string) (PersonalAgent, error)
 	// MovePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
-	//appservice:route PUT /personal-agents/:agentID/device
-	MovePersonalAgent(context.Context, RequestMeta, string, PersonalAgentDeviceInput) (PersonalAgent, error)
+	//appservice:route PUT /personal-agents/:agentID/computer
+	MovePersonalAgent(context.Context, RequestMeta, string, PersonalAgentComputerInput) (PersonalAgent, error)
 	// DeactivatePersonalAgent 停用个人 AI 员工。
 	//appservice:route POST /personal-agents/:agentID/deactivate
 	DeactivatePersonalAgent(context.Context, RequestMeta, string) (PersonalAgent, error)
@@ -870,15 +870,15 @@ type Backend interface {
 	//appservice:route POST /knowledge-gaps/:gapID/dismiss
 	DismissKnowledgeGap(context.Context, RequestMeta, string) error
 
-	// RegisterDevice 注册当前用户的本机设备。
-	//appservice:route POST /devices
-	RegisterDevice(context.Context, RequestMeta, DeviceRegistrationInput) (Device, error)
-	// ListDevices 返回当前用户已注册的设备。
-	//appservice:route GET /devices
-	ListDevices(context.Context, RequestMeta) (DeviceList, error)
-	// RevokeDevice 撤销当前用户的设备。
-	//appservice:route DELETE /devices/:deviceID
-	RevokeDevice(context.Context, RequestMeta, string) error
+	// RegisterComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+	//appservice:route POST /computers
+	RegisterComputer(context.Context, RequestMeta, ComputerRegistrationInput) (ComputerRegistration, error)
+	// ListComputers 返回当前成员未撤销的电脑。
+	//appservice:route GET /computers
+	ListComputers(context.Context, RequestMeta) (ComputerList, error)
+	// RevokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+	//appservice:route DELETE /computers/:computerID
+	RevokeComputer(context.Context, RequestMeta, string) error
 }
 
 // WorkspaceInstaller 由服务端 Backend 实现，用于首次安装。
@@ -913,9 +913,9 @@ type ConversationWindowOpener interface {
 	OpenConversationWindow(context.Context, RequestMeta, ConversationWindowInput) error
 }
 
-// LocalDeviceReporter 由把本机注册为设备的原生端实现，报告设备注册状态与 Agent 运行环境的准备状态。
-type LocalDeviceReporter interface {
-	CurrentDevice(context.Context, RequestMeta) (LocalDevice, error)
+// LocalComputerReporter 由把本机注册为电脑的原生端实现，报告电脑注册状态与运行环境的准备状态。
+type LocalComputerReporter interface {
+	CurrentComputer(context.Context, RequestMeta) (LocalComputer, error)
 }
 
 // LocalEnvironmentManager 由为个人 AI 员工提供本机运行环境、本地 MCP 服务与技能的原生端实现。
@@ -925,7 +925,9 @@ type LocalEnvironmentManager interface {
 	UninstallLocalToolchain(context.Context, RequestMeta) error
 	InstallLocalToolchain(context.Context, RequestMeta) error
 	OpenLocalToolchainFolder(context.Context, RequestMeta) error
+	AddLocalMCPServer(context.Context, RequestMeta, LocalMCPServerInput) error
 	RemoveLocalMCPServer(context.Context, RequestMeta, string) error
+	InstallLocalSkill(context.Context, RequestMeta, LocalSkillInstallInput) error
 	RemoveLocalSkill(context.Context, RequestMeta, string) error
 }
 

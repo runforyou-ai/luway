@@ -127,17 +127,14 @@ func (o *directOperations) ListAgents(ctx context.Context, meta appservice.Reque
 			managed = &appservice.AgentManagedExecutionSummary{Model: aiModelOptionFromAction(agent.Execution.Managed.Model)}
 		}
 		execution := appservice.AgentExecutionSummary{RevisionID: agent.Execution.RevisionID, Mode: appservice.AgentExecutionMode(agent.Execution.Mode), Managed: managed}
-		if agent.Execution.LocalAgent != nil {
-			execution.LocalAgent = &appservice.AgentLocalAgentExecutionSummary{Kind: appservice.LocalAgentKind(agent.Execution.LocalAgent.Kind)}
-		}
 		serviceAudiences := make([]appservice.ServiceAudience, 0, len(agent.ServiceAudiences))
 		for _, audience := range agent.ServiceAudiences {
 			serviceAudiences = append(serviceAudiences, appservice.ServiceAudience(audience))
 		}
-		// 个人 AI 员工附带绑定电脑名称与按当前时间计算的在线状态。
+		// 个人 AI 员工附带使用的电脑名称与按当前时间计算的在线状态。
 		var personal *appservice.AgentListPersonalItem
 		if agent.Personal() {
-			personal = &appservice.AgentListPersonalItem{DeviceID: common.StringValue(agent.DeviceID), DeviceName: common.StringValue(agent.DeviceName), Presence: appservice.PersonalAgentPresence(agent.Presence(now))}
+			personal = &appservice.AgentListPersonalItem{ComputerID: common.StringValue(agent.ComputerID), ComputerName: common.StringValue(agent.ComputerName), Presence: appservice.PersonalAgentPresence(agent.Presence(now))}
 		}
 		agents = append(agents, appservice.AgentListItem{ID: agent.ID, IdentityID: agent.IdentityID, DisplayName: agent.DisplayName, AvatarURL: optionalFileURL(avatarURLs, agent.AvatarFileID), ServiceAudiences: serviceAudiences, Status: appservice.UserStatus(agent.Status), WorkStatus: appservice.WorkStatus(agent.WorkStatus), Teams: teams, Execution: execution, Personal: personal, CreatedAt: agent.CreatedAt})
 	}

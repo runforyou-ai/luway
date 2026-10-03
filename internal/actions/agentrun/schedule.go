@@ -9,7 +9,6 @@ import (
 	"uuid"
 
 	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -106,7 +105,7 @@ func advanceLaneSequence(ctx context.Context, db bun.IDB, spec agentRunSpec) (la
 	return sequence, nil
 }
 
-// insertAndDispatchRun 创建 Agent 业务运行并派发执行：个人 AI 员工的运行交给其绑定电脑，其他 AI 员工的运行投递隔离 Worker。
+// insertAndDispatchRun 创建 Agent 业务运行并投递隔离 Worker 执行。
 func insertAndDispatchRun(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, spec agentRunSpec, laneID string, startSeq int64) (string, error) {
 	run := &servermodels.AgentRun{
 		ID: uuid.NewV7().String(), OrganizationID: spec.OrganizationID, ConversationID: spec.ConversationID,
@@ -114,21 +113,10 @@ func insertAndDispatchRun(ctx context.Context, db bun.IDB, enqueuer servertask.T
 		ScopeKind: string(spec.ScopeKind), ScopeID: spec.ScopeID,
 		Status: string(domain.AgentRunStatusQueued), InputStartSeq: startSeq,
 	}
-	if err := db.NewSelect().Model((*servermodels.Agent)(nil)).
-		Column("a.device_id").
-		Where("a.organization_id = ? AND a.identity_id = ?", spec.OrganizationID, spec.AgentIdentityID).
-		Scan(ctx, &run.ExecutionDeviceID); err != nil {
-		return "", fmt.Errorf("load agent execution device: %w", err)
-	}
-	onDevice := run.ExecutionDeviceID != nil
 	if _, err := db.NewInsert().Model(run).
-		Column("id", "organization_id", "conversation_id", "agent_identity_id", "agent_revision_id", "lane_id", "scope_kind", "scope_id", "status", "input_start_seq",
-			"execution_device_id").
+		Column("id", "organization_id", "conversation_id", "agent_identity_id", "agent_revision_id", "lane_id", "scope_kind", "scope_id", "status", "input_start_seq").
 		Exec(ctx); err != nil {
 		return "", fmt.Errorf("create agent run: %w", err)
-	}
-	if onDevice {
-		return run.ID, advanceDeviceWork(ctx, db, spec.OrganizationID, *run.ExecutionDeviceID)
 	}
 	if _, err := enqueuer.EnqueueIn(ctx, db, RunActionName, RunInput{RunID: run.ID}, servertask.EnqueueOptions{
 		OrganizationID: spec.OrganizationID, Queue: servertask.QueueAgent, MaxAttempts: 3,
@@ -138,21 +126,4 @@ func insertAndDispatchRun(ctx context.Context, db bun.IDB, enqueuer servertask.T
 		return "", fmt.Errorf("enqueue agent run: %w", err)
 	}
 	return run.ID, nil
-}
-
-// advanceDeviceWork 推进设备工作水位，并在事务提交后通知设备所属成员的该设备事件流；调用方必须处于 realtime.RunInTx 内。
-func advanceDeviceWork(ctx context.Context, db bun.IDB, organizationID, deviceID string) error {
-	var advanced struct {
-		UserID  string `bun:"user_id"`
-		WorkSeq int64  `bun:"work_seq"`
-	}
-	if err := db.NewRaw(`
-		UPDATE devices SET work_seq = work_seq + 1, updated_at = now()
-		WHERE organization_id = ? AND id = ?
-		RETURNING user_id, work_seq
-	`, organizationID, deviceID).Scan(ctx, &advanced); err != nil {
-		return fmt.Errorf("advance device work sequence: %w", err)
-	}
-	realtime.Notify(ctx, realtime.UserDeviceWorkAdvanced(organizationID, advanced.UserID, deviceID, advanced.WorkSeq))
-	return nil
 }

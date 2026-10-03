@@ -100,7 +100,7 @@ func newConversationOps(db *bun.DB, agentScheduler conversationaction.AgentMessa
 // personalAgentConflictKeys 是个人 AI 员工无法接收新请求时的冲突提示。
 var personalAgentConflictKeys = map[string]i18n.Key{
 	conversationaction.ConflictReasonPersonalAgentPaused:  i18n.ErrorAgentPaused,
-	conversationaction.ConflictReasonPersonalAgentUnbound: i18n.ErrorAgentDeviceUnbound,
+	conversationaction.ConflictReasonPersonalAgentUnbound: i18n.ErrorAgentComputerUnbound,
 	groupchataction.ConflictReasonPersonalAgentInactive:   i18n.ErrorAgentInactive,
 }
 

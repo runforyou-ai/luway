@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react"
 import { Events, Window } from "@wailsio/runtime"
 
-import { onLocalDeviceChanged } from "@/api"
+import { onLocalComputerChanged } from "@/api"
 import { SharedAppRoutes } from "@/apps/shared-app-routes"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResourceInvalidator } from "@/hooks/use-resource"
@@ -41,13 +41,13 @@ function useWindowFullscreen(enabled: boolean) {
   return fullscreen
 }
 
-/** 本机设备状态变化时失效本机设备与本机环境的读取结果，未挂载的页面下次挂载时重新读取。 */
-function useLocalDeviceRefresh() {
+/** 本机电脑状态变化时失效本机电脑与本机环境的读取结果，未挂载的页面下次挂载时重新读取。 */
+function useLocalComputerRefresh() {
   const invalidate = useResourceInvalidator()
   useEffect(
     () =>
-      onLocalDeviceChanged(() => {
-        void invalidate(resourceKeys.currentDevice())
+      onLocalComputerChanged(() => {
+        void invalidate(resourceKeys.currentComputer())
         void invalidate(resourceKeys.localEnvironment())
       }),
     [invalidate],
@@ -58,7 +58,7 @@ function useLocalDeviceRefresh() {
 export default function DesktopApp({ workspaceSlug }: { workspaceSlug: string | null }) {
   const nativeOS = resolveDesktopOS()
   const fullscreen = useWindowFullscreen(nativeOS === "darwin")
-  useLocalDeviceRefresh()
+  useLocalComputerRefresh()
 
   return (
     <div

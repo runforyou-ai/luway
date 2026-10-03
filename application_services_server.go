@@ -122,9 +122,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	// 将业务入口适配为 HTTP API，并为公开网站渠道提供配置查询。
 	httpAPI := api.NewService(
 		boundService,
-		api.WithDeviceRuns(directBackend),
-		api.WithDeviceModelGateway(directBackend),
-		api.WithDeviceRunAttachments(directBackend),
+		api.WithComputers(directBackend),
 		api.WithWebsiteVisitor(websiteVisitorService, config.TLS.Mode != "off", config.Server.VisitorCountryHeader),
 		api.WithWebsiteVisitorRealtime(realtimeGateway),
 		api.WithTelegramWebhook(telegramWebhook),

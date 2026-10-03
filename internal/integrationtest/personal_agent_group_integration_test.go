@@ -10,8 +10,8 @@ import (
 
 	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	computeraction "github.com/runforyou-ai/luway/internal/actions/computer"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
-	deviceaction "github.com/runforyou-ai/luway/internal/actions/device"
 	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -23,11 +23,11 @@ func TestGroupPersonalAgents(t *testing.T) {
 	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
 	member := newChatLockUser(t, db, identity)
-	device, err := deviceaction.NewRegisterDeviceAction(db).Execute(ctx, member, deviceaction.RegisterInput{InstallID: uuid.NewV7().String(), Name: "成员电脑", Platform: domain.DevicePlatformMacOS})
+	computer, err := computeraction.NewRegisterComputerAction(db).Execute(ctx, member, computeraction.RegisterInput{InstallID: uuid.NewV7().String(), Name: "成员电脑", Platform: domain.ComputerPlatformMacOS})
 	if err != nil {
 		t.Fatal(err)
 	}
-	personalAgent, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, member, device.ID, agentaction.PersonalAgentInput{
+	personalAgent, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, member, computer.Record.ID, agentaction.PersonalAgentInput{
 		DisplayName: "成员个人 AI 员工", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID}},
 	})
 	if err != nil {
@@ -71,7 +71,7 @@ func TestGroupPersonalAgents(t *testing.T) {
 		}
 	})
 
-	t.Run("群内点名派发到负责人电脑", func(t *testing.T) {
+	t.Run("群内点名建立服务端运行", func(t *testing.T) {
 		subjectID := loadIdentitySubjectID(t, db, identity.Organization.ID, personalAgent.IdentityID)
 		if _, err := newGroupSendAction(db).Execute(ctx, identity, groupchataction.GroupTextMessageInput{
 			ConversationID: group.ID, ClientMessageID: uuid.NewV7().String(), Body: "请个人 AI 员工看看", MentionSubjectIDs: []string{subjectID},
@@ -82,8 +82,8 @@ func TestGroupPersonalAgents(t *testing.T) {
 		if err := db.NewSelect().Model(&run).Where("agr.conversation_id = ? AND agr.agent_identity_id = ?", group.ID, personalAgent.IdentityID).Scan(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if run.ExecutionDeviceID == nil || *run.ExecutionDeviceID != device.ID {
-			t.Fatalf("group personalAgent run=%+v", run)
+		if count, err := db.NewSelect().Model((*servermodels.TaskRun)(nil)).Where("tr.idempotency_key = ?", "agent:"+run.ID).Count(ctx); err != nil || count != 1 {
+			t.Fatalf("group personalAgent run task=%d %v", count, err)
 		}
 		// 群成员与运行状态中的个人 AI 员工携带负责人名称，真人成员不携带。
 		owner := member.OrganizationIdentity.DisplayName
@@ -248,11 +248,11 @@ func TestGroupPersonalAgents(t *testing.T) {
 
 	t.Run("成员互相启停对方个人 AI 员工不死锁", func(t *testing.T) {
 		other := newChatLockUser(t, db, identity)
-		otherDevice, err := deviceaction.NewRegisterDeviceAction(db).Execute(ctx, other, deviceaction.RegisterInput{InstallID: uuid.NewV7().String(), Name: "对方电脑", Platform: domain.DevicePlatformMacOS})
+		otherComputer, err := computeraction.NewRegisterComputerAction(db).Execute(ctx, other, computeraction.RegisterInput{InstallID: uuid.NewV7().String(), Name: "对方电脑", Platform: domain.ComputerPlatformMacOS})
 		if err != nil {
 			t.Fatal(err)
 		}
-		otherPersonalAgent, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, other, otherDevice.ID, agentaction.PersonalAgentInput{
+		otherPersonalAgent, err := agentaction.NewCreatePersonalAgentAction(db).Execute(ctx, other, otherComputer.Record.ID, agentaction.PersonalAgentInput{
 			DisplayName: "对方个人 AI 员工", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: modelID}},
 		})
 		if err != nil {

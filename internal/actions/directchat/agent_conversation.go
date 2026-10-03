@@ -199,7 +199,7 @@ func lockAgentSendContext(ctx context.Context, tx bun.Tx, identity *servermodels
 		return row, err
 	}
 	err = tx.NewSelect().TableExpr("agent_conversations AS ac").
-		ColumnExpr("ac.conversation_id, mine.id AS participant_id, mine.subject_id, ac.agent_identity_id, agent.active_revision_id AS agent_revision_id, agent.paused_at IS NOT NULL AS agent_paused, agent_device.revoked_at IS NOT NULL AS agent_unbound").
+		ColumnExpr("ac.conversation_id, mine.id AS participant_id, mine.subject_id, ac.agent_identity_id, agent.active_revision_id AS agent_revision_id, agent.paused_at IS NOT NULL AS agent_paused, agent_computer.revoked_at IS NOT NULL AS agent_unbound").
 		ColumnExpr("agent.status = ? AS agent_active", domain.IdentityStatusActive).
 		ColumnExpr(`EXISTS (
 			SELECT 1 FROM service_conversations AS svc
@@ -212,7 +212,7 @@ func lockAgentSendContext(ctx context.Context, tx bun.Tx, identity *servermodels
 		Join("JOIN chat_subjects AS agent_cs ON agent_cs.organization_id = ac.organization_id AND agent_cs.kind = ? AND agent_cs.source_id = ac.agent_identity_id", domain.ChatSubjectKindOrganizationIdentity).
 		Join("JOIN conversation_participants AS peer ON peer.organization_id = ac.organization_id AND peer.conversation_id = ac.conversation_id AND peer.subject_id = agent_cs.id AND peer.left_at IS NULL").
 		Join("JOIN agents AS agent ON agent.organization_id = ac.organization_id AND agent.identity_id = ac.agent_identity_id").
-		Join("LEFT JOIN devices AS agent_device ON agent_device.organization_id = agent.organization_id AND agent_device.id = agent.device_id").
+		Join("LEFT JOIN computers AS agent_computer ON agent_computer.organization_id = agent.organization_id AND agent_computer.id = agent.computer_id").
 		Where("ac.organization_id = ? AND ac.conversation_id = ? AND ac.user_identity_id = ?", identity.Organization.ID, conversationID, identity.OrganizationIdentity.ID).
 		Where("cv.type = ? AND cv.status = ?", domain.ConversationTypeAgent, domain.ConversationStatusActive).Scan(ctx, &row)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -225,7 +225,7 @@ func lockAgentSendContext(ctx context.Context, tx bun.Tx, identity *servermodels
 	if !row.AgentActive && !row.ServiceOpen {
 		return row, conversationaction.ErrConversationNotFound
 	}
-	// 未绑定电脑优先于暂停，与个人 AI 员工在线状态的优先级一致。
+	// 电脑已撤销优先于暂停，与个人 AI 员工在线状态的优先级一致。
 	if row.AgentUnbound {
 		return row, &conversationaction.ConflictError{Reason: conversationaction.ConflictReasonPersonalAgentUnbound}
 	}

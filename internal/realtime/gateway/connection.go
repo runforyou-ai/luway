@@ -29,11 +29,10 @@ type connection struct {
 	id      string
 	cancel  context.CancelFunc
 
-	// subjects、allowed、tokenSessionID 与 deviceID 在建立连接时写入，之后只读。
+	// subjects、allowed 与 tokenSessionID 在建立连接时写入，之后只读。
 	subjects       []string
 	allowed        map[protocol.Type]bool
 	tokenSessionID string
-	deviceID       string
 	// workspaces 非空表示工作区动态事件流，按受众 Subject 记录所属工作区。
 	workspaces map[string]string
 
@@ -60,7 +59,6 @@ func newConnection(gateway *Gateway, cancel context.CancelFunc, route streamRout
 		subjects:       route.subjects,
 		allowed:        allowed,
 		tokenSessionID: route.tokenSessionID,
-		deviceID:       route.deviceID,
 		workspaces:     route.workspaces,
 		merged:         map[mergeKey]int{},
 		wake:           make(chan struct{}, 1),
@@ -170,7 +168,7 @@ type mergeSource struct {
 	mergeable bool
 }
 
-// mergeTarget 返回变更通知、设备工作水位与输入状态事件的合并方式，其他事件不可合并。
+// mergeTarget 返回变更通知、电脑待执行操作与输入状态事件的合并方式，其他事件不可合并。
 func mergeTarget(frame protocol.Frame) mergeSource {
 	switch value := frame.(type) {
 	case protocol.ConversationChanged:
@@ -191,8 +189,8 @@ func mergeTarget(frame protocol.Frame) mergeSource {
 			return mergeSource{}
 		}
 		return mergeSource{key: mergeKey{frameType: protocol.TypeWorkspaceActivity, conversationID: value.ConversationID, workspaceID: value.WorkspaceID, kind: value.Kind}, mergeable: true}
-	case protocol.DeviceWorkAdvanced:
-		return mergeSource{key: mergeKey{frameType: protocol.TypeDeviceWorkAdvanced}, version: value.WorkSeq, versioned: true, mergeable: true}
+	case protocol.ComputerWork:
+		return mergeSource{key: mergeKey{frameType: protocol.TypeComputerWork}, mergeable: true}
 	}
 	return mergeSource{}
 }
