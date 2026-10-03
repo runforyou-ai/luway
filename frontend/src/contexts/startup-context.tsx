@@ -9,6 +9,8 @@ type StartupContextValue = {
   // 原生端已保存服务器仍进入连接页的原因，未保存服务器或已连接时为空。
   connectReason: ConnectReason | null
   completeStartup: () => void
+  // 丢弃启动检测结果并重新检测，按新结果进入对应入口。
+  restartStartup: () => void
 }
 
 const StartupContext = createContext<StartupContextValue | null>(null)
@@ -18,11 +20,12 @@ export function StartupProvider({
   connected,
   connectReason,
   completeStartup,
+  restartStartup,
   children,
 }: StartupContextValue & { children: React.ReactNode }) {
   const value = useMemo(
-    () => ({ connected, connectReason, completeStartup }),
-    [connected, connectReason, completeStartup],
+    () => ({ connected, connectReason, completeStartup, restartStartup }),
+    [connected, connectReason, completeStartup, restartStartup],
   )
   return (
     <StartupContext.Provider value={value}>

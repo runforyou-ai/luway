@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/i18n"
@@ -34,7 +35,7 @@ func (b *Backend) DeviceModelEndpoint(ctx context.Context, meta appservice.Reque
 	return endpoint, &deviceModelTransport{base: base, endpoint: parsed, token: credential.Token, deviceID: meta.DeviceID}, nil
 }
 
-// deviceModelTransport 只向模型网关入口发出请求，并为请求写入登录令牌与本机设备编号。
+// deviceModelTransport 只向模型网关入口发出请求，并为请求写入登录令牌、本机设备编号与接口版本。
 type deviceModelTransport struct {
 	base     http.RoundTripper
 	endpoint *url.URL
@@ -42,7 +43,7 @@ type deviceModelTransport struct {
 	deviceID string
 }
 
-// RoundTrip 拒绝模型网关入口之外的地址，复制请求并写入认证请求头后发出。
+// RoundTrip 拒绝模型网关入口之外的地址，复制请求并写入认证与接口版本请求头后发出。
 func (t *deviceModelTransport) RoundTrip(request *http.Request) (*http.Response, error) {
 	if request.URL.Scheme != t.endpoint.Scheme || request.URL.Host != t.endpoint.Host || request.URL.Path != t.endpoint.Path {
 		return nil, fmt.Errorf("device model request outside gateway endpoint: %s://%s%s", request.URL.Scheme, request.URL.Host, request.URL.Path)
@@ -50,5 +51,6 @@ func (t *deviceModelTransport) RoundTrip(request *http.Request) (*http.Response,
 	outgoing := request.Clone(request.Context())
 	outgoing.Header.Set("Authorization", "Bearer "+t.token)
 	outgoing.Header.Set(appservice.DeviceHeader, t.deviceID)
+	outgoing.Header.Set(appservice.ClientAPIVersionHeader, strconv.Itoa(appservice.APIVersion))
 	return t.base.RoundTrip(outgoing)
 }

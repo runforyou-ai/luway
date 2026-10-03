@@ -878,7 +878,7 @@ export function InstallWorkspace(meta: $models.RequestMeta, input: $models.Insta
 }
 
 /**
- * InstallationStatus 返回部署名称、首次安装状态、是否开放注册和产品品牌。
+ * InstallationStatus 返回部署名称、首次安装状态、是否开放注册、产品品牌和接口版本。
  */
 export function InstallationStatus(meta: $models.RequestMeta): $CancellablePromise<$models.InstallationStatus> {
     return $Call.ByID(1778204715, meta);
@@ -1284,7 +1284,7 @@ export function LoadInbox(meta: $models.RequestMeta, input: $models.LoadInboxInp
 }
 
 /**
- * LoadStartup 根据部署安装状态返回初始化、服务器连接或就绪入口和界面品牌；登录与工作区选择由后续身份加载决定。
+ * LoadStartup 根据部署安装状态返回初始化、服务器连接、客户端升级或就绪入口和界面品牌；登录与工作区选择由后续身份加载决定。
  */
 export function LoadStartup(meta: $models.RequestMeta): $CancellablePromise<$models.Startup> {
     return $Call.ByID(1164064250, meta);

@@ -1250,6 +1250,11 @@ export enum ConnectReason {
      * ConnectReasonNotInstalled 表示已保存的服务器尚未完成首次安装。
      */
     ConnectReasonNotInstalled = "not_installed",
+
+    /**
+     * ConnectReasonServerOutdated 表示已保存的服务器接口版本低于原生端要求的最低版本。
+     */
+    ConnectReasonServerOutdated = "server_outdated",
 };
 
 /**
@@ -3135,13 +3140,15 @@ export interface InstallWorkspaceInput {
 }
 
 /**
- * InstallationStatus 定义部署名称、部署是否已完成首次安装、注册策略是否开放注册和部署使用的产品品牌。
+ * InstallationStatus 定义部署名称、部署是否已完成首次安装、注册策略是否开放注册、部署使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。
  */
 export interface InstallationStatus {
     "deploymentName": string;
     "installed": boolean;
     "registrationOpen": boolean;
     "brand": Brand;
+    "apiVersion": number;
+    "minClientApiVersion": number;
 }
 
 /**
@@ -5353,6 +5360,11 @@ export enum SessionState {
     SessionStateSetup = "setup",
     SessionStateConnect = "connect",
     SessionStateWorkspace = "workspace",
+
+    /**
+     * SessionStateUpgrade 表示原生端接口版本低于服务器接受的最低版本，需要升级客户端。
+     */
+    SessionStateUpgrade = "upgrade",
 };
 
 /**
