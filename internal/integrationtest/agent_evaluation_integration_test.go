@@ -15,6 +15,7 @@ import (
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
@@ -82,7 +83,7 @@ func TestAgentEvaluation(t *testing.T) {
 	detail := agentevaluation.NewCaseDetailQuery(db)
 	replayer := &evaluationReplayer{results: map[string]agentruntime.RunResult{}, errors: map[string]error{}}
 	decider := &evaluationDecider{probabilities: map[string]float64{}}
-	worker := agentevaluation.NewWorker(db, replayer, decider)
+	worker := agentevaluation.NewWorker(db, replayer, modelcall.New(db, modelcall.Upstreams{Decider: decider}))
 
 	// 提问为空、期望答复却没有标准答案、服务对象不属于 AI 员工时拒绝保存。
 	_, err = createCase.Execute(ctx, identity, agent.ID, agentevaluation.CaseInput{
@@ -284,7 +285,7 @@ func TestAgentEvaluationReplay(t *testing.T) {
 		t.Fatal(err)
 	}
 	runtime := &replayProbeRuntime{}
-	execute := agentrunaction.NewExecuteAction(db, newTestTasks(db), runtime, testAttachmentReader(db), nil, nil)
+	execute := agentrunaction.NewExecuteAction(db, newTestTasks(db), runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
 	messages := []agentruntime.Message{{ID: "question", Role: agentruntime.MessageRoleUser, Content: "怎么退款"}}
 	counts := replayWriteCounts(t, db, identity.Organization.ID)
 
@@ -510,7 +511,7 @@ func TestAgentEvaluationCapturedCases(t *testing.T) {
 	replayer := &evaluationReplayer{results: map[string]agentruntime.RunResult{
 		"我要找人工": {Decision: agentruntime.TerminalDecision{Kind: domain.AgentRunOutcomeHandoff, Reason: domain.AgentHandoffReasonCustomerRequested}},
 	}, errors: map[string]error{}}
-	worker := agentevaluation.NewWorker(db, replayer, &evaluationDecider{probabilities: map[string]float64{}})
+	worker := agentevaluation.NewWorker(db, replayer, modelcall.New(db, modelcall.Upstreams{Decider: &evaluationDecider{probabilities: map[string]float64{}}}))
 	for _, result := range pendingEvaluationResults(t, db, runID) {
 		if err := worker.Evaluate(ctx, agentevaluation.EvaluateInput{OrganizationID: identity.Organization.ID, ResultID: result.ID}); err != nil {
 			t.Fatal(err)

@@ -99,7 +99,7 @@ type memoryWorkingSet struct {
 func (r *EinoRuntime) ExtractMemory(ctx context.Context, request MemoryExtractionRequest) (MemoryExtractionResult, error) {
 	config := request.Model
 	config.DisableThinking = true
-	chatModel, err := r.newModel(ctx, config)
+	chatModel, err := config.newModel(ctx)
 	if err != nil {
 		return MemoryExtractionResult{}, err
 	}

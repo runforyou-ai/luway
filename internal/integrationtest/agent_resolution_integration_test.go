@@ -50,7 +50,7 @@ func (f handoffFixture) executeQueuedRun(t *testing.T, conversationID string, ru
 	t.Helper()
 	ctx := context.Background()
 	run := f.queuedRun(t, conversationID)
-	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, runtime, testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+	if err := agentrunaction.NewExecuteAction(f.db, f.tasks, runtime, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if err := f.db.NewSelect().Model(&run).WherePK().Scan(ctx); err != nil {

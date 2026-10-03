@@ -17,6 +17,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/customerservice"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -114,7 +115,7 @@ func TestKnowledgeGaps(t *testing.T) {
 
 	// 小结模型按真人答复起草问答，重复执行不再调用模型。
 	caller := &summaryCaller{text: `{"question":"海外仓发货需要多久？","questionIndex":0,"similarQuestions":["海外仓几天到货"," ","海外仓发货需要多久？"],"answer":"海外仓订单一般 3 到 5 个工作日送达。"}`}
-	worker := servicesummary.NewWorker(db, tasks, &summaryDecider{}, caller)
+	worker := servicesummary.NewWorker(db, tasks, modelcall.New(db, modelcall.Upstreams{Decider: &summaryDecider{}}), caller)
 	if err := worker.DraftKnowledgeGap(ctx, draftInput(gap)); err != nil {
 		t.Fatal(err)
 	}
@@ -221,7 +222,7 @@ func TestKnowledgeGaps(t *testing.T) {
 		t.Fatalf("再次关闭后的待补知识 = %+v", redrafted)
 	}
 	staleCaller := &summaryCaller{text: `{"question":"旧问题","answer":""}`}
-	stale := servicesummary.NewWorker(db, tasks, &summaryDecider{}, staleCaller)
+	stale := servicesummary.NewWorker(db, tasks, modelcall.New(db, modelcall.Upstreams{Decider: &summaryDecider{}}), staleCaller)
 	if err := stale.DraftKnowledgeGap(ctx, draftInput(first)); err != nil || staleCaller.calls != 0 {
 		t.Fatalf("旧起草任务调用次数 = %d, %v", staleCaller.calls, err)
 	}
@@ -267,9 +268,9 @@ func TestKnowledgeGaps(t *testing.T) {
 	rated := gaps[0]
 	greetingID := *rated.QuestionMessageID
 	reviewCaller := &summaryCaller{text: `{"summary":"客户询问退货运费。","question":"退货运费由谁承担？","questionIndex":1,"similarQuestions":[],"answer":""}`}
-	reviewer := servicesummary.NewWorker(db, tasks, &summaryDecider{answers: map[string]decision.Answer{
+	reviewer := servicesummary.NewWorker(db, tasks, modelcall.New(db, modelcall.Upstreams{Decider: &summaryDecider{answers: map[string]decision.Answer{
 		"ai_incorrect": {Kind: decision.KindYesNo, Probability: 0.9},
-	}}, reviewCaller)
+	}}}), reviewCaller)
 	if err := reviewer.DraftKnowledgeGap(ctx, draftInput(rated)); err != nil {
 		t.Fatal(err)
 	}

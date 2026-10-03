@@ -28,8 +28,6 @@ func (e executionContext) assignmentFacts(scene agentruntime.SceneContext) agent
 		Instruction:      e.Instruction,
 		Model: agentruntime.AssignmentModel{
 			ModelID:         e.ModelID,
-			Brand:           e.Brand,
-			Identifier:      e.ModelIdentifier,
 			MaxOutputTokens: e.MaxOutputTokens,
 			ContextWindow:   e.ContextWindow,
 			InputModalities: e.InputModalities,

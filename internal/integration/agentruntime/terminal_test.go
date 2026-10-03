@@ -165,9 +165,9 @@ func TestCustomerTerminalDecisions(t *testing.T) {
 				}}
 			}
 			historyCalls := 0
-			runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+			runtime := &EinoRuntime{}
 			result, err := runtime.Run(ctx, RunRequest{
-				RunID: "terminal-run", MaxIterations: 5, MaxTurns: 3,
+				RunID: "terminal-run", Models: fixedModels(chatModel), MaxIterations: 5, MaxTurns: 3,
 				Assignment: Assignment{AgentName: "客服", Scene: SceneCustomer, HandoffCategories: []HandoffCategory{{ID: "category-refund", Name: "退款", Description: "退款、退货"}}},
 				CustomerHistorySearch: func(context.Context, string) (CustomerHistoryResult, error) {
 					historyCalls++
@@ -207,8 +207,8 @@ func TestInternalSceneHasNoTerminalTools(t *testing.T) {
 	chatModel := &scriptedTerminalModel{outputs: []func() *schema.AgenticMessage{
 		func() *schema.AgenticMessage { return assistantReply("你好，有什么需要") },
 	}}
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
-	result, err := runtime.Run(ctx, RunRequest{RunID: "internal-run", Assignment: Assignment{AgentName: "个人 AI 员工", Scene: SceneAgentChat}}, feed)
+	runtime := &EinoRuntime{}
+	result, err := runtime.Run(ctx, RunRequest{RunID: "internal-run", Assignment: Assignment{AgentName: "个人 AI 员工", Scene: SceneAgentChat}, Models: fixedModels(chatModel)}, feed)
 	if err != nil {
 		t.Fatal(err)
 	}

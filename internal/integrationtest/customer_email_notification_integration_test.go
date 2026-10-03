@@ -83,7 +83,7 @@ func TestCustomerEmailNotification(t *testing.T) {
 	first := receive("我要退款")
 	conversationID := first.Conversation.ID
 	run := f.queuedRun(t, conversationID)
-	if err := agentrunaction.NewExecuteAction(db, tasks, handoffRuntime("客户要求退款", nil), testAttachmentReader(db), nil, sender).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+	if err := agentrunaction.NewExecuteAction(db, tasks, handoffRuntime("客户要求退款", nil), testModelInvoker(db), testAttachmentReader(db), nil, sender).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 		t.Fatal(err)
 	}
 	if notice := handoffNotice(t, db, "agent:"+run.ID); notice != handoffQueuedNotice+"\n\n"+handoffEmailRequest {

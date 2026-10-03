@@ -13,6 +13,7 @@ import (
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/customerdelivery"
 	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/actions/serviceissue"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
@@ -68,7 +69,7 @@ func TestServiceSessionReviews(t *testing.T) {
 		"human_incorrect":     {Kind: decision.KindYesNo, Probability: 0.1},
 		"human_poor_attitude": {Kind: decision.KindYesNo, Probability: 0.9},
 	}}
-	worker := servicesummary.NewWorker(db, tasks, decider, &summaryCaller{})
+	worker := servicesummary.NewWorker(db, tasks, modelcall.New(db, modelcall.Upstreams{Decider: decider}), &summaryCaller{})
 	// loadReview 读取周期的质检结果，没有时返回 nil。
 	loadReview := func(sessionID string) *servermodels.ServiceSessionReview {
 		t.Helper()

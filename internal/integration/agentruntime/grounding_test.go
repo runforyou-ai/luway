@@ -79,7 +79,8 @@ func runGrounded(t *testing.T, chatModel *groundingModel, feed *testInputFeed, r
 		request.MaxIterations = 6
 	}
 	request.MaxTurns = 4
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+	request.Models = fixedModels(chatModel)
+	runtime := &EinoRuntime{}
 	result, err := runtime.Run(ctx, request, feed)
 	if err != nil {
 		t.Fatal(err)

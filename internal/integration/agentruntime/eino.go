@@ -29,8 +29,7 @@ type runIDContextKey struct{}
 
 // EinoRuntime 使用 AgenticMessage TurnLoop 执行 Agent。
 type EinoRuntime struct {
-	newModel modelFactory
-	tools    []tool.BaseTool
+	tools []tool.BaseTool
 }
 
 // New 创建 Eino Runtime。
@@ -39,7 +38,7 @@ func New() (*EinoRuntime, error) {
 	if err := adk.SetLanguage(adk.LanguageChinese); err != nil {
 		return nil, fmt.Errorf("set agent runtime language: %w", err)
 	}
-	return &EinoRuntime{newModel: newAgenticModel}, nil
+	return &EinoRuntime{}, nil
 }
 
 // Run 执行受迭代上限和 context 控制的 TurnLoop，并在安全点吸收后续输入。
@@ -235,13 +234,13 @@ func (a *agentAssembly) auxiliaryUsage() Usage {
 // 摘要调用使用按摘要输出上限创建的模型，各供应商按自身字段下发该上限；技能说明的结果既不转存也不清理。
 func (r *EinoRuntime) buildAgent(ctx context.Context, spec agentSpec) (*agentAssembly, error) {
 	modelConfig := spec.request.modelConfig()
-	chatModel, err := r.newModel(ctx, modelConfig)
+	chatModel, err := modelConfig.newModel(ctx)
 	if err != nil {
 		return nil, err
 	}
 	summaryConfig := modelConfig
 	summaryConfig.MaxOutputTokens = summaryOutputTokens(modelConfig)
-	summaryModel, err := r.newModel(ctx, summaryConfig)
+	summaryModel, err := summaryConfig.newModel(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +292,7 @@ func (r *EinoRuntime) memoryMiddleware(ctx context.Context, request RunRequest, 
 	}
 	selectionConfig := modelConfig
 	selectionConfig.DisableThinking = true
-	selection.AgenticModel, err = r.newModel(ctx, selectionConfig)
+	selection.AgenticModel, err = selectionConfig.newModel(ctx)
 	if err != nil {
 		return nil, err
 	}

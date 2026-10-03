@@ -141,15 +141,16 @@ func (m *memoryRunModel) Stream(ctx context.Context, input []*schema.AgenticMess
 // TestEinoRuntimeInjectsMemory 验证启用记忆的运行注入记忆说明、索引与挑选出的相关条目。
 func TestEinoRuntimeInjectsMemory(t *testing.T) {
 	var mainInput []*schema.AgenticMessage
-	runtime := &EinoRuntime{newModel: func(_ context.Context, config ModelConfig) (model.AgenticModel, error) {
-		return &memoryRunModel{selection: config.DisableThinking, mainInput: &mainInput}, nil
-	}}
+	runtime := &EinoRuntime{}
 	feed := &testInputFeed{}
 	feed.appendUser("帮我整理本周的销售周报")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	request := RunRequest{
 		RunID: "memory-run", Assignment: Assignment{AgentName: "小码", Scene: SceneAgentChat, Memory: true}, MaxTurns: 1,
+		Models: func(_ context.Context, options ModelOptions) (model.AgenticModel, error) {
+			return &memoryRunModel{selection: options.DisableThinking, mainInput: &mainInput}, nil
+		},
 		Memory: func(context.Context) ([]MemoryEntry, error) { return testMemoryEntries(), nil },
 	}
 	result, err := runtime.Run(ctx, request, feed)
@@ -219,13 +220,14 @@ func (m *extractionModel) Stream(ctx context.Context, input []*schema.AgenticMes
 // TestExtractMemory 验证提取 Agent 的输入包含现有记忆与新消息，保存与删除以变更返回，不合规的条目不保存。
 func TestExtractMemory(t *testing.T) {
 	chatModel := &extractionModel{}
-	runtime := &EinoRuntime{newModel: func(_ context.Context, config ModelConfig) (model.AgenticModel, error) {
-		if !config.DisableThinking {
-			t.Error("记忆提取应关闭思考")
-		}
-		return chatModel, nil
-	}}
+	runtime := &EinoRuntime{}
 	result, err := runtime.ExtractMemory(context.Background(), MemoryExtractionRequest{
+		Model: ModelConfig{New: func(_ context.Context, options ModelOptions) (model.AgenticModel, error) {
+			if !options.DisableThinking {
+				t.Error("记忆提取应关闭思考")
+			}
+			return chatModel, nil
+		}},
 		Entries: testMemoryEntries(),
 		Earlier: []MemoryMessage{{Sender: "owner", Content: "你好"}},
 		Recent:  []MemoryMessage{{Sender: "owner", Content: "以后周报按客户分组"}, {Sender: "assistant", Content: "好的"}},

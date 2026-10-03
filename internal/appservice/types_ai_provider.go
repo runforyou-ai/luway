@@ -144,7 +144,6 @@ type AIProviderModelList struct {
 // AIModelOption 定义模型选择器中的模型及其所属供应商。
 type AIModelOption struct {
 	ID              string                 `json:"id"`
-	Identifier      string                 `json:"identifier"`
 	Name            string                 `json:"name"`
 	Type            AIModelType            `json:"type"`
 	InputModalities []AIModelInputModality `json:"inputModalities"`

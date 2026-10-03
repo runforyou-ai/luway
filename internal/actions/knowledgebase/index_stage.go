@@ -7,44 +7,38 @@ import (
 	"errors"
 
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/luway/pkg/embedding"
 	"github.com/runforyou-ai/luway/pkg/textsplit"
 	"github.com/uptrace/bun"
 )
 
-// resolveEmbeddingModel 读取同企业可用的向量模型，返回 OpenAI 兼容入口凭据与上游模型标识。
-func resolveEmbeddingModel(ctx context.Context, db bun.IDB, organizationID, modelID string) (embedding.Credential, string, error) {
+// resolveEmbeddingModel 读取同企业可用的向量模型及其来源，不可用时返回 embedding_model_unavailable。
+func resolveEmbeddingModel(ctx context.Context, db bun.IDB, organizationID, modelID string) (*aimodel.Model, error) {
 	model, err := aimodel.Resolve(ctx, db, organizationID, modelID, domain.AIModelUsageEmbedding)
 	if errors.Is(err, aimodel.ErrUnavailable) {
-		return embedding.Credential{}, "", &embedding.Error{Code: "embedding_model_unavailable"}
+		return nil, &embedding.Error{Code: "embedding_model_unavailable"}
 	}
-	if err != nil {
-		return embedding.Credential{}, "", err
-	}
-	baseURL, err := modelprovider.CompatibleBaseURL(string(model.Brand), model.APIURL)
-	if err != nil {
-		return embedding.Credential{}, "", &embedding.Error{Code: "embedding_model_unavailable"}
-	}
-	return embedding.Credential{BaseURL: baseURL, APIKey: model.APIKey}, model.Identifier, nil
+	return model, err
 }
 
-// indexPublication 固定一次分段发布的来源模型、分段批次和向量模型编号。
+// indexPublication 固定一次分段发布的来源模型、分段批次、向量模型编号和模型调用所服务的业务对象类型。
 type indexPublication struct {
 	Model            any
 	Batch            segmentBatch
 	EmbeddingModelID string
+	CallSource       domain.AIModelCallSource
 }
 
-// embedAndPublish 向量化来源分段，并在当前任务仍有效时于同一事务中替换分段、发布批次；返回是否已发布。
-func embedAndPublish(ctx context.Context, db *bun.DB, embedder segmentEmbedder, publication indexPublication, segments []textsplit.Segment) (bool, error) {
+// embedAndPublish 经统一调用入口向量化来源分段，并在当前任务仍有效时于同一事务中替换分段、发布批次；返回是否已发布。
+func embedAndPublish(ctx context.Context, db *bun.DB, invoker *modelcall.Invoker, publication indexPublication, segments []textsplit.Segment) (bool, error) {
 	batch := publication.Batch
 	if current, err := updateIndexStage(ctx, db, publication.Model, batch.SourceID, batch.BatchID, domain.KnowledgeIndexEmbedding); err != nil || !current {
 		return false, err
 	}
-	credential, modelIdentifier, err := resolveEmbeddingModel(ctx, db, batch.OrganizationID, publication.EmbeddingModelID)
+	model, err := resolveEmbeddingModel(ctx, db, batch.OrganizationID, publication.EmbeddingModelID)
 	var failure *embedding.Error
 	if errors.As(err, &failure) {
 		return false, &ProcessError{Code: failure.Code, Stage: domain.KnowledgeIndexEmbedding}
@@ -56,7 +50,7 @@ func embedAndPublish(ctx context.Context, db *bun.DB, embedder segmentEmbedder, 
 	for _, segment := range segments {
 		texts = append(texts, textsplit.IndexText(segment.Context, segment.Content))
 	}
-	vectors, err := embedder.Embed(ctx, credential, modelIdentifier, batch.EmbeddingDimension, texts)
+	vectors, err := invoker.Embed(ctx, modelcall.SystemScope(batch.OrganizationID, publication.CallSource, batch.SourceID), model, batch.EmbeddingDimension, texts)
 	if errors.As(err, &failure) {
 		return false, &ProcessError{Code: failure.Code, Stage: domain.KnowledgeIndexEmbedding}
 	}

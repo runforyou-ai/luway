@@ -31,7 +31,8 @@
   var root = document.createElement("div");
   root.id = rootId;
   var shadow = root.attachShadow({ mode: "open" });
-  var mobileQuery = window.matchMedia("(max-width: 640px)");
+  // 窄屏或以触屏为主要输入方式的设备使用全屏面板。
+  var mobileQuery = window.matchMedia("(max-width: 640px), (pointer: coarse)");
   var bottomInset = 0;
   var expanded = false;
   var frameReady = false;
@@ -44,6 +45,9 @@
   var customerToken =
     typeof settings.customerToken === "string" ? settings.customerToken : "";
   var rotateVisitor = false;
+  // 当前聊天页是否已下发签名身份、是否已报告身份失效。
+  var identitySent = false;
+  var identityExpired = false;
   var identityExpiredListeners = [];
   var pageTimer = 0;
   var desktopPanelWidth = 400;
@@ -53,6 +57,10 @@
   // 服务端按访客语言偏好注入的挂件文案。
   var widgetCopy = /*CV_COPY*/ null;
   var hostScrollLock = { applied: false, bodyOverflow: "", htmlOverflow: "" };
+  // 全屏面板打开时写入的历史记录标记，宿主页后退时关闭面板。
+  var historyMarker = "messengerWidget";
+  var historyEntryPushed = false;
+  var originalPushState = window.history.pushState;
 
   var style = document.createElement("style");
   style.textContent = [
@@ -302,6 +310,29 @@
     } else {
       button.focus();
     }
+    syncHistoryEntry(next);
+  }
+
+  // 全屏面板打开时压入一条同地址历史记录，关闭面板时该记录仍在最上层则后退一步。
+  function syncHistoryEntry(open) {
+    var state = window.history.state;
+    var current = !!state && state[historyMarker] === rootId;
+    if (open && isMobile() && !historyEntryPushed) {
+      var nextState = {};
+      if (state && typeof state === "object") {
+        Object.keys(state).forEach(function (key) {
+          nextState[key] = state[key];
+        });
+      }
+      nextState[historyMarker] = rootId;
+      originalPushState.call(window.history, nextState, "");
+      historyEntryPushed = true;
+    } else if (!open && historyEntryPushed) {
+      historyEntryPushed = false;
+      if (current) {
+        window.history.back();
+      }
+    }
   }
 
   function setBottomInset(px) {
@@ -313,6 +344,7 @@
   function handleViewportModeChange() {
     applyLayout();
     syncFrameState();
+    syncHistoryEntry(panel.dataset.open === "true");
   }
 
   // 向聊天页下发当前签名身份，每次加载聊天页只下发一次。
@@ -325,6 +357,18 @@
       baseUrl,
     );
     rotateVisitor = false;
+    identitySent = true;
+  }
+
+  // 读取签名身份中的用户编号，不校验签名；无法解析时返回空字符串。
+  function tokenSubject(token) {
+    try {
+      var payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+      var claims = JSON.parse(window.atob(payload + "===".slice((payload.length + 3) % 4)));
+      return typeof claims.sub === "string" ? claims.sub : "";
+    } catch (error) {
+      return "";
+    }
   }
 
   // 向聊天页下发宿主页面地址、标题与来源页。
@@ -354,6 +398,8 @@
   // 切换身份时重新加载聊天页，丢弃旧身份的全部状态与在途请求。
   function reloadFrame() {
     frameReady = false;
+    identitySent = false;
+    identityExpired = false;
     applyLayout();
     frame.src = frame.src;
   }
@@ -410,6 +456,7 @@
       return;
     }
     if (event.data.type === "messenger:identity-expired") {
+      identityExpired = true;
       identityExpiredListeners.slice().forEach(function (listener) {
         try {
           listener();
@@ -464,9 +511,25 @@
       setOpen(false);
     },
     setBottomInset: setBottomInset,
-    // 以签名身份登录，已登录时直接替换当前用户。
+    // 以签名身份登录，已登录时替换当前用户；同一用户续签时聊天页不重新加载。
     login: function (token) {
-      customerToken = typeof token === "string" ? token : "";
+      var next = typeof token === "string" ? token : "";
+      var subject = tokenSubject(next);
+      if (
+        identitySent &&
+        !identityExpired &&
+        subject !== "" &&
+        subject === tokenSubject(customerToken) &&
+        frame.contentWindow
+      ) {
+        customerToken = next;
+        frame.contentWindow.postMessage(
+          { type: "messenger:identity-renew", customerToken: next },
+          baseUrl,
+        );
+        return;
+      }
+      customerToken = next;
       rotateVisitor = false;
       reloadFrame();
     },
@@ -490,12 +553,47 @@
     ["pushState", "replaceState"].forEach(function (name) {
       var original = window.history[name];
       window.history[name] = function () {
-        var result = original.apply(this, arguments);
+        var args = Array.prototype.slice.call(arguments);
+        var state = window.history.state;
+        var releaseEntry = false;
+        if (historyEntryPushed && state && state[historyMarker] === rootId) {
+          // 宿主以普通对象替换当前记录且不改地址时保留面板记录标记，其余情况关闭面板不再后退。
+          var sameURL =
+            args[2] === undefined ||
+            args[2] === null ||
+            new URL(String(args[2]), window.location.href).href === window.location.href;
+          var plainState =
+            args[0] === undefined ||
+            args[0] === null ||
+            Object.prototype.toString.call(args[0]) === "[object Object]";
+          if (name === "replaceState" && sameURL && plainState) {
+            var nextState = {};
+            Object.keys(args[0] || {}).forEach(function (key) {
+              nextState[key] = args[0][key];
+            });
+            nextState[historyMarker] = rootId;
+            args[0] = nextState;
+          } else {
+            releaseEntry = true;
+          }
+        }
+        var result = original.apply(this, args);
+        if (releaseEntry) {
+          historyEntryPushed = false;
+        }
         schedulePage();
         return result;
       };
     });
-    window.addEventListener("popstate", schedulePage);
+    window.addEventListener("popstate", function () {
+      var state = window.history.state;
+      // 宿主页后退离开全屏面板的历史记录时关闭面板。
+      if (historyEntryPushed && !(state && state[historyMarker] === rootId)) {
+        historyEntryPushed = false;
+        setOpen(false);
+      }
+      schedulePage();
+    });
     window.addEventListener("hashchange", schedulePage);
   }
 

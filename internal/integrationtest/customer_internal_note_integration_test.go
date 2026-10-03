@@ -146,7 +146,7 @@ func TestCustomerInternalNotes(t *testing.T) {
 
 	t.Run("对客引用资格排除内部备注", func(t *testing.T) {
 		login := loginMember(t, f.db, f.owner.Organization.ID, f.member.Account.Email, "password123")
-		backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+		backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
 		window, err := backend.ListConversationMessages(ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID}, f.conversationID, appservice.ConversationMessageListInput{})
 		if err != nil {
 			t.Fatal(err)
@@ -193,7 +193,7 @@ func TestCustomerInternalNotes(t *testing.T) {
 
 	t.Run("关闭周期后仍可补记内部备注", func(t *testing.T) {
 		tasks := newTestTasks(f.db)
-		closeSession := servicesessionaction.NewCloseServiceSessionAction(f.db, agentrunaction.NewExecuteAction(f.db, tasks, nil, testAttachmentReader(f.db), nil, nil), newTestTasks(f.db))
+		closeSession := servicesessionaction.NewCloseServiceSessionAction(f.db, agentrunaction.NewExecuteAction(f.db, tasks, nil, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil), newTestTasks(f.db))
 		if _, err := closeSession.Execute(ctx, f.owner, f.conversationID); err != nil {
 			t.Fatal(err)
 		}

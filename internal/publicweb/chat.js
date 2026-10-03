@@ -1594,7 +1594,7 @@
             message = "";
           }
           var error = new Error(message || requestFailedLabel);
-          if (isIdentityRejection(response, payload)) {
+          if (isIdentityRejection(response, payload, options.headers)) {
             handleIdentityExpired();
             error.message = identityExpiredLabel;
           }
@@ -1614,11 +1614,12 @@
     }
   }
 
-  // 判断响应是否为签名身份失效。
-  function isIdentityRejection(response, payload) {
+  // 判断响应是否为当前签名身份失效；续签前发出的请求被拒绝时不计入。
+  function isIdentityRejection(response, payload, headers) {
     return (
       response.status === 401 &&
       !!customerToken &&
+      headers["X-Customer-Token"] === customerToken &&
       !!payload &&
       !!payload.error &&
       payload.error.reason === CUSTOMER_IDENTITY_INVALID
@@ -2434,17 +2435,23 @@
         if (!response.ok || !response.body) {
           // 渠道、身份与访客 Token 错误重试不会改变结果，只有服务不可用按退避重连；签名身份失效时进入失效状态。
           var rejected = new Error("visitor event stream rejected");
-          rejected.retryable = response.status >= 500;
-          if (response.status === 401 && customerToken) {
+          // 续签前发出的连接被拒绝时按新的签名身份重连。
+          var staleIdentity = !!headers["X-Customer-Token"] && headers["X-Customer-Token"] !== customerToken;
+          rejected.retryable = response.status >= 500 || staleIdentity;
+          if (response.status === 401 && !staleIdentity && customerToken) {
             response
               .json()
               .then(function (payload) {
-                if (isIdentityRejection(response, payload)) {
+                if (isIdentityRejection(response, payload, headers)) {
                   handleIdentityExpired();
                 }
               })
               .catch(function () {})
               .finally(function () {
+                // 读取响应期间已续签时按新的签名身份重连。
+                if (headers["X-Customer-Token"] !== customerToken) {
+                  rejected.retryable = true;
+                }
                 finish(rejected);
               });
             return;
@@ -3768,8 +3775,9 @@
     updateSendState();
     reportTypingInput();
   });
+  // 输入法组字时的回车只确认候选词；Safari 在组字结束后才派发该回车，按 keyCode 229 识别。
   input.addEventListener("keydown", function (event) {
-    if (event.key !== "Enter" || event.shiftKey || event.isComposing) {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing || event.keyCode === 229) {
       return;
     }
     event.preventDefault();
@@ -3904,7 +3912,7 @@
       parentOrigin = event.origin;
     }
     if (event.data.type === "messenger:identity") {
-      // 身份只在首次下发时生效，切换身份由挂件重新加载聊天页。
+      // 身份只在首次下发时生效，切换用户由挂件重新加载聊天页。
       if (!identityReceived) {
         identityReceived = true;
         customerToken =
@@ -3913,6 +3921,13 @@
         if (!previewMode) {
           initializeRealMessenger();
         }
+      }
+      return;
+    }
+    // 同一用户续签只替换后续请求和实时重连使用的签名身份。
+    if (event.data.type === "messenger:identity-renew") {
+      if (identityReceived && customerToken && typeof event.data.customerToken === "string" && event.data.customerToken) {
+        customerToken = event.data.customerToken;
       }
       return;
     }

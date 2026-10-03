@@ -269,8 +269,7 @@ func (w *Worker) generateSummary(ctx context.Context, session *servermodels.Serv
 			questions["category"] = decision.Question{Kind: decision.KindChoice, Instructions: "选出最符合客户在这段沟通中的诉求的咨询分类。", Options: options}
 		}
 		if len(questions) > 0 {
-			answers, err := w.decider.Decide(ctx, decision.Credential{BaseURL: decisionModel.APIURL, APIKey: decisionModel.APIKey},
-				decisionModel.Identifier, decisionState(transcript, decisionModel.ContextWindow), questions)
+			answers, err := w.invoker.Decide(ctx, sessionScope(session.OrganizationID, session.ID), decisionModel, decisionState(transcript, decisionModel.ContextWindow), questions)
 			if err != nil {
 				return summaryResult{}, fmt.Errorf("decide service session summary: %w", err)
 			}
@@ -307,7 +306,7 @@ func (w *Worker) generateSummary(ctx context.Context, session *servermodels.Serv
 		"- 只依据沟通记录，不编造记录中没有的信息，不评价客服表现。\n" +
 		"- 使用" + localeLanguage(locale) + "书写。\n" +
 		`- 只输出一个 JSON 对象，格式为 {"summary":"小结正文"}，不输出 JSON 以外的任何内容。`
-	response, err := w.caller.CallOnce(ctx, agentruntime.SingleCallRequest{Instruction: instruction, Model: summaryModel.ModelConfig(), Input: materials})
+	response, err := w.caller.CallOnce(ctx, agentruntime.SingleCallRequest{Instruction: instruction, Model: w.invoker.ModelConfig(sessionScope(session.OrganizationID, session.ID), summaryModel), Input: materials})
 	if err != nil {
 		return summaryResult{}, fmt.Errorf("generate service session summary: %w", err)
 	}

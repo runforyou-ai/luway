@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/runforyou-ai/luway/pkg/embedding"
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 )
 
 // queryEmbeddingKey 标识一组可以共用查询向量的向量模型配置。
@@ -25,18 +26,18 @@ type queryEmbedding struct {
 
 // queryEmbeddings 在一次检索内为同一向量模型配置下的全部知识库批量向量化查询，并按查询文本共享结果。
 type queryEmbeddings struct {
-	embedder   queryEmbedder
-	credential embedding.Credential
-	model      string
-	key        queryEmbeddingKey
+	invoker *modelcall.Invoker
+	scope   modelcall.Scope
+	model   *aimodel.Model
+	key     queryEmbeddingKey
 
 	mu      sync.Mutex
 	results map[string]*queryEmbedding
 }
 
-// newQueryEmbeddings 创建一组向量模型配置的查询向量缓存，model 是上游模型标识。
-func newQueryEmbeddings(embedder queryEmbedder, credential embedding.Credential, model string, key queryEmbeddingKey) *queryEmbeddings {
-	return &queryEmbeddings{embedder: embedder, credential: credential, model: model, key: key, results: map[string]*queryEmbedding{}}
+// newQueryEmbeddings 创建一组向量模型配置的查询向量缓存，向量化经统一调用入口按 scope 记录。
+func newQueryEmbeddings(invoker *modelcall.Invoker, scope modelcall.Scope, model *aimodel.Model, key queryEmbeddingKey) *queryEmbeddings {
+	return &queryEmbeddings{invoker: invoker, scope: scope, model: model, key: key, results: map[string]*queryEmbedding{}}
 }
 
 // submit 按输入顺序返回各查询的向量化结果；尚未提交的查询以一次模型调用在后台向量化，已提交的查询复用原结果，失败结果同样复用。
@@ -59,7 +60,7 @@ func (q *queryEmbeddings) submit(ctx context.Context, queries []string) []*query
 		return results
 	}
 	go func() {
-		vectors, err := q.embedder.Embed(ctx, q.credential, q.model, q.key.dimension, batch)
+		vectors, err := q.invoker.Embed(ctx, q.scope, q.model, q.key.dimension, batch)
 		if err == nil && len(vectors) != len(batch) {
 			err = fmt.Errorf("embedding returned %d vectors for %d queries", len(vectors), len(batch))
 		}

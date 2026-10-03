@@ -66,17 +66,14 @@ func TestContextClearsOldToolResults(t *testing.T) {
 		t.Fatal(err)
 	}
 	chatModel := &repeatedToolChatModel{}
-	runtime := &EinoRuntime{
-		newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil },
-		tools:    []tool.BaseTool{echoTool},
-	}
+	runtime := &EinoRuntime{tools: []tool.BaseTool{echoTool}}
 	feed := &testInputFeed{}
 	feed.appendUser("一直算")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, err := runtime.Run(ctx, RunRequest{
 		RunID: "clear-run", Assignment: Assignment{AgentName: "test-agent", Model: AssignmentModel{ContextWindow: 40000}},
-		MaxIterations: 6, MaxTurns: 2,
+		Models: fixedModels(chatModel), MaxIterations: 6, MaxTurns: 2,
 	}, feed)
 	if err != nil || result.Content != "算完了" {
 		t.Fatalf("result = %#v, err = %v", result, err)

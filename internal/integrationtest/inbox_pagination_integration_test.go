@@ -59,7 +59,7 @@ func newInboxPaginationFixture(t *testing.T) inboxPaginationFixture {
 	if _, err := f.db.NewInsert().Model(provider).Column("organization_id", "brand", "name", "credential_type", "api_key", "api_url").Returning("id").Exec(ctx); err != nil {
 		t.Fatal(err)
 	}
-	model := &servermodels.AIModel{ProviderID: provider.ID, Identifier: "test-model", Name: "分页模型", Type: "chat", InputModalities: json.RawMessage(`["text"]`), ContextWindow: 1000, MaxOutputTokens: 100}
+	model := &testAIModel{ProviderID: provider.ID, Identifier: "test-model", Name: "分页模型", Type: "chat", InputModalities: json.RawMessage(`["text"]`), ContextWindow: 1000, MaxOutputTokens: 100}
 	insertAIModels(t, f.db, model)
 	agent, err := agentaction.NewCreateAgentAction(f.db).Execute(ctx, f.owner, agentaction.CreateInput{ServiceAudiences: []domain.ServiceAudience{domain.ServiceAudienceCustomer}, DisplayName: "分页助手", Execution: agentaction.ExecutionInput{Mode: domain.AgentExecutionModeManaged, Managed: &agentaction.ManagedExecutionInput{ModelID: model.ID, SystemInstruction: "测试分页"}}})
 	if err != nil {
@@ -108,7 +108,7 @@ func newInboxPaginationFixture(t *testing.T) inboxPaginationFixture {
 				t.Fatal(err)
 			}
 			if bucket == "closed" {
-				if _, err := servicesessionaction.NewCloseServiceSessionAction(f.db, agentrunaction.NewExecuteAction(f.db, nil, nil, testAttachmentReader(f.db), nil, nil), newTestTasks(f.db)).Execute(ctx, assignee, customerID); err != nil {
+				if _, err := servicesessionaction.NewCloseServiceSessionAction(f.db, agentrunaction.NewExecuteAction(f.db, nil, nil, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil), newTestTasks(f.db)).Execute(ctx, assignee, customerID); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -263,7 +263,7 @@ func TestInboxPaginationBoundaries(t *testing.T) {
 				t.Fatalf("empty tail=%+v err=%v", empty, err)
 			}
 			login := loginMember(t, f.db, f.owner.Organization.ID, f.member.Account.Email, "password123")
-			backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil)
+			backend := direct.New(f.db, direct.DeploymentConfig{}, nil, serverfilecontent.S3Config{}, nil, nil, nil, nil, nil, nil)
 			meta := appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Organization.ID}
 			for _, request := range []appservice.LoadInboxInput{
 				{Scope: appservice.InboxScopePending, Cursor: input.Cursor},

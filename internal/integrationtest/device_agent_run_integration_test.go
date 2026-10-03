@@ -25,6 +25,7 @@ import (
 	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
 	mcpserveraction "github.com/runforyou-ai/luway/internal/actions/mcpserver"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
@@ -69,7 +70,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 	}
 	fixture := &deviceRunFixture{
 		t: t, ctx: ctx, db: db, identity: identity, personalAgent: personalAgent, tasks: tasks,
-		executor:  agentrunaction.NewExecuteAction(db, tasks, nil, testAttachmentReader(db), nil, nil),
+		executor:  agentrunaction.NewExecuteAction(db, tasks, nil, testModelInvoker(db), testAttachmentReader(db), nil, nil),
 		sendFirst: directchataction.NewSendFirstAgentTextMessageAction(db, agentrunaction.NewScheduler(tasks)),
 		send:      directchataction.NewSendAgentTextMessageAction(db, agentrunaction.NewScheduler(tasks)),
 		device:    agentrunaction.RunDevice{OrganizationID: identity.Organization.ID, UserID: identity.User.ID, DeviceID: registered.ID},
@@ -157,7 +158,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		}
 		bindKnowledge([]string{base.ID})
 		defer bindKnowledge(nil)
-		executor := agentrunaction.NewExecuteAction(db, tasks, nil, testAttachmentReader(db), testDeviceKnowledge{}, nil)
+		executor := agentrunaction.NewExecuteAction(db, tasks, nil, testModelInvoker(db), testAttachmentReader(db), testDeviceKnowledge{}, nil)
 		conversationID := fixture.personalAgentChat()
 		sent, err := directchataction.NewSendAttachmentMessageAction(db, agentrunaction.NewScheduler(tasks)).Execute(ctx, identity, directchataction.AttachmentMessageInput{
 			ConversationID: conversationID, ClientMessageID: uuid.NewV7().String(), Body: "看看截图",
@@ -406,13 +407,13 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		if _, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunUnavailable) {
 			t.Fatalf("repeated claim=%v", err)
 		}
-		// 持有租约的设备取得配置版本锁定的模型服务，其他设备取不到。
-		upstream, err := fixture.executor.ResolveDeviceModelUpstream(ctx, fixture.device, run.ID)
-		if err != nil || upstream.Brand == "" || upstream.BaseURL == "" || upstream.Identifier == "" {
-			t.Fatalf("model upstream=%+v %v", upstream, err)
+		// 持有租约的设备取得配置版本锁定的模型组件工厂，其他设备取不到。
+		models, err := fixture.executor.DeviceRunModels(ctx, fixture.device, run.ID)
+		if err != nil || models == nil {
+			t.Fatalf("models=%v %v", models != nil, err)
 		}
-		if _, err := fixture.executor.ResolveDeviceModelUpstream(ctx, agentrunaction.RunDevice{OrganizationID: identity.Organization.ID, UserID: identity.User.ID, DeviceID: uuid.NewV7().String()}, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunNotFound) {
-			t.Fatalf("foreign device model upstream=%v", err)
+		if _, err := fixture.executor.DeviceRunModels(ctx, agentrunaction.RunDevice{OrganizationID: identity.Organization.ID, UserID: identity.User.ID, DeviceID: uuid.NewV7().String()}, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunNotFound) {
+			t.Fatalf("foreign device models=%v", err)
 		}
 		// 其他会话的运行不必等待，可以同时领取。
 		waiting := fixture.sendAndLoadRun(fixture.personalAgentChat(), "并行")
@@ -420,8 +421,8 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 			t.Fatalf("parallel claim=%v", err)
 		}
 		fixture.complete(run.ID, "本机回复")
-		if _, err := fixture.executor.ResolveDeviceModelUpstream(ctx, fixture.device, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunLeaseLost) {
-			t.Fatalf("model upstream after completion=%v", err)
+		if _, err := fixture.executor.DeviceRunModels(ctx, fixture.device, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunLeaseLost) {
+			t.Fatalf("models after completion=%v", err)
 		}
 		var message servermodels.Message
 		if err := db.NewSelect().Model(&message).Where("msg.idempotency_key = ?", "agent:"+run.ID).Scan(ctx); err != nil || message.Body != "本机回复" {
@@ -559,8 +560,8 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		if _, err := fixture.executor.RenewDeviceRunLease(ctx, fixture.device, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunLeaseLost) {
 			t.Fatalf("renew after deadline=%v", err)
 		}
-		if _, err := fixture.executor.ResolveDeviceModelUpstream(ctx, fixture.device, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunLeaseLost) {
-			t.Fatalf("model upstream after deadline=%v", err)
+		if _, err := fixture.executor.DeviceRunModels(ctx, fixture.device, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunLeaseLost) {
+			t.Fatalf("models after deadline=%v", err)
 		}
 		if err := fixture.executor.FailDeviceRun(ctx, fixture.device, run.ID, domain.AgentRunErrorCodeDeviceRunFailed, "context canceled", agentruntime.RunResult{Blocks: fixture.partialBlocks()}); err != nil {
 			t.Fatal(err)
@@ -664,7 +665,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		if _, execution, err := agentaction.NewGetPersonalAgentQuery(db).Execute(ctx, identity, personalAgent.ID); err != nil || execution.LocalAgent == nil || execution.LocalAgent.SystemInstruction != "整理周报。" || execution.Managed != nil {
 			t.Fatalf("execution=%+v %v", execution, err)
 		}
-		// 领取时有效配置指定本机 Agent，不含模型与应用工具，模型代理拒绝该运行。
+		// 领取时有效配置指定本机 Agent，不含模型与应用工具，模型网关拒绝该运行。
 		conversationID := fixture.personalAgentChat()
 		run := fixture.sendAndLoadRun(conversationID, "整理一下")
 		claim, err := fixture.executor.ClaimDeviceRun(ctx, fixture.device, run.ID)
@@ -673,11 +674,11 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 		}
 		var assignment agentruntime.Assignment
 		if err := json.Unmarshal(claim.Assignment, &assignment); err != nil || assignment.LocalAgent != domain.LocalAgentKindCodex || len(assignment.Tools) != 0 ||
-			assignment.Model.Identifier != "" || !strings.Contains(assignment.Instruction, "整理周报。") {
+			assignment.Model.ModelID != "" || !strings.Contains(assignment.Instruction, "整理周报。") {
 			t.Fatalf("assignment=%+v %v", assignment, err)
 		}
-		if _, err := fixture.executor.ResolveDeviceModelUpstream(ctx, fixture.device, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunUnavailable) {
-			t.Fatalf("model upstream for local agent=%v", err)
+		if _, err := fixture.executor.DeviceRunModels(ctx, fixture.device, run.ID); !errors.Is(err, agentrunaction.ErrDeviceRunUnavailable) {
+			t.Fatalf("models for local agent=%v", err)
 		}
 		fixture.complete(run.ID, "周报整理好了")
 		// 本机 Agent 未登录的失败原因随失败消息返回。
@@ -788,7 +789,7 @@ func testDeviceAgentRuns(t *testing.T, db *bun.DB, identity *servermodels.Identi
 type testDeviceKnowledge struct{}
 
 // Sources 按知识库编号构造检索来源。
-func (testDeviceKnowledge) Sources(_ context.Context, _ string, knowledgeBaseIDs []string) ([]knowledgeretrieval.Source, error) {
+func (testDeviceKnowledge) Sources(_ context.Context, _ modelcall.Scope, knowledgeBaseIDs []string) ([]knowledgeretrieval.Source, error) {
 	sources := make([]knowledgeretrieval.Source, 0, len(knowledgeBaseIDs))
 	for _, id := range knowledgeBaseIDs {
 		sources = append(sources, knowledgeretrieval.Source{ID: id, Name: "设备资料", Retrieve: func(_ context.Context, query string) ([]knowledgeretrieval.Record, error) {

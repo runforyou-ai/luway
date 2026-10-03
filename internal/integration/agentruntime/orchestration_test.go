@@ -64,12 +64,13 @@ func runOrchestration(t *testing.T, chatModel *orchestrationChatModel, request R
 	if err != nil {
 		t.Fatal(err)
 	}
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }, tools: []tool.BaseTool{echoTool}}
+	runtime := &EinoRuntime{tools: []tool.BaseTool{echoTool}}
 	feed := &testInputFeed{}
 	feed.appendUser("帮我把报价整理一下")
 	var mu sync.Mutex
 	var deltas []runstream.Delta
 	request.RunID = "orchestration-run"
+	request.Models = fixedModels(chatModel)
 	request.Assignment.AgentName = "小码"
 	request.Assignment.Scene = SceneAgentChat
 	request.Assignment.Tools = append(request.Assignment.Tools, planToolNames...)

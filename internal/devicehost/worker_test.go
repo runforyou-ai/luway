@@ -214,7 +214,7 @@ func (s *trackedStream) Close() error {
 	return s.PipeReader.Close()
 }
 
-// DeviceModelEndpoint 返回固定的模型代理入口。
+// DeviceModelEndpoint 返回固定的模型网关入口。
 func (c *stubRunClient) DeviceModelEndpoint(context.Context, appservice.RequestMeta, string) (string, http.RoundTripper, error) {
 	return "https://app.example.com/api/agent-runs/run/model", http.DefaultTransport, nil
 }

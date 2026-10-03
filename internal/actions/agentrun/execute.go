@@ -18,6 +18,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	websearchaction "github.com/runforyou-ai/luway/internal/actions/websearch"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -43,6 +44,7 @@ type ExecuteAction struct {
 	db           *bun.DB
 	enqueuer     servertask.TxEnqueuer
 	runtime      agentruntime.Runtime
+	invoker      *modelcall.Invoker
 	attachments  *AttachmentReader
 	knowledge    KnowledgeRetrieval
 	webSearch    websearchaction.Searcher
@@ -58,10 +60,6 @@ type ExecuteAction struct {
 type executionContext struct {
 	Run              servermodels.AgentRun         `bun:",embed"`
 	AgentName        string                        `bun:"agent_name"`
-	Brand            string                        `bun:"brand"`
-	APIKey           string                        `bun:"api_key"`
-	APIURL           string                        `bun:"api_url"`
-	ModelIdentifier  string                        `bun:"model_identifier"`
 	MaxOutputTokens  int64                         `bun:"max_output_tokens"`
 	ContextWindow    int64                         `bun:"context_window"`
 	InputModalities  []domain.AIModelInputModality `bun:"input_modalities,type:jsonb"`
@@ -75,9 +73,9 @@ type executionContext struct {
 }
 
 // NewExecuteAction 创建 Agent Worker Action，联网搜索与网页读取使用默认客户端；emailSender 为空表示部署未配置邮件发送。
-func NewExecuteAction(db *bun.DB, enqueuer servertask.TxEnqueuer, runtime agentruntime.Runtime, attachments *AttachmentReader, knowledge KnowledgeRetrieval, emailSender customernotify.Sender) *ExecuteAction {
+func NewExecuteAction(db *bun.DB, enqueuer servertask.TxEnqueuer, runtime agentruntime.Runtime, invoker *modelcall.Invoker, attachments *AttachmentReader, knowledge KnowledgeRetrieval, emailSender customernotify.Sender) *ExecuteAction {
 	return &ExecuteAction{
-		db: db, enqueuer: enqueuer, runtime: runtime, attachments: attachments, knowledge: knowledge,
+		db: db, enqueuer: enqueuer, runtime: runtime, invoker: invoker, attachments: attachments, knowledge: knowledge,
 		webSearch: websearch.NewClient(), webFetch: webfetch.NewClient(common.WebFetchUserAgent()), emailSender: emailSender,
 		runningRuns: make(map[string]*runningAgentRun), deviceTyping: make(map[string]*runTyping), deviceMCP: newDeviceMCPSessions(),
 	}
@@ -88,6 +86,7 @@ type runAssignment struct {
 	Execution      executionContext
 	Policy         agentRunPolicy
 	Assignment     agentruntime.Assignment
+	Models         agentruntime.ModelFactory
 	MCPConnections []agentruntime.MCPServer
 	Knowledge      agentruntime.KnowledgeSearch
 	WebSearch      agentruntime.WebSearch
@@ -153,7 +152,7 @@ func (a *ExecuteAction) assign(ctx context.Context, runID string) (runAssignment
 		return assigned, err
 	}
 	assigned.MCPConnections = shared.mcpServers
-	assigned.Knowledge, err = loadKnowledgeSearch(ctx, a.db, a.knowledge, execution.Run.OrganizationID, execution.KnowledgeBaseIDs)
+	assigned.Knowledge, err = loadKnowledgeSearch(ctx, a.db, a.knowledge, runScope(&execution.Run), execution.KnowledgeBaseIDs)
 	if err != nil {
 		return assigned, fmt.Errorf("load agent run knowledge bases: %w", err)
 	}
@@ -162,6 +161,9 @@ func (a *ExecuteAction) assign(ctx context.Context, runID string) (runAssignment
 	capabilities.CustomerHistory = historySessionID != ""
 	assigned.Assignment, err = a.resolveAssignment(ctx, execution, policy, capabilities)
 	if err != nil {
+		return assigned, err
+	}
+	if assigned.Models, err = a.runModels(ctx, &execution.Run, execution.ModelID); err != nil {
 		return assigned, err
 	}
 	// 联网搜索与网页读取按有效配置的工具清单提供。
@@ -213,11 +215,11 @@ func (a *ExecuteAction) loadRunCapabilities(ctx context.Context, run *servermode
 func (a *ExecuteAction) runAssigned(assigned runAssignment) (agentruntime.RunResult, error) {
 	execution, running := assigned.Execution, assigned.Running
 	feed := &databaseInputFeed{db: a.db, enqueuer: a.enqueuer, execution: execution, policy: assigned.Policy, attachments: a.attachments}
-	// 场景、依据策略、指令、模型参数与输入模态以有效配置为准，供应商凭据取当前配置。
+	// 场景、依据策略、指令、模型参数与输入模态以有效配置为准，模型来源取当前配置。
 	result, err := a.runtime.Run(assigned.RunCtx, agentruntime.RunRequest{
 		RunID:                 execution.Run.ID,
 		Assignment:            assigned.Assignment,
-		Credentials:           agentruntime.ModelCredentials{APIKey: execution.APIKey, BaseURL: execution.APIURL},
+		Models:                assigned.Models,
 		KnowledgeSearch:       assigned.Knowledge,
 		WebSearch:             assigned.WebSearch,
 		WebFetch:              assigned.WebFetch,
@@ -347,7 +349,7 @@ func (a *ExecuteAction) loadExecution(ctx context.Context, runID string) (execut
 		ColumnExpr("oi.display_name AS agent_name").
 		ColumnExpr("aim.input_modalities").
 		ColumnExpr("ar.configuration->'knowledgeBaseIds' AS knowledge_base_ids").
-		ColumnExpr("aim.id::text AS model_id, ? = ANY(a.service_audiences) AS handles_customers, o.name AS organization_name", domain.ServiceAudienceCustomer).
+		ColumnExpr("? = ANY(a.service_audiences) AS handles_customers, o.name AS organization_name", domain.ServiceAudienceCustomer).
 		Join("JOIN agents AS a ON a.identity_id = agr.agent_identity_id AND a.organization_id = agr.organization_id").
 		Join("JOIN organizations AS o ON o.id = agr.organization_id").
 		Apply(func(query *bun.SelectQuery) *bun.SelectQuery {
@@ -384,32 +386,50 @@ func withRunAgentConfiguration(query *bun.SelectQuery, revisionIDColumn string) 
 		ColumnExpr("ar.execution_mode, ar.configuration->>'kind' AS local_agent_kind")
 }
 
+// runScope 返回 AI 员工为该运行发起的模型调用归属。
+func runScope(run *servermodels.AgentRun) modelcall.Scope {
+	return modelcall.AgentScope(run.OrganizationID, run.AgentIdentityID, domain.AIModelCallSourceAgentRun, run.ID)
+}
+
+// runModels 按运行锁定配置版本的模型编号解析对话模型，返回把每次模型请求记为该运行调用的模型组件工厂；模型已不可用时返回永久错误。
+func (a *ExecuteAction) runModels(ctx context.Context, run *servermodels.AgentRun, modelID string) (agentruntime.ModelFactory, error) {
+	model, err := aimodel.Resolve(ctx, a.db, run.OrganizationID, modelID, domain.AIModelUsageAgent)
+	if errors.Is(err, aimodel.ErrUnavailable) {
+		return nil, servertask.Permanent(fmt.Errorf("resolve agent run model: %w", err))
+	}
+	if err != nil {
+		return nil, fmt.Errorf("resolve agent run model: %w", err)
+	}
+	return a.invoker.ChatModels(runScope(run), model), nil
+}
+
 // agentConfigurationColumns 为已关联配置版本与模型的查询补充模型和系统指令列。
 func agentConfigurationColumns(query *bun.SelectQuery) *bun.SelectQuery {
 	return query.
-		ColumnExpr("aip.brand AS brand, aip.api_key AS api_key, aip.api_url AS api_url").
-		ColumnExpr("aim.identifier AS model_identifier").
-		ColumnExpr("aim.max_output_tokens AS max_output_tokens, aim.context_window AS context_window").
+		ColumnExpr("aim.id::text AS model_id, aim.max_output_tokens AS max_output_tokens, aim.context_window AS context_window").
 		ColumnExpr("ar.configuration->>'systemInstruction' AS instruction")
 }
 
 // managedAgentModel 定义 AI 员工当前托管配置中的对话模型和系统指令。
 type managedAgentModel struct {
-	Brand           string `bun:"brand"`
-	APIKey          string `bun:"api_key"`
-	APIURL          string `bun:"api_url"`
-	ModelIdentifier string `bun:"model_identifier"`
+	ModelID         string `bun:"model_id"`
 	MaxOutputTokens int64  `bun:"max_output_tokens"`
 	ContextWindow   int64  `bun:"context_window"`
 	Instruction     string `bun:"instruction"`
 }
 
-// modelConfig 把托管对话模型转换为模型调用配置。
-func (m managedAgentModel) modelConfig() agentruntime.ModelConfig {
-	return agentruntime.ModelConfig{
-		Brand: m.Brand, APIKey: m.APIKey, BaseURL: m.APIURL,
-		Identifier: m.ModelIdentifier, MaxOutputTokens: int(m.MaxOutputTokens), ContextWindow: int(m.ContextWindow),
+// modelConfig 解析托管对话模型，返回经统一调用入口按 scope 记录调用的模型参数；模型已不可用时返回 aimodel.ErrUnavailable。
+func (m managedAgentModel) modelConfig(ctx context.Context, db bun.IDB, invoker *modelcall.Invoker, scope modelcall.Scope) (agentruntime.ModelConfig, error) {
+	return agentModelConfig(ctx, db, invoker, scope, m.ModelID)
+}
+
+// agentModelConfig 解析 AI 员工对话模型，返回经统一调用入口按 scope 记录调用的模型参数；模型已不可用时返回 aimodel.ErrUnavailable。
+func agentModelConfig(ctx context.Context, db bun.IDB, invoker *modelcall.Invoker, scope modelcall.Scope, modelID string) (agentruntime.ModelConfig, error) {
+	model, err := aimodel.Resolve(ctx, db, scope.OrganizationID, modelID, domain.AIModelUsageAgent)
+	if err != nil {
+		return agentruntime.ModelConfig{}, err
 	}
+	return invoker.ModelConfig(scope, model), nil
 }
 
 // joinAgentConfiguration 为已关联 agents AS a 的查询关联身份、指定配置版本与对话模型，保留有效的托管对话模型配置；includeLocalAgent 为 true 时同时保留本机 Agent 执行的配置，其模型关联为空。
@@ -420,9 +440,9 @@ func joinAgentConfiguration(query *bun.SelectQuery, revisionIDColumn string, inc
 		Where("ar.schema_version = 1")
 	query = aimodel.Join(query, "ar.model_id", "a.organization_id", domain.AIModelUsageAgent)
 	if includeLocalAgent {
-		return query.Where("(ar.execution_mode = ? AND aip.id IS NOT NULL) OR ar.execution_mode = ?", domain.AgentExecutionModeManaged, domain.AgentExecutionModeLocalAgent)
+		return query.Where("(ar.execution_mode = ? AND aim.id IS NOT NULL) OR ar.execution_mode = ?", domain.AgentExecutionModeManaged, domain.AgentExecutionModeLocalAgent)
 	}
-	return query.Where("ar.execution_mode = ? AND aip.id IS NOT NULL", domain.AgentExecutionModeManaged)
+	return query.Where("ar.execution_mode = ? AND aim.id IS NOT NULL", domain.AgentExecutionModeManaged)
 }
 
 // agentRunStatusTerminal 判断 Agent Run 是否已经进入不可覆盖的终态。

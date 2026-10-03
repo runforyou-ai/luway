@@ -81,10 +81,7 @@ func TestRuntimeCallsMCPTools(t *testing.T) {
 		t.Fatal(err)
 	}
 	chatModel := &mcpToolChatModel{}
-	runtime := &EinoRuntime{
-		newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil },
-		tools:    []tool.BaseTool{echoTool},
-	}
+	runtime := &EinoRuntime{tools: []tool.BaseTool{echoTool}}
 	feed := &testInputFeed{}
 	feed.appendUser("T-9 处理好了吗")
 	unavailable := MCPServer{Source: MCPSourceOrganization, ID: "offline", Name: "离线服务",
@@ -93,7 +90,7 @@ func TestRuntimeCallsMCPTools(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, err := runtime.Run(ctx, RunRequest{
-		RunID: "mcp-run", Assignment: Assignment{AgentName: "test-agent"}, MaxTurns: 2,
+		RunID: "mcp-run", Assignment: Assignment{AgentName: "test-agent"}, Models: fixedModels(chatModel), MaxTurns: 2,
 		MCPConnections: []MCPServer{unavailable, newMCPTestServer(t)},
 	}, feed)
 	if err != nil {
@@ -194,13 +191,13 @@ func TestLargeToolResultOffloaded(t *testing.T) {
 	t.Cleanup(func() { slog.SetDefault(originalLogger) })
 
 	chatModel := &offloadReadingChatModel{}
-	runtime := &EinoRuntime{newModel: func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }}
+	runtime := &EinoRuntime{}
 	feed := &testInputFeed{}
 	feed.appendUser("抓一下这个页面")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	result, err := runtime.Run(ctx, RunRequest{
-		RunID: "offload-run", Assignment: Assignment{AgentName: "test-agent"}, MaxIterations: 5, MaxTurns: 2,
+		RunID: "offload-run", Assignment: Assignment{AgentName: "test-agent"}, Models: fixedModels(chatModel), MaxIterations: 5, MaxTurns: 2,
 		MCPConnections: []MCPServer{{Source: MCPSourceLocal, ID: "dump", Name: "dump",
 			Config: mcp.Config{URL: endpoint.URL, ServerType: domain.MCPServerTypeStreamableHTTP}}},
 	}, feed)

@@ -149,11 +149,10 @@ func TestRunRecordsToolCorrection(t *testing.T) {
 			return withReasoning(assistantReply("最终结果为 12"), "两个步骤均已完成"), nil
 		}
 	}}
-	runtime.newModel = func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }
 	feed := &testInputFeed{}
 	feed.appendUser("开始计算")
 	var deltas []runstream.Delta
-	result, err := runtime.Run(context.Background(), RunRequest{RunID: "run", Assignment: Assignment{AgentName: "test"}, StreamID: "stream", Attempt: 2, OnStream: func(delta runstream.Delta) {
+	result, err := runtime.Run(context.Background(), RunRequest{RunID: "run", Assignment: Assignment{AgentName: "test"}, Models: fixedModels(chatModel), StreamID: "stream", Attempt: 2, OnStream: func(delta runstream.Delta) {
 		deltas = append(deltas, delta)
 	}}, feed)
 	if err != nil {
@@ -250,10 +249,9 @@ func TestRunStreamsModelChunks(t *testing.T) {
 		writer.Send(chunk(schema.NewContentBlockChunk(&schema.FunctionToolCall{CallID: "add", Name: "echo", Arguments: `{"text":`}, &schema.StreamingMeta{Index: 2})), nil)
 		writer.Send(chunk(schema.NewContentBlockChunk(&schema.FunctionToolCall{Arguments: `"3"}`}, &schema.StreamingMeta{Index: 2})), nil)
 	}}
-	runtime.newModel = func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }
 	feed := &testInputFeed{}
 	feed.appendUser("1 加 2")
-	result, err := runtime.Run(ctx, RunRequest{RunID: "run", Assignment: Assignment{AgentName: "test"}, StreamID: "stream", OnStream: func(delta runstream.Delta) {
+	result, err := runtime.Run(ctx, RunRequest{RunID: "run", Assignment: Assignment{AgentName: "test"}, Models: fixedModels(chatModel), StreamID: "stream", OnStream: func(delta runstream.Delta) {
 		mu.Lock()
 		defer mu.Unlock()
 		if applied, err := snapshot.Apply(delta); !applied || err != nil {
@@ -302,10 +300,9 @@ func TestRunCancellationKeepsPartialProcess(t *testing.T) {
 		modelCalls++
 		return assistantReply("准备计算", &schema.FunctionToolCall{CallID: "slow", Name: "echo", Arguments: `{"text":"3","delayMilliseconds":1000}`}), nil
 	}}
-	runtime.newModel = func(context.Context, ModelConfig) (model.AgenticModel, error) { return chatModel, nil }
 	feed := &testInputFeed{}
 	feed.appendUser("计算")
-	result, err := runtime.Run(ctx, RunRequest{Assignment: Assignment{AgentName: "test"}, OnStream: func(delta runstream.Delta) {
+	result, err := runtime.Run(ctx, RunRequest{Assignment: Assignment{AgentName: "test"}, Models: fixedModels(chatModel), OnStream: func(delta runstream.Delta) {
 		for _, operation := range delta.Operations {
 			if operation.Block != nil && operation.Block.ToolCall != nil && operation.Block.ToolCall.Status == domain.AgentToolCallRunning {
 				cancel()

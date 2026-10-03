@@ -707,7 +707,7 @@ func testAgentRunNotifications(t *testing.T, db *bun.DB, identity *servermodels.
 		runningVersion = loadConversationVersion(t, db, failing.ConversationID)
 		return agentruntime.RunResult{}, errors.New("test model failure")
 	}}
-	if err := agentrunaction.NewExecuteAction(db, tasks, failRuntime, testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: failing.ID}); err == nil {
+	if err := agentrunaction.NewExecuteAction(db, tasks, failRuntime, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: failing.ID}); err == nil {
 		t.Fatal("model failure was not reported")
 	}
 	feed.expect(t,
@@ -729,7 +729,7 @@ func testAgentRunNotifications(t *testing.T, db *bun.DB, identity *servermodels.
 		}
 		return agentruntime.RunResult{Content: "恢复后完成", EndSeq: claimed.EndSeq}, nil
 	}}
-	if err := agentrunaction.NewExecuteAction(db, tasks, successRuntime, testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: recovering.ID}); err != nil {
+	if err := agentrunaction.NewExecuteAction(db, tasks, successRuntime, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: recovering.ID}); err != nil {
 		t.Fatal(err)
 	}
 	after := loadConversationVersion(t, db, recovering.ConversationID)
@@ -985,7 +985,7 @@ func testCustomerAgentRunNotifications(t *testing.T, db *bun.DB, identity *serve
 		runningVersion = loadConversationVersion(t, db, first.Conversation.ID)
 		return agentruntime.RunResult{Content: "AI 最终回复", EndSeq: claimed.EndSeq}, nil
 	}}
-	if err := agentrunaction.NewExecuteAction(db, tasks, runtime, testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
+	if err := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}); err != nil {
 		t.Fatal(err)
 	}
 	finalVersion := loadConversationVersion(t, db, first.Conversation.ID)

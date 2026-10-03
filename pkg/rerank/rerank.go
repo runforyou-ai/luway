@@ -51,6 +51,12 @@ type Error struct {
 // Error 返回语言无关的失败原因。
 func (e *Error) Error() string { return "rerank: " + e.Code }
 
+// Result 定义一次重排的得分与 Token 用量。
+type Result struct {
+	Scores      []Score
+	InputTokens int // 响应中 usage.total_tokens，接口未返回用量时为 0。
+}
+
 // Client 通过重排接口打分。
 type Client struct{ http *http.Client }
 
@@ -60,10 +66,10 @@ func NewClient() *Client {
 }
 
 // Rerank 按接口格式提交查询与候选文本，返回候选下标与相关性得分；接口没有返回任何得分时视为失败。
-func (c *Client) Rerank(ctx context.Context, credential Credential, model, query string, documents []string, topN int) ([]Score, error) {
+func (c *Client) Rerank(ctx context.Context, credential Credential, model, query string, documents []string, topN int) (Result, error) {
 	endpoint, err := Endpoint(credential.Protocol, credential.BaseURL)
 	if err != nil {
-		return nil, &Error{Code: "rerank_model_unavailable"}
+		return Result{}, &Error{Code: "rerank_model_unavailable"}
 	}
 	// 按接口格式组织请求体。
 	var payload any
@@ -78,11 +84,11 @@ func (c *Client) Rerank(ctx context.Context, credential Credential, model, query
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return nil, err
+		return Result{}, err
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return nil, &Error{Code: "rerank_model_unavailable"}
+		return Result{}, &Error{Code: "rerank_model_unavailable"}
 	}
 	request.Header.Set("Content-Type", "application/json")
 	// 无凭据的自建或本机服务不携带鉴权头。
@@ -93,16 +99,16 @@ func (c *Client) Rerank(ctx context.Context, credential Credential, model, query
 	if err != nil {
 		var netErr net.Error
 		if errors.As(err, &netErr) && netErr.Timeout() {
-			return nil, &Error{Code: "rerank_timeout"}
+			return Result{}, &Error{Code: "rerank_timeout"}
 		}
-		return nil, &Error{Code: "rerank_model_unavailable"}
+		return Result{}, &Error{Code: "rerank_model_unavailable"}
 	}
 	defer response.Body.Close()
 	if response.StatusCode == http.StatusUnauthorized || response.StatusCode == http.StatusForbidden {
-		return nil, &Error{Code: "rerank_model_unavailable"}
+		return Result{}, &Error{Code: "rerank_model_unavailable"}
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return nil, &Error{Code: "rerank_failed"}
+		return Result{}, &Error{Code: "rerank_failed"}
 	}
 	var decoded struct {
 		Results []struct {
@@ -115,25 +121,28 @@ func (c *Client) Rerank(ctx context.Context, credential Credential, model, query
 				RelevanceScore float64 `json:"relevance_score"`
 			} `json:"results"`
 		} `json:"output"`
+		Usage struct {
+			TotalTokens int `json:"total_tokens"`
+		} `json:"usage"`
 	}
 	if err := json.NewDecoder(io.LimitReader(response.Body, maxResponseBytes)).Decode(&decoded); err != nil {
-		return nil, &Error{Code: "rerank_failed"}
+		return Result{}, &Error{Code: "rerank_failed"}
 	}
 	results := decoded.Results
 	if credential.Protocol == ProtocolDashScope {
 		results = decoded.Output.Results
 	}
 	if len(results) == 0 {
-		return nil, &Error{Code: "rerank_failed"}
+		return Result{}, &Error{Code: "rerank_failed"}
 	}
 	scores := make([]Score, 0, len(results))
 	for _, item := range results {
 		if item.Index < 0 || item.Index >= len(documents) {
-			return nil, &Error{Code: "rerank_failed"}
+			return Result{}, &Error{Code: "rerank_failed"}
 		}
 		scores = append(scores, Score{Index: item.Index, Relevance: item.RelevanceScore})
 	}
-	return scores, nil
+	return Result{Scores: scores, InputTokens: decoded.Usage.TotalTokens}, nil
 }
 
 // Endpoint 按接口格式改写接口地址的路径后返回重排接口地址。

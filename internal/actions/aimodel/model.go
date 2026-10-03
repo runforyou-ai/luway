@@ -1,6 +1,6 @@
 //go:build server
 
-// Package aimodel 按模型编号解析、锁定、列出和检查业务引用的 AI 模型。
+// Package aimodel 按模型编号解析、锁定、列出和检查业务引用的 AI 模型及其调用来源。
 package aimodel
 
 import (
@@ -11,33 +11,38 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
 	"github.com/uptrace/bun"
 )
 
-// ErrUnavailable 表示模型不存在、不属于当前工作区或不满足用途要求。
+// ErrUnavailable 表示模型不存在、不属于当前工作区、不满足用途要求或没有可用来源。
 var ErrUnavailable = errors.New("AI model unavailable")
 
-// Model 定义解析后的模型及其供应商连接参数。
+// Model 定义解析后的模型、解析时的用途与按尝试顺序排列的可用来源。
 type Model struct {
 	ID              string                        `bun:"id"`
-	Identifier      string                        `bun:"identifier"`
 	Name            string                        `bun:"name"`
 	Type            domain.AIModelType            `bun:"model_type"`
 	InputModalities []domain.AIModelInputModality `bun:"input_modalities,type:jsonb"`
 	ContextWindow   int64                         `bun:"context_window"`
 	MaxOutputTokens int64                         `bun:"max_output_tokens"`
-	ProviderID      string                        `bun:"provider_id"`
-	ProviderName    string                        `bun:"provider_name"`
-	Brand           domain.AIProviderBrand        `bun:"brand"`
-	APIKey          string                        `bun:"api_key"`
-	APIURL          string                        `bun:"api_url"`
+	Usage           domain.AIModelUsage           `bun:"-"`
+	Routes          []Route                       `bun:"-"`
 }
 
-// Option 定义模型选择器展示的模型，不含供应商凭据。
+// Route 定义模型的一个可用来源：供应商连接参数与该来源的上游模型标识。
+type Route struct {
+	ID           string                 `bun:"id"`
+	Identifier   string                 `bun:"identifier"`
+	ProviderID   string                 `bun:"provider_id"`
+	ProviderName string                 `bun:"provider_name"`
+	Brand        domain.AIProviderBrand `bun:"brand"`
+	APIKey       string                 `bun:"api_key"`
+	APIURL       string                 `bun:"api_url"`
+}
+
+// Option 定义模型选择器展示的模型及其首选来源的供应商，不含凭据。
 type Option struct {
 	ID              string                        `bun:"id"`
-	Identifier      string                        `bun:"identifier"`
 	Name            string                        `bun:"name"`
 	Type            domain.AIModelType            `bun:"model_type"`
 	InputModalities []domain.AIModelInputModality `bun:"input_modalities,type:jsonb"`
@@ -46,41 +51,61 @@ type Option struct {
 	Brand           domain.AIProviderBrand        `bun:"brand"`
 }
 
-// Join 为查询关联 ai_models AS aim 与 ai_providers AS aip：模型编号取 modelIDExpr，供应商须属于 organizationIDExpr 指定的工作区且模型满足用途要求，不满足时两表列为空。
+// Join 为查询关联 ai_models AS aim：模型编号取 modelIDExpr，模型须属于 organizationIDExpr 指定的工作区、满足用途要求且至少有一个已启用来源，不满足时 aim 列为空。
 func Join(query *bun.SelectQuery, modelIDExpr, organizationIDExpr string, usage domain.AIModelUsage) *bun.SelectQuery {
 	requirement := mustRequirement(usage)
-	return query.
-		Join("LEFT JOIN ai_models AS aim ON aim.id = "+modelIDExpr+" AND aim.model_type = ? AND (? OR aim.input_modalities @> ?::jsonb)",
-			requirement.Type, !requirement.RequiresText, `["text"]`).
-		Join("LEFT JOIN ai_providers AS aip ON aip.id = aim.provider_id AND aip.organization_id = " + organizationIDExpr)
+	return query.Join("LEFT JOIN ai_models AS aim ON aim.id = "+modelIDExpr+" AND aim.organization_id = "+organizationIDExpr+
+		" AND aim.model_type = ? AND (? OR aim.input_modalities @> ?::jsonb)"+
+		" AND EXISTS (SELECT 1 FROM ai_model_routes AS amr WHERE amr.model_id = aim.id AND amr.enabled)",
+		requirement.Type, !requirement.RequiresText, `["text"]`)
 }
 
-// Resolve 读取工作区中满足用途要求的模型及其连接参数，不可用时返回 ErrUnavailable。
+// Resolve 读取工作区中满足用途要求的模型及其可用来源，不可用时返回 ErrUnavailable。
 func Resolve(ctx context.Context, db bun.IDB, organizationID, modelID string, usage domain.AIModelUsage) (*Model, error) {
 	return load(ctx, db, organizationID, modelID, usage, false)
 }
 
-// Lock 在事务中校验模型满足用途要求，并以 KEY SHARE 锁定模型与供应商直至事务结束，不可用时返回 ErrUnavailable。
+// Lock 在事务中校验模型满足用途要求，并以 KEY SHARE 锁定模型、可用来源与来源供应商直至事务结束，不可用时返回 ErrUnavailable。
 func Lock(ctx context.Context, tx bun.Tx, organizationID, modelID string, usage domain.AIModelUsage) (*Model, error) {
 	return load(ctx, tx, organizationID, modelID, usage, true)
 }
 
-// load 读取并按需锁定单个可用模型。
+// load 读取并按需锁定单个可用模型及其来源。
 func load(ctx context.Context, db bun.IDB, organizationID, modelID string, usage domain.AIModelUsage, lock bool) (*Model, error) {
 	if !common.ValidUUID(modelID) {
 		return nil, ErrUnavailable
 	}
-	model := &Model{}
-	query := modelQuery(db, organizationID, usage).
-		ColumnExpr("aim.context_window, aim.max_output_tokens, aip.api_key, aip.api_url").
-		Where("aim.id = ?", modelID)
+	requirement := mustRequirement(usage)
+	model := &Model{Usage: usage}
+	query := db.NewSelect().TableExpr("ai_models AS aim").
+		ColumnExpr("aim.id::text AS id, aim.name, aim.model_type, aim.input_modalities, aim.context_window, aim.max_output_tokens").
+		Where("aim.id = ?", modelID).
+		Where("aim.organization_id = ?", organizationID).
+		Where("aim.model_type = ?", requirement.Type).
+		Where("? OR aim.input_modalities @> ?::jsonb", !requirement.RequiresText, `["text"]`)
 	if lock {
-		query = query.For("KEY SHARE OF aim, aip")
+		query = query.For("KEY SHARE")
 	}
 	if err := query.Scan(ctx, model); errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUnavailable
 	} else if err != nil {
 		return nil, fmt.Errorf("load AI model %q: %w", modelID, err)
+	}
+	routes := db.NewSelect().TableExpr("ai_model_routes AS amr").
+		ColumnExpr("amr.id::text AS id, amr.identifier").
+		ColumnExpr("aip.id::text AS provider_id, aip.name AS provider_name, aip.brand, aip.api_key, aip.api_url").
+		Join("JOIN ai_providers AS aip ON aip.id = amr.provider_id").
+		Where("amr.model_id = ?", modelID).
+		Where("amr.enabled").
+		OrderExpr("amr.priority ASC, amr.id ASC")
+	if lock {
+		routes = routes.For("KEY SHARE OF amr, aip")
+	}
+	if err := routes.Scan(ctx, &model.Routes); err != nil {
+		return nil, fmt.Errorf("load AI model %q routes: %w", modelID, err)
+	}
+	if len(model.Routes) == 0 {
+		return nil, ErrUnavailable
 	}
 	return model, nil
 }
@@ -89,7 +114,7 @@ func load(ctx context.Context, db bun.IDB, organizationID, modelID string, usage
 func LoadOptions(ctx context.Context, db bun.IDB, organizationID string, modelIDs []string, usage domain.AIModelUsage) (map[string]Option, error) {
 	options := make([]Option, 0, len(modelIDs))
 	if len(modelIDs) > 0 {
-		if err := modelQuery(db, organizationID, usage).Where("aim.id IN (?)", bun.In(modelIDs)).Scan(ctx, &options); err != nil {
+		if err := optionQuery(db, organizationID, usage).Where("aim.id IN (?)", bun.In(modelIDs)).Scan(ctx, &options); err != nil {
 			return nil, fmt.Errorf("load AI model options: %w", err)
 		}
 	}
@@ -100,14 +125,19 @@ func LoadOptions(ctx context.Context, db bun.IDB, organizationID string, modelID
 	return result, nil
 }
 
-// modelQuery 构造工作区中满足用途要求的模型查询，包含展示列。
-func modelQuery(db bun.IDB, organizationID string, usage domain.AIModelUsage) *bun.SelectQuery {
+// optionQuery 构造工作区中满足用途要求且有可用来源的模型展示查询，供应商取首选来源 route AS aip。
+func optionQuery(db bun.IDB, organizationID string, usage domain.AIModelUsage) *bun.SelectQuery {
 	requirement := mustRequirement(usage)
 	return db.NewSelect().TableExpr("ai_models AS aim").
-		ColumnExpr("aim.id::text AS id, aim.identifier, aim.name, aim.model_type, aim.input_modalities").
+		ColumnExpr("aim.id::text AS id, aim.name, aim.model_type, aim.input_modalities").
 		ColumnExpr("aip.id::text AS provider_id, aip.name AS provider_name, aip.brand").
-		Join("JOIN ai_providers AS aip ON aip.id = aim.provider_id").
-		Where("aip.organization_id = ?", organizationID).
+		Join(`JOIN LATERAL (
+	SELECT provider.id, provider.name, provider.brand FROM ai_model_routes AS amr
+	JOIN ai_providers AS provider ON provider.id = amr.provider_id
+	WHERE amr.model_id = aim.id AND amr.enabled
+	ORDER BY amr.priority ASC, amr.id ASC LIMIT 1
+) AS aip ON true`).
+		Where("aim.organization_id = ?", organizationID).
 		Where("aim.model_type = ?", requirement.Type).
 		Where("? OR aim.input_modalities @> ?::jsonb", !requirement.RequiresText, `["text"]`)
 }
@@ -121,18 +151,11 @@ func mustRequirement(usage domain.AIModelUsage) domain.AIModelRequirement {
 	return requirement
 }
 
-// ModelConfig 把模型转换为单次模型调用配置。
-func (m *Model) ModelConfig() agentruntime.ModelConfig {
-	return agentruntime.ModelConfig{
-		Brand: string(m.Brand), APIKey: m.APIKey, BaseURL: m.APIURL, Identifier: m.Identifier,
-		MaxOutputTokens: int(m.MaxOutputTokens), ContextWindow: int(m.ContextWindow),
-	}
-}
-
-// Option 返回模型的展示信息。
+// Option 返回模型的展示信息，供应商取首选来源。
 func (m *Model) Option() Option {
+	route := m.Routes[0]
 	return Option{
-		ID: m.ID, Identifier: m.Identifier, Name: m.Name, Type: m.Type, InputModalities: m.InputModalities,
-		ProviderID: m.ProviderID, ProviderName: m.ProviderName, Brand: m.Brand,
+		ID: m.ID, Name: m.Name, Type: m.Type, InputModalities: m.InputModalities,
+		ProviderID: route.ProviderID, ProviderName: route.ProviderName, Brand: route.Brand,
 	}
 }

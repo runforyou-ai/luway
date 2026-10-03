@@ -61,7 +61,7 @@ func newExecutionScopeFixture(t *testing.T) executionScopeFixture {
 		t.Fatalf("注册任务失败：%v", err)
 	}
 	scheduler := agentrunaction.NewScheduler(tasks)
-	coordinator := agentrunaction.NewExecuteAction(f.db, tasks, nil, testAttachmentReader(f.db), nil, nil)
+	coordinator := agentrunaction.NewExecuteAction(f.db, tasks, nil, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil)
 	return executionScopeFixture{
 		customerReadFixture: f, agentIdentityID: agent.IdentityID, tasks: tasks, scheduler: scheduler, coordinator: coordinator,
 		transfer: servicesessionaction.NewTransferServiceSessionAction(f.db, coordinator, scheduler, newTestTasks(f.db)),
@@ -312,7 +312,7 @@ func TestAgentExecutionScopeKeepsSuppressedProcess(t *testing.T) {
 		}
 		return partial, err
 	}}
-	executor := agentrunaction.NewExecuteAction(f.db, f.tasks, runtime, testAttachmentReader(f.db), nil, nil)
+	executor := agentrunaction.NewExecuteAction(f.db, f.tasks, runtime, testModelInvoker(f.db), testAttachmentReader(f.db), nil, nil)
 	finished := make(chan error, 1)
 	go func() { finished <- executor.Execute(ctx, agentrunaction.RunInput{RunID: run.ID}) }()
 	<-claimed

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -61,7 +62,7 @@ func TestKnowledgeQAIndexLifecycle(t *testing.T) {
 	tasks := newKnowledgeTasks(t, db)
 	save := knowledgeaction.NewSaveQAEntryAction(db, tasks)
 	probe := &processingProbe{}
-	worker := knowledgeaction.NewProcessQAEntryAction(db, probe)
+	worker := knowledgeaction.NewProcessQAEntryAction(db, modelcall.New(db, modelcall.Upstreams{Embedder: probe}))
 	answer := strings.Repeat("进入订单详情，点击申请退款，审核通过后原路退回。", 40)
 	created, err := save.Execute(ctx, identity, base.ID, "", knowledgeaction.QAInput{Question: "如何退款？", Answer: answer, SimilarQuestions: []knowledgeaction.QASimilarQuestion{{Content: "退款入口"}, {Content: "怎么申请退款"}}})
 	if err != nil {
