@@ -23,6 +23,8 @@ const settings = {
     modelServices: "Model services",
     webSearch: "Web search",
     platformOverview: "Platform overview",
+    platformUsage: "Business usage",
+    platformRuntime: "Runtime status",
     platformLicense: "License",
     platformAccounts: "All accounts",
     platformWorkspaces: "All workspaces",

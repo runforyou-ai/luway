@@ -674,7 +674,7 @@ func (s *Service) AcceptInvitation(ctx context.Context, meta RequestMeta, input 
 	return WithNormalizedSlices(s.backend.AcceptInvitation(ctx, meta, input))
 }
 
-// GetPlatformOverview 返回服务器标识、服务端版本、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
 func (s *Service) GetPlatformOverview(ctx context.Context, meta RequestMeta) (PlatformOverview, error) {
 	return WithNormalizedSlices(s.backend.GetPlatformOverview(ctx, meta))
 }
@@ -757,6 +757,26 @@ func (s *Service) SuspendPlatformWorkspace(ctx context.Context, meta RequestMeta
 // ResumePlatformWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 func (s *Service) ResumePlatformWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (PlatformWorkspace, error) {
 	return WithNormalizedSlices(s.backend.ResumePlatformWorkspace(ctx, meta, workspaceID))
+}
+
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+func (s *Service) GetPlatformUsage(ctx context.Context, meta RequestMeta, input PlatformUsageInput) (PlatformUsageMetrics, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformUsage(ctx, meta, input))
+}
+
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (s *Service) ListPlatformWorkspaceUsage(ctx context.Context, meta RequestMeta, input PlatformWorkspaceUsageListInput) (PlatformWorkspaceUsageList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformWorkspaceUsage(ctx, meta, input))
+}
+
+// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (s *Service) GetPlatformRuntimeStatus(ctx context.Context, meta RequestMeta) (PlatformRuntimeStatus, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformRuntimeStatus(ctx, meta))
+}
+
+// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (s *Service) ListPlatformFailedTasks(ctx context.Context, meta RequestMeta, input PlatformFailedTaskListInput) (PlatformFailedTaskList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformFailedTasks(ctx, meta, input))
 }
 
 // ListPlatformAIProviders 返回平台供应商。

@@ -1,4 +1,4 @@
-/** 平台设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，统计时区，服务器标识、运行指标上报开关、版本、安装时间和工作区上限。 */
+/** 平台设置的概览页：账号、工作区与活跃规模，近 30 天每日活跃趋势，统计时区，服务器标识、运行指标上报开关、安装时间和工作区上限。 */
 import { useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -132,11 +132,7 @@ export function PlatformOverviewPage() {
                   <FieldDescription>{t("overview.serverIdHelp")}</FieldDescription>
                 </Field>
                 <TelemetryField settings={settings.data} />
-                <div className="grid gap-6 sm:grid-cols-3">
-                  <Field>
-                    <FieldLabel htmlFor="platform-version">{t("overview.version")}</FieldLabel>
-                    <Input id="platform-version" value={data.version} readOnly className="text-muted-foreground" />
-                  </Field>
+                <div className="grid gap-6 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="platform-installed-at">{t("overview.installedAt")}</FieldLabel>
                     <Input id="platform-installed-at" value={formatDateTime(data.installedAt)} readOnly className="text-muted-foreground" />

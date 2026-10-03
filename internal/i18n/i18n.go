@@ -174,6 +174,8 @@ const (
 	ErrorPlatformWorkspaceNotFound               Key = "error.platform_workspace_not_found"
 	ErrorPlatformWorkspaceHasAdmin               Key = "error.platform_workspace_has_admin"
 	ErrorPlatformWorkspaceUpdateFailed           Key = "error.platform_workspace_update_failed"
+	ErrorPlatformUsageFailed                     Key = "error.platform_usage_failed"
+	ErrorPlatformRuntimeFailed                   Key = "error.platform_runtime_failed"
 	ErrorChannelNotFound                         Key = "error.channel_not_found"
 	ErrorChannelListFailed                       Key = "error.channel_list_failed"
 	ErrorChannelReadFailed                       Key = "error.channel_read_failed"

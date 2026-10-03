@@ -1350,7 +1350,7 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return b.ops.AcceptInvitation(ctx, meta, account, input)
 }
 
-// GetPlatformOverview 返回服务器标识、服务端版本、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
 func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformOverview, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1518,6 +1518,46 @@ func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.R
 		return zero, err
 	}
 	return b.ops.ResumePlatformWorkspace(ctx, meta, account, workspaceID)
+}
+
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformUsageMetrics
+		return zero, err
+	}
+	return b.ops.GetPlatformUsage(ctx, meta, account, input)
+}
+
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceUsageListInput) (appservice.PlatformWorkspaceUsageList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformWorkspaceUsageList
+		return zero, err
+	}
+	return b.ops.ListPlatformWorkspaceUsage(ctx, meta, account, input)
+}
+
+// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformRuntimeStatus, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformRuntimeStatus
+		return zero, err
+	}
+	return b.ops.GetPlatformRuntimeStatus(ctx, meta, account)
+}
+
+// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformFailedTaskListInput) (appservice.PlatformFailedTaskList, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.PlatformFailedTaskList
+		return zero, err
+	}
+	return b.ops.ListPlatformFailedTasks(ctx, meta, account, input)
 }
 
 // ListPlatformAIProviders 返回平台供应商。

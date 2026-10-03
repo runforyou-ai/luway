@@ -40,6 +40,8 @@ const (
 	ValidationStatisticsTimeZoneInvalid      common.FieldCode = "PLATFORM_STATISTICS_TIME_ZONE_INVALID"
 	ValidationWorkspaceSortInvalid           common.FieldCode = "PLATFORM_WORKSPACE_SORT_INVALID"
 	ValidationWorkspaceStatusInvalid         common.FieldCode = "PLATFORM_WORKSPACE_STATUS_INVALID"
+	ValidationUsageSortInvalid               common.FieldCode = "PLATFORM_USAGE_SORT_INVALID"
+	ValidationUsageDaysInvalid               common.FieldCode = "PLATFORM_USAGE_DAYS_INVALID"
 )
 
 // Create 在首次安装事务内写入平台行并投递与 control 的首次同步，服务器标识与签名私钥由数据库生成，注册仅限受邀邮箱，工作区仅平台管理员可创建，统计时区取平台管理员的时区。

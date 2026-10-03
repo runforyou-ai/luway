@@ -1,5 +1,8 @@
 package domain
 
+// WebAppPath 是 Web 应用相对部署地址的访问路径，应用页面以哈希路由位于其后。
+const WebAppPath = "/app/"
+
 // RegistrationPolicy 定义平台的账号注册策略。
 type RegistrationPolicy string
 

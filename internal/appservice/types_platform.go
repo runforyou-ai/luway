@@ -45,10 +45,9 @@ type Capabilities struct {
 	CustomBranding bool `json:"customBranding"`
 }
 
-// PlatformOverview 定义服务器标识、服务端版本、安装时间、规模、活跃情况和平台能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
+// PlatformOverview 定义服务器标识、安装时间、规模、活跃情况和平台能力；活跃与新增按 StatisticsTimeZone 划分日期，StatsRebuilding 表示正在按新统计时区重建。
 type PlatformOverview struct {
 	ServerID           string                  `json:"serverId"`
-	Version            string                  `json:"version"`
 	InstalledAt        time.Time               `json:"installedAt"`
 	StatisticsTimeZone string                  `json:"statisticsTimeZone"`
 	StatsRebuilding    bool                    `json:"statsRebuilding"`
@@ -187,4 +186,98 @@ type PlatformWorkspace struct {
 type PlatformWorkspaceList struct {
 	Workspaces []PlatformWorkspace `json:"workspaces"`
 	Page       PageInfo            `json:"page"`
+}
+
+// PlatformUsageSort 表示业务使用工作区列表的排序方式，均为降序。
+type PlatformUsageSort string
+
+const (
+	PlatformUsageSortServiceSessions PlatformUsageSort = "service_sessions"
+	PlatformUsageSortConversations   PlatformUsageSort = "conversations"
+	PlatformUsageSortFirstResponse   PlatformUsageSort = "first_response"
+	PlatformUsageSortKnowledgeGaps   PlatformUsageSort = "knowledge_gaps"
+)
+
+// PlatformUsageInput 定义业务使用的统计范围：最近 Days 天内关闭的客服周期。
+type PlatformUsageInput struct {
+	Days int `json:"days" query:"days,default=30"`
+}
+
+// PlatformWorkspaceUsageListInput 定义业务使用工作区列表的统计范围、排序与分页，Sort 缺省按服务周期数。
+type PlatformWorkspaceUsageListInput struct {
+	Days     int               `json:"days" query:"days,default=30"`
+	Sort     PlatformUsageSort `json:"sort" query:"sort,default=service_sessions"`
+	Page     int               `json:"page" query:"page,default=1"`
+	PageSize int               `json:"pageSize" query:"pageSize,default=50"`
+}
+
+// PlatformUsageMetrics 定义业务使用指标，口径与工作区的 AI 表现和团队表现报表一致：ServiceSessions 为已关闭周期数，Conversations 为其所属会话去重数；
+// AIClosed 为其中 AI 员工接待过的周期数，AIResolved 与 HandedOff 为其中 AI 独立解决与发生过转人工的周期数；首响为按工作时间计的真人首响（秒），没有样本时为空；KnowledgeGaps 为全部待处理的待补知识条数。
+type PlatformUsageMetrics struct {
+	ServiceSessions     int  `json:"serviceSessions"`
+	Conversations       int  `json:"conversations"`
+	AIClosed            int  `json:"aiClosed"`
+	AIResolved          int  `json:"aiResolved"`
+	HandedOff           int  `json:"handedOff"`
+	FirstResponseMedian *int `json:"firstResponseMedian"`
+	FirstResponseP90    *int `json:"firstResponseP90"`
+	KnowledgeGaps       int  `json:"knowledgeGaps"`
+}
+
+// PlatformWorkspaceUsage 定义一个工作区的业务使用指标。
+type PlatformWorkspaceUsage struct {
+	ID      string               `json:"id"`
+	Name    string               `json:"name"`
+	Slug    string               `json:"slug"`
+	Status  WorkspaceStatus      `json:"status"`
+	Metrics PlatformUsageMetrics `json:"metrics"`
+}
+
+// PlatformWorkspaceUsageList 定义一页工作区业务使用指标。
+type PlatformWorkspaceUsageList struct {
+	Workspaces []PlatformWorkspaceUsage `json:"workspaces"`
+	Page       PageInfo                 `json:"page"`
+}
+
+// PlatformRuntimeStatus 定义服务端版本与后台任务各队列的运行概况。
+type PlatformRuntimeStatus struct {
+	Version string              `json:"version"`
+	Queues  []PlatformTaskQueue `json:"queues"`
+}
+
+// PlatformTaskQueue 定义一个后台任务队列的运行概况：Waiting 为已到执行时间仍在排队的任务数，OldestWaitingSince 为其中最早的到期时间，没有排队任务时为空；
+// Running 为执行中的任务数，Retrying 为执行失败后等待重试的任务数，Paused 为所属工作区暂停而挂起的任务数，Failed 为近 7 天失败且不再重试的任务数。
+type PlatformTaskQueue struct {
+	Queue              string     `json:"queue"`
+	Waiting            int        `json:"waiting"`
+	OldestWaitingSince *time.Time `json:"oldestWaitingSince"`
+	Running            int        `json:"running"`
+	Retrying           int        `json:"retrying"`
+	Paused             int        `json:"paused"`
+	Failed             int        `json:"failed"`
+}
+
+// PlatformFailedTaskListInput 定义失败任务列表的分页。
+type PlatformFailedTaskListInput struct {
+	Page     int `json:"page" query:"page,default=1"`
+	PageSize int `json:"pageSize" query:"pageSize,default=50"`
+}
+
+// PlatformFailedTask 定义一次等待重试或近 7 天内失败的后台任务运行；WorkspaceName 为所属工作区名称，平台级任务为空，FailedAt 为最近一次执行失败的时间。
+type PlatformFailedTask struct {
+	ID            string    `json:"id"`
+	Action        string    `json:"action"`
+	Queue         string    `json:"queue"`
+	WorkspaceName *string   `json:"workspaceName"`
+	Retrying      bool      `json:"retrying"`
+	Attempt       int       `json:"attempt"`
+	MaxAttempts   int       `json:"maxAttempts"`
+	Error         string    `json:"error"`
+	FailedAt      time.Time `json:"failedAt"`
+}
+
+// PlatformFailedTaskList 定义失败任务分页结果。
+type PlatformFailedTaskList struct {
+	Tasks []PlatformFailedTask `json:"tasks"`
+	Page  PageInfo             `json:"page"`
 }

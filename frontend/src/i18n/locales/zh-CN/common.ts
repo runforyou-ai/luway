@@ -50,6 +50,19 @@ const common = {
     addedAt: "{{time}} 添加",
     addedAtColumn: "添加时间",
   },
+  report: {
+    period: "结束时间",
+    periodDays: "近 {{count}} 天",
+    empty: "—",
+    durations: {
+      seconds: "{{count}} 秒",
+      minutes: "{{count}} 分钟",
+      hours: "{{count}} 小时",
+      hoursMinutes: "{{hours}} 小时 {{minutes}} 分",
+      days: "{{count}} 天",
+      daysHours: "{{days}} 天 {{hours}} 小时",
+    },
+  },
   table: {
     actions: "操作",
   },

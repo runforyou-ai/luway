@@ -315,6 +315,14 @@ const workspaceRouteDefinitions = [
     element: <PlatformSettingsPage section="overview" />,
   },
   {
+    path: "/settings/platform/usage",
+    element: <PlatformSettingsPage section="usage" />,
+  },
+  {
+    path: "/settings/platform/runtime",
+    element: <PlatformSettingsPage section="runtime" />,
+  },
+  {
     path: "/settings/platform/license",
     element: <PlatformSettingsPage section="license" />,
   },

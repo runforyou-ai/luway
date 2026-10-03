@@ -23,6 +23,8 @@ const settings = {
     modelServices: "模型服务",
     webSearch: "联网搜索",
     platformOverview: "平台概览",
+    platformUsage: "业务使用",
+    platformRuntime: "运行状态",
     platformLicense: "授权",
     platformAccounts: "全部账号",
     platformWorkspaces: "全部工作区",

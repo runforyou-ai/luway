@@ -168,6 +168,10 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.POST("/platform/license/sync", s.syncLicense)
 	router.POST("/platform/workspaces/:workspaceID/suspend", s.suspendPlatformWorkspace)
 	router.POST("/platform/workspaces/:workspaceID/resume", s.resumePlatformWorkspace)
+	router.GET("/platform/usage", s.getPlatformUsage)
+	router.GET("/platform/usage/workspaces", s.listPlatformWorkspaceUsage)
+	router.GET("/platform/runtime", s.getPlatformRuntimeStatus)
+	router.GET("/platform/runtime/failed-tasks", s.listPlatformFailedTasks)
 	router.GET("/platform/model-providers", s.listPlatformAIProviders)
 	router.GET("/platform/model-providers/:providerID", s.getPlatformAIProvider)
 	router.GET("/platform/model-providers/:providerID/models", s.listPlatformAIProviderModels)
@@ -1402,7 +1406,7 @@ func (s *Service) acceptInvitation(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformOverview 返回服务器标识、服务端版本、规模、活跃趋势和平台能力。
+// getPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
 func (s *Service) getPlatformOverview(c *gin.Context) {
 	output, err := s.application.GetPlatformOverview(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1529,6 +1533,42 @@ func (s *Service) suspendPlatformWorkspace(c *gin.Context) {
 // resumePlatformWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 func (s *Service) resumePlatformWorkspace(c *gin.Context) {
 	output, err := s.application.ResumePlatformWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+func (s *Service) getPlatformUsage(c *gin.Context) {
+	input, ok := bindPlatformUsageInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.GetPlatformUsage(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (s *Service) listPlatformWorkspaceUsage(c *gin.Context) {
+	input, ok := bindPlatformWorkspaceUsageListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListPlatformWorkspaceUsage(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (s *Service) getPlatformRuntimeStatus(c *gin.Context) {
+	output, err := s.application.GetPlatformRuntimeStatus(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// listPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (s *Service) listPlatformFailedTasks(c *gin.Context) {
+	input, ok := bindPlatformFailedTaskListInputQuery(c)
+	if !ok {
+		return
+	}
+	output, err := s.application.ListPlatformFailedTasks(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -2886,6 +2926,33 @@ func bindPlatformAccountListInputQuery(c *gin.Context) (appservice.PlatformAccou
 	}, true
 }
 
+// bindPlatformFailedTaskListInputQuery 从查询参数解析 appservice.PlatformFailedTaskListInput。
+func bindPlatformFailedTaskListInputQuery(c *gin.Context) (appservice.PlatformFailedTaskListInput, bool) {
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.PlatformFailedTaskListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.PlatformFailedTaskListInput{}, false
+	}
+	return appservice.PlatformFailedTaskListInput{
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindPlatformUsageInputQuery 从查询参数解析 appservice.PlatformUsageInput。
+func bindPlatformUsageInputQuery(c *gin.Context) (appservice.PlatformUsageInput, bool) {
+	days, ok := positiveQueryInteger(c, "days", 30)
+	if !ok {
+		return appservice.PlatformUsageInput{}, false
+	}
+	return appservice.PlatformUsageInput{
+		Days: days,
+	}, true
+}
+
 // bindPlatformWorkspaceListInputQuery 从查询参数解析 appservice.PlatformWorkspaceListInput。
 func bindPlatformWorkspaceListInputQuery(c *gin.Context) (appservice.PlatformWorkspaceListInput, bool) {
 	page, ok := positiveQueryInteger(c, "page", 1)
@@ -2900,6 +2967,28 @@ func bindPlatformWorkspaceListInputQuery(c *gin.Context) (appservice.PlatformWor
 		Query:    c.Query("query"),
 		Status:   appservice.WorkspaceStatus(c.Query("status")),
 		Sort:     appservice.PlatformWorkspaceSort(c.DefaultQuery("sort", "created_at")),
+		Page:     page,
+		PageSize: pageSize,
+	}, true
+}
+
+// bindPlatformWorkspaceUsageListInputQuery 从查询参数解析 appservice.PlatformWorkspaceUsageListInput。
+func bindPlatformWorkspaceUsageListInputQuery(c *gin.Context) (appservice.PlatformWorkspaceUsageListInput, bool) {
+	days, ok := positiveQueryInteger(c, "days", 30)
+	if !ok {
+		return appservice.PlatformWorkspaceUsageListInput{}, false
+	}
+	page, ok := positiveQueryInteger(c, "page", 1)
+	if !ok {
+		return appservice.PlatformWorkspaceUsageListInput{}, false
+	}
+	pageSize, ok := positiveQueryInteger(c, "pageSize", 50)
+	if !ok {
+		return appservice.PlatformWorkspaceUsageListInput{}, false
+	}
+	return appservice.PlatformWorkspaceUsageListInput{
+		Days:     days,
+		Sort:     appservice.PlatformUsageSort(c.DefaultQuery("sort", "service_sessions")),
 		Page:     page,
 		PageSize: pageSize,
 	}, true

@@ -1,13 +1,17 @@
-/** 平台管理调用：平台概览、授权、平台设置、平台账号和平台工作区。 */
+/** 平台管理调用：平台概览、授权、平台设置、平台账号、平台工作区、业务使用和运行状态。 */
 import {
   ActivateLicense,
   ActivateLicenseOnline,
   DeactivatePlatformAccount,
+  GetPlatformRuntimeStatus,
+  GetPlatformUsage,
   GetPlatformOverview,
   GetPlatformSettings,
   GetLicense,
   GrantPlatformAdmin,
   ListPlatformAccounts,
+  ListPlatformFailedTasks,
+  ListPlatformWorkspaceUsage,
   ListPlatformWorkspaces,
   ReactivatePlatformAccount,
   ResumePlatformWorkspace,
@@ -20,17 +24,22 @@ import {
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/service"
 import {
   AccountStatus,
+  PlatformUsageSort,
   PlatformWorkspaceSort,
   WorkspaceStatus,
   type PlatformAccountListInput,
+  type PlatformFailedTaskListInput,
+  type PlatformWorkspaceUsageListInput,
   type PlatformWorkspaceListInput,
 } from "../../bindings/github.com/runforyou-ai/luway/internal/appservice/models"
 import { bind } from "@/api/client"
 
 const listPlatformAccountsBound = bind(ListPlatformAccounts)
 const listPlatformWorkspacesBound = bind(ListPlatformWorkspaces)
+const listPlatformWorkspaceUsageBound = bind(ListPlatformWorkspaceUsage)
+const listPlatformFailedTasksBound = bind(ListPlatformFailedTasks)
 
-/** 读取服务器标识、服务端版本、规模、活跃趋势和平台能力。 */
+/** 读取服务器标识、规模、活跃趋势和平台能力。 */
 export const getPlatformOverview = bind(GetPlatformOverview)
 
 /** 读取服务器标识与授权状态。 */
@@ -100,4 +109,28 @@ export function listPlatformWorkspaces(query: Partial<PlatformWorkspaceListInput
     },
     signal,
   )
+}
+
+/** 读取平台整体最近若干天的客服业务使用指标。 */
+export const getPlatformUsage = bind(GetPlatformUsage)
+
+/** 读取各工作区最近若干天的客服业务使用指标，天数缺省为 30，排序缺省按服务周期数。 */
+export function listPlatformWorkspaceUsage(query: Partial<PlatformWorkspaceUsageListInput>, signal?: AbortSignal) {
+  return listPlatformWorkspaceUsageBound(
+    {
+      days: query.days ?? 30,
+      sort: query.sort ?? PlatformUsageSort.PlatformUsageSortServiceSessions,
+      page: query.page ?? 1,
+      pageSize: query.pageSize ?? 50,
+    },
+    signal,
+  )
+}
+
+/** 读取服务端版本与后台任务各队列的运行概况。 */
+export const getPlatformRuntimeStatus = bind(GetPlatformRuntimeStatus)
+
+/** 读取近 7 天内失败与等待重试的后台任务。 */
+export function listPlatformFailedTasks(query: Partial<PlatformFailedTaskListInput>, signal?: AbortSignal) {
+  return listPlatformFailedTasksBound({ page: query.page ?? 1, pageSize: query.pageSize ?? 50 }, signal)
 }

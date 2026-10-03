@@ -14,7 +14,7 @@ import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 import { resolveServerURL } from "@/lib/server-url"
-import { workspaceHref } from "@/lib/workspace-route"
+import { webAppPath, workspaceHref } from "@/lib/workspace-route"
 import { zodResolver } from "@/lib/zod-resolver"
 
 /** 显示并修改当前工作区的名称，工作区标识与访问地址只读展示。 */
@@ -57,7 +57,7 @@ export function GeneralSettingsForm({
     logLabel: "工作区通用设置更新",
   })
   const serverURL = useResource(resourceKeys.serverURL(), () => resolveServerURL())
-  const address = serverURL.data ? `${serverURL.data.replace(/\/+$/, "")}/#${workspaceHref(organization.slug, "/")}` : ""
+  const address = serverURL.data ? `${serverURL.data.replace(/\/+$/, "")}${webAppPath}#${workspaceHref(organization.slug, "/")}` : ""
 
   return (
     <form

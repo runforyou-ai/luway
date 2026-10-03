@@ -69,7 +69,11 @@ export function PlatformWorkspaceListPage() {
   const settings = useResource(resourceKeys.platformSettings(), (signal) => getPlatformSettings(signal))
   const pending = useConfirmedAction<PendingWorkspaceChange>({
     action: ({ workspace, change }) => workspaceChangeRequests[change](workspace.id),
-    invalidateKeys: () => [resourceKeys.platformWorkspaces(), resourceKeys.workspaces()],
+    invalidateKeys: () => [
+      resourceKeys.platformWorkspaces(),
+      resourceKeys.platformWorkspaceUsage(),
+      resourceKeys.workspaces(),
+    ],
     successMessage: ({ change }) => t(change === "suspend" ? "workspaces.suspended" : "workspaces.resumed"),
     errorMessage: () => t("workspaces.updateError"),
     logLabel: "修改工作区状态",

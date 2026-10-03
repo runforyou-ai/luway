@@ -915,7 +915,7 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return output, err
 }
 
-// GetPlatformOverview 返回服务器标识、服务端版本、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
 func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformOverview, error) {
 	var output appservice.PlatformOverview
 	err := b.do(ctx, meta, http.MethodGet, "/platform/overview", nil, nil, &output)
@@ -1031,6 +1031,34 @@ func (b *Backend) SuspendPlatformWorkspace(ctx context.Context, meta appservice.
 func (b *Backend) ResumePlatformWorkspace(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (appservice.PlatformWorkspace, error) {
 	var output appservice.PlatformWorkspace
 	err := b.do(ctx, meta, http.MethodPost, "/platform/workspaces/"+url.PathEscape(workspaceID)+"/resume", nil, nil, &output)
+	return output, err
+}
+
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+func (b *Backend) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
+	var output appservice.PlatformUsageMetrics
+	err := b.do(ctx, meta, http.MethodGet, "/platform/usage", encodePlatformUsageInputQuery(input), nil, &output)
+	return output, err
+}
+
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (b *Backend) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformWorkspaceUsageListInput) (appservice.PlatformWorkspaceUsageList, error) {
+	var output appservice.PlatformWorkspaceUsageList
+	err := b.do(ctx, meta, http.MethodGet, "/platform/usage/workspaces", encodePlatformWorkspaceUsageListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (b *Backend) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformRuntimeStatus, error) {
+	var output appservice.PlatformRuntimeStatus
+	err := b.do(ctx, meta, http.MethodGet, "/platform/runtime", nil, nil, &output)
+	return output, err
+}
+
+// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformFailedTaskListInput) (appservice.PlatformFailedTaskList, error) {
+	var output appservice.PlatformFailedTaskList
+	err := b.do(ctx, meta, http.MethodGet, "/platform/runtime/failed-tasks", encodePlatformFailedTaskListInputQuery(input), nil, &output)
 	return output, err
 }
 
@@ -2095,11 +2123,36 @@ func encodePlatformAccountListInputQuery(input appservice.PlatformAccountListInp
 	return query
 }
 
+// encodePlatformFailedTaskListInputQuery 将 appservice.PlatformFailedTaskListInput 编码为查询参数。
+func encodePlatformFailedTaskListInputQuery(input appservice.PlatformFailedTaskListInput) url.Values {
+	query := url.Values{}
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodePlatformUsageInputQuery 将 appservice.PlatformUsageInput 编码为查询参数。
+func encodePlatformUsageInputQuery(input appservice.PlatformUsageInput) url.Values {
+	query := url.Values{}
+	setPositiveQuery(query, "days", input.Days)
+	return query
+}
+
 // encodePlatformWorkspaceListInputQuery 将 appservice.PlatformWorkspaceListInput 编码为查询参数。
 func encodePlatformWorkspaceListInputQuery(input appservice.PlatformWorkspaceListInput) url.Values {
 	query := url.Values{}
 	setQuery(query, "query", input.Query)
 	setQuery(query, "status", string(input.Status))
+	setQuery(query, "sort", string(input.Sort))
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodePlatformWorkspaceUsageListInputQuery 将 appservice.PlatformWorkspaceUsageListInput 编码为查询参数。
+func encodePlatformWorkspaceUsageListInputQuery(input appservice.PlatformWorkspaceUsageListInput) url.Values {
+	query := url.Values{}
+	setPositiveQuery(query, "days", input.Days)
 	setQuery(query, "sort", string(input.Sort))
 	setPositiveQuery(query, "page", input.Page)
 	setPositiveQuery(query, "pageSize", input.PageSize)

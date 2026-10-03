@@ -55,7 +55,7 @@ func (f invitationFixture) invite(t *testing.T, email, displayName string) (apps
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, token, found := strings.Cut(created.Link, testPublicURL+"/#/invitations/")
+	_, token, found := strings.Cut(created.Link, testPublicURL+domain.WebAppPath+"#/invitations/")
 	if !found || token == "" {
 		t.Fatalf("invitation link = %q", created.Link)
 	}

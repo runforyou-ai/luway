@@ -12,11 +12,15 @@ import { PlatformModelListPage } from "@/features/settings/platform/platform-mod
 import { PlatformProviderFormPage } from "@/features/settings/platform/platform-provider-form-page"
 import { PlatformProviderListPage } from "@/features/settings/platform/platform-provider-list-page"
 import { PlatformRegistrationPage } from "@/features/settings/platform/platform-registration-page"
+import { PlatformRuntimePage } from "@/features/settings/platform/platform-runtime-page"
+import { PlatformUsagePage } from "@/features/settings/platform/platform-usage-page"
 import { PlatformWorkspaceListPage } from "@/features/settings/platform/platform-workspace-list-page"
 
 /** 平台设置分组中各页面的渲染方式。 */
 const platformSections = {
   overview: () => <PlatformOverviewPage />,
+  usage: () => <PlatformUsagePage />,
+  runtime: () => <PlatformRuntimePage />,
   license: () => <PlatformLicensePage />,
   accounts: (account: Account) => <PlatformAccountListPage account={account} />,
   workspaces: () => <PlatformWorkspaceListPage />,

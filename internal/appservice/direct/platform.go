@@ -31,6 +31,9 @@ type platformOps struct {
 	updatePlatformAccount    *platformaction.UpdateAccountAction
 	listPlatformWorkspaces   *platformaction.ListWorkspacesQuery
 	setWorkspaceStatus       *platformaction.SetWorkspaceStatusAction
+	platformUsage            *platformaction.UsageQuery
+	platformTaskQueues       *platformaction.TaskQueuesQuery
+	platformFailedTasks      *platformaction.FailedTaskListQuery
 	licenseRead              *platformaction.LicenseQuery
 	activateLicense          *platformaction.ActivateLicenseAction
 	onlineLicense            *platformaction.OnlineLicenseAction
@@ -48,6 +51,9 @@ func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys 
 		updatePlatformAccount:    platformaction.NewUpdateAccountAction(db),
 		listPlatformWorkspaces:   platformaction.NewListWorkspacesQuery(db),
 		setWorkspaceStatus:       platformaction.NewSetWorkspaceStatusAction(db),
+		platformUsage:            platformaction.NewUsageQuery(db),
+		platformTaskQueues:       platformaction.NewTaskQueuesQuery(db),
+		platformFailedTasks:      platformaction.NewFailedTaskListQuery(db),
 		licenseRead:              platformaction.NewLicenseQuery(db),
 		activateLicense:          platformaction.NewActivateLicenseAction(db, licenseKeys),
 		onlineLicense:            platformaction.NewOnlineLicenseAction(db, licenseKeys, controlClient),
@@ -55,7 +61,7 @@ func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, licenseKeys 
 	}
 }
 
-// GetPlatformOverview 返回服务器标识、服务端版本、规模、活跃趋势和平台能力。
+// GetPlatformOverview 返回服务器标识、规模、活跃趋势和平台能力。
 func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformOverview, error) {
 	overview, err := o.platformOverview.Execute(ctx)
 	if err != nil {
@@ -69,7 +75,7 @@ func (o *directOperations) GetPlatformOverview(ctx context.Context, meta appserv
 		})
 	}
 	return appservice.PlatformOverview{
-		ServerID: overview.ServerID, Version: buildinfo.Version, InstalledAt: overview.InstalledAt, StatisticsTimeZone: overview.StatisticsTimeZone,
+		ServerID: overview.ServerID, InstalledAt: overview.InstalledAt, StatisticsTimeZone: overview.StatisticsTimeZone,
 		StatsRebuilding: overview.StatsRebuilding,
 		AccountCount:    overview.AccountCount, WorkspaceCount: overview.WorkspaceCount, MemberCount: overview.MemberCount,
 		Last7Days: appservice.PlatformActivityWindow(overview.Last7Days), Last30Days: appservice.PlatformActivityWindow(overview.Last30Days),
@@ -261,6 +267,67 @@ func (o *directOperations) setPlatformWorkspaceStatus(ctx context.Context, meta 
 	return platformWorkspaceFromAction(record), nil
 }
 
+// GetPlatformUsage 返回平台整体最近若干天的客服业务使用指标。
+func (o *directOperations) GetPlatformUsage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformUsageInput) (appservice.PlatformUsageMetrics, error) {
+	metrics, err := o.platformUsage.Summary(ctx, input.Days)
+	if err != nil {
+		return appservice.PlatformUsageMetrics{}, platformError(ctx, meta, err, i18n.ErrorPlatformUsageFailed, account, "")
+	}
+	return appservice.PlatformUsageMetrics(metrics), nil
+}
+
+// ListPlatformWorkspaceUsage 返回各工作区最近若干天的客服业务使用指标。
+func (o *directOperations) ListPlatformWorkspaceUsage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformWorkspaceUsageListInput) (appservice.PlatformWorkspaceUsageList, error) {
+	output, err := o.platformUsage.ListWorkspaces(ctx, platformaction.UsageListInput{
+		Days: input.Days, Sort: platformaction.UsageSort(input.Sort), Page: input.Page, PageSize: input.PageSize,
+	})
+	if err != nil {
+		return appservice.PlatformWorkspaceUsageList{}, platformError(ctx, meta, err, i18n.ErrorPlatformUsageFailed, account, "")
+	}
+	workspaces := make([]appservice.PlatformWorkspaceUsage, 0, len(output.Workspaces))
+	for _, record := range output.Workspaces {
+		workspaces = append(workspaces, appservice.PlatformWorkspaceUsage{
+			ID: record.ID, Name: record.Name, Slug: record.Slug, Status: appservice.WorkspaceStatus(record.Status),
+			Metrics: appservice.PlatformUsageMetrics(record.UsageMetrics),
+		})
+	}
+	return appservice.PlatformWorkspaceUsageList{
+		Workspaces: workspaces,
+		Page:       appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total},
+	}, nil
+}
+
+// GetPlatformRuntimeStatus 返回服务端版本与后台任务各队列的运行概况。
+func (o *directOperations) GetPlatformRuntimeStatus(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformRuntimeStatus, error) {
+	queues, err := o.platformTaskQueues.Execute(ctx)
+	if err != nil {
+		return appservice.PlatformRuntimeStatus{}, platformError(ctx, meta, err, i18n.ErrorPlatformRuntimeFailed, account, "")
+	}
+	status := appservice.PlatformRuntimeStatus{Version: buildinfo.Version, Queues: make([]appservice.PlatformTaskQueue, 0, len(queues))}
+	for _, queue := range queues {
+		status.Queues = append(status.Queues, appservice.PlatformTaskQueue(queue))
+	}
+	return status, nil
+}
+
+// ListPlatformFailedTasks 返回等待重试与近 7 天内失败的后台任务。
+func (o *directOperations) ListPlatformFailedTasks(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformFailedTaskListInput) (appservice.PlatformFailedTaskList, error) {
+	output, err := o.platformFailedTasks.Execute(ctx, platformaction.FailedTaskListInput{Page: input.Page, PageSize: input.PageSize})
+	if err != nil {
+		return appservice.PlatformFailedTaskList{}, platformError(ctx, meta, err, i18n.ErrorPlatformRuntimeFailed, account, "")
+	}
+	tasks := make([]appservice.PlatformFailedTask, 0, len(output.Tasks))
+	for _, task := range output.Tasks {
+		tasks = append(tasks, appservice.PlatformFailedTask{
+			ID: task.ID, Action: task.ActionName, Queue: task.QueueName, WorkspaceName: task.WorkspaceName, Retrying: task.Retrying,
+			Attempt: task.Attempt, MaxAttempts: task.MaxAttempts, Error: task.LastError, FailedAt: task.FailedAt,
+		})
+	}
+	return appservice.PlatformFailedTaskList{
+		Tasks: tasks, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total},
+	}, nil
+}
+
 // platformWorkspaceFromAction 把平台工作区记录转换为应用契约。
 func platformWorkspaceFromAction(record platformaction.WorkspaceRecord) appservice.PlatformWorkspace {
 	var lastActiveOn *string
@@ -317,6 +384,8 @@ func platformError(ctx context.Context, meta appservice.RequestMeta, err error, 
 			platformaction.ValidationStatisticsTimeZoneInvalid:      i18n.FieldTimeZoneInvalid,
 			platformaction.ValidationWorkspaceSortInvalid:           i18n.FieldPlatformQueryInvalid,
 			platformaction.ValidationWorkspaceStatusInvalid:         i18n.FieldPlatformQueryInvalid,
+			platformaction.ValidationUsageSortInvalid:               i18n.FieldPlatformQueryInvalid,
+			platformaction.ValidationUsageDaysInvalid:               i18n.FieldPlatformQueryInvalid,
 		}
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, translateValidationFields(validationError.Fields, keys))
 	}

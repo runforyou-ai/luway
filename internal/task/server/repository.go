@@ -377,7 +377,7 @@ func (r *repository) completeRun(ctx context.Context, runID, workerID string) er
 	result, err := r.db.NewRaw(`
 		UPDATE task_runs
 		SET status = ?, completed_at = ?, lease_expires_at = NULL,
-			worker_id = NULL, last_error = NULL, updated_at = ?
+			worker_id = NULL, last_error = NULL, failed_at = NULL, updated_at = ?
 		WHERE id = ? AND status = ? AND worker_id = ?
 	`, statusSucceeded, now, now, runID, statusRunning, workerID).Exec(ctx)
 	if err != nil {
@@ -423,10 +423,10 @@ func (r *repository) failRun(ctx context.Context, run *servermodels.TaskRun, wor
 	err := r.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 		result, err := tx.NewRaw(`
 			UPDATE task_runs
-			SET status = ?, available_at = ?, completed_at = ?, last_error = ?,
+			SET status = ?, available_at = ?, completed_at = ?, last_error = ?, failed_at = ?,
 				lease_expires_at = NULL, worker_id = NULL, updated_at = ?
 			WHERE id = ? AND status = ? AND worker_id = ?
-		`, nextStatus, availableAt, completedAt, truncateError(runErr), now, run.ID, statusRunning, workerID).Exec(ctx)
+		`, nextStatus, availableAt, completedAt, truncateError(runErr), now, now, run.ID, statusRunning, workerID).Exec(ctx)
 		if err != nil {
 			return fmt.Errorf("fail task run: %w", err)
 		}
@@ -465,12 +465,12 @@ func (r *repository) failExhaustedRun(ctx context.Context, runID string) (bool, 
 	result, err := r.db.NewRaw(`
 		UPDATE task_runs
 		SET status = ?, completed_at = ?, lease_expires_at = NULL,
-			worker_id = NULL, last_error = ?, updated_at = ?
+			worker_id = NULL, last_error = ?, failed_at = ?, updated_at = ?
 		WHERE id = ?
 			AND status = ?
 			AND attempt >= max_attempts
 			AND lease_expires_at <= ?
-	`, statusFailed, now, "task worker lease expired after final attempt", now,
+	`, statusFailed, now, "task worker lease expired after final attempt", now, now,
 		runID, statusRunning, now).Exec(ctx)
 	if err != nil {
 		return false, fmt.Errorf("fail exhausted task run: %w", err)

@@ -15,7 +15,7 @@ import { ResourceTable } from "@/components/resource-table"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { usePagedResource } from "@/hooks/use-resource"
 
-import { useReportFormat } from "./report-format"
+import { useReportFormat } from "@/hooks/use-report-format"
 import { ServiceIssueTable } from "./service-issue-list"
 
 /** 团队表现的筛选范围：publicQueue 限定公共队列，否则 teamId 限定团队，两者都未给出表示全部队列。 */

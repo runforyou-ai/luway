@@ -48,6 +48,14 @@ export const resourceKeys = {
   platformAccounts: (parameters?: KeyParameters) => listKey("platform-accounts", parameters),
   /** 平台工作区列表，可带筛选分页参数。 */
   platformWorkspaces: (parameters?: KeyParameters) => listKey("platform-workspaces", parameters),
+  /** 平台整体业务使用，可带统计天数参数。 */
+  platformUsage: (parameters?: KeyParameters) => listKey("platform-usage", parameters),
+  /** 平台各工作区业务使用，可带统计天数、排序与分页参数。 */
+  platformWorkspaceUsage: (parameters?: KeyParameters) => listKey("platform-workspace-usage", parameters),
+  /** 平台运行状态。 */
+  platformRuntime: () => ["platform-runtime"],
+  /** 平台失败任务列表，可带分页参数。 */
+  platformFailedTasks: (parameters?: KeyParameters) => listKey("platform-failed-tasks", parameters),
   /** 平台供应商列表。 */
   platformAIProviders: () => ["platform-ai-providers"],
   /** 单个平台供应商。 */
@@ -302,6 +310,10 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.platformSettings()[0],
   resourceKeys.platformAccounts()[0],
   resourceKeys.platformWorkspaces()[0],
+  resourceKeys.platformUsage()[0],
+  resourceKeys.platformWorkspaceUsage()[0],
+  resourceKeys.platformRuntime()[0],
+  resourceKeys.platformFailedTasks()[0],
   resourceKeys.platformAIProviders()[0],
   resourceKeys.platformAIProvider()[0],
   resourceKeys.platformAIProviderModels()[0],
