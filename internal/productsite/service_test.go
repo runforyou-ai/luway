@@ -105,7 +105,7 @@ func TestDownloadPage(t *testing.T) {
 	}
 	body := serveWith(NewService("/site.css", clients), http.MethodGet, "/zh-cn/download/", "").Body.String()
 	for _, want := range []string{
-		`href="/clients/app_1.2.3_windows_amd64-installer.exe"`, `href="/clients/app_1.2.3_darwin_universal.dmg"`,
+		`href="/clients/app_1.2.3_windows_amd64-installer.exe?v=ba7816bf8f01cfea"`, `href="/clients/app_1.2.3_darwin_universal.dmg?v=ba7816bf8f01cfea"`,
 		"版本 1.2.3", "Apple 芯片与 Intel", "Debian / Ubuntu · x64", `data-platform="android" aria-disabled="true"`,
 		`data-platform="ios" aria-disabled="true"`, "即将推出",
 		`<option value="/en/download/"`,

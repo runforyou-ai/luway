@@ -75,14 +75,15 @@ func updateServer(t *testing.T, signer ed25519.PrivateKey, trusted ed25519.Publi
 	return server
 }
 
-// newTestUpdater 创建以 version 运行、信任 publicKey、从 serverURL 更新的桌面端更新能力。
+// newTestUpdater 创建以 version 运行、信任 publicKey、从 serverURL 更新且能替换应用的桌面端更新能力。
 func newTestUpdater(t *testing.T, version string, publicKey ed25519.PublicKey, serverURL string) *clientUpdater {
 	t.Helper()
 	instance := updater.New(updaterHost{})
-	if err := instance.Init(updaterConfig(version, publicKey, func(context.Context) (string, error) { return serverURL, nil })); err != nil {
+	address := func(context.Context) (string, error) { return serverURL, nil }
+	if err := instance.Init(updaterConfig(version, publicKey, address)); err != nil {
 		t.Fatal(err)
 	}
-	return &clientUpdater{updater: instance, allowQuit: func(bool) {}}
+	return &clientUpdater{updater: instance, allowQuit: func(bool) {}, replaceable: true, serverURL: address, version: version}
 }
 
 // TestPrepareClientUpdate 验证服务器版本较新时下载并校验更新包，同一版本不重复下载；客户端已是该版本或未连接服务器时没有更新。
@@ -108,6 +109,30 @@ func TestPrepareClientUpdate(t *testing.T) {
 		if err != nil || update.State != appservice.ClientUpdateStateCurrent {
 			t.Errorf("版本 %s、服务器 %q 准备更新 = %+v, %v", version, serverURL, update, err)
 		}
+	}
+}
+
+// TestPrepareClientUpdateNotReplaceable 验证当前用户不能替换应用，或服务器没有本机平台的更新包时只报告新版本，不下载更新包。
+func TestPrepareClientUpdateNotReplaceable(t *testing.T) {
+	public, private, _ := ed25519.GenerateKey(rand.Reader)
+	server := updateServer(t, private, public)
+	client := newTestUpdater(t, "1.0.0", public, server.URL)
+	client.replaceable = false
+	update, err := client.PrepareClientUpdate(context.Background(), appservice.RequestMeta{})
+	if err != nil || update.State != appservice.ClientUpdateStateAvailable || update.Version != "2.0.0" {
+		t.Fatalf("准备更新 = %+v, %v", update, err)
+	}
+	if path := client.updater.(*updater.Updater).DownloadedPath(); path != "" {
+		t.Errorf("不能替换应用时不应下载，已下载到 %s", path)
+	}
+
+	installersOnly := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte(`{"schemaVersion":1,"version":"2.0.0","artifacts":[]}`))
+	}))
+	defer installersOnly.Close()
+	update, err = newTestUpdater(t, "1.0.0", public, installersOnly.URL).PrepareClientUpdate(context.Background(), appservice.RequestMeta{})
+	if err != nil || update.State != appservice.ClientUpdateStateAvailable || update.Version != "2.0.0" {
+		t.Fatalf("服务器只有安装包时准备更新 = %+v, %v", update, err)
 	}
 }
 

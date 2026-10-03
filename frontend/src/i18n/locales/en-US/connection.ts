@@ -24,6 +24,8 @@ const connection = {
   update: {
     ready: "Version {{version}} is ready. Restart to apply it.",
     restart: "Restart to update",
+    available: "Version {{version}} is available. Install it from the server's download page.",
+    download: "Go to downloads",
   },
   clientLink: {
     title: "Use in the app",

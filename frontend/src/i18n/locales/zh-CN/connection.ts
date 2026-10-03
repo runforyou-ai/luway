@@ -23,6 +23,8 @@ const connection = {
   update: {
     ready: "新版本 {{version}} 已就绪，重启后生效。",
     restart: "重启并更新",
+    available: "新版本 {{version}} 可用，请从服务器下载页安装。",
+    download: "前往下载",
   },
   clientLink: {
     title: "在客户端中使用",

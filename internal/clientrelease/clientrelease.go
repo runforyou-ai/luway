@@ -194,9 +194,14 @@ func (c *Catalog) Files() []File {
 	return c.ordered
 }
 
-// URL 返回安装包相对部署地址的下载路径。
+// URL 返回安装包相对部署地址的下载地址。
 func URL(file File) string {
-	return PathPrefix + file.Name
+	return PathPrefix + versionedName(file.Name, file.SHA256)
+}
+
+// versionedName 在文件名后附加取自内容摘要前缀的查询参数 v，同名文件内容变化时下载地址随之变化，缓存不会返回旧内容。
+func versionedName(name, sha256Digest string) string {
+	return name + "?v=" + sha256Digest[:16]
 }
 
 // ServeHTTP 在 UpdatePath 输出桌面端更新清单，其余路径按文件名输出索引中登记的文件，未登记的路径返回 404。
@@ -228,7 +233,7 @@ func (c *Catalog) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
 		http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	// 文件名带版本号，同名文件内容不变。
+	// 下载地址带内容摘要，同一地址的内容不变。
 	writer.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 	writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", name))
 	writer.Header().Set("Content-Type", "application/octet-stream")
@@ -255,7 +260,7 @@ type updateArtifact struct {
 	Digest     string `json:"digest"`
 }
 
-// serveUpdate 按查询参数 platform、arch 输出只含对应更新包的更新清单，没有对应更新包时返回 204；是否升级由客户端校验签名并比较版本后决定。
+// serveUpdate 按查询参数 platform、arch 输出服务器提供的客户端版本及对应平台的更新包，没有对应更新包时清单不含更新包，服务器不提供安装包时返回 204；是否升级由客户端校验签名并比较版本后决定。
 func (c *Catalog) serveUpdate(writer http.ResponseWriter, request *http.Request) {
 	platform, arch := request.URL.Query().Get("platform"), request.URL.Query().Get("arch")
 	writer.Header().Set("Cache-Control", "no-store")
@@ -268,12 +273,17 @@ func (c *Catalog) serveUpdate(writer http.ResponseWriter, request *http.Request)
 			SchemaVersion: 1,
 			Version:       c.version,
 			Artifacts: []updateArtifact{{
-				URL: update.Name, Filename: update.Name, Size: update.Size, Platform: platform, Arch: arch,
+				URL: versionedName(update.Name, update.SHA256), Filename: update.Name, Size: update.Size, Platform: platform, Arch: arch,
 				DigestAlgo: "sha512", Digest: base64.StdEncoding.EncodeToString(update.digest),
 			}},
 			Metadata: map[string]string{SignatureMetadataKey: update.Signature},
 		})
 		return
 	}
-	writer.WriteHeader(http.StatusNoContent)
+	if c.Version() == "" {
+		writer.WriteHeader(http.StatusNoContent)
+		return
+	}
+	writer.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(writer).Encode(updateManifest{SchemaVersion: 1, Version: c.version, Artifacts: []updateArtifact{}})
 }

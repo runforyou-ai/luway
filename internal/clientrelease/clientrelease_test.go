@@ -144,12 +144,13 @@ func TestLoadVerifiesUpdateSignature(t *testing.T) {
 	}
 }
 
-// TestServeUpdate 校验更新清单按平台与架构给出对应更新包，通用架构匹配任意架构，没有对应更新包时返回 204。
+// TestServeUpdate 校验更新清单按平台与架构给出对应更新包，通用架构匹配任意架构，下载地址带内容摘要；没有对应更新包时清单只给出版本，服务器不提供安装包时返回 204。
 func TestServeUpdate(t *testing.T) {
 	public, private, _ := ed25519.GenerateKey(rand.Reader)
 	darwin := signedUpdate(private, "1.0.0", OSDarwin, "universal", "app_1.0.0_darwin_universal.zip")
 	windows := signedUpdate(private, "1.0.0", OSWindows, "arm64", "app_1.0.0_windows_arm64.zip")
-	catalog, err := Load(writeDirectory(t, Index{Version: "1.0.0", Updates: []Update{darwin, windows}}), "1.0.0", public)
+	installer := File{OS: OSLinux, Arch: "amd64", Format: FormatDeb, Name: "app_1.0.0_linux_amd64.deb", Size: 3, SHA256: abcSHA256}
+	catalog, err := Load(writeDirectory(t, Index{Version: "1.0.0", Files: []File{installer}, Updates: []Update{darwin, windows}}), "1.0.0", public)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,23 +162,32 @@ func TestServeUpdate(t *testing.T) {
 	} {
 		recorder := httptest.NewRecorder()
 		catalog.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, target, nil))
+		var manifest updateManifest
+		if err := json.NewDecoder(recorder.Body).Decode(&manifest); err != nil || manifest.Version != "1.0.0" {
+			t.Fatalf("%s 清单 = %+v, %v", target, manifest, err)
+		}
 		if want == "" {
-			if recorder.Code != http.StatusNoContent {
-				t.Errorf("%s 状态码 = %d，期望 204", target, recorder.Code)
+			if len(manifest.Artifacts) != 0 {
+				t.Errorf("%s 不应含更新包: %+v", target, manifest.Artifacts)
 			}
 			continue
 		}
-		var manifest updateManifest
-		if err := json.NewDecoder(recorder.Body).Decode(&manifest); err != nil || manifest.Version != "1.0.0" || len(manifest.Artifacts) != 1 {
-			t.Fatalf("%s 清单 = %+v, %v", target, manifest, err)
+		if len(manifest.Artifacts) != 1 {
+			t.Fatalf("%s 更新包数量 = %d", target, len(manifest.Artifacts))
 		}
-		if artifact := manifest.Artifacts[0]; artifact.URL != want || artifact.DigestAlgo != "sha512" || artifact.Digest == "" || manifest.Metadata[SignatureMetadataKey] == "" {
+		if artifact := manifest.Artifacts[0]; artifact.URL != want+"?v="+abcSHA256[:16] || artifact.DigestAlgo != "sha512" || artifact.Digest == "" || manifest.Metadata[SignatureMetadataKey] == "" {
 			t.Errorf("%s 更新包 = %+v", target, artifact)
 		}
 	}
 	recorder := httptest.NewRecorder()
-	catalog.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, PathPrefix+darwin.Name, nil))
+	catalog.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, PathPrefix+darwin.Name+"?v="+abcSHA256[:16], nil))
 	if recorder.Code != http.StatusOK || recorder.Body.String() != "abc" {
 		t.Errorf("下载更新包 = %d, %q", recorder.Code, recorder.Body.String())
+	}
+	empty, _ := Load(t.TempDir(), "1.0.0", public)
+	recorder = httptest.NewRecorder()
+	empty.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, UpdatePath+"?platform=linux&arch=amd64", nil))
+	if recorder.Code != http.StatusNoContent {
+		t.Errorf("服务器不提供客户端时状态码 = %d，期望 204", recorder.Code)
 	}
 }

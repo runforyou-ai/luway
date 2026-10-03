@@ -1200,7 +1200,7 @@ export interface ClientUpdate {
     "state": ClientUpdateState;
 
     /**
-     * Version 是已准备好的新版本，只在 State 为 ready 时有值。
+     * Version 是服务器提供的新版本，只在 State 为 ready 或 available 时有值。
      */
     "version": string;
 }
@@ -1228,6 +1228,11 @@ export enum ClientUpdateState {
      * ClientUpdateStateReady 表示新版本已下载并通过签名校验，重启后生效。
      */
     ClientUpdateStateReady = "ready",
+
+    /**
+     * ClientUpdateStateAvailable 表示服务器提供更新的版本，但当前端不能替换自身，需从服务器下载页安装。
+     */
+    ClientUpdateStateAvailable = "available",
 };
 
 /**

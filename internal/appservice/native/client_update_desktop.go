@@ -12,6 +12,8 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -44,6 +46,12 @@ type clientUpdater struct {
 	mu        sync.Mutex
 	// ready 是已下载并通过签名校验的版本。
 	ready string
+	// replaceable 表示当前用户能在应用所在目录替换应用。
+	replaceable bool
+	// serverURL 读取当前连接的服务器地址。
+	serverURL func(context.Context) (string, error)
+	// version 是本机客户端版本。
+	version string
 }
 
 // NewClientUpdater 创建桌面端更新能力；serverURL 读取当前连接的服务器地址，allowQuit 控制托盘常驻的应用能否退出。未注入版本号的开发构建不更新。
@@ -55,7 +63,30 @@ func NewClientUpdater(app *application.App, serverURL func(context.Context) (str
 		slog.Warn("初始化客户端更新失败", "error", err)
 		return nil
 	}
-	return &clientUpdater{updater: app.Updater, allowQuit: allowQuit}
+	return &clientUpdater{updater: app.Updater, allowQuit: allowQuit, replaceable: applicationReplaceable(), serverURL: serverURL, version: buildinfo.Version}
+}
+
+// applicationReplaceable 判断当前用户能否在应用所在目录替换应用：macOS 为应用包所在目录，Windows 为可执行文件所在目录。
+func applicationReplaceable() bool {
+	executable, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	target := executable
+	// macOS 替换整个应用包。
+	for dir := filepath.Dir(executable); dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+		if strings.HasSuffix(dir, ".app") {
+			target = dir
+			break
+		}
+	}
+	probe, err := os.CreateTemp(filepath.Dir(target), ".update-probe-*")
+	if err != nil {
+		return false
+	}
+	_ = probe.Close()
+	_ = os.Remove(probe.Name())
+	return true
 }
 
 // updaterConfig 返回从当前服务器读取更新清单、用品牌公钥校验更新包签名且不打开更新窗口的更新器配置。
@@ -67,12 +98,24 @@ func updaterConfig(version string, publicKey ed25519.PublicKey, serverURL func(c
 	}
 }
 
-// PrepareClientUpdate 检查当前服务器提供的客户端版本，较新时下载更新包并校验签名，同一版本只下载一次；超过 prepareTimeout 按失败返回。
+// PrepareClientUpdate 检查当前服务器提供的客户端版本，较新时下载更新包并校验签名，同一版本只下载一次；服务器没有本机平台的更新包或当前用户不能替换应用时不下载，返回 available。超过 prepareTimeout 按失败返回。
 func (u *clientUpdater) PrepareClientUpdate(ctx context.Context, meta appservice.RequestMeta) (appservice.ClientUpdate, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
 	ctx, cancel := context.WithTimeout(ctx, prepareTimeout)
 	defer cancel()
+	offered, err := readOfferedUpdate(ctx, u.serverURL, u.version)
+	if err != nil {
+		slog.Warn("检查客户端更新失败", "error", err)
+		return appservice.ClientUpdate{}, appservice.FailedError(meta, i18n.ErrorClientUpdateFailed, err)
+	}
+	if !offered.NewerThan(u.version) {
+		u.ready = ""
+		return appservice.ClientUpdate{State: appservice.ClientUpdateStateCurrent}, nil
+	}
+	if !offered.Installable || !u.replaceable {
+		return appservice.ClientUpdate{State: appservice.ClientUpdateStateAvailable, Version: offered.Version}, nil
+	}
 	release, err := u.updater.Check(ctx)
 	if err != nil {
 		slog.Warn("检查客户端更新失败", "error", err)
