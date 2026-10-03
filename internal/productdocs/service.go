@@ -194,6 +194,7 @@ type pageView struct {
 	HomePath     string
 	SearchPath   string
 	SiteHomePath string
+	DownloadPath string
 	AppPath      string
 	AssetPath    string
 	Nav          []navSectionView
@@ -264,11 +265,11 @@ func (s *Service) newView(locale, slug string) pageView {
 	view := pageView{
 		Lang: lang, Locale: locale, SiteTitle: siteTitle,
 		HomePath: PagePath(locale, ""), SearchPath: PagePath(locale, "search"), AssetPath: Prefix + assetsPrefix,
-		SiteHomePath: "/" + locale + "/", AppPath: domain.WebAppPath,
+		SiteHomePath: SitePath(locale, ""), DownloadPath: SitePath(locale, SiteDownloadPage), AppPath: domain.WebAppPath,
 		AssetVersion: s.assetVersion, Script: AccountScript,
 		Labels: i18n.LocalizeMap(acceptLanguage, map[string]i18n.Key{
 			"search": i18n.DocsSearch, "onThisPage": i18n.DocsOnThisPage, "menu": i18n.DocsMenu, "language": i18n.SiteLanguage,
-			"home": i18n.SiteHome, "openApp": i18n.SiteOpenApp, "signIn": i18n.SiteSignIn,
+			"home": i18n.SiteHome, "download": i18n.SiteDownload, "openApp": i18n.SiteOpenApp, "signIn": i18n.SiteSignIn,
 		}),
 	}
 	for _, section := range s.site.Navigation(locale) {
