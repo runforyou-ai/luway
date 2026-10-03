@@ -84,7 +84,7 @@ type EntryList struct {
 	Page    common.PageInfo
 }
 
-// ListEntries 先发放工作区今天的每日赠送，再按发生时间倒序返回工作区积分流水，同时发生的扣除排在入账之前：每日赠送、平台管理员调整、平台模型调用与批次过期。
+// ListEntries 先发放工作区今天的每日赠送，再按发生时间倒序返回工作区积分流水，同时发生的扣除排在入账之前：每日赠送、平台管理员调整、平台模型调用、充值、充值退款与批次过期。
 func ListEntries(ctx context.Context, db *bun.DB, organizationID string, page, pageSize int) (EntryList, error) {
 	page, pageSize, valid := common.NormalizePagination(page, pageSize)
 	if !valid {
@@ -107,11 +107,19 @@ func ListEntries(ctx context.Context, db *bun.DB, organizationID string, page, p
 		SELECT amc.id::text, ?, amc.created_at, -amc.credits, '', amc.model_name, amc.model_usage, amc.status, amc.input_tokens, amc.output_tokens
 		FROM ai_model_calls AS amc WHERE amc.organization_id = ? AND amc.model_scope = ? AND amc.credits > 0
 		UNION ALL
+		SELECT cl.id::text, ?, cl.created_at, cl.amount, '', '', '', '', 0, 0
+		FROM credit_lots AS cl WHERE cl.organization_id = ? AND cl.source = ?
+		UNION ALL
+		SELECT cm.id::text, ?, cm.created_at, cm.amount, '', '', '', '', 0, 0
+		FROM credit_movements AS cm WHERE cm.organization_id = ? AND cm.source_type = ?
+		UNION ALL
 		SELECT cl.id::text, ?, cl.expires_at, -cl.remaining, '', '', '', '', 0, 0
 		FROM credit_lots AS cl WHERE cl.organization_id = ? AND cl.remaining > 0 AND cl.expires_at <= ?`,
 		domain.CreditEntryKindDailyGrant, organizationID, domain.CreditLotSourceDailyGrant,
 		domain.CreditEntryKindAdjustment, organizationID,
 		domain.CreditEntryKindModelCall, organizationID, domain.AIModelScopePlatform,
+		domain.CreditEntryKindPurchase, organizationID, domain.CreditLotSourcePurchase,
+		domain.CreditEntryKindRefund, organizationID, domain.CreditMovementSourceRefund,
 		domain.CreditEntryKindExpiration, organizationID, now,
 	)
 	var total int

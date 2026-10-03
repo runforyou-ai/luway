@@ -1,4 +1,4 @@
-// Package httpsig 按 RFC 9421 用 Ed25519 为 HTTP 请求签名，并按 RFC 9530 附加请求体摘要。
+// Package httpsig 按 RFC 9421 用 Ed25519 为 HTTP 请求签名与验签，并按 RFC 9530 附加和校验请求体摘要。
 package httpsig
 
 import (
@@ -6,10 +6,14 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -39,23 +43,44 @@ func (s Signer) Sign(request *http.Request, body []byte) error {
 
 // sign 按给定签名时间和 nonce 计算并写入签名请求头。
 func (s Signer) sign(request *http.Request, body []byte, created time.Time, nonce string) {
-	digest := sha256.Sum256(body)
-	contentDigest := "sha-256=:" + base64.StdEncoding.EncodeToString(digest[:]) + ":"
+	contentDigest := sha256Digest(body)
 	request.Header.Set("Content-Digest", contentDigest)
 
 	params := `("` + strings.Join(coveredComponents, `" "`) + `");created=` + strconv.FormatInt(created.Unix(), 10) +
 		`;nonce="` + nonce + `";keyid="` + s.KeyID + `";alg="ed25519"`
-	base := strings.Join([]string{
-		`"@method": ` + request.Method,
-		`"@authority": ` + authority(request),
-		`"@path": ` + path(request),
-		`"@query": ?` + request.URL.RawQuery,
-		`"content-digest": ` + contentDigest,
-		`"@signature-params": ` + params,
-	}, "\n")
+	base := signatureBase(coveredComponents, componentValues(request, request.URL, contentDigest, nil), params)
 	signature := ed25519.Sign(s.Key, []byte(base))
 	request.Header.Set("Signature-Input", signatureLabel+"="+params)
 	request.Header.Set("Signature", signatureLabel+"=:"+base64.StdEncoding.EncodeToString(signature)+":")
+}
+
+// sha256Digest 返回请求体的 sha-256 Content-Digest 取值。
+func sha256Digest(body []byte) string {
+	digest := sha256.Sum256(body)
+	return "sha-256=:" + base64.StdEncoding.EncodeToString(digest[:]) + ":"
+}
+
+// signatureBase 按 components 的顺序生成签名基串，values 是各组成部分的取值。
+func signatureBase(components []string, values map[string]string, params string) string {
+	lines := make([]string, 0, len(components)+1)
+	for _, component := range components {
+		lines = append(lines, `"`+component+`": `+values[component])
+	}
+	return strings.Join(append(lines, `"@signature-params": `+params), "\n")
+}
+
+// componentValues 返回请求各组成部分的取值，target 提供路径与查询，额外的请求头组成部分取对应请求头。
+func componentValues(request *http.Request, target *url.URL, contentDigest string, components []string) map[string]string {
+	values := map[string]string{
+		"@method": request.Method, "@authority": authority(request), "@path": path(target),
+		"@query": "?" + target.RawQuery, "content-digest": contentDigest,
+	}
+	for _, component := range components {
+		if _, derived := values[component]; !derived {
+			values[component] = strings.TrimSpace(request.Header.Get(component))
+		}
+	}
+	return values
 }
 
 // authority 返回小写的目标主机，省略协议默认端口。
@@ -75,8 +100,8 @@ func authority(request *http.Request) string {
 }
 
 // path 返回编码后的请求路径，空路径按根路径处理。
-func path(request *http.Request) string {
-	if escaped := request.URL.EscapedPath(); escaped != "" {
+func path(target *url.URL) string {
+	if escaped := target.EscapedPath(); escaped != "" {
 		return escaped
 	}
 	return "/"
@@ -120,4 +145,72 @@ func (t *Transport) RoundTrip(request *http.Request) (*http.Response, error) {
 		base = http.DefaultTransport
 	}
 	return base.RoundTrip(signed)
+}
+
+// ErrInvalid 表示请求缺少签名、签名格式或参数不符、请求体摘要不一致、超出时间窗口或签名与公钥不匹配。
+var ErrInvalid = errors.New("httpsig: invalid signature")
+
+// Verify 校验服务端收到的请求：Signature-Input 中任一标签的签名按声明顺序覆盖本包签名的全部组成部分（可另含请求头），keyid 为 keyID，created 与 now 相差不超过 maxSkew，且 Signature 中同一标签的签名由 key 签发；Content-Digest 须与 body 一致，路径与查询取原始请求目标。
+func Verify(request *http.Request, body []byte, keyID string, key ed25519.PublicKey, now time.Time, maxSkew time.Duration) error {
+	contentDigest := request.Header.Get("Content-Digest")
+	sha512Sum := sha512.Sum512(body)
+	if contentDigest != sha256Digest(body) && contentDigest != "sha-512=:"+base64.StdEncoding.EncodeToString(sha512Sum[:])+":" {
+		return fmt.Errorf("%w: content digest mismatch", ErrInvalid)
+	}
+	target := request.URL
+	if request.RequestURI != "" {
+		var err error
+		if target, err = url.ParseRequestURI(request.RequestURI); err != nil {
+			return fmt.Errorf("%w: malformed request target", ErrInvalid)
+		}
+	}
+	// 按标签收集 Signature 中的签名字节。
+	signatures := map[string]string{}
+	for _, member := range strings.Split(request.Header.Get("Signature"), ",") {
+		label, value, _ := strings.Cut(strings.TrimSpace(member), "=")
+		signatures[label] = value
+	}
+	for _, member := range strings.Split(request.Header.Get("Signature-Input"), ",") {
+		label, params, _ := strings.Cut(strings.TrimSpace(member), "=")
+		encoded, found := signatures[label]
+		components, valid := signatureParams(params, keyID, now, maxSkew)
+		if !found || !valid {
+			continue
+		}
+		signature, err := base64.StdEncoding.DecodeString(strings.TrimSuffix(strings.TrimPrefix(encoded, ":"), ":"))
+		if err != nil {
+			continue
+		}
+		base := signatureBase(components, componentValues(request, target, contentDigest, components), params)
+		if ed25519.Verify(key, []byte(base), signature) {
+			return nil
+		}
+	}
+	return fmt.Errorf("%w: no valid signature", ErrInvalid)
+}
+
+// signatureParams 解析签名参数并按声明顺序返回覆盖的组成部分；须覆盖本包签名的全部组成部分，keyid 为 keyID、算法为 ed25519、带 nonce，且 created 与 now 相差不超过 maxSkew。
+func signatureParams(params, keyID string, now time.Time, maxSkew time.Duration) ([]string, bool) {
+	list, rest, found := strings.Cut(strings.TrimPrefix(params, "("), ")")
+	if !found || !strings.HasPrefix(params, "(") {
+		return nil, false
+	}
+	components := make([]string, 0, len(coveredComponents))
+	for _, item := range strings.Fields(list) {
+		components = append(components, strings.ToLower(strings.Trim(item, `"`)))
+	}
+	for _, required := range coveredComponents {
+		if !slices.Contains(components, required) {
+			return nil, false
+		}
+	}
+	values := map[string]string{}
+	for _, item := range strings.Split(strings.TrimPrefix(rest, ";"), ";") {
+		name, value, _ := strings.Cut(item, "=")
+		values[name] = strings.Trim(value, `"`)
+	}
+	created, err := strconv.ParseInt(values["created"], 10, 64)
+	skew := now.Sub(time.Unix(created, 0))
+	valid := err == nil && values["keyid"] == keyID && values["alg"] == "ed25519" && values["nonce"] != "" && skew <= maxSkew && skew >= -maxSkew
+	return components, valid
 }

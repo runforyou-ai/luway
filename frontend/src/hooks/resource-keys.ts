@@ -42,6 +42,8 @@ export const resourceKeys = {
   platformOverview: () => ["platform-overview"],
   /** 授权状态。 */
   license: () => ["license"],
+  /** 平台与商业服务的配对状态。 */
+  commercePairing: () => ["commerce-pairing"],
   /** 平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。 */
   platformSettings: () => ["platform-settings"],
   /** 平台账号列表，可带筛选分页参数。 */
@@ -318,6 +320,7 @@ export const accountScopedKeyPrefixes: ReadonlySet<unknown> = new Set([
   resourceKeys.installationStatus()[0],
   resourceKeys.platformOverview()[0],
   resourceKeys.license()[0],
+  resourceKeys.commercePairing()[0],
   resourceKeys.platformSettings()[0],
   resourceKeys.platformAccounts()[0],
   resourceKeys.platformWorkspaces()[0],

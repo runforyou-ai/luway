@@ -22,6 +22,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/common/license"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/commerce"
 	"github.com/runforyou-ai/luway/internal/integration/control"
 	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
 	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
@@ -82,10 +83,11 @@ type directOperations struct {
 	platformOps
 	platformModelOps
 	creditOps
+	commerceOps
 	productDocsOps
 }
 
-// DeploymentConfig 定义直接后端的部署名称、部署地址、邀请邮件发送、产品文档、授权码验签公钥、control 客户端和上报开关缓存；邮件发送只在配置了 SMTP 时设置。
+// DeploymentConfig 定义直接后端的部署名称、部署地址、邀请邮件发送、产品文档、授权码验签公钥、control 客户端、上报开关缓存和商业服务客户端；邮件发送只在配置了 SMTP 时设置。
 type DeploymentConfig struct {
 	Name             string
 	PublicURL        string
@@ -93,6 +95,7 @@ type DeploymentConfig struct {
 	ProductDocs      *productdocs.Site
 	LicenseKeys      license.Keys
 	Control          *control.Client
+	Commerce         *commerce.Client
 	Telemetry        *platformaction.Telemetry
 	// InstanceID 是本服务端进程编号，写入导出的诊断信息。
 	InstanceID string
@@ -134,6 +137,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		platformOps:        newPlatformOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control, s3, deployment.Telemetry, deployment.InstanceID),
 		platformModelOps:   newPlatformModelOps(db, modelProviderRegistry),
 		creditOps:          newCreditOps(db),
+		commerceOps:        newCommerceOps(db, deployment.Commerce, taskEnqueuer),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}
 	return &Backend{ops: ops}

@@ -9,6 +9,7 @@ import (
 
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	commerceaction "github.com/runforyou-ai/luway/internal/actions/commerce"
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
@@ -57,6 +58,9 @@ func newTestTasks(db *bun.DB) *servertask.Runtime {
 		panic(err)
 	}
 	if err := tasks.Registry().RegisterJSON(knowledgegap.DraftActionName, func(context.Context, knowledgegap.DraftInput) error { return nil }); err != nil {
+		panic(err)
+	}
+	if err := tasks.Registry().RegisterJSON(commerceaction.SyncChangesActionName, func(context.Context, commerceaction.SyncChangesInput) error { return nil }); err != nil {
 		panic(err)
 	}
 	if err := tasks.Registry().RegisterJSON(platformaction.SyncLicenseActionName, func(context.Context, platformaction.SyncLicenseInput) error { return nil }); err != nil {

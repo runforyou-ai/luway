@@ -480,6 +480,18 @@ type Backend interface {
 	// SyncLicense 立即向 control 登记服务器并拉取最新授权。
 	//appservice:route POST /platform/license/sync auth=admin
 	SyncLicense(context.Context, RequestMeta) (License, error)
+	// GetCommercePairing 返回平台与商业服务的配对状态。
+	//appservice:route GET /platform/commerce auth=admin
+	GetCommercePairing(context.Context, RequestMeta) (CommercePairing, error)
+	// PairCommerce 用商业服务生成的配对码完成配对，替换现有配对并从头读取商业服务变更。
+	//appservice:route PUT /platform/commerce auth=admin
+	PairCommerce(context.Context, RequestMeta, PairCommerceInput) (CommercePairing, error)
+	// UnpairCommerce 解除与商业服务的配对并删除已应用的工作区权益。
+	//appservice:route DELETE /platform/commerce auth=admin
+	UnpairCommerce(context.Context, RequestMeta) error
+	// SyncCommerce 立即读取商业服务的变更。
+	//appservice:route POST /platform/commerce/sync auth=admin
+	SyncCommerce(context.Context, RequestMeta) (CommercePairing, error)
 	// SuspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 	//appservice:route POST /platform/workspaces/:workspaceID/suspend auth=admin
 	SuspendPlatformWorkspace(context.Context, RequestMeta, string) (PlatformWorkspace, error)

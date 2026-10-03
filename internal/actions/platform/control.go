@@ -52,7 +52,7 @@ func ControlIdentity(ctx context.Context, db bun.IDB) (control.Identity, error) 
 	return control.Identity{ServerID: platform.ServerID, PrivateKey: ed25519.NewKeyFromSeed(platform.ServerPrivateKey)}, nil
 }
 
-// ResetServerID 为平台生成新的服务器标识与签名私钥，删除本地授权并清空与 control 同步的结果，返回新服务器标识。
+// ResetServerID 为平台生成新的服务器标识与签名私钥，删除本地授权、商业服务配对与工作区权益并清空与 control 同步的结果，返回新服务器标识。
 func ResetServerID(ctx context.Context, db *bun.DB) (string, error) {
 	var serverID string
 	err := db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
@@ -63,6 +63,13 @@ func ResetServerID(ctx context.Context, db *bun.DB) (string, error) {
 		if _, err := tx.NewDelete().Model((*servermodels.License)(nil)).
 			Where("server_id = ?", platform.ServerID).
 			Exec(ctx); err != nil {
+			return err
+		}
+		// 商业服务登记的是原服务器公钥，配对与已应用的权益随之删除。
+		if _, err := tx.NewDelete().Model((*servermodels.CommercePairing)(nil)).Where("true").Exec(ctx); err != nil {
+			return err
+		}
+		if _, err := tx.NewDelete().Model((*servermodels.WorkspaceEntitlement)(nil)).Where("true").Exec(ctx); err != nil {
 			return err
 		}
 		return tx.NewUpdate().Model((*servermodels.Platform)(nil)).

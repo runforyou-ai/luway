@@ -17,6 +17,7 @@ type CreditLot struct {
 	OrganizationID string     `bun:"organization_id"`
 	Source         string     `bun:"source"`
 	AdjustmentID   *string    `bun:"adjustment_id"`
+	OrderID        *string    `bun:"order_id"`
 	GrantDate      *string    `bun:"grant_date"`
 	Amount         int64      `bun:"amount"`
 	Remaining      int64      `bun:"remaining"`
