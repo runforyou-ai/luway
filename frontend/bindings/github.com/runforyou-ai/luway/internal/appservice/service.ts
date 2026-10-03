@@ -31,10 +31,17 @@ export function AcceptKnowledgeGap(meta: $models.RequestMeta, gapID: string, inp
 }
 
 /**
- * ActivateInstanceLicense 用授权码激活或替换实例授权。
+ * ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
  */
 export function ActivateInstanceLicense(meta: $models.RequestMeta, input: $models.ActivateInstanceLicenseInput): $CancellablePromise<$models.InstanceLicense> {
     return $Call.ByID(1751582854, meta, input);
+}
+
+/**
+ * ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+ */
+export function ActivateInstanceLicenseOnline(meta: $models.RequestMeta, input: $models.ActivateInstanceLicenseOnlineInput): $CancellablePromise<$models.InstanceLicense> {
+    return $Call.ByID(4084186685, meta, input);
 }
 
 /**
@@ -591,7 +598,7 @@ export function GetDeploymentOverview(meta: $models.RequestMeta): $CancellablePr
 }
 
 /**
- * GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+ * GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
  */
 export function GetDeploymentSettings(meta: $models.RequestMeta): $CancellablePromise<$models.DeploymentSettings> {
     return $Call.ByID(1568829417, meta);
@@ -619,7 +626,7 @@ export function GetInboxConversation(meta: $models.RequestMeta, conversationID: 
 }
 
 /**
- * GetInstanceLicense 返回实例授权状态。
+ * GetInstanceLicense 返回实例标识与实例授权状态。
  */
 export function GetInstanceLicense(meta: $models.RequestMeta): $CancellablePromise<$models.InstanceLicense> {
     return $Call.ByID(4098040715, meta);
@@ -1676,6 +1683,13 @@ export function SuspendDeploymentWorkspace(meta: $models.RequestMeta, workspaceI
 }
 
 /**
+ * SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+ */
+export function SyncInstanceLicense(meta: $models.RequestMeta): $CancellablePromise<$models.InstanceLicense> {
+    return $Call.ByID(1009075032, meta);
+}
+
+/**
  * TakeOpenedNotificationPath 返回并清除最近一次被点击的系统通知要打开的页面地址；没有待打开的页面或当前端不投递原生通知时返回空串。
  */
 export function TakeOpenedNotificationPath(meta: $models.RequestMeta): $CancellablePromise<string> {
@@ -1862,6 +1876,13 @@ export function UpdateDeploymentSettings(meta: $models.RequestMeta, input: $mode
  */
 export function UpdateDeploymentStatisticsTimeZone(meta: $models.RequestMeta, input: $models.DeploymentStatisticsTimeZoneInput): $CancellablePromise<$models.DeploymentSettings> {
     return $Call.ByID(4121777375, meta, input);
+}
+
+/**
+ * UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+ */
+export function UpdateDeploymentTelemetry(meta: $models.RequestMeta, input: $models.DeploymentTelemetryInput): $CancellablePromise<$models.DeploymentSettings> {
+    return $Call.ByID(263517666, meta, input);
 }
 
 /**

@@ -435,7 +435,7 @@ type Backend interface {
 	// GetDeploymentOverview 返回实例标识、服务端版本、规模、活跃趋势和实例能力。
 	//appservice:route GET /deployment/overview auth=admin
 	GetDeploymentOverview(context.Context, RequestMeta) (DeploymentOverview, error)
-	// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+	// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 	//appservice:route GET /deployment/settings auth=admin
 	GetDeploymentSettings(context.Context, RequestMeta) (DeploymentSettings, error)
 	// UpdateDeploymentSettings 修改部署注册策略和工作区创建策略。
@@ -444,6 +444,9 @@ type Backend interface {
 	// UpdateDeploymentStatisticsTimeZone 修改运营数据统计时区，并按新时区在后台重建运营数据。
 	//appservice:route PUT /deployment/settings/statistics-time-zone auth=admin
 	UpdateDeploymentStatisticsTimeZone(context.Context, RequestMeta, DeploymentStatisticsTimeZoneInput) (DeploymentSettings, error)
+	// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+	//appservice:route PUT /deployment/settings/telemetry auth=admin
+	UpdateDeploymentTelemetry(context.Context, RequestMeta, DeploymentTelemetryInput) (DeploymentSettings, error)
 	// ListDeploymentAccounts 返回部署内的账号。
 	//appservice:route GET /deployment/accounts auth=admin
 	ListDeploymentAccounts(context.Context, RequestMeta, DeploymentAccountListInput) (DeploymentAccountList, error)
@@ -462,12 +465,18 @@ type Backend interface {
 	// ListDeploymentWorkspaces 返回部署内的全部工作区及其状态和当前规模。
 	//appservice:route GET /deployment/workspaces auth=admin
 	ListDeploymentWorkspaces(context.Context, RequestMeta, DeploymentWorkspaceListInput) (DeploymentWorkspaceList, error)
-	// GetInstanceLicense 返回实例授权状态。
+	// GetInstanceLicense 返回实例标识与实例授权状态。
 	//appservice:route GET /deployment/license auth=admin
 	GetInstanceLicense(context.Context, RequestMeta) (InstanceLicense, error)
-	// ActivateInstanceLicense 用授权码激活或替换实例授权。
+	// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
 	//appservice:route PUT /deployment/license auth=admin
 	ActivateInstanceLicense(context.Context, RequestMeta, ActivateInstanceLicenseInput) (InstanceLicense, error)
+	// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+	//appservice:route POST /deployment/license/activations auth=admin
+	ActivateInstanceLicenseOnline(context.Context, RequestMeta, ActivateInstanceLicenseOnlineInput) (InstanceLicense, error)
+	// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+	//appservice:route POST /deployment/license/sync auth=admin
+	SyncInstanceLicense(context.Context, RequestMeta) (InstanceLicense, error)
 	// SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 	//appservice:route POST /deployment/workspaces/:workspaceID/suspend auth=admin
 	SuspendDeploymentWorkspace(context.Context, RequestMeta, string) (DeploymentWorkspace, error)

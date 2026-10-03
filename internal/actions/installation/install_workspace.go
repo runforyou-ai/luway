@@ -17,6 +17,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	commonemail "github.com/runforyou-ai/luway/pkg/email"
 	commonpassword "github.com/runforyou-ai/luway/pkg/password"
 	"github.com/uptrace/bun"
@@ -30,7 +31,8 @@ type ValidationError = common.FieldError
 
 // InstallWorkspaceAction 创建部署管理员账号和第一个工作区。
 type InstallWorkspaceAction struct {
-	db *bun.DB
+	db       *bun.DB
+	enqueuer servertask.TxEnqueuer
 }
 
 // InstallWorkspaceInput 定义首次安装输入。
@@ -50,12 +52,12 @@ type InstallWorkspaceOutput struct {
 	Session  authaction.SessionOutput
 }
 
-// NewInstallWorkspaceAction 创建首次安装操作。
-func NewInstallWorkspaceAction(db *bun.DB) *InstallWorkspaceAction {
-	return &InstallWorkspaceAction{db: db}
+// NewInstallWorkspaceAction 创建首次安装操作，enqueuer 投递实例与 control 的首次同步任务。
+func NewInstallWorkspaceAction(db *bun.DB, enqueuer servertask.TxEnqueuer) *InstallWorkspaceAction {
+	return &InstallWorkspaceAction{db: db, enqueuer: enqueuer}
 }
 
-// Execute 在部署尚未完成首次安装时，于同一事务内生成部署实例，并创建部署管理员账号、第一个工作区和登录会话。
+// Execute 在部署尚未完成首次安装时，于同一事务内生成部署实例并投递与 control 的首次同步，并创建部署管理员账号、第一个工作区和登录会话。
 func (a *InstallWorkspaceAction) Execute(ctx context.Context, input InstallWorkspaceInput) (InstallWorkspaceOutput, error) {
 	account := accountaction.NewAccountInput{
 		DisplayName: strings.TrimSpace(input.DisplayName),
@@ -91,7 +93,7 @@ func (a *InstallWorkspaceAction) Execute(ctx context.Context, input InstallWorks
 		if installed {
 			return ErrAlreadyInstalled
 		}
-		if _, err := deploymentaction.Create(ctx, tx, account.TimeZone); err != nil {
+		if _, err := deploymentaction.Create(ctx, tx, a.enqueuer, account.TimeZone); err != nil {
 			return err
 		}
 		admin, err := identityaction.CreateAccount(ctx, tx, identityaction.NewAccount{

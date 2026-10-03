@@ -922,7 +922,7 @@ func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.Req
 	return output, err
 }
 
-// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentSettings, error) {
 	var output appservice.DeploymentSettings
 	err := b.do(ctx, meta, http.MethodGet, "/deployment/settings", nil, nil, &output)
@@ -940,6 +940,13 @@ func (b *Backend) UpdateDeploymentSettings(ctx context.Context, meta appservice.
 func (b *Backend) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentStatisticsTimeZoneInput) (appservice.DeploymentSettings, error) {
 	var output appservice.DeploymentSettings
 	err := b.do(ctx, meta, http.MethodPut, "/deployment/settings/statistics-time-zone", nil, input, &output)
+	return output, err
+}
+
+// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+func (b *Backend) UpdateDeploymentTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentTelemetryInput) (appservice.DeploymentSettings, error) {
+	var output appservice.DeploymentSettings
+	err := b.do(ctx, meta, http.MethodPut, "/deployment/settings/telemetry", nil, input, &output)
 	return output, err
 }
 
@@ -985,17 +992,31 @@ func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.
 	return output, err
 }
 
-// GetInstanceLicense 返回实例授权状态。
+// GetInstanceLicense 返回实例标识与实例授权状态。
 func (b *Backend) GetInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
 	var output appservice.InstanceLicense
 	err := b.do(ctx, meta, http.MethodGet, "/deployment/license", nil, nil, &output)
 	return output, err
 }
 
-// ActivateInstanceLicense 用授权码激活或替换实例授权。
+// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
 func (b *Backend) ActivateInstanceLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseInput) (appservice.InstanceLicense, error) {
 	var output appservice.InstanceLicense
 	err := b.do(ctx, meta, http.MethodPut, "/deployment/license", nil, input, &output)
+	return output, err
+}
+
+// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+func (b *Backend) ActivateInstanceLicenseOnline(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseOnlineInput) (appservice.InstanceLicense, error) {
+	var output appservice.InstanceLicense
+	err := b.do(ctx, meta, http.MethodPost, "/deployment/license/activations", nil, input, &output)
+	return output, err
+}
+
+// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+func (b *Backend) SyncInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
+	var output appservice.InstanceLicense
+	err := b.do(ctx, meta, http.MethodPost, "/deployment/license/sync", nil, nil, &output)
 	return output, err
 }
 

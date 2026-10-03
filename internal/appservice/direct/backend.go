@@ -21,6 +21,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/common/license"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime/runstream"
+	"github.com/runforyou-ai/luway/internal/integration/control"
 	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
 	"github.com/runforyou-ai/luway/internal/integration/modelprovider"
 	"github.com/runforyou-ai/luway/internal/integration/telegram"
@@ -81,13 +82,14 @@ type directOperations struct {
 	productDocsOps
 }
 
-// DeploymentConfig 定义直接后端的部署名称、部署地址、邀请邮件发送、产品文档和授权码验签公钥；邮件发送只在配置了 SMTP 时设置。
+// DeploymentConfig 定义直接后端的部署名称、部署地址、邀请邮件发送、产品文档、授权码验签公钥和 control 客户端；邮件发送只在配置了 SMTP 时设置。
 type DeploymentConfig struct {
 	Name             string
 	PublicURL        string
 	InvitationMailer invitationaction.Mailer
 	ProductDocs      *productdocs.Site
 	LicenseKeys      license.Keys
+	Control          *control.Client
 }
 
 // New 创建直接访问服务端存储的应用后端。
@@ -102,7 +104,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 	documentQuery := knowledgebaseaction.NewDocumentQuery(db)
 	ops := &directOperations{
 		sessionGuard:       guard,
-		authOps:            newAuthOps(db, deployment),
+		authOps:            newAuthOps(db, deployment, taskEnqueuer),
 		conversationOps:    newConversationOps(db, agentScheduler, agentCoordinator, taskEnqueuer),
 		inboxOps:           newInboxOps(db, taskEnqueuer),
 		channelOps:         newChannelOps(db, connectionRunner, telegramAPI),
@@ -123,7 +125,7 @@ func New(db *bun.DB, deployment DeploymentConfig, localFiles *serverfilecontent.
 		translationOps:     newTranslationOps(db, translator),
 		webSearchOps:       newWebSearchOps(db, connectionRunner),
 		invitationOps:      newInvitationOps(db, deployment.InvitationMailer, deployment.PublicURL),
-		deploymentOps:      newDeploymentOps(db, taskEnqueuer, deployment.LicenseKeys),
+		deploymentOps:      newDeploymentOps(db, taskEnqueuer, deployment.LicenseKeys, deployment.Control),
 		productDocsOps:     productDocsOps{site: deployment.ProductDocs},
 	}
 	return &Backend{ops: ops}
