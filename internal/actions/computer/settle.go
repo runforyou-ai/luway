@@ -22,7 +22,7 @@ import (
 const SweepActionName = "computer.sweep"
 
 // unsettledStatuses 是派发到电脑后尚未结束的调用状态：待领取与执行中。
-var unsettledStatuses = []domain.AgentToolCallStatus{domain.AgentToolCallWaiting, domain.AgentToolCallRunning}
+var unsettledStatuses = []domain.AgentToolCallStatus{domain.AgentToolCallQueued, domain.AgentToolCallRunning}
 
 // lostCondition 返回派发到电脑的未结束调用已丢失的判断条件及其参数：电脑已撤销；尚未领取而电脑离线；
 // 已领取而电脑离线超过单次操作的执行时限，执行器在此之前重新上线时仍可上报结果。
@@ -30,7 +30,7 @@ func lostCondition() (string, []any) {
 	return `(cmp.revoked_at IS NOT NULL
 		OR (atc.status = ? AND (cmp.last_seen_at IS NULL OR cmp.last_seen_at < now() - make_interval(secs => ?)))
 		OR (atc.status = ? AND (cmp.last_seen_at IS NULL OR cmp.last_seen_at < now() - make_interval(secs => ?))))`,
-		[]any{domain.AgentToolCallWaiting, domain.ComputerPresenceTimeout.Seconds(),
+		[]any{domain.AgentToolCallQueued, domain.ComputerPresenceTimeout.Seconds(),
 			domain.AgentToolCallRunning, (domain.ComputerOperationTimeout + domain.ComputerPresenceTimeout).Seconds()}
 }
 

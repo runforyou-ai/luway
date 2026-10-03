@@ -285,6 +285,7 @@ const inbox = {
   agentToolCancelled: "Cancelled",
   agentToolInterrupted: "Interrupted",
   agentToolNeedsReview: "Needs review",
+  agentToolAborting: "Aborting",
   agentToolArguments: "Arguments",
   agentToolResult: "Result",
   agentToolError: "Error",

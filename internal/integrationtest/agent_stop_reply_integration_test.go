@@ -16,6 +16,8 @@ import (
 	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	"github.com/runforyou-ai/luway/internal/servertest"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -160,50 +162,68 @@ func assertStoppedAgentReply(t *testing.T, ctx context.Context, db *bun.DB, runI
 	return message
 }
 
-// testStopRunningAgentReply 验证协作式中断、忽略中断的迟到结果和失败回调均收敛。
+// testStopRunningAgentReply 验证本实例或另一实例停止运行后，执行实例经运行结束通知协作式中断，忽略中断的迟到结果和失败回调均收敛。
 func testStopRunningAgentReply(t *testing.T, db *bun.DB, identity *servermodels.Identity, agentIdentityID string, tasks *servertask.Runtime) {
-	for _, lateSuccess := range []bool{false, true} {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		_, run := createAgentLockChat(t, ctx, db, identity, agentIdentityID, tasks)
-		claimed := make(chan struct{})
-		runtime := testAgentRuntime{run: func(ctx context.Context, _ agentruntime.RunRequest, feed agentruntime.InputFeed) (agentruntime.RunResult, error) {
-			input, err := feed.Claim(ctx, 1)
-			if err != nil {
-				return agentruntime.RunResult{}, err
-			}
-			close(claimed)
-			<-ctx.Done()
-			// 中断时已产生的过程内容随结果一并返回，迟到的成功结果同样携带。
-			partial := agentruntime.RunResult{
-				Usage: agentruntime.Usage{PromptTokens: 9, CompletionTokens: 4, TotalTokens: 13},
-				Blocks: []agentruntime.Block{{
-					ID: uuid.NewV7().String(), Position: 1, ModelCallID: uuid.NewV7().String(),
-					Kind: domain.AgentRunBlockThinking, Payload: agentruntime.BlockPayload{Text: "停止前的思考"},
-				}},
-			}
-			if lateSuccess {
-				partial.Content, partial.EndSeq = "迟到的回复", input.EndSeq
-				return partial, nil
-			}
-			return partial, ctx.Err()
-		}}
-		executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
-		finished := make(chan error, 1)
-		go func() { finished <- executor.Execute(ctx, agentrunaction.RunInput{RunID: run.ID}) }()
-		waitChatSignal(t, ctx, claimed)
-		if _, err := executor.StopAgentReply(ctx, identity, run.ConversationID, run.ID); err != nil {
+	publisher := startTestPublisher(t, servertest.NATSConfig(t, "test_run_ended_"+strings.ReplaceAll(uuid.NewV7().String(), "-", "")))
+	for _, remote := range []bool{false, true} {
+		for _, lateSuccess := range []bool{false, true} {
+			stopRunningAgentReply(t, db, identity, agentIdentityID, tasks, publisher, remote, lateSuccess)
+		}
+	}
+}
+
+// stopRunningAgentReply 停止一次执行中的运行：remote 为真时执行实例只经 NATS 接收运行结束通知，否则只经本进程登记直接接收。
+func stopRunningAgentReply(t *testing.T, db *bun.DB, identity *servermodels.Identity, agentIdentityID string, tasks *servertask.Runtime, publisher *realtime.Publisher, remote, lateSuccess bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, run := createAgentLockChat(t, ctx, db, identity, agentIdentityID, tasks)
+	claimed := make(chan struct{})
+	runtime := testAgentRuntime{run: func(ctx context.Context, _ agentruntime.RunRequest, feed agentruntime.InputFeed) (agentruntime.RunResult, error) {
+		input, err := feed.Claim(ctx, 1)
+		if err != nil {
+			return agentruntime.RunResult{}, err
+		}
+		close(claimed)
+		<-ctx.Done()
+		// 中断时已产生的过程内容随结果一并返回，迟到的成功结果同样携带。
+		partial := agentruntime.RunResult{
+			Usage: agentruntime.Usage{PromptTokens: 9, CompletionTokens: 4, TotalTokens: 13},
+			Blocks: []agentruntime.Block{{
+				ID: uuid.NewV7().String(), Position: 1, ModelCallID: uuid.NewV7().String(),
+				Kind: domain.AgentRunBlockThinking, Payload: agentruntime.BlockPayload{Text: "停止前的思考"},
+			}},
+		}
+		if lateSuccess {
+			partial.Content, partial.EndSeq = "迟到的回复", input.EndSeq
+			return partial, nil
+		}
+		return partial, ctx.Err()
+	}}
+	executor := agentrunaction.NewExecuteAction(db, tasks, runtime, testModelInvoker(db), testAttachmentReader(db), nil, nil)
+	if remote {
+		unsubscribe, err := publisher.SubscribeAgentRunEnded(executor.CancelRunContext)
+		if err != nil {
 			t.Fatal(err)
 		}
-		if err := waitChatResult(t, ctx, finished); err != nil {
-			t.Fatal(err)
-		}
-		assertStoppedAgentReply(t, ctx, db, run.ID, 1, 1)
-		// 主动停止的运行保留中断前的过程，成员可按运行编号读取。
-		process, err := conversationaction.NewGetAgentRunProcessQuery(db).Execute(ctx, identity, run.ID)
-		if err != nil || len(process.Blocks) != 1 || process.Blocks[0].Payload.Text != "停止前的思考" || process.Usage.TotalTokens != 13 {
-			t.Fatalf("stopped agent run process = %#v, error = %v", process, err)
-		}
+		defer unsubscribe()
+	} else {
+		defer realtime.HandleAgentRunEnded(executor.CancelRunContext)()
+	}
+	stopper := agentrunaction.NewExecuteAction(db, tasks, nil, testModelInvoker(db), testAttachmentReader(db), nil, nil)
+	finished := make(chan error, 1)
+	go func() { finished <- executor.Execute(ctx, agentrunaction.RunInput{RunID: run.ID}) }()
+	waitChatSignal(t, ctx, claimed)
+	if _, err := stopper.StopAgentReply(ctx, identity, run.ConversationID, run.ID); err != nil {
+		t.Fatal(err)
+	}
+	if err := waitChatResult(t, ctx, finished); err != nil {
+		t.Fatal(err)
+	}
+	assertStoppedAgentReply(t, ctx, db, run.ID, 1, 1)
+	// 主动停止的运行保留中断前的过程，成员可按运行编号读取。
+	process, err := conversationaction.NewGetAgentRunProcessQuery(db).Execute(ctx, identity, run.ID)
+	if err != nil || len(process.Blocks) != 1 || process.Blocks[0].Payload.Text != "停止前的思考" || process.Usage.TotalTokens != 13 {
+		t.Fatalf("stopped agent run process = %#v, error = %v", process, err)
 	}
 }
 

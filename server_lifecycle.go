@@ -50,10 +50,14 @@ func (l *serverTaskLifecycle) ServiceShutdown() error {
 	return l.runtime.Stop()
 }
 
-// realtimeLifecycle 将实时通知发布器与成员实时网关接入 Wails 服务生命周期。
+// realtimeLifecycle 将实时通知发布器、成员实时网关与运行结束通知的接收接入 Wails 服务生命周期。
 type realtimeLifecycle struct {
 	publisher *realtime.Publisher
 	gateway   *gateway.Gateway
+	// agentRunEnded 处理运行结束通知：本进程提交的直接处理，其他实例发出的经 NATS 接收。
+	agentRunEnded func(runID string)
+	unsubscribe   func()
+	unregister    func()
 }
 
 // ServiceStartup 连接 NATS，开始发布已提交通知并接收实时事件流请求。
@@ -62,6 +66,12 @@ func (l *realtimeLifecycle) ServiceStartup(ctx context.Context, _ application.Se
 		return err
 	}
 	l.gateway.Start(l.publisher.Connection())
+	unsubscribe, err := l.publisher.SubscribeAgentRunEnded(l.agentRunEnded)
+	if err != nil {
+		return err
+	}
+	l.unsubscribe = unsubscribe
+	l.unregister = realtime.HandleAgentRunEnded(l.agentRunEnded)
 	// 收到 SIGINT、SIGTERM 时立即结束实时事件流。
 	signals, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
@@ -72,9 +82,15 @@ func (l *realtimeLifecycle) ServiceStartup(ctx context.Context, _ application.Se
 	return nil
 }
 
-// ServiceShutdown 结束实时事件流后停止实时通知发布器。
+// ServiceShutdown 结束实时事件流并取消运行结束通知的订阅与本进程登记后停止实时通知发布器。
 func (l *realtimeLifecycle) ServiceShutdown() error {
 	l.gateway.Shutdown()
+	if l.unsubscribe != nil {
+		l.unsubscribe()
+	}
+	if l.unregister != nil {
+		l.unregister()
+	}
 	return l.publisher.Stop()
 }
 

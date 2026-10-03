@@ -15,9 +15,11 @@ import (
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/internal/storage/server/pgerr"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
+	"github.com/uptrace/bun"
 )
 
 type executionScopeFixture struct {
@@ -316,7 +318,10 @@ func TestAgentExecutionScopeKeepsSuppressedProcess(t *testing.T) {
 	finished := make(chan error, 1)
 	go func() { finished <- executor.Execute(ctx, agentrunaction.RunInput{RunID: run.ID}) }()
 	<-claimed
-	if _, err := f.coordinator.CancelForServiceSession(ctx, f.db, run.OrganizationID, sessionID, f.agentIdentityID, domain.AgentRunErrorCodeBotChanged); err != nil {
+	if err := realtime.RunInTx(ctx, f.db, func(ctx context.Context, tx bun.Tx) error {
+		_, err := f.coordinator.CancelForServiceSession(ctx, tx, run.OrganizationID, sessionID, f.agentIdentityID, domain.AgentRunErrorCodeBotChanged)
+		return err
+	}); err != nil {
 		t.Fatal(err)
 	}
 	close(release)

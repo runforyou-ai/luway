@@ -25,18 +25,16 @@ func (a *ExecuteAction) CancelForServiceSession(ctx context.Context, db bun.IDB,
 	return chatstate.CancelServiceSessionRuns(ctx, db, organizationID, serviceSessionID, agentIdentityID, reason)
 }
 
-// CancelRunContexts 尽力取消本进程中正在执行的模型调用。
-func (a *ExecuteAction) CancelRunContexts(runIDs []string) {
+// CancelRunContext 收到运行结束通知时取消本进程中该运行的模型调用与进程内工具，本进程未执行该运行时不做处理。
+func (a *ExecuteAction) CancelRunContext(runID string) {
 	a.runningMu.Lock()
 	defer a.runningMu.Unlock()
-	for _, runID := range runIDs {
-		if running := a.runningRuns[runID]; running != nil {
-			running.cancel()
-		}
+	if running := a.runningRuns[runID]; running != nil {
+		running.cancel()
 	}
 }
 
-// registerRunContext 注册一次可被客服负责人变化中断的模型调用。
+// registerRunContext 注册一次可被运行结束通知中断的模型调用。
 func (a *ExecuteAction) registerRunContext(ctx context.Context, runID string, cancel context.CancelFunc) (*runningAgentRun, func(), error) {
 	execution, _ := servertask.CurrentExecution(ctx)
 	streamID := uuid.NewV7().String()

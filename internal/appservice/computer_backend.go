@@ -15,7 +15,7 @@ type ComputerBackend interface {
 	// ReportComputerCapabilities 上报本电脑的执行能力、执行器版本与同时执行的操作上限。
 	//appservice:route PUT /computer/capabilities
 	ReportComputerCapabilities(context.Context, RequestMeta, ComputerCapabilitiesInput) error
-	// ClaimComputerOperations 领取派发给本电脑的待执行操作。
+	// ClaimComputerOperations 领取派发给本电脑的待执行操作，并返回应当中止的操作。
 	//appservice:route POST /computer/operations/claim
 	ClaimComputerOperations(context.Context, RequestMeta, ComputerClaimInput) (ComputerOperationList, error)
 	// CompleteComputerOperation 上报本电脑执行一次操作的结果。

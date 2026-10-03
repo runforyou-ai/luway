@@ -10,6 +10,7 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
@@ -149,7 +150,7 @@ func Sync(ctx context.Context, db bun.IDB, run *servermodels.AgentRun, blocks []
 	return nil
 }
 
-// SaveToolCall 写入一次工具调用：已有最终结果的调用只补记依据标记，已派发到电脑的调用不改变状态与结果。
+// SaveToolCall 写入一次工具调用：已有最终结果的调用只补记依据标记，已派发到电脑的调用不改变状态、结果与开始时间。
 func SaveToolCall(ctx context.Context, db bun.IDB, run *servermodels.AgentRun, call agentruntime.ToolCall) error {
 	row := &servermodels.AgentToolCall{
 		ID: call.ID, OrganizationID: run.OrganizationID, AgentRunID: run.ID, ModelCallID: call.ModelCallID,
@@ -172,7 +173,7 @@ func SaveToolCall(ctx context.Context, db bun.IDB, run *servermodels.AgentRun, c
 		Set("result = CASE WHEN atc.status IN (?) OR atc.computer_id IS NOT NULL THEN atc.result ELSE EXCLUDED.result END", settled).
 		Set("error = CASE WHEN atc.status IN (?) OR atc.computer_id IS NOT NULL THEN atc.error ELSE EXCLUDED.error END", settled).
 		Set("completed_at = CASE WHEN atc.status IN (?) OR atc.computer_id IS NOT NULL THEN atc.completed_at ELSE EXCLUDED.completed_at END", settled).
-		Set("started_at = COALESCE(atc.started_at, EXCLUDED.started_at)").
+		Set("started_at = CASE WHEN atc.computer_id IS NOT NULL THEN atc.started_at ELSE COALESCE(atc.started_at, EXCLUDED.started_at) END").
 		Set("evidence = atc.evidence OR EXCLUDED.evidence").
 		Set("updated_at = now()").
 		Exec(ctx); err != nil {
@@ -181,8 +182,10 @@ func SaveToolCall(ctx context.Context, db bun.IDB, run *servermodels.AgentRun, c
 	return nil
 }
 
-// CancelUnsettled 把运行中尚未结束的工具调用记为已取消，运行以失败或取消结束时在同一事务中调用。
-func CancelUnsettled(ctx context.Context, db bun.IDB, organizationID string, runIDs ...string) error {
+// SettleEndedRuns 在运行以失败或取消结束的事务中结算这些运行尚未结束的工具调用，并通知正在执行这些运行的服务端实例与相关电脑：
+// 尚未开始与等待外部结果的调用取消；服务端进程内已开始的调用按可重新执行与外部副作用中断或待核对；
+// 电脑已领取的调用保持执行中，电脑领取时收到中止要求，中止后上报结果。调用方必须处于 realtime.RunInTx 内。
+func SettleEndedRuns(ctx context.Context, db bun.IDB, organizationID string, runIDs ...string) error {
 	if len(runIDs) == 0 {
 		return nil
 	}
@@ -191,9 +194,39 @@ func CancelUnsettled(ctx context.Context, db bun.IDB, organizationID string, run
 		Set("completed_at = now()").
 		Set("updated_at = now()").
 		Where("organization_id = ? AND agent_run_id IN (?)", organizationID, bun.In(runIDs)).
-		Where("status IN (?)", bun.In([]domain.AgentToolCallStatus{domain.AgentToolCallQueued, domain.AgentToolCallRunning, domain.AgentToolCallWaiting})).
+		Where("status IN (?)", bun.In([]domain.AgentToolCallStatus{domain.AgentToolCallQueued, domain.AgentToolCallWaiting})).
 		Exec(ctx); err != nil {
-		return fmt.Errorf("cancel unsettled agent tool calls: %w", err)
+		return fmt.Errorf("cancel pending agent tool calls: %w", err)
+	}
+	var running []servermodels.AgentToolCall
+	if err := db.NewSelect().Model(&running).
+		Where("atc.organization_id = ? AND atc.agent_run_id IN (?) AND atc.status = ?", organizationID, bun.In(runIDs), domain.AgentToolCallRunning).
+		OrderExpr("atc.id").For("UPDATE").Scan(ctx); err != nil {
+		return fmt.Errorf("lock running agent tool calls: %w", err)
+	}
+	computerIDs := make([]string, 0)
+	for _, call := range running {
+		if call.ComputerID != nil {
+			if !slices.Contains(computerIDs, *call.ComputerID) {
+				computerIDs = append(computerIDs, *call.ComputerID)
+			}
+			continue
+		}
+		status, result := agentruntime.InterruptedStatus(call.Replayable, call.SideEffects)
+		if _, err := db.NewUpdate().Model(&call).
+			Set("status = ?", status).
+			Set("result = ?", result).
+			Set("completed_at = now()").
+			Set("updated_at = now()").
+			WherePK().Exec(ctx); err != nil {
+			return fmt.Errorf("interrupt running agent tool call: %w", err)
+		}
+	}
+	for _, computerID := range computerIDs {
+		realtime.Notify(ctx, realtime.ComputerWork(organizationID, computerID))
+	}
+	for _, runID := range runIDs {
+		realtime.Notify(ctx, realtime.AgentRunEnded(organizationID, runID))
 	}
 	return nil
 }

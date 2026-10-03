@@ -368,7 +368,7 @@ func suppressCustomerRun(ctx context.Context, db bun.IDB, run *servermodels.Agen
 	if err != nil {
 		return fmt.Errorf("suppress customer agent run: %w", err)
 	}
-	return agentprocess.CancelUnsettled(ctx, db, run.OrganizationID, run.ID)
+	return agentprocess.SettleEndedRuns(ctx, db, run.OrganizationID, run.ID)
 }
 
 // ensureCustomerAgentParticipant 取得或创建客户会话中的 Agent 参与者。

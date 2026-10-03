@@ -40,7 +40,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { AgentRunBlocks, isPlanToolBlock, useToolStatusLabel } from "@/components/agent-run-blocks"
+import { AgentRunBlocks, isPlanToolBlock, isUnsettledToolCall, useToolStatusLabel } from "@/components/agent-run-blocks"
 import { cn } from "@/lib/utils"
 
 /** 展示任务清单与完成进度，清单限高滚动；live 表示运行仍在进行，进行中的任务显示进行时说明；inBubble 表示位于消息气泡内，使用与气泡区分的底色。 */
@@ -106,11 +106,15 @@ export function AgentProcess({ process, onPrimary, inBubble, waiting, onToggle }
   const { t } = useTranslation(["inbox", "common"])
   const [opened, setOpened] = useState(false)
   const seconds = Math.max(0, Math.round(process.durationMilliseconds / 1000))
-  // 已完成运行的过程内容不可变，首次展开后按运行编号读取并长期复用缓存；挂起中的运行每次展开重新读取，使用独立的缓存。
+  // 已结束运行的过程内容首次展开后按运行编号读取并复用缓存，仍有调用在中止时每秒重新读取直到全部结束；挂起中的运行每次展开重新读取，使用独立的缓存。
   const detail = useResource(
     waiting ? resourceKeys.agentRunWaitingProcess(process.id) : resourceKeys.agentRunProcess(process.id),
     (signal) => getAgentRunProcess(process.id, signal),
-    { enabled: opened, staleTime: waiting ? 0 : Infinity },
+    {
+      enabled: opened,
+      staleTime: waiting ? 0 : Infinity,
+      refetchInterval: (data) => !waiting && data?.blocks.some((block) => block.toolCall && isUnsettledToolCall(block.toolCall)) ? 1000 : false,
+    },
   )
   return (
     <Collapsible className="mb-3 min-w-0" onOpenChange={(open) => {
@@ -139,6 +143,7 @@ export function AgentProcess({ process, onPrimary, inBubble, waiting, onToggle }
             blocks={detail.data.blocks}
             thinkingClassName={onPrimary ? "text-accent-foreground/75" : "text-muted-foreground"}
             inBubble={inBubble}
+            ended={!waiting}
             onToggle={onToggle}
           />
         ) : (

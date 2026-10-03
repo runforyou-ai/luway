@@ -27,7 +27,6 @@ import (
 // ServiceSessionAgentRunCoordinator 在客服事务内收敛原负责人的 Agent 执行。
 type ServiceSessionAgentRunCoordinator interface {
 	CancelForServiceSession(context.Context, bun.IDB, string, string, string, domain.AgentRunErrorCode) ([]string, error)
-	CancelRunContexts([]string)
 }
 
 // ClaimServiceSessionAction 领取或接管服务会话当前处理周期。
@@ -102,7 +101,7 @@ func (a *ClaimServiceSessionAction) Execute(ctx context.Context, identity *serve
 	if err != nil {
 		return ServiceSessionResult{}, fmt.Errorf("claim service session: %w", err)
 	}
-	finishServiceSessionAgentCancellation(a.coordinator, cancelledRunIDs, cancelledSession, domain.AgentRunErrorCodeAssigneeChanged)
+	logServiceSessionAgentCancellation(cancelledRunIDs, cancelledSession, domain.AgentRunErrorCodeAssigneeChanged)
 	return output, nil
 }
 
@@ -228,7 +227,7 @@ func (a *TransferServiceSessionAction) Execute(ctx context.Context, identity *se
 	if err != nil {
 		return ServiceSessionResult{}, fmt.Errorf("transfer service session: %w", err)
 	}
-	finishServiceSessionAgentCancellation(a.coordinator, cancelledRunIDs, cancelledSession, domain.AgentRunErrorCodeAssigneeChanged)
+	logServiceSessionAgentCancellation(cancelledRunIDs, cancelledSession, domain.AgentRunErrorCodeAssigneeChanged)
 	return output, nil
 }
 
@@ -436,7 +435,7 @@ func (a *CloseServiceSessionAction) Execute(ctx context.Context, identity *serve
 	if err != nil {
 		return ServiceSessionResult{}, fmt.Errorf("close service session: %w", err)
 	}
-	finishServiceSessionAgentCancellation(a.coordinator, cancelledRunIDs, cancelledSession, domain.AgentRunErrorCodeSessionClosed)
+	logServiceSessionAgentCancellation(cancelledRunIDs, cancelledSession, domain.AgentRunErrorCodeSessionClosed)
 	return output, nil
 }
 
@@ -550,12 +549,8 @@ func serviceSessionResult(session *servermodels.ServiceSession, assignee *server
 	return ServiceSessionResult{ID: session.ID, Status: domain.ServiceSessionStatus(session.Status), Assignee: resultAssignee, ClosedAt: session.ClosedAt}
 }
 
-// finishServiceSessionAgentCancellation 在事务提交后取消本进程中的模型调用并记录结果。
-func finishServiceSessionAgentCancellation(coordinator ServiceSessionAgentRunCoordinator, runIDs []string, session *servermodels.ServiceSession, reason domain.AgentRunErrorCode) {
-	if len(runIDs) == 0 {
-		return
-	}
-	coordinator.CancelRunContexts(runIDs)
+// logServiceSessionAgentCancellation 在事务提交后记录被取消的客服会话 Agent 运行。
+func logServiceSessionAgentCancellation(runIDs []string, session *servermodels.ServiceSession, reason domain.AgentRunErrorCode) {
 	for _, runID := range runIDs {
 		slog.Info("已取消客服会话 Agent 运行",
 			"agent_run_id", runID,

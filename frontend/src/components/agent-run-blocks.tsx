@@ -91,6 +91,12 @@ function ToolValue({ value, surface }: { value: string; surface: string }) {
   )
 }
 
+/** 判断工具调用尚未结束：待执行、执行中或等待外部结果。 */
+export function isUnsettledToolCall(call: { status: AgentToolCallStatus }) {
+  return call.status === AgentToolCallStatus.AgentToolCallQueued || call.status === AgentToolCallStatus.AgentToolCallRunning ||
+    call.status === AgentToolCallStatus.AgentToolCallWaiting
+}
+
 /** 返回工具执行状态文案。 */
 export function useToolStatusLabel() {
   const { t } = useTranslation("inbox")
@@ -106,13 +112,15 @@ export function useToolStatusLabel() {
   })[status]
 }
 
-/** 展示单次工具调用并按需展开完整参数、结果或错误，detail 显示在工具名下方；inBubble 表示位于消息气泡内，使用与气泡区分的底色。 */
-export function AgentTool({ call, detail, inBubble, onToggle }: { call: AgentToolCall; detail?: ReactNode; inBubble?: boolean; onToggle?: () => void }) {
+/** 展示单次工具调用并按需展开完整参数、结果或错误，detail 显示在工具名下方；inBubble 表示位于消息气泡内，使用与气泡区分的底色；
+ * ended 表示所属运行已结束，此时仍在执行的调用正在中止。 */
+export function AgentTool({ call, detail, inBubble, ended, onToggle }: { call: AgentToolCall; detail?: ReactNode; inBubble?: boolean; ended?: boolean; onToggle?: () => void }) {
   const { t } = useTranslation("inbox")
   const { t: tCommon } = useTranslation("common")
   // 失败与待核对的状态以警示色显示。
   const alerting = call.status === AgentToolCallStatus.AgentToolCallFailed || call.status === AgentToolCallStatus.AgentToolCallNeedsReview
-  const statusLabel = useToolStatusLabel()(call.status)
+  const toolStatusLabel = useToolStatusLabel()
+  const statusLabel = ended && isUnsettledToolCall(call) ? t("agentToolAborting") : toolStatusLabel(call.status)
   const surface = inBubble ? "bg-background" : "bg-muted"
   return (
     <Collapsible className={cn("min-w-0 rounded-md text-foreground", surface)} onOpenChange={onToggle}>
@@ -151,8 +159,9 @@ export function AgentTool({ call, detail, inBubble, onToggle }: { call: AgentToo
   )
 }
 
-/** 按顺序展示已完成运行的文本、思考与工具调用内容块，调用成功的任务清单工具不逐条列出；thinkingClassName 是思考内容的文字颜色，inBubble 表示位于消息气泡内。 */
-export function AgentRunBlocks({ blocks, thinkingClassName, inBubble, onToggle }: { blocks: AgentRunContentBlock[]; thinkingClassName: string; inBubble?: boolean; onToggle?: () => void }) {
+/** 按顺序展示运行的文本、思考与工具调用内容块，调用成功的任务清单工具不逐条列出；thinkingClassName 是思考内容的文字颜色，
+ * inBubble 表示位于消息气泡内，ended 表示运行已结束，此时未结束的调用显示为正在中止。 */
+export function AgentRunBlocks({ blocks, thinkingClassName, inBubble, ended, onToggle }: { blocks: AgentRunContentBlock[]; thinkingClassName: string; inBubble?: boolean; ended?: boolean; onToggle?: () => void }) {
   const { i18n } = useTranslation()
   return blocks.filter((block) => !isPlanToolBlock(block)).map((block) =>
     block.kind === AgentRunBlockKind.AgentRunBlockToolCall && block.toolCall ? (
@@ -161,6 +170,7 @@ export function AgentRunBlocks({ blocks, thinkingClassName, inBubble, onToggle }
         call={block.toolCall}
         detail={block.toolCall.name === delegateToolName ? delegateDescription(block.toolCall.arguments) || undefined : undefined}
         inBubble={inBubble}
+        ended={ended}
         onToggle={onToggle}
       />
     ) : (

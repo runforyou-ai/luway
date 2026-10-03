@@ -50,13 +50,13 @@ func (c *client) reportCapabilities(ctx context.Context, input appservice.Comput
 	return c.do(ctx, http.MethodPut, "/computer/capabilities", input, nil)
 }
 
-// claim 带上本机仍在执行的操作，领取最多 limit 个待执行操作。
-func (c *client) claim(ctx context.Context, limit int, running []string) ([]appservice.ComputerOperationItem, error) {
+// claim 带上本机仍在执行的操作，领取最多 limit 个待执行操作，并取回应当中止的操作。
+func (c *client) claim(ctx context.Context, limit int, running []string) (appservice.ComputerOperationList, error) {
 	var output appservice.ComputerOperationList
 	if err := c.do(ctx, http.MethodPost, "/computer/operations/claim", appservice.ComputerClaimInput{Limit: limit, Running: running}, &output); err != nil {
-		return nil, err
+		return appservice.ComputerOperationList{}, err
 	}
-	return output.Operations, nil
+	return output, nil
 }
 
 // complete 上报一次操作的结果。

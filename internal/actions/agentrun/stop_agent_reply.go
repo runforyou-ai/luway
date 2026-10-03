@@ -20,7 +20,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// StopAgentReply 按成员归属停止独立 AI 会话中的运行，并在提交后尽力中断模型调用。
+// StopAgentReply 按成员归属停止独立 AI 会话中的运行。
 func (a *ExecuteAction) StopAgentReply(ctx context.Context, identity *servermodels.Identity, conversationID, runID string) (domain.AgentRunStatus, error) {
 	return a.stopReply(ctx, identity, conversationID, runID, func(ctx context.Context, tx bun.Tx) (agentRunPolicy, *servermodels.AgentRun, error) {
 		member, err := chatstate.LockMember(ctx, tx, identity, conversationID)
@@ -137,7 +137,7 @@ func (a *ExecuteAction) stopReply(ctx context.Context, identity *servermodels.Id
 			Set("completed_at = now()").Set("updated_at = now()").WherePK().Exec(ctx); err != nil {
 			return err
 		}
-		if err := agentprocess.CancelUnsettled(ctx, tx, run.OrganizationID, run.ID); err != nil {
+		if err := agentprocess.SettleEndedRuns(ctx, tx, run.OrganizationID, run.ID); err != nil {
 			return err
 		}
 		if _, err := tx.NewUpdate().Model(lane).
@@ -153,9 +153,6 @@ func (a *ExecuteAction) stopReply(ctx context.Context, identity *servermodels.Id
 	})
 	if err != nil {
 		return "", fmt.Errorf("stop agent reply: %w", err)
-	}
-	if status == domain.AgentRunStatusCancelled {
-		a.CancelRunContexts([]string{runID})
 	}
 	if stopped {
 		slog.Info("成员停止 AI 回复", "organization_id", identity.Organization.ID, "conversation_id", conversationID, "agent_run_id", runID, "user_id", identity.User.ID)

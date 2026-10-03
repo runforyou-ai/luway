@@ -21,8 +21,8 @@ func personalResponsibleIdentityID(alias string) schema.QueryWithArgs {
 	return conversationaction.PersonalResponsibleColumn(alias, "id")
 }
 
-// removeGroupPersonalAgents 在调用方已锁定的群聊中移出指定负责人仍在群内的个人 AI 员工并收敛其运行，返回被移出 AI 员工的快照与被取消的运行编号。
-func removeGroupPersonalAgents(ctx context.Context, tx bun.Tx, coordinator GroupAgentRunCoordinator, organizationID, conversationID, responsibleUserID string) ([]conversationaction.ConversationSystemEventParticipant, []string, error) {
+// removeGroupPersonalAgents 在调用方已锁定的群聊中移出指定负责人仍在群内的个人 AI 员工并收敛其运行，返回被移出 AI 员工的快照。
+func removeGroupPersonalAgents(ctx context.Context, tx bun.Tx, coordinator GroupAgentRunCoordinator, organizationID, conversationID, responsibleUserID string) ([]conversationaction.ConversationSystemEventParticipant, error) {
 	rows := make([]activeGroupParticipantRow, 0)
 	if err := tx.NewSelect().TableExpr("conversation_participants AS cp").
 		ColumnExpr("cp.id AS participant_id, oi.id AS identity_id, oi.display_name, cp.role").
@@ -35,22 +35,19 @@ func removeGroupPersonalAgents(ctx context.Context, tx bun.Tx, coordinator Group
 		OrderExpr("oi.id ASC").
 		For("UPDATE OF cp").
 		Scan(ctx, &rows); err != nil {
-		return nil, nil, fmt.Errorf("load group personal agents: %w", err)
+		return nil, fmt.Errorf("load group personal agents: %w", err)
 	}
 	removed := make([]conversationaction.ConversationSystemEventParticipant, 0, len(rows))
-	var cancelledRunIDs []string
 	for _, row := range rows {
 		if err := leaveGroupParticipant(ctx, tx, organizationID, row.ParticipantID); err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		runIDs, err := coordinator.CancelForGroupAgent(ctx, tx, organizationID, conversationID, row.IdentityID)
-		if err != nil {
-			return nil, nil, err
+		if err := coordinator.CancelForGroupAgent(ctx, tx, organizationID, conversationID, row.IdentityID); err != nil {
+			return nil, err
 		}
-		cancelledRunIDs = append(cancelledRunIDs, runIDs...)
 		removed = append(removed, groupParticipantSnapshot(row))
 	}
-	return removed, cancelledRunIDs, nil
+	return removed, nil
 }
 
 // ensurePersonalAgentsReachable 校验被点名的个人 AI 员工可以接收新请求，按已禁用、电脑已撤销、已暂停的顺序返回冲突，与在线状态的优先级一致；其他 AI 员工不受影响。
@@ -94,8 +91,8 @@ func NewPersonalAgentRetirer(coordinator GroupAgentRunCoordinator) *PersonalAgen
 	return &PersonalAgentRetirer{coordinator: coordinator}
 }
 
-// RetirePersonalAgents 停用指定成员负责的全部个人 AI 员工，并以操作人名义把它们移出所在的活跃群聊，返回被取消的运行编号。
-func (r *PersonalAgentRetirer) RetirePersonalAgents(ctx context.Context, tx bun.Tx, actor *servermodels.Identity, responsibleUserID string) ([]string, error) {
+// RetirePersonalAgents 停用指定成员负责的全部个人 AI 员工，并以操作人名义把它们移出所在的活跃群聊。
+func (r *PersonalAgentRetirer) RetirePersonalAgents(ctx context.Context, tx bun.Tx, actor *servermodels.Identity, responsibleUserID string) error {
 	organizationID := actor.Organization.ID
 	// 锁定并更新其负责的全部个人 AI 员工，等待并发的启用提交后再置为停用；只为状态实际变化的 AI 员工推进会话版本。
 	var updated []struct {
@@ -107,14 +104,14 @@ func (r *PersonalAgentRetirer) RetirePersonalAgents(ctx context.Context, tx bun.
 		Where("organization_id = ? AND responsible_user_id = ? AND ? = ANY(service_audiences)", organizationID, responsibleUserID, domain.ServiceAudiencePersonal).
 		Returning("new.identity_id, old.status <> new.status AS changed").
 		Scan(ctx, &updated); err != nil {
-		return nil, fmt.Errorf("deactivate personal agents: %w", err)
+		return fmt.Errorf("deactivate personal agents: %w", err)
 	}
 	for _, agent := range updated {
 		if !agent.Changed {
 			continue
 		}
 		if err := chatstate.TouchIdentityConversations(ctx, tx, organizationID, agent.IdentityID); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	conversationIDs := make([]string, 0)
@@ -126,34 +123,25 @@ func (r *PersonalAgentRetirer) RetirePersonalAgents(ctx context.Context, tx bun.
 		Where("cp.organization_id = ? AND cp.left_at IS NULL AND a.responsible_user_id = ? AND ? = ANY(a.service_audiences)", organizationID, responsibleUserID, domain.ServiceAudiencePersonal).
 		OrderExpr("cp.conversation_id ASC").
 		Scan(ctx, &conversationIDs); err != nil {
-		return nil, fmt.Errorf("list personal agent group conversations: %w", err)
+		return fmt.Errorf("list personal agent group conversations: %w", err)
 	}
-	var cancelledRunIDs []string
 	for _, conversationID := range conversationIDs {
 		conversation, err := chatstate.LockConversation(ctx, tx, organizationID, conversationID)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		removed, runIDs, err := removeGroupPersonalAgents(ctx, tx, r.coordinator, organizationID, conversationID, responsibleUserID)
+		removed, err := removeGroupPersonalAgents(ctx, tx, r.coordinator, organizationID, conversationID, responsibleUserID)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		cancelledRunIDs = append(cancelledRunIDs, runIDs...)
 		if len(removed) == 0 {
 			continue
 		}
 		if _, err := appendGroupSystemEvent(ctx, tx, conversation, conversationaction.ConversationSystemEvent{
 			Type: domain.ConversationSystemEventGroupMemberRemoved, Actor: groupActorSnapshot(actor), Targets: removed,
 		}); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return cancelledRunIDs, nil
-}
-
-// CancelRunContexts 在事务提交后中断被取消运行的模型调用。
-func (r *PersonalAgentRetirer) CancelRunContexts(runIDs []string) {
-	if len(runIDs) > 0 {
-		r.coordinator.CancelRunContexts(runIDs)
-	}
+	return nil
 }

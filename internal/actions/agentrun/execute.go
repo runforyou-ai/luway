@@ -684,7 +684,7 @@ func (a *ExecuteAction) persistPartialProcess(ctx context.Context, initial *serv
 		if err := agentprocess.Sync(ctx, tx, run, partial.Blocks, partial.Calls); err != nil {
 			return err
 		}
-		if err := agentprocess.CancelUnsettled(ctx, tx, run.OrganizationID, run.ID); err != nil {
+		if err := agentprocess.SettleEndedRuns(ctx, tx, run.OrganizationID, run.ID); err != nil {
 			return err
 		}
 		if _, err := tx.NewUpdate().Model(run).
@@ -819,7 +819,7 @@ func (a *ExecuteAction) fail(ctx context.Context, runID string, policy agentRunP
 			Exec(ctx); err != nil {
 			return err
 		}
-		if err := agentprocess.CancelUnsettled(ctx, tx, run.OrganizationID, run.ID); err != nil {
+		if err := agentprocess.SettleEndedRuns(ctx, tx, run.OrganizationID, run.ID); err != nil {
 			return err
 		}
 		if _, err := tx.NewUpdate().Model(lane).

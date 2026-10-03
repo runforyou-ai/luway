@@ -40,12 +40,12 @@ func ComputerLost(claimed, replayable, sideEffects bool) (domain.AgentToolCallSt
 		failure := ErrComputerOffline.Error()
 		return domain.AgentToolCallFailed, nil, &failure
 	}
-	status, result := interruptedStatus(replayable, sideEffects)
+	status, result := InterruptedStatus(replayable, sideEffects)
 	return status, &result, nil
 }
 
-// interruptedStatus 按可重新执行与外部副作用返回中断调用的状态与交给模型的结果。
-func interruptedStatus(replayable, sideEffects bool) (domain.AgentToolCallStatus, string) {
+// InterruptedStatus 按可重新执行与外部副作用返回已开始而未完成的调用的结算状态与交给模型的结果，执行中断、运行结束与电脑丢失共用。
+func InterruptedStatus(replayable, sideEffects bool) (domain.AgentToolCallStatus, string) {
 	switch {
 	case sideEffects && !replayable:
 		return domain.AgentToolCallNeedsReview, needsReviewResult
@@ -107,7 +107,7 @@ func settleInterrupted(blocks []Block, children []ToolCall, at time.Time) (chang
 			waiting = true
 			return
 		}
-		status, result := interruptedStatus(call.Replayable, call.SideEffects)
+		status, result := InterruptedStatus(call.Replayable, call.SideEffects)
 		call.Status, call.Result, call.CompletedAt = status, &result, &at
 		changed = append(changed, *call)
 	}
