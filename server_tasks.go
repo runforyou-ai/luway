@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 
 	agentevaluationaction "github.com/runforyou-ai/luway/internal/actions/agentevaluation"
@@ -48,6 +49,7 @@ type serverTaskDeps struct {
 	agentSchedule *agentrunaction.Scheduler
 	agentRun      *agentrunaction.ExecuteAction
 	telegramAPI   *telegramintegration.Client
+	onlineLicense *deploymentaction.OnlineLicenseAction
 }
 
 // registerServerTasks 注册服务端全部后台任务处理器与定时计划。
@@ -128,6 +130,18 @@ func registerServerTasks(deps serverTaskDeps) error {
 	stats := maintenanceSchedule(deploymentaction.StatsScheduleKey, deploymentaction.AggregateStatsActionName, "@every 10m")
 	stats.Payload = deploymentaction.AggregateStatsInput{}
 	deps.tasks.RegisterSchedule(stats)
+
+	// 实例每次启动和之后每天向 control 登记并拉取授权，失败时按退避重试。
+	if err := registry.RegisterJSON(deploymentaction.SyncLicenseActionName, deps.onlineLicense.SyncTask); err != nil {
+		return err
+	}
+	licenseSync := maintenanceSchedule(deploymentaction.SyncLicenseScheduleKey, deploymentaction.SyncLicenseActionName, "@every 24h")
+	licenseSync.Payload, licenseSync.MaxAttempts = deploymentaction.SyncLicenseInput{}, deploymentaction.SyncLicenseEnqueueOptions.MaxAttempts
+	licenseSync.StartImmediately = false
+	deps.tasks.RegisterSchedule(licenseSync)
+	if _, err := deps.tasks.Enqueue(context.Background(), deploymentaction.SyncLicenseActionName, deploymentaction.SyncLicenseInput{}, deploymentaction.SyncLicenseEnqueueOptions); err != nil {
+		return err
+	}
 
 	cleanup := maintenanceSchedule(filemaintenance.CleanupScheduleKey, filemaintenance.ScanExpiredActionName, "@hourly")
 	cleanup.Payload, cleanup.MaxAttempts = filemaintenance.ScanExpiredInput{}, 5

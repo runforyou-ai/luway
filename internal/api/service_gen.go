@@ -155,6 +155,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/deployment/settings", s.getDeploymentSettings)
 	router.PUT("/deployment/settings", s.updateDeploymentSettings)
 	router.PUT("/deployment/settings/statistics-time-zone", s.updateDeploymentStatisticsTimeZone)
+	router.PUT("/deployment/settings/telemetry", s.updateDeploymentTelemetry)
 	router.GET("/deployment/accounts", s.listDeploymentAccounts)
 	router.POST("/deployment/accounts/:accountID/deactivate", s.deactivateDeploymentAccount)
 	router.POST("/deployment/accounts/:accountID/reactivate", s.reactivateDeploymentAccount)
@@ -163,6 +164,8 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.GET("/deployment/workspaces", s.listDeploymentWorkspaces)
 	router.GET("/deployment/license", s.getInstanceLicense)
 	router.PUT("/deployment/license", s.activateInstanceLicense)
+	router.POST("/deployment/license/activations", s.activateInstanceLicenseOnline)
+	router.POST("/deployment/license/sync", s.syncInstanceLicense)
 	router.POST("/deployment/workspaces/:workspaceID/suspend", s.suspendDeploymentWorkspace)
 	router.POST("/deployment/workspaces/:workspaceID/resume", s.resumeDeploymentWorkspace)
 	router.PUT("/users/:userID", s.updateUser)
@@ -1392,7 +1395,7 @@ func (s *Service) getDeploymentOverview(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+// getDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 func (s *Service) getDeploymentSettings(c *gin.Context) {
 	output, err := s.application.GetDeploymentSettings(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1415,6 +1418,16 @@ func (s *Service) updateDeploymentStatisticsTimeZone(c *gin.Context) {
 		return
 	}
 	output, err := s.application.UpdateDeploymentStatisticsTimeZone(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// updateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+func (s *Service) updateDeploymentTelemetry(c *gin.Context) {
+	var input appservice.DeploymentTelemetryInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.UpdateDeploymentTelemetry(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -1462,19 +1475,35 @@ func (s *Service) listDeploymentWorkspaces(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getInstanceLicense 返回实例授权状态。
+// getInstanceLicense 返回实例标识与实例授权状态。
 func (s *Service) getInstanceLicense(c *gin.Context) {
 	output, err := s.application.GetInstanceLicense(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// activateInstanceLicense 用授权码激活或替换实例授权。
+// activateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
 func (s *Service) activateInstanceLicense(c *gin.Context) {
 	var input appservice.ActivateInstanceLicenseInput
 	if !bindJSON(c, &input) {
 		return
 	}
 	output, err := s.application.ActivateInstanceLicense(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// activateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+func (s *Service) activateInstanceLicenseOnline(c *gin.Context) {
+	var input appservice.ActivateInstanceLicenseOnlineInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.ActivateInstanceLicenseOnline(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// syncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+func (s *Service) syncInstanceLicense(c *gin.Context) {
+	output, err := s.application.SyncInstanceLicense(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 

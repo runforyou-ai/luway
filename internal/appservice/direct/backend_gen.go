@@ -1360,7 +1360,7 @@ func (b *Backend) GetDeploymentOverview(ctx context.Context, meta appservice.Req
 	return b.ops.GetDeploymentOverview(ctx, meta, account)
 }
 
-// GetDeploymentSettings 返回部署注册策略、工作区创建策略和统计时区。
+// GetDeploymentSettings 返回部署注册策略、工作区创建策略、统计时区和运行指标上报开关。
 func (b *Backend) GetDeploymentSettings(ctx context.Context, meta appservice.RequestMeta) (appservice.DeploymentSettings, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1388,6 +1388,16 @@ func (b *Backend) UpdateDeploymentStatisticsTimeZone(ctx context.Context, meta a
 		return zero, err
 	}
 	return b.ops.UpdateDeploymentStatisticsTimeZone(ctx, meta, account, input)
+}
+
+// UpdateDeploymentTelemetry 开启或关闭向 control 上报运行指标。
+func (b *Backend) UpdateDeploymentTelemetry(ctx context.Context, meta appservice.RequestMeta, input appservice.DeploymentTelemetryInput) (appservice.DeploymentSettings, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DeploymentSettings
+		return zero, err
+	}
+	return b.ops.UpdateDeploymentTelemetry(ctx, meta, account, input)
 }
 
 // ListDeploymentAccounts 返回部署内的账号。
@@ -1450,7 +1460,7 @@ func (b *Backend) ListDeploymentWorkspaces(ctx context.Context, meta appservice.
 	return b.ops.ListDeploymentWorkspaces(ctx, meta, account, input)
 }
 
-// GetInstanceLicense 返回实例授权状态。
+// GetInstanceLicense 返回实例标识与实例授权状态。
 func (b *Backend) GetInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1460,7 +1470,7 @@ func (b *Backend) GetInstanceLicense(ctx context.Context, meta appservice.Reques
 	return b.ops.GetInstanceLicense(ctx, meta, account)
 }
 
-// ActivateInstanceLicense 用授权码激活或替换实例授权。
+// ActivateInstanceLicense 用 control 签发的授权码离线激活或替换实例授权。
 func (b *Backend) ActivateInstanceLicense(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseInput) (appservice.InstanceLicense, error) {
 	account, err := b.ops.authenticateAdmin(ctx, meta)
 	if err != nil {
@@ -1468,6 +1478,26 @@ func (b *Backend) ActivateInstanceLicense(ctx context.Context, meta appservice.R
 		return zero, err
 	}
 	return b.ops.ActivateInstanceLicense(ctx, meta, account, input)
+}
+
+// ActivateInstanceLicenseOnline 用激活码经 control 在线激活实例授权。
+func (b *Backend) ActivateInstanceLicenseOnline(ctx context.Context, meta appservice.RequestMeta, input appservice.ActivateInstanceLicenseOnlineInput) (appservice.InstanceLicense, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.InstanceLicense
+		return zero, err
+	}
+	return b.ops.ActivateInstanceLicenseOnline(ctx, meta, account, input)
+}
+
+// SyncInstanceLicense 立即向 control 登记实例并拉取最新授权。
+func (b *Backend) SyncInstanceLicense(ctx context.Context, meta appservice.RequestMeta) (appservice.InstanceLicense, error) {
+	account, err := b.ops.authenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.InstanceLicense
+		return zero, err
+	}
+	return b.ops.SyncInstanceLicense(ctx, meta, account)
 }
 
 // SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。

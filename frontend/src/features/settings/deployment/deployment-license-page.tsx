@@ -1,5 +1,5 @@
-/** 部署设置的实例授权页：展示授权状态、期限与授予的能力，未激活或到期时粘贴授权码激活，授权有效时经弹窗更换授权码。 */
-import { useEffect, useMemo, useRef, useState } from "react"
+/** 部署设置的实例授权页：展示授权状态、期限与授予的能力；未激活时在线输入激活码或离线粘贴授权码激活，已有授权时向授权服务同步或经弹窗离线更换授权码。 */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -8,10 +8,12 @@ import { toast } from "sonner"
 
 import {
   activateInstanceLicense,
+  activateInstanceLicenseOnline,
   getInstanceLicense,
   isApiError,
   LicenseStatus,
   loadInstallationStatus,
+  syncInstanceLicense,
   type InstanceLicense,
 } from "@/api"
 import { PageContent } from "@/components/page-content"
@@ -21,12 +23,16 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import {
   createLicenseActivationSchema,
+  createOnlineActivationSchema,
   type LicenseActivationFormValues,
+  type OnlineActivationFormValues,
 } from "@/features/settings/deployment/deployment-license-schema"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { useCopyFeedback } from "@/hooks/use-copy-feedback"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useFormLifetime } from "@/hooks/use-form-lifetime"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
@@ -95,12 +101,25 @@ function useStatusHelp(license: InstanceLicense) {
   return remainingDays <= renewalReminderDays ? t("license.statusHelp.expiring", { count: remainingDays }) : null
 }
 
-/** 只读展示当前授权，有效期内展示授予的能力；授权有效时由弹窗更换授权码，未激活或已到期时直接粘贴授权码。 */
+/** 返回授权变化后刷新授权、部署概况与工作区列表的函数。 */
+function useLicenseChanged() {
+  const invalidate = useResourceInvalidator()
+  return useCallback(() => {
+    void invalidate(resourceKeys.instanceLicense())
+    void invalidate(resourceKeys.deploymentOverview())
+    void invalidate(resourceKeys.workspaces())
+  }, [invalidate])
+}
+
+/** 只读展示当前授权，有效期内展示授予的能力；已有授权时可同步或经弹窗离线更换授权码，未激活时选择在线激活或离线授权。 */
 function LicenseDetails({ license }: { license: InstanceLicense }) {
   const { t } = useTranslation("deployment")
   const { formatDateTime } = useDateTime()
+  const navigate = useNavigate()
+  const licenseChanged = useLicenseChanged()
   const [replacing, setReplacing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const replaceButtonRef = useRef<HTMLButtonElement>(null)
   const statusHelp = useStatusHelp(license)
   const licensed = license.status !== LicenseStatus.LicenseStatusNone
@@ -111,10 +130,26 @@ function LicenseDetails({ license }: { license: InstanceLicense }) {
     [LicenseStatus.LicenseStatusExpired]: t("license.statuses.expired"),
   }
 
-  // 授权失效时关闭更换弹窗。
+  // 实例没有授权时关闭更换弹窗。
   useEffect(() => {
-    if (!active) setReplacing(false)
-  }, [active])
+    if (!licensed) setReplacing(false)
+  }, [licensed])
+
+  /** 向授权服务同步授权，按签发时间是否变化提示已更新或已是最新。 */
+  async function sync() {
+    setSyncing(true)
+    try {
+      const synced = await syncInstanceLicense()
+      toast.success(synced.issuedAt === license.issuedAt ? t("license.syncUnchanged") : t("license.syncUpdated"))
+      licenseChanged()
+    } catch (error) {
+      if (recoverSession(error, navigate)) return
+      console.warn("同步实例授权失败", error)
+      toast.error(isApiError(error) ? apiErrorMessage(error, []) : t("license.syncError"))
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   return (
     <div className="w-full space-y-9">
@@ -170,17 +205,22 @@ function LicenseDetails({ license }: { license: InstanceLicense }) {
           </>
         ) : null}
       </FieldGroup>
-      {active ? (
+      {licensed ? (
         <>
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
             <Button
               ref={replaceButtonRef}
               type="button"
               variant="outline"
-              className="touch:min-h-11 touch:w-full"
+              className="touch:min-h-11 touch:flex-1"
+              disabled={syncing}
               onClick={() => setReplacing(true)}
             >
               {t("license.replace")}
+            </Button>
+            <Button type="button" className="touch:min-h-11 touch:flex-1" disabled={syncing} onClick={() => void sync()}>
+              {syncing ? <LoaderCircleIcon className="animate-spin" /> : null}
+              {syncing ? t("license.syncing") : t("license.sync")}
             </Button>
           </div>
           <Dialog open={replacing} onOpenChange={(open) => !submitting && setReplacing(open)}>
@@ -207,13 +247,113 @@ function LicenseDetails({ license }: { license: InstanceLicense }) {
           </Dialog>
         </>
       ) : (
-        <LicenseCodeForm />
+        <Tabs defaultValue="online">
+          <TabsList>
+            <TabsTrigger value="online">{t("license.methods.online")}</TabsTrigger>
+            <TabsTrigger value="offline">{t("license.methods.offline")}</TabsTrigger>
+          </TabsList>
+          <TabsContent value="online" className="mt-6">
+            <OnlineActivationForm />
+          </TabsContent>
+          <TabsContent value="offline" className="mt-6 space-y-6">
+            <InstanceIDField instanceId={license.instanceId} />
+            <LicenseCodeForm />
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   )
 }
 
-/** 粘贴授权码激活或替换实例授权；激活成功后刷新授权、部署概况与工作区列表。 */
+/** 只读展示实例标识并提供复制，离线申请授权码时使用。 */
+function InstanceIDField({ instanceId }: { instanceId: string }) {
+  const { t } = useTranslation(["deployment", "common"])
+  const { copied, copy } = useCopyFeedback<"instance">()
+
+  /** 复制实例标识，失败时提示手动复制。 */
+  async function copyInstanceID() {
+    if (!(await copy(instanceId, "instance"))) toast.error(t("overview.copyError"))
+  }
+
+  return (
+    <Field>
+      <FieldLabel htmlFor="license-instance-id">{t("license.instanceId")}</FieldLabel>
+      <div className="flex items-center gap-2">
+        <Input id="license-instance-id" value={instanceId} readOnly className="font-mono text-muted-foreground" />
+        <Button type="button" variant="outline" className="h-11 shrink-0" onClick={() => void copyInstanceID()}>
+          {copied === "instance" ? t("common:actions.copied") : t("common:actions.copy")}
+        </Button>
+      </div>
+      <FieldDescription>{t("license.instanceIdHelp")}</FieldDescription>
+    </Field>
+  )
+}
+
+/** 输入激活码经授权服务在线激活；激活成功后刷新授权、部署概况与工作区列表。 */
+function OnlineActivationForm() {
+  const { t } = useTranslation(["deployment", "common"])
+  const navigate = useNavigate()
+  const licenseChanged = useLicenseChanged()
+  const schema = useMemo(() => createOnlineActivationSchema(t), [t])
+  const form = useForm<OnlineActivationFormValues>({
+    resolver: zodResolver(schema),
+    shouldUseNativeValidation: true,
+    defaultValues: { activationCode: "" },
+  })
+  useFormLifetime(form.formState.isDirty)
+
+  /** 提交激活码。 */
+  async function activate(values: OnlineActivationFormValues) {
+    try {
+      await activateInstanceLicenseOnline({ activationCode: values.activationCode })
+      form.reset()
+      toast.success(t("license.activateSuccess"))
+      licenseChanged()
+    } catch (error) {
+      if (recoverSession(error, navigate)) return
+      console.warn("在线激活实例授权失败", error)
+      toast.error(isApiError(error) ? apiErrorMessage(error, ["activationCode"]) : t("license.activateError"))
+    }
+  }
+
+  const { isSubmitting } = form.formState
+
+  return (
+    <form className="w-full space-y-9" aria-label={t("license.methods.online")} onSubmit={form.handleSubmit(activate)} noValidate>
+      <FieldGroup>
+        <Controller
+          name="activationCode"
+          control={form.control}
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={field.name} required>
+                {t("license.activationCode")}
+              </FieldLabel>
+              <Input
+                {...field}
+                id={field.name}
+                spellCheck={false}
+                autoComplete="off"
+                className="font-mono"
+                aria-invalid={fieldState.invalid}
+                required
+              />
+              <FieldDescription>{t("license.activationCodeHelp")}</FieldDescription>
+            </Field>
+          )}
+        />
+      </FieldGroup>
+      <div className="flex justify-end">
+        <Button type="submit" className="touch:min-h-11 touch:flex-1" disabled={isSubmitting}>
+          {isSubmitting ? <LoaderCircleIcon className="animate-spin" /> : null}
+          {isSubmitting ? t("license.activating") : t("license.activate")}
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/** 粘贴授权码离线激活或替换实例授权；激活成功后刷新授权、部署概况与工作区列表。 */
 function LicenseCodeForm({
   onCancel,
   onActivated,
@@ -225,7 +365,7 @@ function LicenseCodeForm({
 }) {
   const { t } = useTranslation(["deployment", "common"])
   const navigate = useNavigate()
-  const invalidate = useResourceInvalidator()
+  const licenseChanged = useLicenseChanged()
   const schema = useMemo(() => createLicenseActivationSchema(t), [t])
   const form = useForm<LicenseActivationFormValues>({
     resolver: zodResolver(schema),
@@ -240,9 +380,7 @@ function LicenseCodeForm({
       await activateInstanceLicense({ licenseCode: values.licenseCode })
       form.reset()
       toast.success(t("license.activateSuccess"))
-      void invalidate(resourceKeys.instanceLicense())
-      void invalidate(resourceKeys.deploymentOverview())
-      void invalidate(resourceKeys.workspaces())
+      licenseChanged()
       onActivated?.()
     } catch (error) {
       if (recoverSession(error, navigate)) return
@@ -260,7 +398,7 @@ function LicenseCodeForm({
   }, [isSubmitting, onSubmittingChange])
 
   return (
-    <form className="w-full space-y-9" aria-label={t("license.formLabel")} onSubmit={form.handleSubmit(activate)} noValidate>
+    <form className="w-full space-y-9" aria-label={t("license.methods.offline")} onSubmit={form.handleSubmit(activate)} noValidate>
       <FieldGroup>
         <Controller
           name="licenseCode"
