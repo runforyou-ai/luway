@@ -16,8 +16,8 @@ CREATE TABLE workspace_daily_stats (
 );
 
 COMMENT ON TABLE workspace_daily_stats IS '工作区按日运营指标，由运营数据汇总任务写入；规模字段是当天最后一次汇总时的取值，修改统计时区全部重建时历史日期取重建时的当前值；活跃字段统计当天全天';
+COMMENT ON COLUMN workspace_daily_stats.stat_date IS '按平台统计时区划分的日期';
 COMMENT ON COLUMN workspace_daily_stats.organization_id IS '工作区编号';
-COMMENT ON COLUMN workspace_daily_stats.stat_date IS '按部署统计时区划分的日期';
 COMMENT ON COLUMN workspace_daily_stats.created_at IS '创建时间';
 COMMENT ON COLUMN workspace_daily_stats.updated_at IS '更新时间';
 COMMENT ON COLUMN workspace_daily_stats.member_count IS '有效成员数';

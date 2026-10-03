@@ -16,7 +16,8 @@ CREATE TABLE ai_model_calls (
     input_tokens         bigint NOT NULL DEFAULT 0,
     cached_input_tokens  bigint NOT NULL DEFAULT 0,
     output_tokens        bigint NOT NULL DEFAULT 0,
-    error_message        text NOT NULL DEFAULT ''
+    error_message        text NOT NULL DEFAULT '',
+    model_scope          text NOT NULL
 );
 
 COMMENT ON TABLE ai_model_calls IS 'AI 模型调用记录，每次业务模型请求一条，不保存提示词与回复正文';
@@ -36,6 +37,7 @@ COMMENT ON COLUMN ai_model_calls.input_tokens IS '输入 Token 数，含命中�
 COMMENT ON COLUMN ai_model_calls.cached_input_tokens IS '命中缓存的输入 Token 数';
 COMMENT ON COLUMN ai_model_calls.output_tokens IS '输出 Token 数';
 COMMENT ON COLUMN ai_model_calls.error_message IS '失败、取消或超时的原因';
+COMMENT ON COLUMN ai_model_calls.model_scope IS '模型范围：platform 平台模型、workspace 工作区模型';
 
 -- +goose Down
 DROP TABLE ai_model_calls;

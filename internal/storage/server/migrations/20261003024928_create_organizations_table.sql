@@ -17,7 +17,7 @@ COMMENT ON TABLE organizations IS '工作区';
 COMMENT ON COLUMN organizations.id IS '工作区编号';
 COMMENT ON COLUMN organizations.created_at IS '创建时间';
 COMMENT ON COLUMN organizations.updated_at IS '更新时间';
-COMMENT ON COLUMN organizations.slug IS '工作区标识，全部署唯一，用于 Web 访问地址';
+COMMENT ON COLUMN organizations.slug IS '工作区标识，全平台唯一，用于 Web 访问地址';
 COMMENT ON COLUMN organizations.name IS '工作区名称';
 COMMENT ON COLUMN organizations.lifecycle_status IS '工作区生命周期状态：active、suspended、deleting、deleted';
 COMMENT ON COLUMN organizations.last_contact_number IS '工作区最近分配的联系人编号';

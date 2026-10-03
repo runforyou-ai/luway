@@ -25,7 +25,7 @@ wails3 task db:ensure
 wails3 task migrate
 ```
 
-每个 worktree 使用独立的 Server、Vite 端口、PostgreSQL 数据库和 NATS 命名空间；PostgreSQL 和 NATS 仅在主工作区共享启动。
+每个 worktree 使用独立的 Server、Vite 端口、PostgreSQL 数据库和 NATS 命名空间；PostgreSQL 和 NATS 由仓库根目录的 `docker-compose-dev.yml` 定义，`.env` 的 `COMPOSE_FILE` 指向该文件，仅在主工作区共享启动。
 
 ## 开发与运行
 

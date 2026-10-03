@@ -11,7 +11,8 @@ CREATE TABLE contact_channel_identities (
     display_name       text,
     avatar_file_id     uuid,
     last_seen_at       timestamptz,
-    avatar_checked_at  timestamptz
+    avatar_checked_at  timestamptz,
+    verified_user_id   text
 );
 
 CREATE UNIQUE INDEX contact_channel_identities_channel_external_unique
@@ -29,6 +30,7 @@ COMMENT ON COLUMN contact_channel_identities.display_name IS '联系人在渠道
 COMMENT ON COLUMN contact_channel_identities.avatar_file_id IS '渠道头像文件编号';
 COMMENT ON COLUMN contact_channel_identities.last_seen_at IS '最后活跃时间';
 COMMENT ON COLUMN contact_channel_identities.avatar_checked_at IS '最近一次发起渠道头像同步的时间，从未同步时为空';
+COMMENT ON COLUMN contact_channel_identities.verified_user_id IS '经签名身份核验的企业用户编号，与所属联系人的企业用户编号一致；未核验时为空';
 
 -- +goose Down
 DROP TABLE contact_channel_identities;

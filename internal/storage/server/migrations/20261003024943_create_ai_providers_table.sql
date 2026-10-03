@@ -1,10 +1,10 @@
 -- +goose Up
--- 创建工作区 AI 供应商表。
+-- 创建 AI 供应商表。
 CREATE TABLE ai_providers (
     id               uuid PRIMARY KEY DEFAULT uuidv7(),
     created_at       timestamptz NOT NULL DEFAULT now(),
     updated_at       timestamptz NOT NULL DEFAULT now(),
-    organization_id  uuid NOT NULL,
+    organization_id  uuid,
     brand            text NOT NULL,
     name             text NOT NULL,
     credential_type  text NOT NULL,
@@ -13,13 +13,13 @@ CREATE TABLE ai_providers (
 );
 
 CREATE UNIQUE INDEX ai_providers_organization_name_unique
-    ON ai_providers (organization_id, lower(name));
+    ON ai_providers (organization_id, lower(name)) NULLS NOT DISTINCT;
 
-COMMENT ON TABLE ai_providers IS '工作区 AI 供应商';
+COMMENT ON TABLE ai_providers IS 'AI 供应商，属于工作区或由平台提供';
 COMMENT ON COLUMN ai_providers.id IS '供应商编号';
 COMMENT ON COLUMN ai_providers.created_at IS '添加时间';
 COMMENT ON COLUMN ai_providers.updated_at IS '更新时间';
-COMMENT ON COLUMN ai_providers.organization_id IS '所属工作区编号';
+COMMENT ON COLUMN ai_providers.organization_id IS '所属工作区编号，为空表示平台提供的平台供应商';
 COMMENT ON COLUMN ai_providers.brand IS '供应商品牌';
 COMMENT ON COLUMN ai_providers.name IS '供应商名称';
 COMMENT ON COLUMN ai_providers.credential_type IS '凭据类型：api_key 使用密钥，none 不需要凭据';

@@ -27,11 +27,13 @@ CREATE TABLE agent_runs (
     execution_device_id  uuid,
     claimed_at           timestamptz,
     lease_expires_at     timestamptz,
-    plan                 jsonb
+    plan                 jsonb,
+    state                bytea,
+    task_run_id          uuid
 );
 
 CREATE UNIQUE INDEX agent_runs_active_scope_unique
-    ON agent_runs (organization_id, scope_kind, scope_id) WHERE (status = ANY (ARRAY['queued'::text, 'running'::text]));
+    ON agent_runs (organization_id, scope_kind, scope_id) WHERE (status = ANY (ARRAY['queued'::text, 'running'::text, 'waiting'::text]));
 
 COMMENT ON TABLE agent_runs IS 'Agent 业务运行';
 COMMENT ON COLUMN agent_runs.id IS '运行编号';
@@ -44,7 +46,7 @@ COMMENT ON COLUMN agent_runs.agent_revision_id IS '运行锁定的 Agent 配置�
 COMMENT ON COLUMN agent_runs.lane_id IS '本次运行消费的输入队列编号';
 COMMENT ON COLUMN agent_runs.scope_kind IS '执行范围类型，与所属队列一致';
 COMMENT ON COLUMN agent_runs.scope_id IS '执行范围编号，与所属队列一致';
-COMMENT ON COLUMN agent_runs.status IS '运行状态：queued、running、succeeded、failed、cancelled';
+COMMENT ON COLUMN agent_runs.status IS '运行状态：queued、running、waiting 挂起等待外部结果、succeeded、failed、cancelled';
 COMMENT ON COLUMN agent_runs.input_start_seq IS '本次运行起始输入序号';
 COMMENT ON COLUMN agent_runs.input_end_seq IS '本次运行实际消费的最后输入序号';
 COMMENT ON COLUMN agent_runs.response_message_id IS '运行结果消息编号，关联成功回复、失败或主动停止消息';
@@ -57,10 +59,12 @@ COMMENT ON COLUMN agent_runs.error_code IS '取消或失败的稳定错误码';
 COMMENT ON COLUMN agent_runs.last_error IS '最终失败信息';
 COMMENT ON COLUMN agent_runs.started_at IS '首次开始执行时间';
 COMMENT ON COLUMN agent_runs.completed_at IS '最终完成时间';
-COMMENT ON COLUMN agent_runs.execution_device_id IS '执行设备编号，助理的运行为其绑定电脑，AI 员工的运行为空';
+COMMENT ON COLUMN agent_runs.execution_device_id IS '执行设备编号，仅服务负责人本人的 AI 员工的运行为其绑定电脑，其他运行为空';
 COMMENT ON COLUMN agent_runs.claimed_at IS '设备领取时间';
 COMMENT ON COLUMN agent_runs.lease_expires_at IS '设备当前租约过期时间';
 COMMENT ON COLUMN agent_runs.plan IS '运行结束时的任务清单，为空表示没有建立清单';
+COMMENT ON COLUMN agent_runs.state IS '运行恢复状态：模型上下文、输入边界与执行期计数，在每次模型输出定稿与每批工具结果返回后写入';
+COMMENT ON COLUMN agent_runs.task_run_id IS '执行或即将执行运行的任务编号，同一运行同一时刻只由该任务执行';
 
 -- +goose Down
 DROP TABLE agent_runs;
