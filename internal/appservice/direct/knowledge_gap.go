@@ -49,7 +49,7 @@ func (o *directOperations) ListKnowledgeGaps(ctx context.Context, meta appservic
 		Status: domain.KnowledgeGapStatus(input.Status), Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
-		return appservice.KnowledgeGapList{}, knowledgeGapError(meta, err, i18n.ErrorKnowledgeGapLoadFailed, identity.Organization.ID)
+		return appservice.KnowledgeGapList{}, knowledgeGapError(meta, err, i18n.ErrorKnowledgeGapLoadFailed)
 	}
 	gaps := make([]appservice.KnowledgeGapSummary, 0, len(list.Gaps))
 	for _, gap := range list.Gaps {
@@ -66,7 +66,7 @@ func (o *directOperations) ListKnowledgeGaps(ctx context.Context, meta appservic
 func (o *directOperations) GetKnowledgeGap(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, gapID string) (appservice.KnowledgeGap, error) {
 	detail, err := o.getKnowledgeGap.Execute(ctx, identity, gapID)
 	if err != nil {
-		return appservice.KnowledgeGap{}, knowledgeGapError(meta, err, i18n.ErrorKnowledgeGapLoadFailed, identity.Organization.ID)
+		return appservice.KnowledgeGap{}, knowledgeGapError(meta, err, i18n.ErrorKnowledgeGapLoadFailed)
 	}
 	output := appservice.KnowledgeGap{
 		ID: detail.ID, ConversationID: detail.ConversationID, QuestionMessageID: common.StringValue(detail.QuestionMessageID),
@@ -102,14 +102,14 @@ func (o *directOperations) AcceptKnowledgeGap(ctx context.Context, meta appservi
 		AddToEvaluation: input.AddToEvaluation,
 	})
 	if errors.Is(err, knowledgegapaction.ErrNotFound) || errors.Is(err, knowledgegapaction.ErrHandled) {
-		return knowledgeGapError(meta, err, i18n.ErrorKnowledgeGapAcceptFailed, identity.Organization.ID)
+		return knowledgeGapError(meta, err, i18n.ErrorKnowledgeGapAcceptFailed)
 	}
 	if errors.Is(err, agentevaluationaction.ErrAgentNotFound) || errors.Is(err, agentevaluationaction.ErrQuestionNotFound) || errors.Is(err, agentevaluationaction.ErrServiceSessionNotFound) ||
 		errors.Is(err, agentevaluationaction.ErrQuestionAlreadyEvaluated) {
-		return agentEvaluationError(ctx, meta, err, i18n.ErrorKnowledgeGapAcceptFailed, identity.Organization.ID, "")
+		return agentEvaluationError(meta, err, i18n.ErrorKnowledgeGapAcceptFailed)
 	}
 	if err != nil {
-		return o.knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeGapAcceptFailed, identity.Organization.ID, input.KnowledgeBaseID)
+		return o.knowledgeBaseError(meta, err, i18n.ErrorKnowledgeGapAcceptFailed, identity.Organization.ID, input.KnowledgeBaseID)
 	}
 	slog.Info("待补知识已加入知识库", "organization_id", identity.Organization.ID, "knowledge_gap_id", gapID,
 		"knowledge_base_id", input.KnowledgeBaseID, "updated_entry", input.EntryID != "", "added_to_evaluation", input.AddToEvaluation)
@@ -119,13 +119,13 @@ func (o *directOperations) AcceptKnowledgeGap(ctx context.Context, meta appservi
 // DismissKnowledgeGap 忽略待补知识。
 func (o *directOperations) DismissKnowledgeGap(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, gapID string) error {
 	if err := o.dismissKnowledgeGap.Execute(ctx, identity, gapID); err != nil {
-		return knowledgeGapError(meta, err, i18n.ErrorKnowledgeGapDismissFailed, identity.Organization.ID)
+		return knowledgeGapError(meta, err, i18n.ErrorKnowledgeGapDismissFailed)
 	}
 	return nil
 }
 
 // knowledgeGapError 把待补知识错误转换为结构化、本地化错误。
-func knowledgeGapError(meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID string) error {
+func knowledgeGapError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	switch {
 	case errors.Is(err, knowledgegapaction.ErrNotFound):
 		return appservice.NotFoundError(meta, i18n.ErrorKnowledgeGapNotFound)
@@ -136,6 +136,5 @@ func knowledgeGapError(meta appservice.RequestMeta, err error, failureKey i18n.K
 	case errors.Is(err, identityaction.ErrInvalid):
 		return appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
-	slog.Warn("处理待补知识失败", "organization_id", organizationID, "error", err)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }

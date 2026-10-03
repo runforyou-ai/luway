@@ -55,6 +55,7 @@ var adminBackendMethods = map[string]bool{
 	"ListPlatformWorkspaceUsage":         true,
 	"GetPlatformRuntimeStatus":           true,
 	"ListPlatformFailedTasks":            true,
+	"GetPlatformDiagnostics":             true,
 	"ListPlatformAIProviders":            true,
 	"GetPlatformAIProvider":              true,
 	"ListPlatformAIProviderModels":       true,
@@ -72,6 +73,10 @@ var adminBackendMethods = map[string]bool{
 	"ActivateLicense":                    true,
 	"ActivateLicenseOnline":              true,
 	"SyncLicense":                        true,
+	"GetCommercePairing":                 true,
+	"PairCommerce":                       true,
+	"UnpairCommerce":                     true,
+	"SyncCommerce":                       true,
 	"UpdatePlatformTelemetry":            true,
 }
 

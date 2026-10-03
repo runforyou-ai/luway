@@ -121,7 +121,7 @@ func run(_ []string) error {
 			trayQuitRequested.Store(true)
 		},
 	})
-	services, registrar, err := applicationServices(
+	services, computer, err := applicationServices(
 		appStorage,
 		trayController,
 		notificationProvider,
@@ -135,9 +135,9 @@ func run(_ []string) error {
 	for _, service := range services {
 		app.RegisterService(service)
 	}
-	if registrar != nil {
-		registrar.Start()
-		defer registrar.Stop()
+	if computer != nil {
+		computer.Start()
+		defer computer.Stop()
 	}
 
 	// 桌面开发时同时打开移动端预览窗口，共用当前原生服务。

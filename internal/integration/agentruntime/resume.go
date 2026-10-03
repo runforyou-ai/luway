@@ -3,6 +3,7 @@ package agentruntime
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -26,10 +27,32 @@ const (
 	cancelledToolResult = "工具调用 %s（ID 为 %s）已被取消——在其完成之前收到了另一条消息。"
 )
 
-// sideEffectToolNames 是会修改电脑文件、命令环境或本机配置的内置工具。
-var sideEffectToolNames = []string{
-	"write_file", "edit_file", "delete_file", "execute",
-	addLocalMCPToolName, removeLocalMCPToolName, installSkillToolName, removeSkillToolName,
+// ErrComputerOffline 是电脑未连接时派发或尚未领取的调用交给模型的失败原因。
+var ErrComputerOffline = errors.New("电脑未连接，操作没有执行。请告诉用户打开这台电脑上的应用并保持联网后再试。")
+
+// sideEffectToolNames 是会修改电脑文件或命令环境的内置工具。
+var sideEffectToolNames = []string{writeFileToolName, editFileToolName, executeToolName}
+
+// ComputerLost 返回电脑离线或撤销时派发给它且未结束调用的结算：尚未领取的调用失败，已领取的调用按可重新执行与外部副作用中断或待核对；
+// 依次返回状态、交给模型的结果与失败原因。
+func ComputerLost(claimed, replayable, sideEffects bool) (domain.AgentToolCallStatus, *string, *string) {
+	if !claimed {
+		failure := ErrComputerOffline.Error()
+		return domain.AgentToolCallFailed, nil, &failure
+	}
+	status, result := interruptedStatus(replayable, sideEffects)
+	return status, &result, nil
+}
+
+// interruptedStatus 按可重新执行与外部副作用返回中断调用的状态与交给模型的结果。
+func interruptedStatus(replayable, sideEffects bool) (domain.AgentToolCallStatus, string) {
+	switch {
+	case sideEffects && !replayable:
+		return domain.AgentToolCallNeedsReview, needsReviewResult
+	case replayable:
+		return domain.AgentToolCallInterrupted, interruptedReplayableResult
+	}
+	return domain.AgentToolCallInterrupted, interruptedResult
 }
 
 // registerToolTraits 登记本次运行可调用工具的来源与特性：MCP 工具按管理员标记的查询用途判断，修改电脑或本机配置的内置工具有副作用，
@@ -70,40 +93,32 @@ func registerToolTraits(ctx context.Context, traits map[string]toolTraits, tools
 	return nil
 }
 
-// settleInterrupted 把恢复时仍未结束的调用按特性改为中断或待核对并写入交给模型的结果，返回改动的调用；waiting 返回仍在等待外部结果的调用是否存在。
+// settleInterrupted 把恢复时仍未结束的调用按特性改为中断或待核对并写入交给模型的结果，返回改动的调用；
+// 主 Agent 等待外部结果或已派发到电脑且未结束的调用保持不变，waiting 返回这样的调用是否存在。
 func settleInterrupted(blocks []Block, children []ToolCall, at time.Time) (changed []ToolCall, waiting bool) {
-	settle := func(call *ToolCall) {
+	settle := func(call *ToolCall, main bool) {
 		switch call.Status {
 		case domain.AgentToolCallWaiting:
-			waiting = true
-			return
 		case domain.AgentToolCallQueued, domain.AgentToolCallRunning:
 		default:
 			return
 		}
-		result := interruptedResult
-		switch {
-		case call.SideEffects && !call.Replayable:
-			call.Status, result = domain.AgentToolCallNeedsReview, needsReviewResult
-		case call.Replayable:
-			call.Status, result = domain.AgentToolCallInterrupted, interruptedReplayableResult
-		default:
-			call.Status = domain.AgentToolCallInterrupted
+		if main && (call.Status == domain.AgentToolCallWaiting || call.Computer) {
+			waiting = true
+			return
 		}
-		call.Result, call.CompletedAt = &result, &at
+		status, result := interruptedStatus(call.Replayable, call.SideEffects)
+		call.Status, call.Result, call.CompletedAt = status, &result, &at
 		changed = append(changed, *call)
 	}
 	for _, block := range blocks {
 		if block.Payload.ToolCall != nil {
-			settle(block.Payload.ToolCall)
+			settle(block.Payload.ToolCall, true)
 		}
 	}
+	// 子 Agent 不挂起，恢复时仍未结束的子 Agent 调用一律视为中断。
 	for index := range children {
-		// 子 Agent 不挂起，恢复时仍在执行的子 Agent 调用一律视为中断。
-		if children[index].Status == domain.AgentToolCallWaiting {
-			children[index].Status = domain.AgentToolCallRunning
-		}
-		settle(&children[index])
+		settle(&children[index], false)
 	}
 	return changed, waiting
 }

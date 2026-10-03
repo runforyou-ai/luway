@@ -26,10 +26,11 @@ func WithTelegramLock(ctx context.Context, db *bun.DB, channelID string, execute
 		// 释放会话锁，释放失败时丢弃底层连接。
 		releaseCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		if _, err := conn.ExecContext(releaseCtx, "SELECT pg_advisory_unlock(hashtextextended(?, 0))", channelID); err == nil {
+		_, err := conn.ExecContext(releaseCtx, "SELECT pg_advisory_unlock(hashtextextended(?, 0))", channelID)
+		if err == nil {
 			return
 		}
-		slog.Error("释放 Telegram 渠道锁失败", "channel_id", channelID)
+		slog.Warn("释放 Telegram 渠道锁失败，已丢弃数据库连接", "channel_id", channelID, "error", err)
 		_ = conn.Raw(func(any) error { return driver.ErrBadConn })
 	}(conn, channelID)
 	return execute(conn)

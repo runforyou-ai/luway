@@ -2,6 +2,7 @@ package agentruntime
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -172,17 +173,25 @@ func TestResolveAssignmentNormalizesMCPServers(t *testing.T) {
 	}
 }
 
-// TestResolveAssignmentLocalAgent 验证本机 Agent 执行时不注册应用工具、不带模型，指令保留企业指令与群聊点名规则。
-func TestResolveAssignmentLocalAgent(t *testing.T) {
+// TestResolveAssignmentComputerTools 验证使用电脑的运行注册电脑工具并说明用法，技能单独说明，记忆只在与负责人的单聊中注入。
+func TestResolveAssignmentComputerTools(t *testing.T) {
 	facts := customerFacts()
-	facts.HandlesCustomers, facts.Instruction, facts.LocalAgent = false, "整理周报。", domain.LocalAgentKindCodex
-	facts.Scene = SceneContext{Scene: SceneGroup, MentionCandidates: []string{"张三"}}
-	assignment := ResolveAssignment(facts, Capabilities{Knowledge: true, WebFetch: true, LocalTools: LocalTools(), Memory: true, MCPServers: []string{"crm"}})
-	if assignment.LocalAgent != domain.LocalAgentKindCodex || len(assignment.Tools) != 0 || len(assignment.MCPServers) != 0 ||
-		assignment.Model.ModelID != "" || assignment.Memory || assignment.DelegateInstruction != "" {
-		t.Fatalf("ResolveAssignment() = %+v", assignment)
+	facts.HandlesCustomers, facts.Instruction = false, "整理周报。"
+	facts.Scene = SceneContext{Scene: SceneAgentChat}
+	assignment := ResolveAssignment(facts, Capabilities{ComputerTools: ComputerTools(), Memory: true})
+	for _, name := range ComputerTools() {
+		if !slices.Contains(assignment.Tools, name) {
+			t.Fatalf("tools = %v, missing %s", assignment.Tools, name)
+		}
 	}
-	if !strings.Contains(assignment.Instruction, "整理周报。") || !strings.Contains(assignment.Instruction, "张三") || strings.Contains(assignment.Instruction, "search_knowledge") {
-		t.Fatalf("instruction = %q", assignment.Instruction)
+	if !assignment.Memory || !strings.Contains(assignment.Instruction, "在负责人的电脑上查阅和修改文件") || !strings.Contains(assignment.Instruction, "- skill：技能是针对特定任务的操作说明") {
+		t.Fatalf("assignment = %+v", assignment)
+	}
+	if !strings.Contains(assignment.DelegateInstruction, "read_file") {
+		t.Fatalf("delegate instruction = %q", assignment.DelegateInstruction)
+	}
+	facts.Scene = SceneContext{Scene: SceneGroup, MentionCandidates: []string{"张三"}}
+	if ResolveAssignment(facts, Capabilities{ComputerTools: ComputerTools(), Memory: true}).Memory {
+		t.Fatal("group run injected memory")
 	}
 }

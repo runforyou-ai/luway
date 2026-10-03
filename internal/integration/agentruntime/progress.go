@@ -53,7 +53,10 @@ type ToolCall struct {
 	CompletedAt *time.Time                 `json:"completedAt"`
 	MCPServer   string                     `json:"mcpServer,omitempty"` // MCP 工具所属的服务名称，内置工具为空。
 	Evidence    bool                       `json:"evidence,omitempty"`  // 原始结果通过依据判定。
-	Activity    string                     `json:"-"`                   // 子 Agent 正在调用的工具名称，只进入运行流。
+	Computer    bool                       `json:"-"`                   // 调用已作为操作派发到电脑，未结束前由电脑领取与上报推进。
+	// ComputerOutcome 是电脑上报的结果，只在从调用记录恢复时取值，恢复时据此补回文件内容摘要。
+	ComputerOutcome *domain.ComputerOutcome `json:"-"`
+	Activity        string                  `json:"-"` // 子 Agent 正在调用的工具名称，只进入运行流。
 }
 
 // streamView 返回内容块在运行流中的展示形态，工具调用不含参数和结果。
@@ -412,13 +415,13 @@ func (r *processRecorder) saveToolCall(ctx context.Context, call ToolCall) error
 	return r.journal.SaveToolCall(ctx, call)
 }
 
-// childStarted 登记子 Agent 开始执行的工具调用，归属所在的委派调用，并把它记为委派调用的当前活动。
-func (r *processRecorder) childStarted(ctx context.Context, parentCallID string, input *compose.ToolInput, at time.Time) error {
+// childStarted 登记子 Agent 开始执行的工具调用，归属所在的委派调用，并把它记为委派调用的当前活动，返回调用的记录编号；委派调用不存在时返回空编号。
+func (r *processRecorder) childStarted(ctx context.Context, parentCallID string, input *compose.ToolInput, at time.Time) (string, error) {
 	r.mu.Lock()
 	position, ok := r.toolPositions[parentCallID]
 	if !ok {
 		r.mu.Unlock()
-		return nil
+		return "", nil
 	}
 	parent := r.process[position].Payload.ToolCall
 	call := ToolCall{ID: uuid.NewV7().String(), ParentID: parent.ID, ModelCallID: parent.ModelCallID, CallID: input.CallID,
@@ -428,7 +431,7 @@ func (r *processRecorder) childStarted(ctx context.Context, parentCallID string,
 	r.children = append(r.children, call)
 	r.setActivityLocked(position, call.Name)
 	r.mu.Unlock()
-	return r.saveToolCall(ctx, call)
+	return call.ID, r.saveToolCall(ctx, call)
 }
 
 // childFinished 记录子 Agent 工具调用的结果或错误。

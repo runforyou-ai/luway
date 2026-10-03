@@ -94,12 +94,12 @@ func (o *directOperations) UpdateProfile(ctx context.Context, meta appservice.Re
 		AvatarFileID: input.AvatarFileID,
 	})
 	if err != nil {
-		return appservice.CurrentUser{}, o.currentUserError(ctx, meta, err, i18n.ErrorProfileUpdateFailed, profileFieldKeys, identity.Organization.ID, identity.User.ID)
+		return appservice.CurrentUser{}, o.currentUserError(meta, err, i18n.ErrorProfileUpdateFailed, profileFieldKeys)
 	}
 	slog.Info("个人资料保存成功", "organization_id", identity.Organization.ID, "identity_id", identity.User.IdentityID, "user_id", identity.User.ID)
 	user, err := o.currentUserFromIdentity(ctx, updatedIdentity)
 	if err != nil {
-		return appservice.CurrentUser{}, o.currentUserError(ctx, meta, err, i18n.ErrorProfileUpdateFailed, profileFieldKeys, identity.Organization.ID, identity.User.ID)
+		return appservice.CurrentUser{}, o.currentUserError(meta, err, i18n.ErrorProfileUpdateFailed, profileFieldKeys)
 	}
 	return user, nil
 }
@@ -113,7 +113,7 @@ func (o *directOperations) UpdateUserPreferences(ctx context.Context, meta appse
 		MessageNotificationsEnabled: input.MessageNotificationsEnabled,
 	})
 	if err != nil {
-		return appservice.CurrentUser{}, o.currentUserError(ctx, meta, err, i18n.ErrorPreferencesUpdateFailed, preferencesFieldKeys, identity.Organization.ID, identity.User.ID)
+		return appservice.CurrentUser{}, o.currentUserError(meta, err, i18n.ErrorPreferencesUpdateFailed, preferencesFieldKeys)
 	}
 	slog.Info("用户偏好保存成功",
 		"organization_id", identity.Organization.ID,
@@ -124,7 +124,7 @@ func (o *directOperations) UpdateUserPreferences(ctx context.Context, meta appse
 	)
 	user, err := o.currentUserFromIdentity(ctx, updatedIdentity)
 	if err != nil {
-		return appservice.CurrentUser{}, o.currentUserError(ctx, meta, err, i18n.ErrorPreferencesUpdateFailed, preferencesFieldKeys, identity.Organization.ID, identity.User.ID)
+		return appservice.CurrentUser{}, o.currentUserError(meta, err, i18n.ErrorPreferencesUpdateFailed, preferencesFieldKeys)
 	}
 	return user, nil
 }
@@ -135,12 +135,12 @@ func (o *directOperations) UpdateUserWorkStatus(ctx context.Context, meta appser
 		WorkStatus: domain.WorkStatus(input.WorkStatus),
 	})
 	if err != nil {
-		return appservice.CurrentUser{}, o.currentUserError(ctx, meta, err, i18n.ErrorWorkStatusUpdateFailed, workStatusFieldKeys, identity.Organization.ID, identity.User.ID)
+		return appservice.CurrentUser{}, o.currentUserError(meta, err, i18n.ErrorWorkStatusUpdateFailed, workStatusFieldKeys)
 	}
 	slog.Info("工作状态保存成功", "organization_id", identity.Organization.ID, "identity_id", identity.User.IdentityID, "user_id", identity.User.ID, "work_status", input.WorkStatus)
 	user, err := o.currentUserFromIdentity(ctx, updatedIdentity)
 	if err != nil {
-		return appservice.CurrentUser{}, o.currentUserError(ctx, meta, err, i18n.ErrorWorkStatusUpdateFailed, workStatusFieldKeys, identity.Organization.ID, identity.User.ID)
+		return appservice.CurrentUser{}, o.currentUserError(meta, err, i18n.ErrorWorkStatusUpdateFailed, workStatusFieldKeys)
 	}
 	return user, nil
 }
@@ -151,14 +151,10 @@ func (o *directOperations) ListUsers(ctx context.Context, meta appservice.Reques
 		Query: input.Query, Status: optionalDomain[appservice.UserStatus, domain.IdentityStatus](input.Status), RoleID: input.RoleID, TeamID: input.TeamID, Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.UserList{}, ctx.Err()
-		}
 		if errors.Is(err, useraction.ErrQueryInvalid) {
 			return appservice.UserList{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 		}
-		slog.Warn("读取企业成员列表失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.UserList{}, appservice.FailedError(meta, i18n.ErrorUserListFailed)
+		return appservice.UserList{}, appservice.FailedError(meta, i18n.ErrorUserListFailed, err)
 	}
 	avatarFileIDs := make([]*string, 0, len(output.Users))
 	for _, user := range output.Users {
@@ -166,11 +162,7 @@ func (o *directOperations) ListUsers(ctx context.Context, meta appservice.Reques
 	}
 	avatarURLs, err := o.optionalFileURLs(ctx, identity, avatarFileIDs...)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.UserList{}, ctx.Err()
-		}
-		slog.Warn("读取企业成员头像失败", "organization_id", identity.Organization.ID, "error", err)
-		return appservice.UserList{}, appservice.FailedError(meta, i18n.ErrorUserListFailed)
+		return appservice.UserList{}, appservice.FailedError(meta, i18n.ErrorUserListFailed, err)
 	}
 	users := make([]appservice.User, 0, len(output.Users))
 	for _, user := range output.Users {
@@ -183,22 +175,14 @@ func (o *directOperations) ListUsers(ctx context.Context, meta appservice.Reques
 func (o *directOperations) GetUser(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, userID string) (appservice.User, error) {
 	user, err := o.getUser.Execute(ctx, identity, userID)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.User{}, ctx.Err()
-		}
 		if errors.Is(err, useraction.ErrNotFound) {
 			return appservice.User{}, appservice.NotFoundError(meta, i18n.ErrorUserNotFound)
 		}
-		slog.Warn("读取企业成员失败", "organization_id", identity.Organization.ID, "user_id", userID, "error", err)
-		return appservice.User{}, appservice.FailedError(meta, i18n.ErrorUserReadFailed)
+		return appservice.User{}, appservice.FailedError(meta, i18n.ErrorUserReadFailed, err)
 	}
 	output, err := o.userWithAvatar(ctx, identity, *user)
 	if err != nil {
-		if ctx.Err() != nil {
-			return appservice.User{}, ctx.Err()
-		}
-		slog.Warn("读取企业成员头像失败", "organization_id", identity.Organization.ID, "user_id", userID, "error", err)
-		return appservice.User{}, appservice.FailedError(meta, i18n.ErrorUserReadFailed)
+		return appservice.User{}, appservice.FailedError(meta, i18n.ErrorUserReadFailed, err)
 	}
 	return output, nil
 }
@@ -207,7 +191,7 @@ func (o *directOperations) GetUser(ctx context.Context, meta appservice.RequestM
 func (o *directOperations) UpdateUser(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, userID string, input appservice.UpdateUserInput) (appservice.User, error) {
 	user, err := o.updateUser.Execute(ctx, identity, userID, useraction.UpdateInput{DisplayName: input.DisplayName, RoleID: input.RoleID, TeamIDs: input.TeamIDs, HandlesServiceRequests: input.HandlesServiceRequests, MaxServiceSessions: input.MaxServiceSessions, AvatarFileID: input.AvatarFileID})
 	if err != nil {
-		return appservice.User{}, o.userMutationError(ctx, meta, err, i18n.ErrorUserUpdateFailed, identity.Organization.ID, userID)
+		return appservice.User{}, o.userMutationError(meta, err, i18n.ErrorUserUpdateFailed)
 	}
 	slog.Info("企业成员更新成功", "organization_id", identity.Organization.ID, "identity_id", user.IdentityID, "user_id", userID, "role_id", user.RoleID)
 	return o.userMutationResult(ctx, meta, identity, *user, i18n.ErrorUserUpdateFailed)
@@ -227,17 +211,14 @@ func (o *directOperations) ReactivateUser(ctx context.Context, meta appservice.R
 func (o *directOperations) changeUserStatus(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, userID string, status domain.IdentityStatus) (appservice.User, error) {
 	user, err := o.updateUserStatus.Execute(ctx, identity, userID, status)
 	if err != nil {
-		return appservice.User{}, o.userMutationError(ctx, meta, err, i18n.ErrorUserStatusUpdateFailed, identity.Organization.ID, userID)
+		return appservice.User{}, o.userMutationError(meta, err, i18n.ErrorUserStatusUpdateFailed)
 	}
 	slog.Info("企业成员账号状态已修改", "organization_id", identity.Organization.ID, "identity_id", user.IdentityID, "user_id", userID, "status", status)
 	return o.userMutationResult(ctx, meta, identity, *user, i18n.ErrorUserStatusUpdateFailed)
 }
 
 // currentUserError 转换当前用户资料、密码、偏好和工作状态操作错误。
-func (o *directOperations) currentUserError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, fieldKeys func(map[string]common.FieldCode) map[string]i18n.Key, organizationID, userID string) error {
-	if ctx.Err() != nil {
-		return ctx.Err()
-	}
+func (o *directOperations) currentUserError(meta appservice.RequestMeta, err error, failureKey i18n.Key, fieldKeys func(map[string]common.FieldCode) map[string]i18n.Key) error {
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, fieldKeys(validationError.Fields))
 	}
@@ -247,13 +228,12 @@ func (o *directOperations) currentUserError(ctx context.Context, meta appservice
 	if errors.Is(err, identityaction.ErrInvalid) {
 		return appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
 	}
-	slog.Warn("当前用户操作失败", "organization_id", organizationID, "user_id", userID, "failure", failureKey, "error", err)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // userMutationError 转换企业成员写入错误。
-func (o *directOperations) userMutationError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID, userID string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func (o *directOperations) userMutationError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
@@ -271,19 +251,14 @@ func (o *directOperations) userMutationError(ctx context.Context, meta appservic
 	if errors.Is(err, useraction.ErrPlatformAdmin) {
 		return appservice.InvalidError(meta, i18n.ErrorUserPlatformAdmin, nil)
 	}
-	attributes := []any{"organization_id", organizationID, "failure", failureKey, "error", err}
-	if userID != "" {
-		attributes = append(attributes, "user_id", userID)
-	}
-	slog.Warn("企业成员操作失败", attributes...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // userMutationResult 补齐写入后企业成员的头像地址。
 func (o *directOperations) userMutationResult(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, user useraction.User, failureKey i18n.Key) (appservice.User, error) {
 	output, err := o.userWithAvatar(ctx, identity, user)
 	if err != nil {
-		return appservice.User{}, o.userMutationError(ctx, meta, err, failureKey, identity.Organization.ID, user.ID)
+		return appservice.User{}, o.userMutationError(meta, err, failureKey)
 	}
 	return output, nil
 }

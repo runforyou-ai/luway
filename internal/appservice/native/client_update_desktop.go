@@ -73,26 +73,26 @@ func (c *clientUpdater) CheckClientUpdate(ctx context.Context, meta appservice.R
 // InstallClientUpdate 下载并验证所连接服务器提供的更新包，替换应用后退出并由更新助手重新启动。
 func (c *clientUpdater) InstallClientUpdate(ctx context.Context, meta appservice.RequestMeta) error {
 	if c.updater == nil {
-		return appservice.FailedError(meta, i18n.ErrorMethodNotAllowed)
+		return appservice.FailedError(meta, i18n.ErrorMethodNotAllowed, nil)
 	}
 	release, err := c.updater.Check(ctx)
 	if err != nil {
 		slog.Warn("检查客户端更新失败", "error", err)
-		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed)
+		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed, err)
 	}
 	if release == nil {
-		return appservice.FailedError(meta, i18n.ErrorClientUpdateUnavailable)
+		return appservice.FailedError(meta, i18n.ErrorClientUpdateUnavailable, nil)
 	}
 	if err := c.updater.DownloadAndInstall(ctx); err != nil {
 		slog.Warn("下载或验证客户端更新失败", "version", release.Version, "error", err)
-		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed)
+		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed, err)
 	}
 	slog.Info("客户端更新已就绪，重启应用", "version", release.Version)
 	c.allowQuit(true)
 	if err := c.updater.Restart(ctx); err != nil {
 		c.allowQuit(false)
 		slog.Warn("重启以完成客户端更新失败", "version", release.Version, "error", err)
-		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed)
+		return appservice.FailedError(meta, i18n.ErrorClientUpdateFailed, err)
 	}
 	return nil
 }

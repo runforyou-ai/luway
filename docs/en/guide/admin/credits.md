@@ -28,6 +28,7 @@ Click **Adjust credits**, choose add or deduct, and enter the credits and a note
 - Before each call starts, credits are reserved based on the input length and the model's maximum output. If available credits aren't enough, the call doesn't run and members see "This workspace doesn't have enough credits."
 - When the call ends, the difference from actual usage is refunded or charged. If actual cost exceeds the reservation and the balance can't cover the rest, charging stops at 0. The shortfall is recorded on the call, and the balance never goes negative.
 - If a call fails without any usage, the reservation is fully refunded.
+- Credits a workspace purchases don't expire. When a top-up order is refunded, its unused credits are taken back. Credits already used aren't reclaimed.
 - When a call tries several sources, usage from every source is charged.
 
 Each record in **Model calls** shows the credits charged. For what workspaces see, see [Credits](/docs/en/guide/workspace/credits/).

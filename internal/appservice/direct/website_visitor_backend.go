@@ -83,29 +83,31 @@ func NewWebsiteVisitorBackend(db *bun.DB, agentScheduler conversationaction.Cust
 }
 
 // AuthenticateVisitor 解析访客事件流受众；渠道停用或尚未建立业务身份时返回与访客 HTTP 接口一致的错误。
-func (b *WebsiteVisitorBackend) AuthenticateVisitor(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string) (WebsiteVisitorAudience, error) {
+func (b *WebsiteVisitorBackend) AuthenticateVisitor(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string) (_ WebsiteVisitorAudience, err error) {
+	defer settle(ctx, "AuthenticateVisitor", &err, visitorInternalError(meta))
 	audience, err := b.authorizeVisitor.Execute(ctx, channelID, externalID)
 	if err != nil {
-		return WebsiteVisitorAudience{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "authenticate_visitor", "channel_id", channelID)
+		return WebsiteVisitorAudience{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
 	return WebsiteVisitorAudience{OrganizationID: audience.OrganizationID, ChannelID: audience.ChannelID, ChannelIdentityID: audience.ChannelIdentityID}, nil
 }
 
 // ListConversations 返回网站访客的客户会话目录与渠道新会话的接待状态。
-func (b *WebsiteVisitorBackend) ListConversations(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string) (appservice.WebsiteVisitorDirectory, error) {
+func (b *WebsiteVisitorBackend) ListConversations(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string) (_ appservice.WebsiteVisitorDirectory, err error) {
+	defer settle(ctx, "ListConversations", &err, visitorInternalError(meta))
 	directory, err := b.listConversations.Execute(ctx, channelID, externalID)
 	if err != nil {
-		return appservice.WebsiteVisitorDirectory{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "list_conversations", "channel_id", channelID)
+		return appservice.WebsiteVisitorDirectory{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
 	reception, err := websiteVisitorReceptionFromAction(directory.NewSessionReception, b.links)
 	if err != nil {
-		return appservice.WebsiteVisitorDirectory{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "list_conversations", "channel_id", channelID)
+		return appservice.WebsiteVisitorDirectory{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
 	result := appservice.WebsiteVisitorDirectory{Reception: reception, ReceptionRefreshAt: directory.ReceptionRefreshAt, Conversations: make([]appservice.WebsiteVisitorConversation, 0, len(directory.Conversations))}
 	for _, item := range directory.Conversations {
 		conversation, err := websiteVisitorConversationFromAction(item, b.links)
 		if err != nil {
-			return appservice.WebsiteVisitorDirectory{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "list_conversations", "channel_id", channelID)
+			return appservice.WebsiteVisitorDirectory{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 		}
 		result.Conversations = append(result.Conversations, conversation)
 	}
@@ -113,10 +115,11 @@ func (b *WebsiteVisitorBackend) ListConversations(ctx context.Context, meta apps
 }
 
 // VerifyCustomer 按渠道所属企业的客户身份密钥校验签名身份。
-func (b *WebsiteVisitorBackend) VerifyCustomer(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, token string) (appservice.WebsiteVisitorCustomer, error) {
+func (b *WebsiteVisitorBackend) VerifyCustomer(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, token string) (_ appservice.WebsiteVisitorCustomer, err error) {
+	defer settle(ctx, "VerifyCustomer", &err, visitorInternalError(meta))
 	verified, err := b.verifyCustomer.Execute(ctx, channelID, token)
 	if err != nil {
-		return appservice.WebsiteVisitorCustomer{}, websiteVisitorError(ctx, meta, err, i18n.MessengerIdentityExpired, "verify_customer", "channel_id", channelID)
+		return appservice.WebsiteVisitorCustomer{}, websiteVisitorError(meta, err, i18n.MessengerIdentityExpired)
 	}
 	return websiteVisitorCustomerFromAction(verified), nil
 }
@@ -138,20 +141,22 @@ func websiteCustomerInput(meta appservice.WebsiteVisitorMeta) *customerchatactio
 }
 
 // SendTextMessage 持久化网站访客文本消息。
-func (b *WebsiteVisitorBackend) SendTextMessage(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string, input appservice.WebsiteVisitorTextMessageInput) (appservice.WebsiteVisitorMessageResult, error) {
+func (b *WebsiteVisitorBackend) SendTextMessage(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string, input appservice.WebsiteVisitorTextMessageInput) (_ appservice.WebsiteVisitorMessageResult, err error) {
+	defer settle(ctx, "SendTextMessage", &err, visitorInternalError(meta))
 	result, err := b.sendMessage.Execute(ctx, customerchataction.WebsiteCustomerTextMessageInput{
 		ChannelID: channelID, ExternalID: externalID, ConversationID: input.ConversationID,
 		ClientMessageID: input.ClientMessageID, Body: input.Body, ReplyToMessageID: input.ReplyToMessageID,
 		Customer: websiteCustomerInput(meta), VisitorContext: websiteVisitorContext(meta, input.Page),
 	})
 	if err != nil {
-		return appservice.WebsiteVisitorMessageResult{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorSendFailed, "send_text_message", "channel_id", channelID)
+		return appservice.WebsiteVisitorMessageResult{}, websiteVisitorError(meta, err, i18n.VisitorErrorSendFailed)
 	}
-	return b.sentMessageResult(ctx, meta, channelID, "send_text_message", result)
+	return b.sentMessageResult(ctx, meta, channelID, result)
 }
 
 // SendAttachmentMessage 持久化网站访客附件消息并激活上传文件。
-func (b *WebsiteVisitorBackend) SendAttachmentMessage(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string, input appservice.WebsiteVisitorAttachmentMessageInput) (appservice.WebsiteVisitorMessageResult, error) {
+func (b *WebsiteVisitorBackend) SendAttachmentMessage(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string, input appservice.WebsiteVisitorAttachmentMessageInput) (_ appservice.WebsiteVisitorMessageResult, err error) {
+	defer settle(ctx, "SendAttachmentMessage", &err, visitorInternalError(meta))
 	result, err := b.sendMessage.ExecuteAttachment(ctx, customerchataction.WebsiteCustomerAttachmentMessageInput{
 		ChannelID: channelID, ExternalID: externalID, ConversationID: input.ConversationID,
 		ClientMessageID: input.ClientMessageID, FileID: input.FileID, Body: input.Body, ReplyToMessageID: input.ReplyToMessageID,
@@ -159,21 +164,21 @@ func (b *WebsiteVisitorBackend) SendAttachmentMessage(ctx context.Context, meta 
 		Customer: websiteCustomerInput(meta), VisitorContext: websiteVisitorContext(meta, input.Page),
 	})
 	if err != nil {
-		return appservice.WebsiteVisitorMessageResult{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorSendFailed, "send_attachment_message", "channel_id", channelID)
+		return appservice.WebsiteVisitorMessageResult{}, websiteVisitorError(meta, err, i18n.VisitorErrorSendFailed)
 	}
-	return b.sentMessageResult(ctx, meta, channelID, "send_attachment_message", result)
+	return b.sentMessageResult(ctx, meta, channelID, result)
 }
 
 // sentMessageResult 转换访客消息写入结果并记录保存日志。
-func (b *WebsiteVisitorBackend) sentMessageResult(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, operation string, result customerchataction.ReceiveWebsiteCustomerMessageResult) (appservice.WebsiteVisitorMessageResult, error) {
+func (b *WebsiteVisitorBackend) sentMessageResult(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID string, result customerchataction.ReceiveWebsiteCustomerMessageResult) (appservice.WebsiteVisitorMessageResult, error) {
 	linker := visitorAttachmentLinker{s3: b.s3, fileLinks: b.links}
 	message, err := websiteVisitorMessageFromAction(ctx, &linker, result.Message)
 	if err != nil {
-		return appservice.WebsiteVisitorMessageResult{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorSendFailed, operation, "channel_id", channelID)
+		return appservice.WebsiteVisitorMessageResult{}, websiteVisitorError(meta, err, i18n.VisitorErrorSendFailed)
 	}
 	conversation, err := websiteVisitorConversationFromAction(result.Conversation, b.links)
 	if err != nil {
-		return appservice.WebsiteVisitorMessageResult{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorSendFailed, operation, "channel_id", channelID)
+		return appservice.WebsiteVisitorMessageResult{}, websiteVisitorError(meta, err, i18n.VisitorErrorSendFailed)
 	}
 	slog.Info("网站访客消息已保存",
 		"channel_id", channelID,
@@ -192,42 +197,45 @@ func (b *WebsiteVisitorBackend) sentMessageResult(ctx context.Context, meta apps
 }
 
 // CreateAttachmentUpload 创建网站访客附件的上传请求。
-func (b *WebsiteVisitorBackend) CreateAttachmentUpload(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string, input appservice.WebsiteVisitorUploadInput) (appservice.WebsiteVisitorUpload, error) {
+func (b *WebsiteVisitorBackend) CreateAttachmentUpload(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string, input appservice.WebsiteVisitorUploadInput) (_ appservice.WebsiteVisitorUpload, err error) {
+	defer settle(ctx, "CreateAttachmentUpload", &err, visitorInternalError(meta))
 	record, err := b.createUpload.Execute(ctx, customerchataction.WebsiteVisitorUploadInput{
 		ChannelID: channelID, ExternalID: externalID,
 		FileName: input.FileName, ContentType: input.ContentType, ByteSize: input.ByteSize,
 		Customer: websiteCustomerInput(meta),
 	})
 	if err != nil {
-		return appservice.WebsiteVisitorUpload{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorUploadFailed, "create_attachment_upload", "channel_id", channelID)
+		return appservice.WebsiteVisitorUpload{}, websiteVisitorError(meta, err, i18n.VisitorErrorUploadFailed)
 	}
 	request, err := b.visitorUploadRequest(ctx, meta, record)
 	if err != nil {
-		return appservice.WebsiteVisitorUpload{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorUploadFailed, "create_attachment_upload", "channel_id", channelID)
+		return appservice.WebsiteVisitorUpload{}, websiteVisitorError(meta, err, i18n.VisitorErrorUploadFailed)
 	}
 	return appservice.WebsiteVisitorUpload{FileID: record.ID, Request: request}, nil
 }
 
 // CompleteAttachmentUpload 核验网站访客上传的附件内容。
-func (b *WebsiteVisitorBackend) CompleteAttachmentUpload(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, fileID string) error {
+func (b *WebsiteVisitorBackend) CompleteAttachmentUpload(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, fileID string) (err error) {
+	defer settle(ctx, "CompleteAttachmentUpload", &err, visitorInternalError(meta))
 	record, err := b.completeUpload.Execute(ctx, channelID, externalID, fileID, b.statVisitorFile)
 	if err != nil {
-		return websiteVisitorError(ctx, meta, err, i18n.VisitorErrorUploadFailed, "complete_attachment_upload", "channel_id", channelID, "file_id", fileID)
+		return websiteVisitorError(meta, err, i18n.VisitorErrorUploadFailed)
 	}
 	slog.Info("网站访客附件上传已完成", "organization_id", record.OrganizationID, "channel_id", channelID, "file_id", record.ID, "storage_backend", record.StorageBackend)
 	return nil
 }
 
 // GetMessageAttachment 重新签发网站访客消息附件的预览与下载地址。
-func (b *WebsiteVisitorBackend) GetMessageAttachment(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID, messageID string) (appservice.WebsiteVisitorAttachmentLinks, error) {
+func (b *WebsiteVisitorBackend) GetMessageAttachment(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID, messageID string) (_ appservice.WebsiteVisitorAttachmentLinks, err error) {
+	defer settle(ctx, "GetMessageAttachment", &err, visitorInternalError(meta))
 	record, err := b.getAttachment.Execute(ctx, channelID, externalID, conversationID, messageID)
 	if err != nil {
-		return appservice.WebsiteVisitorAttachmentLinks{}, websiteVisitorError(ctx, meta, err, i18n.MessengerAttachmentUnavailable, "get_message_attachment", "channel_id", channelID, "message_id", messageID)
+		return appservice.WebsiteVisitorAttachmentLinks{}, websiteVisitorError(meta, err, i18n.MessengerAttachmentUnavailable)
 	}
 	linker := visitorAttachmentLinker{s3: b.s3, fileLinks: b.links}
 	links, err := linker.links(ctx, domain.FileStorageBackend(record.StorageBackend), record.StorageKey, record.OriginalName, record.ContentType)
 	if err != nil {
-		return appservice.WebsiteVisitorAttachmentLinks{}, websiteVisitorError(ctx, meta, err, i18n.MessengerAttachmentUnavailable, "get_message_attachment", "channel_id", channelID, "message_id", messageID)
+		return appservice.WebsiteVisitorAttachmentLinks{}, websiteVisitorError(meta, err, i18n.MessengerAttachmentUnavailable)
 	}
 	return links, nil
 }
@@ -310,16 +318,17 @@ func (l *visitorAttachmentLinker) avatarURL(_ context.Context, location customer
 }
 
 // ListMessages 返回网站访客指定客户线程的消息历史。
-func (b *WebsiteVisitorBackend) ListMessages(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID string, input appservice.WebsiteVisitorMessageHistoryInput) (appservice.WebsiteVisitorMessageHistory, error) {
+func (b *WebsiteVisitorBackend) ListMessages(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID string, input appservice.WebsiteVisitorMessageHistoryInput) (_ appservice.WebsiteVisitorMessageHistory, err error) {
+	defer settle(ctx, "ListMessages", &err, visitorInternalError(meta))
 	before, after, err := decodeMessageCursors(conversationID, input.Before, input.After)
 	if err != nil {
-		return appservice.WebsiteVisitorMessageHistory{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "list_messages", "channel_id", channelID, "conversation_id", conversationID)
+		return appservice.WebsiteVisitorMessageHistory{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
 	page, err := b.listMessages.Execute(ctx, customerchataction.MessageHistoryInput{
 		ChannelID: channelID, ExternalID: externalID, ConversationID: conversationID, Before: before, After: after,
 	})
 	if err != nil {
-		return appservice.WebsiteVisitorMessageHistory{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "list_messages", "channel_id", channelID, "conversation_id", conversationID)
+		return appservice.WebsiteVisitorMessageHistory{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
 	result := appservice.WebsiteVisitorMessageHistory{Messages: make([]appservice.WebsiteVisitorMessage, 0, len(page.Messages)), SessionRatings: make([]appservice.WebsiteVisitorSessionRating, 0, len(page.SessionRatings))}
 	for _, rating := range page.SessionRatings {
@@ -331,7 +340,7 @@ func (b *WebsiteVisitorBackend) ListMessages(ctx context.Context, meta appservic
 	for _, message := range page.Messages {
 		converted, err := websiteVisitorMessageFromAction(ctx, &linker, message)
 		if err != nil {
-			return appservice.WebsiteVisitorMessageHistory{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "list_messages", "channel_id", channelID, "conversation_id", conversationID)
+			return appservice.WebsiteVisitorMessageHistory{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 		}
 		result.Messages = append(result.Messages, converted)
 	}
@@ -347,56 +356,61 @@ func (b *WebsiteVisitorBackend) ListMessages(ctx context.Context, meta appservic
 }
 
 // ReportTyping 向企业客服发布网站访客在客户线程中的输入状态。
-func (b *WebsiteVisitorBackend) ReportTyping(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID string, input appservice.WebsiteVisitorTypingInput) error {
+func (b *WebsiteVisitorBackend) ReportTyping(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID string, input appservice.WebsiteVisitorTypingInput) (err error) {
+	defer settle(ctx, "ReportTyping", &err, visitorInternalError(meta))
 	if err := b.reportTyping.Execute(ctx, channelID, externalID, conversationID, input.Active); err != nil {
-		return websiteVisitorError(ctx, meta, err, i18n.MessengerRequestFailed, "report_typing", "channel_id", channelID, "conversation_id", conversationID)
+		return websiteVisitorError(meta, err, i18n.MessengerRequestFailed)
 	}
 	return nil
 }
 
 // RateServiceSession 保存网站访客对已关闭客服处理周期的评价。
-func (b *WebsiteVisitorBackend) RateServiceSession(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID, serviceSessionID string, input appservice.WebsiteVisitorRatingInput) (appservice.WebsiteVisitorRating, error) {
+func (b *WebsiteVisitorBackend) RateServiceSession(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID, serviceSessionID string, input appservice.WebsiteVisitorRatingInput) (_ appservice.WebsiteVisitorRating, err error) {
+	defer settle(ctx, "RateServiceSession", &err, visitorInternalError(meta))
 	rating, err := b.rateSession.Execute(ctx, customerchataction.WebsiteServiceSessionRatingInput{
 		ChannelID: channelID, ExternalID: externalID, ConversationID: conversationID, ServiceSessionID: serviceSessionID,
 		Resolved: input.Resolved, Comment: input.Comment,
 	})
 	if err != nil {
-		return appservice.WebsiteVisitorRating{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorRateFailed, "rate_service_session", "channel_id", channelID, "service_session_id", serviceSessionID)
+		return appservice.WebsiteVisitorRating{}, websiteVisitorError(meta, err, i18n.VisitorErrorRateFailed)
 	}
 	slog.Info("网站访客已评价客服处理周期", "channel_id", channelID, "conversation_id", conversationID, "service_session_id", serviceSessionID, "resolved", input.Resolved)
 	return websiteVisitorRatingFromAction(rating), nil
 }
 
 // MarkConversationRead 记录网站访客在客户线程中已读到的位置。
-func (b *WebsiteVisitorBackend) MarkConversationRead(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID string, input appservice.WebsiteVisitorReadInput) error {
+func (b *WebsiteVisitorBackend) MarkConversationRead(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID, conversationID string, input appservice.WebsiteVisitorReadInput) (err error) {
+	defer settle(ctx, "MarkConversationRead", &err, visitorInternalError(meta))
 	messageSeq, err := strconv.ParseInt(input.MessageSeq, 10, 64)
 	if err != nil {
 		return appservice.WebsiteVisitorError(meta.Locale, appservice.ErrorKindInvalid, i18n.VisitorErrorRequestInvalid, nil)
 	}
 	if err := b.markRead.Execute(ctx, channelID, externalID, conversationID, messageSeq); err != nil {
-		return websiteVisitorError(ctx, meta, err, i18n.MessengerRequestFailed, "mark_conversation_read", "channel_id", channelID, "conversation_id", conversationID)
+		return websiteVisitorError(meta, err, i18n.MessengerRequestFailed)
 	}
 	return nil
 }
 
 // ResumeVisitor 用邮件中的回访令牌恢复匿名访客身份。
-func (b *WebsiteVisitorBackend) ResumeVisitor(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID string, input appservice.WebsiteVisitorResumeInput) (appservice.WebsiteVisitorResume, error) {
+func (b *WebsiteVisitorBackend) ResumeVisitor(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID string, input appservice.WebsiteVisitorResumeInput) (_ appservice.WebsiteVisitorResume, err error) {
+	defer settle(ctx, "ResumeVisitor", &err, visitorInternalError(meta))
 	resumed, err := b.resumeVisitor.Execute(ctx, channelID, input.Token)
 	if err != nil {
-		return appservice.WebsiteVisitorResume{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "resume_visitor", "channel_id", channelID)
+		return appservice.WebsiteVisitorResume{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
 	conversation, err := websiteVisitorConversationFromAction(resumed.Conversation, b.links)
 	if err != nil {
-		return appservice.WebsiteVisitorResume{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "resume_visitor", "channel_id", channelID)
+		return appservice.WebsiteVisitorResume{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
 	return appservice.WebsiteVisitorResume{VisitorToken: resumed.VisitorToken, Conversation: conversation}, nil
 }
 
 // GetHelpCenter 返回网站渠道帮助中心的文章合集。
-func (b *WebsiteVisitorBackend) GetHelpCenter(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID string) (appservice.WebsiteVisitorHelpCenter, error) {
+func (b *WebsiteVisitorBackend) GetHelpCenter(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID string) (_ appservice.WebsiteVisitorHelpCenter, err error) {
+	defer settle(ctx, "GetHelpCenter", &err, visitorInternalError(meta))
 	collections, err := b.getHelpCenter.Execute(ctx, channelID)
 	if err != nil {
-		return appservice.WebsiteVisitorHelpCenter{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "get_help_center", "channel_id", channelID)
+		return appservice.WebsiteVisitorHelpCenter{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
 	result := appservice.WebsiteVisitorHelpCenter{Collections: make([]appservice.WebsiteVisitorHelpCollection, 0, len(collections))}
 	for _, collection := range collections {
@@ -409,10 +423,11 @@ func (b *WebsiteVisitorBackend) GetHelpCenter(ctx context.Context, meta appservi
 }
 
 // GetHelpArticle 返回网站渠道帮助中心的文章详情。
-func (b *WebsiteVisitorBackend) GetHelpArticle(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, articleID string) (appservice.WebsiteVisitorHelpArticle, error) {
+func (b *WebsiteVisitorBackend) GetHelpArticle(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, articleID string) (_ appservice.WebsiteVisitorHelpArticle, err error) {
+	defer settle(ctx, "GetHelpArticle", &err, visitorInternalError(meta))
 	article, err := b.getHelpArticle.Execute(ctx, channelID, articleID)
 	if err != nil {
-		return appservice.WebsiteVisitorHelpArticle{}, websiteVisitorError(ctx, meta, err, i18n.VisitorErrorLoadFailed, "get_help_article", "channel_id", channelID, "article_id", articleID)
+		return appservice.WebsiteVisitorHelpArticle{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
 	return appservice.WebsiteVisitorHelpArticle{
 		ID: article.ID, CollectionID: article.CollectionID, CollectionName: article.CollectionName,
@@ -421,10 +436,11 @@ func (b *WebsiteVisitorBackend) GetHelpArticle(ctx context.Context, meta appserv
 }
 
 // SearchHelpCenter 在网站渠道帮助中心检索访客输入的内容，返回相关文章。
-func (b *WebsiteVisitorBackend) SearchHelpCenter(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID string, input appservice.WebsiteVisitorHelpSearchInput) (appservice.WebsiteVisitorHelpSearchResult, error) {
+func (b *WebsiteVisitorBackend) SearchHelpCenter(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID string, input appservice.WebsiteVisitorHelpSearchInput) (_ appservice.WebsiteVisitorHelpSearchResult, err error) {
+	defer settle(ctx, "SearchHelpCenter", &err, visitorInternalError(meta))
 	articles, err := b.searchHelpCenter.Execute(ctx, channelID, input.Query)
 	if err != nil {
-		return appservice.WebsiteVisitorHelpSearchResult{}, websiteVisitorError(ctx, meta, err, i18n.MessengerHelpSearchFailed, "search_help_center", "channel_id", channelID)
+		return appservice.WebsiteVisitorHelpSearchResult{}, websiteVisitorError(meta, err, i18n.MessengerHelpSearchFailed)
 	}
 	return appservice.WebsiteVisitorHelpSearchResult{Articles: websiteVisitorHelpArticles(articles)}, nil
 }
@@ -439,7 +455,7 @@ func websiteVisitorHelpArticles(articles []helpcenteraction.ArticleSummary) []ap
 }
 
 // websiteVisitorError 把语言无关访客错误映射为按对客语言本地化的应用错误。
-func websiteVisitorError(ctx context.Context, meta appservice.WebsiteVisitorMeta, err error, failureKey i18n.Key, operation string, attributes ...any) error {
+func websiteVisitorError(meta appservice.WebsiteVisitorMeta, err error, failureKey i18n.Key) error {
 	if validation, ok := errors.AsType[*conversationaction.ValidationError](err); ok {
 		fieldKeys := translateValidationFields(validation.Fields, websiteVisitorValidationKeys)
 		// 各字段文案一致时直接作为错误文案，否则提示请求无效。
@@ -488,14 +504,7 @@ func websiteVisitorError(ctx context.Context, meta appservice.WebsiteVisitorMeta
 		}
 		return appservice.WebsiteVisitorError(meta.Locale, appservice.ErrorKindConflict, messageKey, nil).WithReason(conflict.Reason)
 	}
-	// 请求上下文有效时记录操作失败告警。
-	if ctx.Err() == nil {
-		logAttributes := []any{"operation", operation}
-		logAttributes = append(logAttributes, attributes...)
-		logAttributes = append(logAttributes, "error", err)
-		slog.Warn("网站访客操作失败", logAttributes...)
-	}
-	return appservice.WebsiteVisitorError(meta.Locale, appservice.ErrorKindFailed, failureKey, nil)
+	return appservice.WebsiteVisitorFailedError(meta.Locale, failureKey, err)
 }
 
 var websiteVisitorValidationKeys = map[conversationaction.ValidationCode]i18n.Key{

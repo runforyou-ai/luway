@@ -137,7 +137,7 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.PUT("/personal-agents/:agentID", s.updatePersonalAgent)
 	router.POST("/personal-agents/:agentID/pause", s.pausePersonalAgent)
 	router.POST("/personal-agents/:agentID/resume", s.resumePersonalAgent)
-	router.PUT("/personal-agents/:agentID/device", s.movePersonalAgent)
+	router.PUT("/personal-agents/:agentID/computer", s.movePersonalAgent)
 	router.POST("/personal-agents/:agentID/deactivate", s.deactivatePersonalAgent)
 	router.POST("/personal-agents/:agentID/reactivate", s.reactivatePersonalAgent)
 	router.GET("/personal-agents/:agentID/memories", s.listAgentMemories)
@@ -167,12 +167,17 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.PUT("/platform/license", s.activateLicense)
 	router.POST("/platform/license/activations", s.activateLicenseOnline)
 	router.POST("/platform/license/sync", s.syncLicense)
+	router.GET("/platform/commerce", s.getCommercePairing)
+	router.PUT("/platform/commerce", s.pairCommerce)
+	router.DELETE("/platform/commerce", s.unpairCommerce)
+	router.POST("/platform/commerce/sync", s.syncCommerce)
 	router.POST("/platform/workspaces/:workspaceID/suspend", s.suspendPlatformWorkspace)
 	router.POST("/platform/workspaces/:workspaceID/resume", s.resumePlatformWorkspace)
 	router.GET("/platform/usage", s.getPlatformUsage)
 	router.GET("/platform/usage/workspaces", s.listPlatformWorkspaceUsage)
 	router.GET("/platform/runtime", s.getPlatformRuntimeStatus)
 	router.GET("/platform/runtime/failed-tasks", s.listPlatformFailedTasks)
+	router.GET("/platform/diagnostics", s.getPlatformDiagnostics)
 	router.GET("/platform/workspaces/:workspaceID/credits", s.getPlatformWorkspaceCredits)
 	router.GET("/platform/workspaces/:workspaceID/credits/entries", s.listPlatformWorkspaceCreditEntries)
 	router.POST("/platform/workspaces/:workspaceID/credits/adjustments", s.adjustPlatformWorkspaceCredits)
@@ -302,9 +307,9 @@ func (s *Service) registerGeneratedRoutes(router *gin.Engine) {
 	router.POST("/knowledge-gaps/:gapID/accept", s.acceptKnowledgeGap)
 	router.POST("/reports/issues/:serviceSessionID/evaluation", s.addServiceIssueToEvaluation)
 	router.POST("/knowledge-gaps/:gapID/dismiss", s.dismissKnowledgeGap)
-	router.POST("/devices", s.registerDevice)
-	router.GET("/devices", s.listDevices)
-	router.DELETE("/devices/:deviceID", s.revokeDevice)
+	router.POST("/computers", s.registerComputer)
+	router.GET("/computers", s.listComputers)
+	router.DELETE("/computers/:computerID", s.revokeComputer)
 }
 
 // installationStatus 返回部署名称、首次安装状态、是否开放注册、产品品牌和接口版本。
@@ -1308,7 +1313,7 @@ func (s *Service) resumePersonalAgent(c *gin.Context) {
 
 // movePersonalAgent 把当前成员负责的个人 AI 员工换到指定电脑。
 func (s *Service) movePersonalAgent(c *gin.Context) {
-	var input appservice.PersonalAgentDeviceInput
+	var input appservice.PersonalAgentComputerInput
 	if !bindJSON(c, &input) {
 		return
 	}
@@ -1418,7 +1423,7 @@ func (s *Service) getPlatformOverview(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// getPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标上报开关和每日赠送积分。
+// getPlatformSettings 返回平台注册策略、工作区创建策略、平台时区、运行指标与错误上报开关和每日赠送积分。
 func (s *Service) getPlatformSettings(c *gin.Context) {
 	output, err := s.application.GetPlatformSettings(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
@@ -1454,7 +1459,7 @@ func (s *Service) updatePlatformDailyCreditGrant(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// updatePlatformTelemetry 开启或关闭向 control 上报运行指标。
+// updatePlatformTelemetry 开启或关闭向 control 上报运行指标与错误。
 func (s *Service) updatePlatformTelemetry(c *gin.Context) {
 	var input appservice.PlatformTelemetryInput
 	if !bindJSON(c, &input) {
@@ -1540,6 +1545,33 @@ func (s *Service) syncLicense(c *gin.Context) {
 	writeResult(c, http.StatusOK, output, err)
 }
 
+// getCommercePairing 返回平台与商业服务的配对状态。
+func (s *Service) getCommercePairing(c *gin.Context) {
+	output, err := s.application.GetCommercePairing(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// pairCommerce 用商业服务生成的配对码完成配对，替换现有配对并从头读取商业服务变更。
+func (s *Service) pairCommerce(c *gin.Context) {
+	var input appservice.PairCommerceInput
+	if !bindJSON(c, &input) {
+		return
+	}
+	output, err := s.application.PairCommerce(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// unpairCommerce 解除与商业服务的配对并删除已应用的工作区权益。
+func (s *Service) unpairCommerce(c *gin.Context) {
+	writeEmpty(c, s.application.UnpairCommerce(c.Request.Context(), requestMeta(c)))
+}
+
+// syncCommerce 立即读取商业服务的变更。
+func (s *Service) syncCommerce(c *gin.Context) {
+	output, err := s.application.SyncCommerce(c.Request.Context(), requestMeta(c))
+	writeResult(c, http.StatusOK, output, err)
+}
+
 // suspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 func (s *Service) suspendPlatformWorkspace(c *gin.Context) {
 	output, err := s.application.SuspendPlatformWorkspace(c.Request.Context(), requestMeta(c), c.Param("workspaceID"))
@@ -1585,6 +1617,12 @@ func (s *Service) listPlatformFailedTasks(c *gin.Context) {
 		return
 	}
 	output, err := s.application.ListPlatformFailedTasks(c.Request.Context(), requestMeta(c), input)
+	writeResult(c, http.StatusOK, output, err)
+}
+
+// getPlatformDiagnostics 返回平台概览、各服务端进程的状态与配置、外部依赖、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+func (s *Service) getPlatformDiagnostics(c *gin.Context) {
+	output, err := s.application.GetPlatformDiagnostics(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
@@ -2611,25 +2649,25 @@ func (s *Service) dismissKnowledgeGap(c *gin.Context) {
 	writeEmpty(c, s.application.DismissKnowledgeGap(c.Request.Context(), requestMeta(c), c.Param("gapID")))
 }
 
-// registerDevice 注册当前用户的本机设备。
-func (s *Service) registerDevice(c *gin.Context) {
-	var input appservice.DeviceRegistrationInput
+// registerComputer 把执行器所在电脑注册为当前成员的个人电脑，返回电脑凭据；同一安装重复注册时更换凭据。
+func (s *Service) registerComputer(c *gin.Context) {
+	var input appservice.ComputerRegistrationInput
 	if !bindJSON(c, &input) {
 		return
 	}
-	output, err := s.application.RegisterDevice(c.Request.Context(), requestMeta(c), input)
+	output, err := s.application.RegisterComputer(c.Request.Context(), requestMeta(c), input)
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// listDevices 返回当前用户已注册的设备。
-func (s *Service) listDevices(c *gin.Context) {
-	output, err := s.application.ListDevices(c.Request.Context(), requestMeta(c))
+// listComputers 返回当前成员未撤销的电脑。
+func (s *Service) listComputers(c *gin.Context) {
+	output, err := s.application.ListComputers(c.Request.Context(), requestMeta(c))
 	writeResult(c, http.StatusOK, output, err)
 }
 
-// revokeDevice 撤销当前用户的设备。
-func (s *Service) revokeDevice(c *gin.Context) {
-	writeEmpty(c, s.application.RevokeDevice(c.Request.Context(), requestMeta(c), c.Param("deviceID")))
+// revokeComputer 撤销当前成员的电脑，派发给它且未结束的操作立即结算。
+func (s *Service) revokeComputer(c *gin.Context) {
+	writeEmpty(c, s.application.RevokeComputer(c.Request.Context(), requestMeta(c), c.Param("computerID")))
 }
 
 // bindAIPerformanceBreakdownInputQuery 从查询参数解析 appservice.AIPerformanceBreakdownInput。

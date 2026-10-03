@@ -15,6 +15,7 @@ import {
   GaugeIcon,
   HeartPulseIcon,
   KeyRoundIcon,
+  StoreIcon,
   LayoutGridIcon,
   LockKeyholeIcon,
   HardDriveIcon,
@@ -110,10 +111,10 @@ export function WorkspaceSettingsMenu({
         </PagePaneLink>
         <PagePaneLink
           collapsed={collapsed}
-          to="/settings/devices"
+          to="/settings/computers"
           icon={MonitorSmartphoneIcon}
         >
-          {t("navigation.devices")}
+          {t("navigation.computers")}
         </PagePaneLink>
         {resolveAppPlatform() === "desktop" ? (
           <PagePaneLink
@@ -264,6 +265,13 @@ export function WorkspaceSettingsMenu({
             icon={KeyRoundIcon}
           >
             {t("navigation.platformLicense")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/platform/commerce"
+            icon={StoreIcon}
+          >
+            {t("navigation.platformCommerce")}
           </PagePaneLink>
         </PagePaneGroup>
       ) : null}

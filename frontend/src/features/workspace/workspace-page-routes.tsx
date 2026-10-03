@@ -118,8 +118,8 @@ const workspaceRouteDefinitions = [
     element: <SettingsPage section="notifications" />,
   },
   {
-    path: "/settings/devices",
-    element: <SettingsPage section="devices" />,
+    path: "/settings/computers",
+    element: <SettingsPage section="computers" />,
   },
   // 本机设置只在桌面端提供。
   ...(resolveAppPlatform() === "desktop"
@@ -329,6 +329,10 @@ const workspaceRouteDefinitions = [
   {
     path: "/settings/platform/license",
     element: <PlatformSettingsPage section="license" />,
+  },
+  {
+    path: "/settings/platform/commerce",
+    element: <PlatformSettingsPage section="commerce" />,
   },
   {
     path: "/settings/platform/accounts",

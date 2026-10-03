@@ -32,6 +32,7 @@ type CreditLotSource string
 const (
 	CreditLotSourceDailyGrant CreditLotSource = "daily_grant"
 	CreditLotSourceAdjustment CreditLotSource = "adjustment"
+	CreditLotSourcePurchase   CreditLotSource = "purchase"
 )
 
 // CreditMovementSource 定义积分批次变动的来源类型。
@@ -40,6 +41,7 @@ type CreditMovementSource string
 const (
 	CreditMovementSourceModelCall  CreditMovementSource = "model_call"
 	CreditMovementSourceAdjustment CreditMovementSource = "adjustment"
+	CreditMovementSourceRefund     CreditMovementSource = "refund"
 )
 
 // CreditEntryKind 定义工作区积分流水的业务事件类型。
@@ -50,6 +52,8 @@ const (
 	CreditEntryKindAdjustment CreditEntryKind = "adjustment"
 	CreditEntryKindModelCall  CreditEntryKind = "model_call"
 	CreditEntryKindExpiration CreditEntryKind = "expiration"
+	CreditEntryKindPurchase   CreditEntryKind = "purchase"
+	CreditEntryKindRefund     CreditEntryKind = "refund"
 )
 
 // MaxCreditAmount 是每日赠送积分与单次调整积分的上限。

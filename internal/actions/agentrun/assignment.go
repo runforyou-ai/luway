@@ -32,8 +32,7 @@ func (e executionContext) assignmentFacts(scene agentruntime.SceneContext) agent
 			ContextWindow:   e.ContextWindow,
 			InputModalities: e.InputModalities,
 		},
-		LocalAgent: e.LocalAgentKind,
-		Scene:      scene,
+		Scene: scene,
 	}
 }
 

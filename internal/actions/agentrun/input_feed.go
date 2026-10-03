@@ -168,7 +168,7 @@ func (f *databaseInputFeed) Claim(ctx context.Context, throughSeq int64) (agentr
 	return output, nil
 }
 
-// lockAgentRun 按策略会话上下文、输入队列、运行记录和任务租约的顺序取得事务锁，设备调用在锁定运行后校验设备租约。
+// lockAgentRun 按策略会话上下文、输入队列、运行记录和任务租约的顺序取得事务锁。
 func lockAgentRun(ctx context.Context, db bun.IDB, policy agentRunPolicy, initial *servermodels.AgentRun) (lockedAgentRun, error) {
 	policyContext, err := policy.lockContext(ctx, db, initial)
 	if err != nil {
@@ -187,9 +187,6 @@ func lockAgentRun(ctx context.Context, db bun.IDB, policy agentRunPolicy, initia
 	}
 	if !agentRunStatusTerminal(run.Status) {
 		if err := servertask.LockExecution(ctx, db); err != nil {
-			return lockedAgentRun{}, err
-		}
-		if err := checkDeviceLease(ctx, db, run); err != nil {
 			return lockedAgentRun{}, err
 		}
 	}

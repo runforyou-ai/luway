@@ -41,7 +41,6 @@ type Payload struct {
 	Active           bool                          `json:"active,omitempty"`
 	ServiceSessionID string                        `json:"serviceSessionId,omitempty"`
 	AttentionReason  domain.ServiceAttentionReason `json:"attentionReason,omitempty"`
-	DeviceID         string                        `json:"deviceId,omitempty"`
 	AgentID          string                        `json:"agentId,omitempty"`
 }
 
@@ -151,7 +150,7 @@ func (p *Publisher) publish(notification Notification) {
 		Kind: notification.Kind, ConversationID: notification.ConversationID, ConversationType: notification.ConversationType, Version: notification.Version, Changes: notification.Changes,
 		TokenSessionID: notification.TokenSessionID, SenderSubjectID: notification.SenderSubjectID, Active: notification.Active,
 		ServiceSessionID: notification.ServiceSessionID, AttentionReason: notification.AttentionReason,
-		DeviceID: notification.DeviceID, AgentID: notification.AgentID,
+		AgentID: notification.AgentID,
 	})
 	if err == nil {
 		err = p.send(Subject(p.config.Namespace, notification.OrganizationID, notification.AudienceKind, notification.AudienceID), data)

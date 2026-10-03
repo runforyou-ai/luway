@@ -29,6 +29,8 @@ const (
 	CreditEntryKindAdjustment CreditEntryKind = CreditEntryKind(domain.CreditEntryKindAdjustment)
 	CreditEntryKindModelCall  CreditEntryKind = CreditEntryKind(domain.CreditEntryKindModelCall)
 	CreditEntryKindExpiration CreditEntryKind = CreditEntryKind(domain.CreditEntryKindExpiration)
+	CreditEntryKindPurchase   CreditEntryKind = CreditEntryKind(domain.CreditEntryKindPurchase)
+	CreditEntryKindRefund     CreditEntryKind = CreditEntryKind(domain.CreditEntryKindRefund)
 )
 
 // CreditEntry 定义积分流水中的一个业务事件：入账为正数，扣除为负数；模型调用一次一条，进行中时为当前预占积分，模型字段只对模型调用有值，备注只对平台管理员调整有值。

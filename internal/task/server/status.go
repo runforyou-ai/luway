@@ -65,7 +65,7 @@ func ReadQueueStatuses(ctx context.Context, db bun.IDB) ([]QueueStatus, error) {
 	return statuses, nil
 }
 
-// ListFailedRuns 按最近一次失败时间倒序返回全部等待重试与 RecentFailureWindow 内失败的任务运行中的一页及总数，与 ReadQueueStatuses 的重试和失败计数范围一致。
+// ListFailedRuns 按最近一次失败时间倒序返回全部等待重试与 RecentFailureWindow 内失败的任务运行中的一页及总数，limit 为 0 时返回全部；范围与 ReadQueueStatuses 的重试和失败计数一致。
 func ListFailedRuns(ctx context.Context, db bun.IDB, limit, offset int) ([]FailedRun, int, error) {
 	runs := make([]FailedRun, 0)
 	total, err := db.NewSelect().TableExpr("task_runs").

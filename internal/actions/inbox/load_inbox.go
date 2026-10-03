@@ -252,8 +252,8 @@ type agentConversationRow struct {
 	AgentPersonal             bool                             `bun:"agent_personal"`
 	AgentPaused               bool                             `bun:"agent_paused"`
 	ServiceOpen               bool                             `bun:"service_open"`
-	AgentDeviceRevoked        bool                             `bun:"agent_device_revoked"`
-	AgentDeviceLastSeenAt     *time.Time                       `bun:"agent_device_last_seen_at"`
+	AgentComputerRevoked      bool                             `bun:"agent_computer_revoked"`
+	AgentComputerLastSeenAt   *time.Time                       `bun:"agent_computer_last_seen_at"`
 	Preview                   *string                          `bun:"preview"`
 	PreviewSenderIdentityType *domain.OrganizationIdentityType `bun:"preview_sender_identity_type"`
 	LastMessageAt             *time.Time                       `bun:"last_message_at"`
@@ -524,13 +524,13 @@ func (q *LoadInboxQuery) agentConversationDetailsQuery(organizationID, identityI
 func withAgentConversationDetails(query *bun.SelectQuery, identityID, userID string) *bun.SelectQuery {
 	return withIndividualConversationDetails(query, identityID, userID).
 		ColumnExpr("cv.title, oi.id AS agent_identity_id, oi.display_name AS agent_name, oi.avatar_file_id AS agent_avatar_file_id, agent.status AS agent_status, latest_agent_run.status AS agent_run_status").
-		ColumnExpr("? = ANY(agent.service_audiences) AS agent_personal, agent.paused_at IS NOT NULL AS agent_paused, agent_device.revoked_at IS NOT NULL AS agent_device_revoked, agent_device.last_seen_at AS agent_device_last_seen_at", domain.ServiceAudiencePersonal).
+		ColumnExpr("? = ANY(agent.service_audiences) AS agent_personal, agent.paused_at IS NOT NULL AS agent_paused, agent_computer.revoked_at IS NOT NULL AS agent_computer_revoked, agent_computer.last_seen_at AS agent_computer_last_seen_at", domain.ServiceAudiencePersonal).
 		ColumnExpr(`EXISTS (
 			SELECT 1 FROM service_conversations AS open_svc
 			JOIN service_sessions AS open_ss ON open_ss.organization_id = open_svc.organization_id AND open_ss.id = open_svc.current_service_session_id
 			WHERE open_svc.organization_id = cv.organization_id AND open_svc.conversation_id = cv.id AND open_ss.status = ?
 		) AS service_open`, domain.ServiceSessionStatusOpen).
-		Join("LEFT JOIN devices AS agent_device ON agent_device.organization_id = agent.organization_id AND agent_device.id = agent.device_id").
+		Join("LEFT JOIN computers AS agent_computer ON agent_computer.organization_id = agent.organization_id AND agent_computer.id = agent.computer_id").
 		Join("LEFT JOIN LATERAL (SELECT agr.status FROM agent_runs AS agr WHERE agr.organization_id = cv.organization_id AND agr.conversation_id = cv.id AND agr.agent_identity_id = ac.agent_identity_id ORDER BY agr.created_at DESC, agr.id DESC LIMIT 1) AS latest_agent_run ON TRUE")
 }
 
@@ -606,7 +606,7 @@ func (q *LoadInboxQuery) countPending(ctx context.Context, identity *servermodel
 func (row agentConversationRow) summary() ConversationSummary {
 	var personalPresence domain.PersonalAgentPresence
 	if row.AgentPersonal {
-		personalPresence = domain.ResolvePersonalAgentPresence(row.AgentStatus, row.AgentPaused, row.AgentDeviceRevoked, row.AgentDeviceLastSeenAt, time.Now())
+		personalPresence = domain.ResolvePersonalAgentPresence(row.AgentStatus, row.AgentPaused, row.AgentComputerRevoked, row.AgentComputerLastSeenAt, time.Now())
 	}
 	var agentRunStatus *domain.AgentRunStatus
 	if row.AgentRunStatus != nil {

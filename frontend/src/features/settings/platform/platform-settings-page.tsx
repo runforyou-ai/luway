@@ -4,6 +4,7 @@ import type { ReactNode } from "react"
 import type { Account } from "@/api"
 import { PlatformAccountListPage } from "@/features/settings/platform/platform-account-list-page"
 import { PlatformAdminGate } from "@/features/settings/platform/platform-admin-gate"
+import { PlatformCommercePage } from "@/features/settings/platform/platform-commerce-page"
 import { PlatformCreditsPage } from "@/features/settings/platform/platform-credits-page"
 import { PlatformLicensePage } from "@/features/settings/platform/platform-license-page"
 import { PlatformOverviewPage } from "@/features/settings/platform/platform-overview-page"
@@ -34,6 +35,7 @@ const platformSections = {
   platformProviderEdit: () => <PlatformProviderFormPage mode="edit" />,
   platformCalls: () => <PlatformModelCallListPage />,
   credits: () => <PlatformCreditsPage />,
+  commerce: () => <PlatformCommercePage />,
 } satisfies Record<string, (account: Account) => ReactNode>
 
 /** 平台设置分组中的页面。 */

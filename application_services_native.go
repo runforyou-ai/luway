@@ -15,16 +15,16 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-// deviceRegistrar 把本机注册为企业设备并执行派发给本机的运行；不注册设备的原生平台为空。
-type deviceRegistrar interface {
-	appservice.LocalDeviceReporter
-	// Start 开始注册与执行循环。
+// localComputer 把本机注册为电脑并执行派发给这台电脑的操作；不作为电脑的原生平台为空。
+type localComputer interface {
+	appservice.LocalComputerReporter
+	// Start 开始注册与执行器连接。
 	Start()
-	// Stop 结束注册与执行循环并等待其退出。
+	// Stop 结束注册与执行器连接并等待其退出。
 	Stop()
 }
 
-// applicationServices 创建原生端使用的远程应用服务和本机设备注册器；allowQuit 在应用内更新重启前放行应用退出。
+// applicationServices 创建原生端使用的远程应用服务和本机电脑；allowQuit 在应用内更新重启前放行应用退出。
 func applicationServices(
 	appStorage nativeStorage,
 	nativeLocaleUpdater appservice.NativeLocaleUpdater,
@@ -32,7 +32,7 @@ func applicationServices(
 	serverLinks appservice.NativeServerLink,
 	unreadIndicator appservice.UnreadIndicator,
 	allowQuit func(bool),
-) ([]application.Service, deviceRegistrar, error) {
+) ([]application.Service, localComputer, error) {
 	sessions, err := clientsession.NewManager(context.Background(), appStorage)
 	if err != nil {
 		return nil, nil, fmt.Errorf("initialize client session: %w", err)
@@ -80,6 +80,7 @@ func applicationServices(
 	}
 	options := []appservice.Option{
 		appservice.WithImageSelector(appservicenative.NewImageSelector()),
+		appservice.WithFileSaver(appservicenative.NewFileSaver()),
 		appservice.WithNativeLocaleUpdater(nativeLocaleUpdater),
 		appservice.WithNativeNotification(notification),
 		appservice.WithNativeServerLink(serverLinks),
@@ -87,11 +88,11 @@ func applicationServices(
 		appservice.WithConversationWindowOpener(conversationWindows),
 		appservice.WithClientUpdater(appservicenative.NewClientUpdater(backend, allowQuit)),
 	}
-	registrar := newDeviceRegistrar(appStorage, backend, sessions)
-	if registrar != nil {
-		options = append(options, appservice.WithLocalDevice(registrar))
-		// 为 AI 员工提供本机运行环境的平台同时开放本机环境管理。
-		if manager, ok := registrar.(appservice.LocalEnvironmentManager); ok {
+	computer := newLocalComputer(appStorage, backend, sessions)
+	if computer != nil {
+		options = append(options, appservice.WithLocalComputer(computer))
+		// 作为电脑的平台同时开放本机环境管理。
+		if manager, ok := computer.(appservice.LocalEnvironmentManager); ok {
 			options = append(options, appservice.WithLocalEnvironment(manager))
 		}
 	}
@@ -100,5 +101,5 @@ func applicationServices(
 		application.NewServiceWithOptions(service, application.ServiceOptions{
 			MarshalError: appservice.MarshalError,
 		}),
-	}, registrar, nil
+	}, computer, nil
 }

@@ -5,7 +5,6 @@ import { useTranslation } from "react-i18next"
 import { Link, useLocation, useNavigate, useParams } from "react-router"
 
 import {
-  AgentExecutionMode,
   PersonalAgentPresence,
   deactivatePersonalAgent,
   getPersonalAgent,
@@ -33,7 +32,6 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useAccountStatusToggle } from "@/components/account-status-toggle"
 import { PersonalAgentEditForm } from "@/features/agents/personal/personal-agent-form"
-import { localAgentName } from "@/lib/local-agent-name"
 import {
   personalAgentResourceKeys,
   usePersonalAgentInvalidator,
@@ -146,10 +144,10 @@ export function MobilePersonalAgentsPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[15px] font-medium">
                         {agent.displayName}
-                        {agent.device.name ? (
+                        {agent.computer.name ? (
                           <span className="font-normal text-muted-foreground">
                             {" · "}
-                            {agent.device.name}
+                            {agent.computer.name}
                           </span>
                         ) : null}
                       </span>
@@ -287,10 +285,10 @@ function MobilePersonalAgentDetail({ agent }: { agent: PersonalAgentData }) {
         <dl className="divide-y border-y">
           <div className="py-4">
             <dt className="text-xs text-muted-foreground">
-              {t("personal.form.device")}
+              {t("personal.form.computer")}
             </dt>
             <dd className="mt-1 break-words text-sm">
-              {agent.device.name || t("personal.presence.unbound")}
+              {agent.computer.name || t("personal.presence.unbound")}
             </dd>
           </div>
           <div className="py-4">
@@ -298,9 +296,7 @@ function MobilePersonalAgentDetail({ agent }: { agent: PersonalAgentData }) {
               {t("columns.model")}
             </dt>
             <dd className="mt-1 break-words text-sm">
-              {agent.execution.mode === AgentExecutionMode.AgentExecutionModeLocalAgent
-                ? t("personal.form.executorLocalAgent", { name: localAgentName(agent.execution.localAgent.kind) })
-                : aiModelLabel(agent.execution.managed.model)}
+              {aiModelLabel(agent.execution.managed.model)}
             </dd>
           </div>
         </dl>

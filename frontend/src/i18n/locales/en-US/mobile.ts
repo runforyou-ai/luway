@@ -104,7 +104,7 @@ const mobile = {
     security: "Login and security",
     preferences: "Preferences",
     notifications: "Notifications",
-    devices: "Devices",
+    computers: "Computers",
     archivedChats: "Archived chats",
     workspace: "Workspace",
     title: "Me",

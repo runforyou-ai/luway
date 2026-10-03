@@ -11,6 +11,7 @@ import (
 	"github.com/runforyou-ai/luway/docs"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	commerceaction "github.com/runforyou-ai/luway/internal/actions/commerce"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
@@ -26,6 +27,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/ingress"
 	"github.com/runforyou-ai/luway/internal/integration/agentruntime"
+	"github.com/runforyou-ai/luway/internal/integration/commerce"
 	"github.com/runforyou-ai/luway/internal/integration/control"
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
 	"github.com/runforyou-ai/luway/internal/productdocs"
@@ -84,15 +86,20 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	executeAgentRun := agentrunaction.NewExecuteAction(db, tasks, agentRuntime, modelInvoker, agentAttachments, knowledgeRetrieval, emailSender)
 	serviceReplySuggestions := agentrunaction.NewGenerateServiceReplySuggestionsAction(db, agentRuntime, modelInvoker, agentAttachments)
 	telegramAPI := telegramintegration.NewClient(connectiontest.NewHTTPClient())
-	// control 客户端用服务器的身份签名请求，在线授权与指标上报共用。
+	// control 客户端用服务器的身份签名请求，在线授权与运行指标、错误上报共用；上报开关缓存在各实例内存中。
 	controlClient := control.New(control.BaseURL, buildinfo.Version, func(ctx context.Context) (control.Identity, error) {
 		return platformaction.ControlIdentity(ctx, db)
 	})
+	telemetry := platformaction.NewTelemetry(db)
 	onlineLicense := platformaction.NewOnlineLicenseAction(db, license.PublicKeys(), controlClient)
+	// 商业服务客户端用同一服务器身份签名请求，配对与变更同步共用。
+	commerceClient := commerce.New(func(ctx context.Context) (commerce.Identity, error) {
+		return commerceaction.Identity(ctx, db)
+	})
 	if err := registerServerTasks(serverTaskDeps{
 		db: db, maintenanceDB: appStorage.MaintenanceDB(), tasks: tasks, publicURL: config.Server.PublicURL, localFiles: localFiles, fileS3: fileS3, fileReader: fileReader,
 		emailSender: emailSender, agentRuntime: agentRuntime, modelInvoker: modelInvoker, agentSchedule: agentRunScheduler, agentRun: executeAgentRun, telegramAPI: telegramAPI,
-		onlineLicense: onlineLicense,
+		onlineLicense: onlineLicense, syncCommerce: commerceaction.NewSyncChangesAction(db, commerceClient),
 	}); err != nil {
 		return nil, nil, err
 	}
@@ -111,6 +118,9 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	deployment := directDeploymentConfig(config, emailSender)
 	deployment.ProductDocs = productDocs
 	deployment.Control = controlClient
+	deployment.Commerce = commerceClient
+	deployment.InstanceID = tasks.InstanceID()
+	deployment.Telemetry = telemetry
 	deployment.ClientVersion = clientVersion
 	translator := translationaction.NewTranslator(db, agentRuntime, modelInvoker)
 	directBackend := direct.New(db, deployment, localFiles, fileS3, agentRunScheduler, executeAgentRun, tasks, serviceReplySuggestions, translator, knowledgeRetrieval)
@@ -124,12 +134,11 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 	// 将业务入口适配为 HTTP API，并为公开网站渠道提供配置查询。
 	httpAPI := api.NewService(
 		boundService,
-		api.WithDeviceRuns(directBackend),
-		api.WithDeviceModelGateway(directBackend),
-		api.WithDeviceRunAttachments(directBackend),
+		api.WithComputers(directBackend),
 		api.WithWebsiteVisitor(websiteVisitorService, config.TLS.Mode != "off", config.Server.VisitorCountryHeader),
 		api.WithWebsiteVisitorRealtime(realtimeGateway),
 		api.WithTelegramWebhook(telegramWebhook),
+		api.WithCommerceNotifications(commerceaction.NewReceiveNotificationAction(db, tasks)),
 	)
 	publicLookup := channelaction.NewGetPublicWebsiteChannelQuery(db).Execute
 	hostname, err := os.Hostname()
@@ -137,8 +146,9 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		return nil, nil, fmt.Errorf("read hostname: %w", err)
 	}
 
-	// 注册健康检查、业务与文件路由、公开聊天入口及后台服务生命周期。
+	// 注册上报、健康检查、业务与文件路由、公开聊天入口及后台服务生命周期；上报最先启动、最后停止，覆盖其他服务启停时的错误。
 	services := []application.Service{
+		application.NewService(&telemetryLifecycle{telemetry: telemetry, control: controlClient}),
 		application.NewServiceWithOptions(api.NewLiveness(), application.ServiceOptions{Route: "/healthz"}),
 		application.NewServiceWithOptions(api.NewReadiness(db), application.ServiceOptions{Route: "/readyz"}),
 		application.NewService(&realtimeLifecycle{publisher: realtimePublisher, gateway: realtimeGateway}),
@@ -147,8 +157,7 @@ func applicationServices(appStorage *serverstorage.Store, config serverconfig.Co
 		application.NewServiceWithOptions(httpAPI, application.ServiceOptions{Route: "/api"}),
 		application.NewServiceWithOptions(api.NewLocalObjectService(direct.NewLocalObjectAuthorizer(db), localFiles), application.ServiceOptions{Route: domain.LocalFilePublicPath + "/"}),
 		application.NewService(&serverTaskLifecycle{runtime: tasks}),
-		application.NewService(&serverInstanceLifecycle{db: db, tasks: tasks, publisher: realtimePublisher, hostname: hostname}),
-		application.NewService(&telemetryLifecycle{db: db, control: controlClient}),
+		application.NewService(&serverInstanceLifecycle{db: db, tasks: tasks, publisher: realtimePublisher, hostname: hostname, config: config.Diagnostics()}),
 		application.NewServiceWithOptions(publicweb.NewEmbedService(publicLookup), application.ServiceOptions{Route: "/embed"}),
 		application.NewServiceWithOptions(publicweb.NewChatService(publicLookup), application.ServiceOptions{Route: "/chat/"}),
 		application.NewServiceWithOptions(productDocsService, application.ServiceOptions{Route: "/docs"}),

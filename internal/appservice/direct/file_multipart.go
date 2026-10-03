@@ -25,26 +25,26 @@ func (o *directOperations) CreateFilePartUpload(ctx context.Context, meta appser
 		err = fileaction.ErrFileNotFound
 	}
 	if err != nil {
-		return appservice.FileUploadRequest{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCreateFailed)
+		return appservice.FileUploadRequest{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 	}
 	size, err := fileaction.UploadPartSize(record, input.PartNumber)
 	if err != nil {
-		return appservice.FileUploadRequest{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCreateFailed)
+		return appservice.FileUploadRequest{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 	}
 	if record.StorageBackend == string(domain.FileStorageBackendLocal) {
 		contentURL, err := o.links.URL(domain.FileStorageBackendLocal, record.StorageKey)
 		if err != nil {
-			return appservice.FileUploadRequest{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCreateFailed)
+			return appservice.FileUploadRequest{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 		}
 		return appservice.FileUploadRequest{Method: http.MethodPut, URL: contentURL + "?partNumber=" + strconv.Itoa(int(input.PartNumber)),
 			Headers: map[string]string{"Authorization": "Bearer " + meta.Token}}, nil
 	}
 	if record.MultipartUploadID == nil {
-		return appservice.FileUploadRequest{}, o.fileOperationError(ctx, meta, fileaction.ErrFileNotFound, i18n.ErrorFileUploadCreateFailed)
+		return appservice.FileUploadRequest{}, o.fileOperationError(meta, fileaction.ErrFileNotFound, i18n.ErrorFileUploadCreateFailed)
 	}
 	request, err := serverfilecontent.PresignPart(ctx, o.s3, record.StorageKey, *record.MultipartUploadID, input.PartNumber, size)
 	if err != nil {
-		return appservice.FileUploadRequest{}, o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCreateFailed)
+		return appservice.FileUploadRequest{}, o.fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 	}
 	return appservice.FileUploadRequest{Method: request.Method, URL: request.URL, Headers: request.Headers}, nil
 }
@@ -74,10 +74,10 @@ func (o *directOperations) finalizeFileContent(ctx context.Context, record *serv
 // CancelFileUpload 将当前用户取消的临时文件交给过期清理。
 func (o *directOperations) CancelFileUpload(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, fileID string) error {
 	if _, err := o.getFile.Execute(ctx, identity, fileID); err != nil {
-		return o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCompleteFailed)
+		return o.fileOperationError(meta, err, i18n.ErrorFileUploadCompleteFailed)
 	}
 	if err := o.cancelFileUpload.Execute(ctx, identity, fileID); err != nil {
-		return o.fileOperationError(ctx, meta, err, i18n.ErrorFileUploadCompleteFailed)
+		return o.fileOperationError(meta, err, i18n.ErrorFileUploadCompleteFailed)
 	}
 	return nil
 }

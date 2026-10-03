@@ -1,4 +1,4 @@
-// Package control 实现服务器与 control 的通信：登记服务器、用激活码换取授权码、拉取当前授权码和上报运行指标，每个请求都用服务器密钥签名。
+// Package control 实现服务器与 control 的通信：登记服务器、用激活码换取授权码、拉取当前授权码、上报运行指标和错误事件，每个请求都用服务器密钥签名。
 package control
 
 import (

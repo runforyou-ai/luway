@@ -19,7 +19,7 @@ import (
 func (o *directOperations) ListRoles(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.RoleList, error) {
 	output, err := o.listRoles.Execute(ctx, identity)
 	if err != nil {
-		return appservice.RoleList{}, o.roleError(ctx, meta, err, i18n.ErrorRoleListFailed, identity.Organization.ID)
+		return appservice.RoleList{}, o.roleError(meta, err, i18n.ErrorRoleListFailed)
 	}
 	roles := make([]appservice.Role, 0, len(output.Roles))
 	for _, role := range output.Roles {
@@ -39,7 +39,7 @@ func (o *directOperations) ListRoles(ctx context.Context, meta appservice.Reques
 func (o *directOperations) GetRole(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, roleID string) (appservice.Role, error) {
 	role, err := o.getRole.Execute(ctx, identity, roleID)
 	if err != nil {
-		return appservice.Role{}, o.roleError(ctx, meta, err, i18n.ErrorRoleReadFailed, identity.Organization.ID, "role_id", roleID)
+		return appservice.Role{}, o.roleError(meta, err, i18n.ErrorRoleReadFailed)
 	}
 	return roleFromAction(*role), nil
 }
@@ -48,7 +48,7 @@ func (o *directOperations) GetRole(ctx context.Context, meta appservice.RequestM
 func (o *directOperations) CreateRole(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.RoleInput) (appservice.Role, error) {
 	role, err := o.createRole.Execute(ctx, identity, roleInput(input))
 	if err != nil {
-		return appservice.Role{}, o.roleMutationError(ctx, meta, err, i18n.ErrorRoleCreateFailed, identity.Organization.ID)
+		return appservice.Role{}, o.roleMutationError(meta, err, i18n.ErrorRoleCreateFailed)
 	}
 	slog.Info("角色创建成功", "organization_id", identity.Organization.ID, "role_id", role.ID, "permission_count", len(role.Permissions))
 	return roleFromAction(*role), nil
@@ -58,7 +58,7 @@ func (o *directOperations) CreateRole(ctx context.Context, meta appservice.Reque
 func (o *directOperations) UpdateRole(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, roleID string, input appservice.RoleInput) (appservice.Role, error) {
 	role, err := o.updateRole.Execute(ctx, identity, roleID, roleInput(input))
 	if err != nil {
-		return appservice.Role{}, o.roleMutationError(ctx, meta, err, i18n.ErrorRoleUpdateFailed, identity.Organization.ID, "role_id", roleID)
+		return appservice.Role{}, o.roleMutationError(meta, err, i18n.ErrorRoleUpdateFailed)
 	}
 	slog.Info("角色保存成功", "organization_id", identity.Organization.ID, "role_id", role.ID, "role_kind", role.Kind, "permission_count", len(role.Permissions))
 	return roleFromAction(*role), nil
@@ -70,7 +70,7 @@ func (o *directOperations) DeleteRole(ctx context.Context, meta appservice.Reque
 		if errors.Is(err, roleaction.ErrBuiltInDeleteForbidden) {
 			return appservice.InvalidError(meta, i18n.ErrorRoleBuiltInDeleteForbidden, nil)
 		}
-		return o.roleError(ctx, meta, err, i18n.ErrorRoleDeleteFailed, identity.Organization.ID, "role_id", roleID)
+		return o.roleError(meta, err, i18n.ErrorRoleDeleteFailed)
 	}
 	slog.Info("角色删除成功", "organization_id", identity.Organization.ID, "role_id", roleID)
 	return nil
@@ -89,14 +89,14 @@ func (o *directOperations) UpdateRoleAssignments(ctx context.Context, meta appse
 		if errors.Is(err, roleaction.ErrLastActiveAdministrator) {
 			return appservice.InvalidError(meta, i18n.ErrorUserLastActiveAdministrator, nil)
 		}
-		return o.roleError(ctx, meta, err, i18n.ErrorRoleUpdateFailed, identity.Organization.ID)
+		return o.roleError(meta, err, i18n.ErrorRoleUpdateFailed)
 	}
 	slog.Info("成员角色批量调整成功", "organization_id", identity.Organization.ID, "assignment_count", len(assignments))
 	return nil
 }
 
 // roleMutationError 转换角色写入校验和操作错误。
-func (o *directOperations) roleMutationError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID string, attributes ...any) error {
+func (o *directOperations) roleMutationError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
 		// 把角色校验错误码映射为本地化文案键。
 		keys := map[common.FieldCode]i18n.Key{
@@ -112,12 +112,12 @@ func (o *directOperations) roleMutationError(ctx context.Context, meta appservic
 	if errors.Is(err, roleaction.ErrLimitReached) {
 		return appservice.InvalidError(meta, i18n.ErrorRoleLimitReached, nil)
 	}
-	return o.roleError(ctx, meta, err, failureKey, organizationID, attributes...)
+	return o.roleError(meta, err, failureKey)
 }
 
 // roleError 转换角色通用操作错误。
-func (o *directOperations) roleError(ctx context.Context, meta appservice.RequestMeta, err error, failureKey i18n.Key, organizationID string, attributes ...any) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func (o *directOperations) roleError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, roleaction.ErrNotFound) {
@@ -126,9 +126,7 @@ func (o *directOperations) roleError(ctx context.Context, meta appservice.Reques
 	if errors.Is(err, roleaction.ErrInUse) {
 		return appservice.InvalidError(meta, i18n.ErrorRoleInUse, nil)
 	}
-	logAttributes := []any{"organization_id", organizationID, "failure", failureKey, "error", err}
-	slog.Warn("角色操作失败", append(logAttributes, attributes...)...)
-	return appservice.FailedError(meta, failureKey)
+	return appservice.FailedError(meta, failureKey, err)
 }
 
 // roleInput 转换角色输入。

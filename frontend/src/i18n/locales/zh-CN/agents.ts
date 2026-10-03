@@ -251,13 +251,9 @@ const agents = {
     emptyFiltered: "没有符合筛选条件的个人 AI 员工",
     form: {
       instruction: "指令",
-      device: "执行电脑",
-      deviceHelp: "AI 员工只在该电脑上工作。",
-      executor: "由谁完成",
-      executorSelf: "AI 员工自己",
-      executorLocalAgent: "电脑上的 {{name}}",
-      executorHelp: "交给电脑上的工具时，由它用自己的模型、工具和登录完成工作。",
-      mcpHelp: "从工作区提供的服务中选择；执行电脑上添加的服务无需选择，AI 员工会自动使用。",
+      computer: "使用的电脑",
+      computerHelp: "AI 员工读写文件、运行命令和调用本机 MCP 时使用这台电脑。",
+      mcpHelp: "从工作区提供的服务中选择；电脑上添加的本地 MCP 服务无需选择，AI 员工会自动使用。",
     },
     validation: {
       instructionTooLong: "指令不能超过 20000 个字符。",

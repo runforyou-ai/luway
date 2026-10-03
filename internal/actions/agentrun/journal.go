@@ -106,8 +106,8 @@ func (a *ExecuteAction) suspend(ctx context.Context, run *servermodels.AgentRun)
 	})
 }
 
-// ResumeWaitingRun 在挂起运行等待的工具调用全部有结果时把运行改回排队、推进会话版本，并按原执行位置派发：设备执行的运行推进设备工作水位，其余投递服务端任务；
-// 运行未挂起或仍有调用等待时不做任何事。调用方在写入调用结果的 realtime.RunInTx 事务中调用。
+// ResumeWaitingRun 在挂起运行的工具调用全部有结果时把运行改回排队、推进会话版本并投递服务端任务；
+// 运行未挂起或仍有调用未结束时不做任何事。调用方在写入调用结果的 realtime.RunInTx 事务中调用。
 func ResumeWaitingRun(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, organizationID, runID string) error {
 	initial := &servermodels.AgentRun{}
 	err := db.NewSelect().Model(initial).Where("agr.id = ? AND agr.organization_id = ?", runID, organizationID).Scan(ctx)
@@ -131,13 +131,14 @@ func ResumeWaitingRun(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnq
 	if run.Status != string(domain.AgentRunStatusWaiting) {
 		return nil
 	}
-	waiting, err := db.NewSelect().Model((*servermodels.AgentToolCall)(nil)).
-		Where("organization_id = ? AND agent_run_id = ? AND status = ?", organizationID, runID, domain.AgentToolCallWaiting).
+	unsettled, err := db.NewSelect().Model((*servermodels.AgentToolCall)(nil)).
+		Where("organization_id = ? AND agent_run_id = ? AND status IN (?)", organizationID, runID,
+			bun.In([]domain.AgentToolCallStatus{domain.AgentToolCallQueued, domain.AgentToolCallRunning, domain.AgentToolCallWaiting})).
 		Exists(ctx)
 	if err != nil {
-		return fmt.Errorf("check waiting agent tool calls: %w", err)
+		return fmt.Errorf("check unsettled agent tool calls: %w", err)
 	}
-	if waiting {
+	if unsettled {
 		return nil
 	}
 	if _, err := db.NewUpdate().Model(run).
@@ -148,9 +149,6 @@ func ResumeWaitingRun(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnq
 	}
 	if err := chatstate.TouchConversation(ctx, db, conversation, domain.ConversationChangeTimeline); err != nil {
 		return err
-	}
-	if run.ExecutionDeviceID != nil {
-		return advanceDeviceWork(ctx, db, organizationID, *run.ExecutionDeviceID)
 	}
 	// 每次挂起只在改回排队时投递一次，并把新任务登记为执行方，原任务之后的重试与失败收尾都不再处理该运行。
 	taskRunID, err := enqueuer.EnqueueIn(ctx, db, RunActionName, RunInput{RunID: runID}, servertask.EnqueueOptions{

@@ -22,7 +22,7 @@ func (o *directOperations) SendFirstDirectTextMessage(ctx context.Context, meta 
 		TargetIdentityID: input.TargetIdentityID, ClientMessageID: input.ClientMessageID, Body: input.Body,
 	})
 	if err != nil {
-		return appservice.FirstDirectTextMessageResult{}, individualConversationError(ctx, meta, err, identity.Organization.ID, input.TargetIdentityID, "send_first")
+		return appservice.FirstDirectTextMessageResult{}, individualConversationError(meta, err, "send_first")
 	}
 	slog.Info("企业成员内部单聊首条文本消息已保存",
 		"organization_id", identity.Organization.ID,
@@ -44,14 +44,14 @@ func (o *directOperations) SendFirstDirectTextMessage(ctx context.Context, meta 
 func (o *directOperations) FindDirectConversation(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, targetIdentityID string) (appservice.DirectConversationLookup, error) {
 	summary, err := o.findDirectConversation.Execute(ctx, identity, targetIdentityID)
 	if err != nil {
-		return appservice.DirectConversationLookup{}, individualConversationError(ctx, meta, err, identity.Organization.ID, targetIdentityID, "find")
+		return appservice.DirectConversationLookup{}, individualConversationError(meta, err, "find")
 	}
 	if summary == nil {
 		return appservice.DirectConversationLookup{}, nil
 	}
 	avatarURLs, err := o.conversationAvatarURLs(ctx, identity, nil, summary.PeerAvatarFileID)
 	if err != nil {
-		return appservice.DirectConversationLookup{}, individualConversationError(ctx, meta, err, identity.Organization.ID, targetIdentityID, "find")
+		return appservice.DirectConversationLookup{}, individualConversationError(meta, err, "find")
 	}
 	conversation := directInboxConversationFromSummary(*summary, avatarURLs)
 	return appservice.DirectConversationLookup{Conversation: &conversation}, nil
@@ -74,7 +74,7 @@ func (o *directOperations) SendDirectTextMessage(ctx context.Context, meta appse
 		ConversationID: conversationID, ClientMessageID: input.ClientMessageID, Body: input.Body, ReplyToMessageID: input.ReplyToMessageID,
 	})
 	if err != nil {
-		return appservice.ConversationMessage{}, individualConversationError(ctx, meta, err, identity.Organization.ID, conversationID, "send")
+		return appservice.ConversationMessage{}, individualConversationError(meta, err, "send")
 	}
 	slog.Info("企业成员内部单聊文本消息已保存",
 		"organization_id", identity.Organization.ID,
@@ -86,8 +86,8 @@ func (o *directOperations) SendDirectTextMessage(ctx context.Context, meta appse
 }
 
 // individualConversationError 转换真人单聊和 AI 聊天的目标及消息错误。
-func individualConversationError(ctx context.Context, meta appservice.RequestMeta, err error, organizationID, targetID, operation string) error {
-	if mapped := commonActionError(ctx, meta, err); mapped != nil {
+func individualConversationError(meta appservice.RequestMeta, err error, operation string) error {
+	if mapped := commonActionError(meta, err); mapped != nil {
 		return mapped
 	}
 	if errors.Is(err, conversationaction.ErrAgentTargetNotFound) {
@@ -114,9 +114,8 @@ func individualConversationError(ctx context.Context, meta appservice.RequestMet
 		}
 		return appservice.ConflictError(meta, i18n.ErrorMessageConflict, conflictError.Reason)
 	}
-	slog.Warn("双方聊天操作失败", "organization_id", organizationID, "target_id", targetID, "operation", operation, "error", err)
 	if operation == "find" {
-		return appservice.FailedError(meta, i18n.ErrorDirectConversationLookupFailed)
+		return appservice.FailedError(meta, i18n.ErrorDirectConversationLookupFailed, err)
 	}
-	return appservice.FailedError(meta, i18n.ErrorDirectMessageSendFailed)
+	return appservice.FailedError(meta, i18n.ErrorDirectMessageSendFailed, err)
 }
