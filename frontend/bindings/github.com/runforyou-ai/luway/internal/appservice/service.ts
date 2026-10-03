@@ -31,6 +31,13 @@ export function AcceptKnowledgeGap(meta: $models.RequestMeta, gapID: string, inp
 }
 
 /**
+ * ActivateInstanceLicense 用授权码激活或替换实例授权。
+ */
+export function ActivateInstanceLicense(meta: $models.RequestMeta, input: $models.ActivateInstanceLicenseInput): $CancellablePromise<$models.InstanceLicense> {
+    return $Call.ByID(1751582854, meta, input);
+}
+
+/**
  * ActivateMessageChannel 启用消息渠道。
  */
 export function ActivateMessageChannel(meta: $models.RequestMeta, channelID: string): $CancellablePromise<$models.MessageChannelSummary> {
@@ -609,6 +616,13 @@ export function GetInboxContext(meta: $models.RequestMeta, input: $models.InboxC
  */
 export function GetInboxConversation(meta: $models.RequestMeta, conversationID: string): $CancellablePromise<$models.InboxConversation> {
     return $Call.ByID(894338794, meta, conversationID);
+}
+
+/**
+ * GetInstanceLicense 返回实例授权状态。
+ */
+export function GetInstanceLicense(meta: $models.RequestMeta): $CancellablePromise<$models.InstanceLicense> {
+    return $Call.ByID(4098040715, meta);
 }
 
 /**

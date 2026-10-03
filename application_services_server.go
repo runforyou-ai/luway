@@ -14,6 +14,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/common/license"
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/ingress"
@@ -146,5 +147,6 @@ func fileContentS3Config(config serverconfig.S3Config) serverfilecontent.S3Confi
 func directDeploymentConfig(config serverconfig.Config, invitationMailer customernotify.Sender) direct.DeploymentConfig {
 	return direct.DeploymentConfig{
 		Name: config.Deployment.Name, PublicURL: config.Server.PublicURL, InvitationMailer: invitationMailer,
+		LicenseKeys: license.PublicKeys(),
 	}
 }

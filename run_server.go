@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"os"
 
+	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
@@ -62,6 +63,16 @@ func run(arguments []string) error {
 		}
 	}()
 
+	// 部署品牌配置只在实例授权授予自定义品牌且未到期时生效。
+	brandingUntil, err := deploymentaction.CustomBrandingUntil(context.Background(), appStorage.DB())
+	if err != nil {
+		return fmt.Errorf("load instance license: %w", err)
+	}
+	brand.EnableOverrideUntil(brandingUntil)
+	if (len(config.Branding.Names) > 0 || config.Branding.SDKName != "" || config.Branding.IconPath != "") && !brand.OverrideActive() {
+		slog.Warn("实例授权未授予自定义品牌或授权已到期，部署品牌配置暂不生效")
+	}
+
 	services, realtimeMiddleware, err := applicationServices(appStorage, config)
 	if err != nil {
 		return fmt.Errorf("initialize application services: %w", err)
@@ -80,7 +91,7 @@ func run(arguments []string) error {
 		if err != nil {
 			return fmt.Errorf("read branding icon: %w", err)
 		}
-		assetServer.Replace("favicon.png", icon)
+		assetServer.Override("favicon.png", icon, brand.OverrideActive)
 	}
 
 	app := application.New(application.Options{

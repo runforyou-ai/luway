@@ -724,6 +724,16 @@ func (s *Service) ListDeploymentWorkspaces(ctx context.Context, meta RequestMeta
 	return WithNormalizedSlices(s.backend.ListDeploymentWorkspaces(ctx, meta, input))
 }
 
+// GetInstanceLicense 返回实例授权状态。
+func (s *Service) GetInstanceLicense(ctx context.Context, meta RequestMeta) (InstanceLicense, error) {
+	return WithNormalizedSlices(s.backend.GetInstanceLicense(ctx, meta))
+}
+
+// ActivateInstanceLicense 用授权码激活或替换实例授权。
+func (s *Service) ActivateInstanceLicense(ctx context.Context, meta RequestMeta, input ActivateInstanceLicenseInput) (InstanceLicense, error) {
+	return WithNormalizedSlices(s.backend.ActivateInstanceLicense(ctx, meta, input))
+}
+
 // SuspendDeploymentWorkspace 暂停没有部署管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
 func (s *Service) SuspendDeploymentWorkspace(ctx context.Context, meta RequestMeta, workspaceID string) (DeploymentWorkspace, error) {
 	return WithNormalizedSlices(s.backend.SuspendDeploymentWorkspace(ctx, meta, workspaceID))

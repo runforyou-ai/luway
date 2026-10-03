@@ -330,6 +330,13 @@ export enum AccountStatus {
 };
 
 /**
+ * ActivateInstanceLicenseInput 定义部署管理员粘贴的授权码。
+ */
+export interface ActivateInstanceLicenseInput {
+    "licenseCode": string;
+}
+
+/**
  * Agent 定义 AI 员工信息，Behavior 是该员工当前生效的内置工作规则与可用工具，HandoffTeamID 为空表示转人工进入公共队列，Responsible 为空表示未指定负责人。
  */
 export interface Agent {
@@ -3080,6 +3087,18 @@ export interface InstanceCapabilities {
 }
 
 /**
+ * InstanceLicense 定义实例授权状态、授权编号、客户、签发与到期时间和授权码授予的能力；未激活时只有状态和免费能力。
+ */
+export interface InstanceLicense {
+    "status": LicenseStatus;
+    "licenseId": string;
+    "customer": string;
+    "issuedAt": string | null;
+    "expiresAt": string | null;
+    "capabilities": InstanceCapabilities;
+}
+
+/**
  * Invitation 定义工作区中待接受的邀请，待接受但已过期的邀请状态为 expired。
  */
 export interface Invitation {
@@ -3638,6 +3657,20 @@ export interface KnowledgeWebDocumentInput {
     "title": string;
     "sourceUrl": string;
 }
+
+/**
+ * LicenseStatus 表示实例授权状态。
+ */
+export enum LicenseStatus {
+    /**
+     * The Go zero value for the underlying type of the enum.
+     */
+    $zero = "",
+
+    LicenseStatusNone = "none",
+    LicenseStatusActive = "active",
+    LicenseStatusExpired = "expired",
+};
 
 /**
  * LoadInboxInput 定义会话列表范围、筛选、会话名称搜索和分页边界。

@@ -1,6 +1,9 @@
 package brand
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 // TestNameMatchesLocale 验证产品名称先精确匹配语言标签，再匹配主语言，最后回退到默认语言。
 func TestNameMatchesLocale(t *testing.T) {
@@ -20,12 +23,23 @@ func TestBuildBrandIsValid(t *testing.T) {
 	}
 }
 
-// TestConfigureAppliesOverride 验证部署覆盖只替换给出的字段，无效覆盖不改变当前品牌。
+// TestConfigureAppliesOverride 验证部署覆盖只替换给出的字段，只在生效截止时间前应用，无效覆盖不改变当前品牌。
 func TestConfigureAppliesOverride(t *testing.T) {
-	t.Cleanup(func() { current.Store(nil) })
+	t.Cleanup(func() {
+		current.Store(nil)
+		EnableOverrideUntil(time.Time{})
+	})
 	if err := Configure(Override{Names: map[string]string{"zh-CN": "艾克米"}, SDKName: "Acme"}); err != nil {
 		t.Fatalf("应用覆盖失败: %v", err)
 	}
+	if Current().SDKName != Build().SDKName {
+		t.Fatal("未设置生效截止时间时应使用构建品牌")
+	}
+	EnableOverrideUntil(time.Now().Add(-time.Second))
+	if Current().SDKName != Build().SDKName {
+		t.Fatal("超过生效截止时间后应使用构建品牌")
+	}
+	EnableOverrideUntil(time.Now().Add(time.Hour))
 	value := Current()
 	if value.Name("zh-CN") != "艾克米" || value.Name("en-US") != Build().Name("en-US") || value.SDKName != "Acme" || value.Slug != Build().Slug {
 		t.Fatalf("覆盖后的品牌 = %#v", value)
