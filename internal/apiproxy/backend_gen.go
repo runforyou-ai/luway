@@ -1034,6 +1034,93 @@ func (b *Backend) ResumeDeploymentWorkspace(ctx context.Context, meta appservice
 	return output, err
 }
 
+// ListPlatformAIProviders 返回部署的平台供应商。
+func (b *Backend) ListPlatformAIProviders(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIProviderList, error) {
+	var output appservice.PlatformAIProviderList
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-providers", nil, nil, &output)
+	return output, err
+}
+
+// GetPlatformAIProvider 返回平台供应商详情。
+func (b *Backend) GetPlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) (appservice.PlatformAIProvider, error) {
+	var output appservice.PlatformAIProvider
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-providers/"+url.PathEscape(providerID), nil, nil, &output)
+	return output, err
+}
+
+// ListPlatformAIProviderModels 返回平台供应商可提供的模型。
+func (b *Backend) ListPlatformAIProviderModels(ctx context.Context, meta appservice.RequestMeta, providerID string) (appservice.AIProviderModelList, error) {
+	var output appservice.AIProviderModelList
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-providers/"+url.PathEscape(providerID)+"/models", nil, nil, &output)
+	return output, err
+}
+
+// CreatePlatformAIProvider 创建平台供应商。
+func (b *Backend) CreatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIProviderInput) (appservice.PlatformAIProvider, error) {
+	var output appservice.PlatformAIProvider
+	err := b.do(ctx, meta, http.MethodPost, "/deployment/platform-model-providers", nil, input, &output)
+	return output, err
+}
+
+// UpdatePlatformAIProvider 修改平台供应商。
+func (b *Backend) UpdatePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string, input appservice.PlatformAIProviderUpdateInput) (appservice.PlatformAIProvider, error) {
+	var output appservice.PlatformAIProvider
+	err := b.do(ctx, meta, http.MethodPut, "/deployment/platform-model-providers/"+url.PathEscape(providerID), nil, input, &output)
+	return output, err
+}
+
+// DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
+func (b *Backend) DeletePlatformAIProvider(ctx context.Context, meta appservice.RequestMeta, providerID string) error {
+	return b.do(ctx, meta, http.MethodDelete, "/deployment/platform-model-providers/"+url.PathEscape(providerID), nil, nil, nil)
+}
+
+// ListPlatformAIModels 返回部署的平台模型目录。
+func (b *Backend) ListPlatformAIModels(ctx context.Context, meta appservice.RequestMeta) (appservice.PlatformAIModelList, error) {
+	var output appservice.PlatformAIModelList
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-models", nil, nil, &output)
+	return output, err
+}
+
+// GetPlatformAIModel 返回平台模型详情。
+func (b *Backend) GetPlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) (appservice.PlatformAIModel, error) {
+	var output appservice.PlatformAIModel
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-models/"+url.PathEscape(modelID), nil, nil, &output)
+	return output, err
+}
+
+// CreatePlatformAIModel 创建对全部工作区可用的平台模型。
+func (b *Backend) CreatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
+	var output appservice.PlatformAIModel
+	err := b.do(ctx, meta, http.MethodPost, "/deployment/platform-models", nil, input, &output)
+	return output, err
+}
+
+// UpdatePlatformAIModel 修改平台模型的属性与来源。
+func (b *Backend) UpdatePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string, input appservice.PlatformAIModelInput) (appservice.PlatformAIModel, error) {
+	var output appservice.PlatformAIModel
+	err := b.do(ctx, meta, http.MethodPut, "/deployment/platform-models/"+url.PathEscape(modelID), nil, input, &output)
+	return output, err
+}
+
+// DeletePlatformAIModel 删除没有被工作区引用的平台模型。
+func (b *Backend) DeletePlatformAIModel(ctx context.Context, meta appservice.RequestMeta, modelID string) error {
+	return b.do(ctx, meta, http.MethodDelete, "/deployment/platform-models/"+url.PathEscape(modelID), nil, nil, nil)
+}
+
+// ListPlatformAIModelCalls 返回平台模型调用记录。
+func (b *Backend) ListPlatformAIModelCalls(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAIModelCallListInput) (appservice.PlatformAIModelCallList, error) {
+	var output appservice.PlatformAIModelCallList
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-calls", encodePlatformAIModelCallListInputQuery(input), nil, &output)
+	return output, err
+}
+
+// GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
+func (b *Backend) GetPlatformAIModelCall(ctx context.Context, meta appservice.RequestMeta, callID string) (appservice.PlatformAIModelCallDetail, error) {
+	var output appservice.PlatformAIModelCallDetail
+	err := b.do(ctx, meta, http.MethodGet, "/deployment/platform-model-calls/"+url.PathEscape(callID), nil, nil, &output)
+	return output, err
+}
+
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。
 func (b *Backend) UpdateUser(ctx context.Context, meta appservice.RequestMeta, userID string, input appservice.UpdateUserInput) (appservice.User, error) {
 	var output appservice.User
@@ -2002,6 +2089,17 @@ func encodeLoadInboxInputQuery(input appservice.LoadInboxInput) url.Values {
 // encodeMemberOptionListInputQuery 将 appservice.MemberOptionListInput 编码为查询参数。
 func encodeMemberOptionListInputQuery(input appservice.MemberOptionListInput) url.Values {
 	query := url.Values{}
+	setQuery(query, "query", input.Query)
+	setPositiveQuery(query, "page", input.Page)
+	setPositiveQuery(query, "pageSize", input.PageSize)
+	return query
+}
+
+// encodePlatformAIModelCallListInputQuery 将 appservice.PlatformAIModelCallListInput 编码为查询参数。
+func encodePlatformAIModelCallListInputQuery(input appservice.PlatformAIModelCallListInput) url.Values {
+	query := url.Values{}
+	setQuery(query, "modelId", input.ModelID)
+	setQuery(query, "status", string(input.Status))
 	setQuery(query, "query", input.Query)
 	setPositiveQuery(query, "page", input.Page)
 	setPositiveQuery(query, "pageSize", input.PageSize)

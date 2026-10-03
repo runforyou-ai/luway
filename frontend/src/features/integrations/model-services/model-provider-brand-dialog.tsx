@@ -2,6 +2,7 @@
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
 
+import type { AIProviderBrandId } from "@/api"
 import {
   Dialog,
   DialogContent,
@@ -15,13 +16,15 @@ import {
 } from "@/features/integrations/model-services/model-provider-brands"
 import { ModelProviderBrandIcon } from "@/features/integrations/model-services/model-provider-brand-icon"
 
-/** 以卡片展示可接入的品牌，选中后进入该品牌的添加页。 */
+/** 以卡片展示可接入的品牌，选中后进入 createPath 给出的该品牌添加页。 */
 export function ModelProviderBrandDialog({
   open,
   onOpenChange,
+  createPath,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
+  createPath: (brand: AIProviderBrandId) => string
 }) {
   const { t } = useTranslation("integrations")
 
@@ -40,7 +43,7 @@ export function ModelProviderBrandDialog({
             return (
               <Link
                 key={brand}
-                to={`/settings/model-services/new/${brand}`}
+                to={createPath(brand)}
                 className="flex min-w-0 items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:bg-accent/50 focus-visible:border-primary focus-visible:outline-hidden"
               >
                 <ModelProviderBrandIcon brand={brand} />

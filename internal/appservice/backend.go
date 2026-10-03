@@ -483,6 +483,45 @@ type Backend interface {
 	// ResumeDeploymentWorkspace 恢复已暂停的工作区并重新执行挂起的后台任务。
 	//appservice:route POST /deployment/workspaces/:workspaceID/resume auth=admin
 	ResumeDeploymentWorkspace(context.Context, RequestMeta, string) (DeploymentWorkspace, error)
+	// ListPlatformAIProviders 返回部署的平台供应商。
+	//appservice:route GET /deployment/platform-model-providers auth=admin
+	ListPlatformAIProviders(context.Context, RequestMeta) (PlatformAIProviderList, error)
+	// GetPlatformAIProvider 返回平台供应商详情。
+	//appservice:route GET /deployment/platform-model-providers/:providerID auth=admin
+	GetPlatformAIProvider(context.Context, RequestMeta, string) (PlatformAIProvider, error)
+	// ListPlatformAIProviderModels 返回平台供应商可提供的模型。
+	//appservice:route GET /deployment/platform-model-providers/:providerID/models auth=admin
+	ListPlatformAIProviderModels(context.Context, RequestMeta, string) (AIProviderModelList, error)
+	// CreatePlatformAIProvider 创建平台供应商。
+	//appservice:route POST /deployment/platform-model-providers status=201 auth=admin
+	CreatePlatformAIProvider(context.Context, RequestMeta, PlatformAIProviderInput) (PlatformAIProvider, error)
+	// UpdatePlatformAIProvider 修改平台供应商。
+	//appservice:route PUT /deployment/platform-model-providers/:providerID auth=admin
+	UpdatePlatformAIProvider(context.Context, RequestMeta, string, PlatformAIProviderUpdateInput) (PlatformAIProvider, error)
+	// DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
+	//appservice:route DELETE /deployment/platform-model-providers/:providerID auth=admin
+	DeletePlatformAIProvider(context.Context, RequestMeta, string) error
+	// ListPlatformAIModels 返回部署的平台模型目录。
+	//appservice:route GET /deployment/platform-models auth=admin
+	ListPlatformAIModels(context.Context, RequestMeta) (PlatformAIModelList, error)
+	// GetPlatformAIModel 返回平台模型详情。
+	//appservice:route GET /deployment/platform-models/:modelID auth=admin
+	GetPlatformAIModel(context.Context, RequestMeta, string) (PlatformAIModel, error)
+	// CreatePlatformAIModel 创建对全部工作区可用的平台模型。
+	//appservice:route POST /deployment/platform-models status=201 auth=admin
+	CreatePlatformAIModel(context.Context, RequestMeta, PlatformAIModelInput) (PlatformAIModel, error)
+	// UpdatePlatformAIModel 修改平台模型的属性与来源。
+	//appservice:route PUT /deployment/platform-models/:modelID auth=admin
+	UpdatePlatformAIModel(context.Context, RequestMeta, string, PlatformAIModelInput) (PlatformAIModel, error)
+	// DeletePlatformAIModel 删除没有被工作区引用的平台模型。
+	//appservice:route DELETE /deployment/platform-models/:modelID auth=admin
+	DeletePlatformAIModel(context.Context, RequestMeta, string) error
+	// ListPlatformAIModelCalls 返回平台模型调用记录。
+	//appservice:route GET /deployment/platform-model-calls auth=admin
+	ListPlatformAIModelCalls(context.Context, RequestMeta, PlatformAIModelCallListInput) (PlatformAIModelCallList, error)
+	// GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
+	//appservice:route GET /deployment/platform-model-calls/:callID auth=admin
+	GetPlatformAIModelCall(context.Context, RequestMeta, string) (PlatformAIModelCallDetail, error)
 	// UpdateUser 修改企业成员头像、资料、角色和所属团队。
 	//appservice:route PUT /users/:userID
 	UpdateUser(context.Context, RequestMeta, string, UpdateUserInput) (User, error)

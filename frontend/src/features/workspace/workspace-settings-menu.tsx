@@ -1,6 +1,7 @@
 /** 设置页的一级导航，进入设置后替换模块栏内容；部署管理员额外看到部署分组。 */
 import type { ReactNode } from "react"
 import {
+  ActivityIcon,
   ArchiveIcon,
   BellIcon,
   BrainCircuitIcon,
@@ -16,6 +17,7 @@ import {
   HardDriveIcon,
   MonitorSmartphoneIcon,
   ShieldCheckIcon,
+  ServerIcon,
   SlidersHorizontalIcon,
   UserPlusIcon,
   UserRoundIcon,
@@ -210,6 +212,27 @@ export function WorkspaceSettingsMenu({
             icon={UserPlusIcon}
           >
             {t("navigation.deploymentRegistration")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/platform-models"
+            icon={BrainCircuitIcon}
+          >
+            {t("navigation.deploymentPlatformModels")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/platform-providers"
+            icon={ServerIcon}
+          >
+            {t("navigation.deploymentPlatformProviders")}
+          </PagePaneLink>
+          <PagePaneLink
+            collapsed={collapsed}
+            to="/settings/deployment/platform-model-calls"
+            icon={ActivityIcon}
+          >
+            {t("navigation.deploymentPlatformCalls")}
           </PagePaneLink>
         </PagePaneGroup>
       ) : null}

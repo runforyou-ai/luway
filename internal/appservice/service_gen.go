@@ -759,6 +759,71 @@ func (s *Service) ResumeDeploymentWorkspace(ctx context.Context, meta RequestMet
 	return WithNormalizedSlices(s.backend.ResumeDeploymentWorkspace(ctx, meta, workspaceID))
 }
 
+// ListPlatformAIProviders 返回部署的平台供应商。
+func (s *Service) ListPlatformAIProviders(ctx context.Context, meta RequestMeta) (PlatformAIProviderList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformAIProviders(ctx, meta))
+}
+
+// GetPlatformAIProvider 返回平台供应商详情。
+func (s *Service) GetPlatformAIProvider(ctx context.Context, meta RequestMeta, providerID string) (PlatformAIProvider, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformAIProvider(ctx, meta, providerID))
+}
+
+// ListPlatformAIProviderModels 返回平台供应商可提供的模型。
+func (s *Service) ListPlatformAIProviderModels(ctx context.Context, meta RequestMeta, providerID string) (AIProviderModelList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformAIProviderModels(ctx, meta, providerID))
+}
+
+// CreatePlatformAIProvider 创建平台供应商。
+func (s *Service) CreatePlatformAIProvider(ctx context.Context, meta RequestMeta, input PlatformAIProviderInput) (PlatformAIProvider, error) {
+	return WithNormalizedSlices(s.backend.CreatePlatformAIProvider(ctx, meta, input))
+}
+
+// UpdatePlatformAIProvider 修改平台供应商。
+func (s *Service) UpdatePlatformAIProvider(ctx context.Context, meta RequestMeta, providerID string, input PlatformAIProviderUpdateInput) (PlatformAIProvider, error) {
+	return WithNormalizedSlices(s.backend.UpdatePlatformAIProvider(ctx, meta, providerID, input))
+}
+
+// DeletePlatformAIProvider 删除不是任何平台模型来源的平台供应商。
+func (s *Service) DeletePlatformAIProvider(ctx context.Context, meta RequestMeta, providerID string) error {
+	return s.backend.DeletePlatformAIProvider(ctx, meta, providerID)
+}
+
+// ListPlatformAIModels 返回部署的平台模型目录。
+func (s *Service) ListPlatformAIModels(ctx context.Context, meta RequestMeta) (PlatformAIModelList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformAIModels(ctx, meta))
+}
+
+// GetPlatformAIModel 返回平台模型详情。
+func (s *Service) GetPlatformAIModel(ctx context.Context, meta RequestMeta, modelID string) (PlatformAIModel, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformAIModel(ctx, meta, modelID))
+}
+
+// CreatePlatformAIModel 创建对全部工作区可用的平台模型。
+func (s *Service) CreatePlatformAIModel(ctx context.Context, meta RequestMeta, input PlatformAIModelInput) (PlatformAIModel, error) {
+	return WithNormalizedSlices(s.backend.CreatePlatformAIModel(ctx, meta, input))
+}
+
+// UpdatePlatformAIModel 修改平台模型的属性与来源。
+func (s *Service) UpdatePlatformAIModel(ctx context.Context, meta RequestMeta, modelID string, input PlatformAIModelInput) (PlatformAIModel, error) {
+	return WithNormalizedSlices(s.backend.UpdatePlatformAIModel(ctx, meta, modelID, input))
+}
+
+// DeletePlatformAIModel 删除没有被工作区引用的平台模型。
+func (s *Service) DeletePlatformAIModel(ctx context.Context, meta RequestMeta, modelID string) error {
+	return s.backend.DeletePlatformAIModel(ctx, meta, modelID)
+}
+
+// ListPlatformAIModelCalls 返回平台模型调用记录。
+func (s *Service) ListPlatformAIModelCalls(ctx context.Context, meta RequestMeta, input PlatformAIModelCallListInput) (PlatformAIModelCallList, error) {
+	return WithNormalizedSlices(s.backend.ListPlatformAIModelCalls(ctx, meta, input))
+}
+
+// GetPlatformAIModelCall 返回平台模型调用及其上游尝试。
+func (s *Service) GetPlatformAIModelCall(ctx context.Context, meta RequestMeta, callID string) (PlatformAIModelCallDetail, error) {
+	return WithNormalizedSlices(s.backend.GetPlatformAIModelCall(ctx, meta, callID))
+}
+
 // UpdateUser 修改企业成员头像、资料、角色和所属团队。
 func (s *Service) UpdateUser(ctx context.Context, meta RequestMeta, userID string, input UpdateUserInput) (User, error) {
 	return WithNormalizedSlices(s.backend.UpdateUser(ctx, meta, userID, input))
