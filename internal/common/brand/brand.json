@@ -1,0 +1,15 @@
+{
+  "slug": "luway",
+  "names": {
+    "en-US": "Luway",
+    "zh-CN": "同鹿"
+  },
+  "identifier": "net.luway.app",
+  "company": "runforyou",
+  "copyright": "© 2026 武汉润予科技有限公司",
+  "description": "Luway is an open-source AI customer support teammate platform.",
+  "website": "https://luway.net",
+  "sdkName": "Luway",
+  "updatePublicKey": "zOe5vBkjEF+PMakZTSvgaBHXffHhCyBSQ1ARcT1sWzw=",
+  "releaseURL": "https://github.com/runforyou-ai/luway/releases/download/v{version}"
+}

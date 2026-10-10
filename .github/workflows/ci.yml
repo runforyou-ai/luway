@@ -1,0 +1,283 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  # Keep the required check available if a merge queue is enabled later.
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-build:
+    name: Native build (${{ matrix.platform }})
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            platform: windows
+          - runner: macos-15
+            platform: darwin
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-toolchain
+        with:
+          go-cache: native-build
+      - name: Build native desktop
+        run: wails3 task ${{ matrix.platform }}:build
+
+  server:
+    name: Server
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # 依赖容器在后台运行，健康检查与工具链准备和前端构建并行。
+      - name: Start integration test dependencies
+        shell: bash
+        run: |
+          cp .env.example .env
+          docker run --detach --name luway-postgres \
+            --env POSTGRES_DB=main \
+            --env POSTGRES_USER=luway \
+            --env POSTGRES_PASSWORD=luway \
+            --publish 5432:5432 \
+            --health-cmd='pg_isready -U luway -d main' \
+            --health-interval=2s --health-timeout=5s --health-retries=15 \
+            ghcr.io/runforyou-ai/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0
+
+      - name: Setup toolchain
+        id: toolchain
+        uses: ./.github/actions/setup-toolchain
+        with:
+          go-cache: server
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # 服务端 go:embed 只需要 Messenger 产物和非空的 frontend/dist；前端生产构建由 Desktop 任务检查。
+      - name: Prepare embedded frontend assets
+        run: |
+          mkdir -p frontend/dist
+          echo '<!doctype html><title>App</title>' > frontend/dist/index.html
+          wails3 task common:build:messenger
+
+      - name: Vet Go server build
+        env:
+          CGO_ENABLED: "0"
+        run: go vet -tags=server ./...
+
+      - name: Lint Go server build
+        run: wails3 task check:lint:server
+
+      - name: Wait for integration test dependencies
+        shell: bash
+        run: |
+          for attempt in {1..30}; do
+            status="$(docker inspect --format '{{.State.Health.Status}}' luway-postgres)"
+            if [[ "$status" == healthy || "$status" == unhealthy ]]; then break; fi
+            sleep 2
+          done
+          if [[ "$status" != healthy ]]; then
+            docker logs luway-postgres
+            echo "Integration test dependency luway-postgres is $status"
+            exit 1
+          fi
+          # 新建的测试库从 template1 继承数据库扩展。
+          for database in main template1; do
+            docker exec luway-postgres psql -v ON_ERROR_STOP=1 -U luway -d "$database" \
+              -c 'CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;'
+          done
+
+      - name: Run server integration tests
+        run: wails3 task test:server
+
+      - name: Stop integration test dependencies
+        if: always()
+        run: |
+          docker logs luway-postgres || true
+          docker rm --force luway-postgres || true
+
+      - name: Save Go cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.toolchain.outputs.go-cache-paths }}
+          key: ${{ steps.toolchain.outputs.go-cache-key }}
+
+      # 共用模块下载缓存由服务端任务在检查完成后保存。
+      - name: Save Go module downloads
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.toolchain.outputs.go-module-cache-hit != 'true'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.toolchain.outputs.go-module-cache-path }}
+          key: ${{ steps.toolchain.outputs.go-module-cache-key }}
+
+  desktop:
+    name: Desktop
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup toolchain
+        id: toolchain
+        uses: ./.github/actions/setup-toolchain
+        with:
+          go-cache: desktop
+
+      - name: Install Linux desktop dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            build-essential \
+            pkg-config \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev
+
+      - name: Check Wails version alignment
+        shell: bash
+        run: |
+          go_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+          go_version="${go_version#v}"
+          runtime_version="$(node -p "require('./frontend/package.json').dependencies['@wailsio/runtime']")"
+          if [[ "$runtime_version" != "$go_version" ]]; then
+            echo "Wails version mismatch: Go=$go_version, frontend=$runtime_version"
+            exit 1
+          fi
+
+      - name: Check generated application contract
+        shell: bash
+        run: |
+          go generate ./internal/appservice ./internal/i18n
+          generated=(
+            internal/appservice/direct/backend_gen.go
+            internal/appservice/direct/computer_backend_gen.go
+            internal/api/service_gen.go
+            internal/api/computer_service_gen.go
+            internal/executor/client_gen.go
+            internal/i18n/keys_gen.go
+            frontend/src/api/generated
+          )
+          generated_changes="$(git status --short --untracked-files=all -- "${generated[@]}")"
+          if [[ -n "$generated_changes" ]]; then
+            echo "Generated application contract is out of date:"
+            printf '%s\n' "$generated_changes"
+            git diff -- "${generated[@]}"
+            exit 1
+          fi
+
+      - name: Check generated Wails bindings
+        shell: bash
+        run: |
+          wails3 generate bindings -clean=true -ts -i
+          git diff --exit-code -- go.mod go.sum frontend/bindings
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build Linux desktop and package with custom paths
+        run: |
+          wails3 task linux:build 'BIN_DIR=bin/custom output' 'OUTPUT=bin/custom output/desktop'
+          wails3 task linux:generate:deb 'BIN_DIR=bin/custom output' 'OUTPUT=bin/custom output/desktop'
+
+      - name: Check Go formatting
+        shell: bash
+        run: |
+          mapfile -d '' files < <(git ls-files -z -- '*.go')
+          unformatted="$(gofmt -l "${files[@]}")"
+          if [[ -n "$unformatted" ]]; then
+            echo "These Go files need gofmt:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Verify Go modules
+        run: |
+          go mod verify
+          go mod tidy -diff
+
+      - name: Check Go Linux desktop build
+        run: wails3 task check:desktop
+
+      - name: Lint Go Linux desktop build
+        run: wails3 task check:lint:desktop
+
+      - name: Save Go cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.toolchain.outputs.go-cache-paths }}
+          key: ${{ steps.toolchain.outputs.go-cache-key }}
+
+  container:
+    name: Container
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup toolchain
+        id: toolchain
+        uses: ./.github/actions/setup-toolchain
+        with:
+          go-cache: container-host
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run lint
+          npm run build
+
+      - name: Build server binary
+        run: wails3 task common:build:server:container-binary ARCH=amd64
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      # 运行镜像的构建上下文只包含当前服务端程序。
+      - name: Build server image
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: bin/server-image
+          file: build/docker/Dockerfile.server-runtime
+          platforms: linux/amd64
+          push: false
+          tags: app:ci
+
+      - name: Save Go cache
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.toolchain.outputs.go-cache-paths }}
+          key: ${{ steps.toolchain.outputs.go-cache-key }}

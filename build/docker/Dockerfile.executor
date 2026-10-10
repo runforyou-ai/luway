@@ -1,0 +1,36 @@
+# 无界面执行器镜像：以工作区电脑凭据连接服务端，派发的命令、文件与本机 MCP 操作在容器内执行。
+# 通过 wails3 task build:docker:executor 构建；运行时用 EXECUTOR_SERVER_URL、EXECUTOR_CREDENTIAL 传入服务器地址与凭据，
+# 数据目录 /data 保存会话文件夹、本机 MCP 配置 mcp.json 与技能目录 skills。
+
+ARG GO_IMAGE=golang:1.27-alpine
+ARG RUNTIME_IMAGE=debian:bookworm-slim
+
+# 构建阶段运行在构建机平台，按 TARGETOS/TARGETARCH 交叉编译纯静态程序。
+FROM --platform=${BUILDPLATFORM} ${GO_IMAGE} AS builder
+ARG TARGETOS
+ARG TARGETARCH
+# 写入程序的版本号。
+ARG APP_VERSION=dev
+
+WORKDIR /app
+COPY . .
+
+# 模块缓存与构建缓存使用 BuildKit 缓存挂载，跨次构建复用。
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -tags production -trimpath -buildvcs=false -ldflags="-s -w -X github.com/runforyou-ai/luway/internal/common/buildinfo.Version=${APP_VERSION}" -o executor ./cmd/executor
+
+FROM ${RUNTIME_IMAGE}
+
+# 命令使用 bash，常用的 git、curl 与证书随镜像提供。
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends bash ca-certificates curl git \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/executor /usr/local/bin/executor
+
+ENV EXECUTOR_DATA_DIR=/data
+VOLUME ["/data"]
+WORKDIR /data
+
+ENTRYPOINT ["/usr/local/bin/executor"]

@@ -1,0 +1,63 @@
+//go:build server
+
+package aiprovider
+
+import (
+	"context"
+	"fmt"
+
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/uptrace/bun"
+)
+
+// CreateAIProviderAction 创建模型服务供应商。
+type CreateAIProviderAction struct {
+	db *bun.DB
+}
+
+// NewCreateAIProviderAction 创建模型服务供应商操作。
+func NewCreateAIProviderAction(db *bun.DB) *CreateAIProviderAction {
+	return &CreateAIProviderAction{db: db}
+}
+
+// Execute 创建模型服务供应商并保存模型目录。
+func (a *CreateAIProviderAction) Execute(ctx context.Context, identity *servermodels.Identity, input Input) (*Record, error) {
+	input, fields := normalizeInput(input)
+	if len(fields) > 0 {
+		return nil, &ValidationError{Fields: fields}
+	}
+	var provider servermodels.AIProvider
+	var models []Model
+	err := serverstorage.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
+		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
+			return err
+		}
+		provider = servermodels.AIProvider{
+			WorkspaceID: &identity.Workspace.ID, Brand: string(input.Brand), Name: input.Name,
+			CredentialType: string(input.CredentialType), APIKey: input.APIKey, APIURL: input.APIURL,
+		}
+		if _, err := tx.NewInsert().
+			Model(&provider).
+			Column("workspace_id", "brand", "name", "credential_type", "api_key", "api_url").
+			Returning("*").
+			Exec(ctx); err != nil {
+			return err
+		}
+		changes, err := diffModels(nil, input.Models)
+		if err != nil {
+			return err
+		}
+		models, err = saveModels(ctx, tx, identity.Workspace.ID, provider.ID, input.Models, changes)
+		return err
+	})
+	if conflict := conflictError(err); conflict != nil {
+		return nil, conflict
+	}
+	if err != nil {
+		return nil, fmt.Errorf("create AI provider: %w", err)
+	}
+	output := recordFromModel(provider, models)
+	return &output, nil
+}

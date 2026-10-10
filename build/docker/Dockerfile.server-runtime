@@ -1,0 +1,14 @@
+# 将已编译的静态服务端程序与同版本发布文件组装为运行镜像。
+# 构建上下文为 bin/server-image；发布文件通过 release 构建上下文传入。
+ARG RUNTIME_IMAGE=gcr.io/distroless/static-debian12
+
+FROM scratch AS release
+
+FROM ${RUNTIME_IMAGE}
+COPY server /server
+COPY --from=release / /
+
+EXPOSE 80 443 8080
+# 配置文件为 /etc/<程序名>/server.yaml，数据目录为 /var/lib/<程序名>，部署时挂载配置目录与数据卷。
+ENV XDG_CONFIG_HOME=/etc XDG_DATA_HOME=/var/lib
+ENTRYPOINT ["/server", "run"]

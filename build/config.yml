@@ -1,0 +1,43 @@
+version: '3'
+
+# info 中的品牌字段由 wails3 task brand:apply 按 internal/common/brand/brand.json 写入。
+info:
+  companyName: "runforyou"
+  productName: "Luway"
+  productIdentifier: "net.luway.app"
+  description: "Luway is an open-source AI customer support teammate platform."
+  copyright: "© 2026 武汉润予科技有限公司"
+  comments: "https://luway.net"
+  version: "0.0.1"
+
+# 唤起客户端的链接协议，由 wails3 task brand:apply 按品牌标识写入。
+protocols:
+  - scheme: "luway"
+    description: "Luway"
+
+dev_mode:
+  root_path: .
+  log_level: info
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - frontend
+      - bin
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+    git_ignore: true
+  executes:
+    - cmd: wails3 build DEV=true
+      type: blocking
+    - cmd: wails3 task common:dev:frontend
+      type: background
+    - cmd: wails3 task run
+      type: primary
+      exit_policy: shutdown

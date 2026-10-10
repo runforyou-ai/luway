@@ -1,0 +1,20 @@
+name: luway
+
+volumes:
+  postgres-data:
+
+services:
+  postgres:
+    image: ghcr.io/runforyou-ai/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0
+    environment:
+      POSTGRES_USER: luway
+      POSTGRES_PASSWORD: luway
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U luway -d postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 30

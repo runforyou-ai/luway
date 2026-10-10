@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}" class="cv-{{.Shell}}">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+    <title>{{.Title}}</title>
+    <style>
+      {{.ThemeCSS}}
+      {{.MessengerCSS}}
+    </style>
+    {{if not .NotFound}}<link rel="stylesheet" href="/chat/assets/markdown.css?v={{.MarkdownVersion}}"><script async id="cv-markdown-script" data-realtime-src="/chat/assets/realtime.js?v={{.MarkdownVersion}}" src="/chat/assets/markdown.js?v={{.MarkdownVersion}}"></script>{{end}}
+  </head>
+  <body>
+    <div
+      class="cv-messenger{{if not .MultipleConversations}} cv-single-conversation{{end}}{{if not .AttachmentsEnabled}} cv-no-attachments{{end}}{{if not .EmojiEnabled}} cv-no-emoji{{end}}{{if not .RatingEnabled}} cv-no-rating{{end}}"
+      id="cv-messenger"
+      data-home-enabled="{{.HomeEnabled}}"
+      data-help-enabled="{{.HelpEnabled}}"
+      data-multiple-conversations="{{.MultipleConversations}}"
+      data-ai-badge="{{.Copy.aiBadge}}"
+      data-messages-label="{{.Copy.messages}}"
+      data-conversation-tab="{{.Copy.conversationTab}}"
+      data-default-welcome="{{.Copy.welcome}}"
+      data-default-headline="{{.Copy.howCanWeHelp}}"
+      data-demo-reply="{{.Copy.demoReply}}"
+      data-article-count="{{.Copy.articleCount}}"
+      data-article-count-one="{{.Copy.articleCountOne}}"
+      data-help-searching="{{.Copy.helpSearching}}"
+      data-help-search-failed="{{.Copy.helpSearchFailed}}"
+      data-help-article-unavailable="{{.Copy.helpArticleUnavailable}}"
+      data-no-help-results="{{.Copy.noHelpResults}}"
+      data-collection-count="{{.Copy.collectionCount}}"
+      data-collection-count-one="{{.Copy.collectionCountOne}}"
+      data-play-voice="{{.Copy.playVoice}}"
+      data-pause-voice="{{.Copy.pauseVoice}}"
+      data-expand-window="{{.Copy.expandWindow}}"
+      data-collapse-window="{{.Copy.collapseWindow}}"
+      data-default-greeting="{{.Copy.conversationPrompt}}"
+      data-reply-immediate="{{.Copy.replyImmediate}}"
+      data-reply-minutes="{{.Copy.replyMinutes}}"
+      data-reply-ten-minutes="{{.Copy.replyTenMinutes}}"
+      data-reply-half-hour="{{.Copy.replyHalfHour}}"
+      data-reply-hour="{{.Copy.replyHour}}"
+      data-reply-hours="{{.Copy.replyHours}}"
+      data-reply-soon="{{.Copy.replySoon}}"
+      data-reply-scheduled="{{.Copy.replyScheduled}}"
+      data-preview="{{.Preview}}"
+      data-channel-id="{{.ChannelID}}"
+      data-loading="{{.Copy.loading}}"
+      data-request-failed="{{.Copy.requestFailed}}"
+      data-identity-expired="{{.Copy.identityExpired}}"
+      data-reference-deleted="{{.Copy.referenceDeleted}}"
+      data-reference-visitor="{{.Copy.referenceVisitor}}"
+      data-reference-agent="{{.Copy.referenceAgent}}"
+      data-reference-reply="{{.Copy.referenceReply}}"
+      data-reference-replying="{{.Copy.referenceReplying}}"
+      data-reference-unavailable="{{.Copy.referenceUnavailable}}"
+      data-retry="{{.Copy.retry}}"
+      data-attachment-uploading="{{.Copy.attachmentUploading}}"
+      data-attachment-failed="{{.Copy.attachmentFailed}}"
+      data-attachment-cancel="{{.Copy.attachmentCancel}}"
+      data-attachment-receiving="{{.Copy.attachmentReceiving}}"
+      data-attachment-unavailable="{{.Copy.attachmentUnavailable}}"
+      data-session-open="{{.Copy.sessionOpen}}"
+      data-session-closed="{{.Copy.sessionClosed}}"
+      data-day-today="{{.Copy.dayToday}}"
+      data-day-yesterday="{{.Copy.dayYesterday}}"
+      data-session-ended="{{.Copy.sessionEnded}}"
+      data-member-joined="{{.Copy.memberJoined}}"
+      data-email-collected="{{.Copy.emailCollected}}"
+      data-rating-question="{{.Copy.ratingQuestion}}"
+      data-rating-resolved="{{.Copy.ratingResolved}}"
+      data-rating-unresolved="{{.Copy.ratingUnresolved}}"
+      data-rating-comment="{{.Copy.ratingComment}}"
+      data-rating-submit="{{.Copy.ratingSubmit}}"
+      data-rating-thanks="{{.Copy.ratingThanks}}"
+      data-tool-title="{{.Copy.toolTitle}}"
+      data-tool-confirm="{{.Copy.toolConfirm}}"
+      data-tool-reject="{{.Copy.toolReject}}"
+      data-tool-deadline="{{.Copy.toolDeadline}}"
+      data-tool-confirmed="{{.Copy.toolConfirmed}}"
+      data-tool-succeeded="{{.Copy.toolSucceeded}}"
+      data-tool-failed="{{.Copy.toolFailed}}"
+      data-tool-review="{{.Copy.toolReview}}"
+      data-tool-rejected="{{.Copy.toolRejected}}"
+      data-tool-expired="{{.Copy.toolExpired}}"
+      data-tool-cancelled="{{.Copy.toolCancelled}}"
+    >
+      {{if .NotFound}}
+      <main class="cv-unavailable">
+        <div class="cv-unavailable-mark" aria-hidden="true">?</div>
+        <h1>{{.Title}}</h1>
+        <p>{{.EmptyMessage}}</p>
+      </main>
+      {{else}}
+      <header class="cv-topbar" id="cv-topbar">
+        <div class="cv-brand">
+          <span class="cv-brand-mark" data-channel-mark aria-hidden="true">{{.TitleInitials}}</span>
+          <strong data-channel-title>{{.Title}}</strong>
+        </div>
+        {{if .ShowWidgetControls}}
+        <button class="cv-icon-button cv-close" type="button" data-close aria-label="{{.Copy.close}}" title="{{.Copy.close}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+        </button>
+        {{end}}
+      </header>
+
+      <nav class="cv-navigation" id="cv-navigation" aria-label="{{.Copy.messengerNavigation}}">
+        <button type="button" id="cv-nav-home" data-route-target="home"{{if .HomeEnabled}} aria-current="page"{{else}} hidden{{end}}>{{.Copy.home}}</button>
+        <button type="button" data-route-target="messages"{{if not .HomeEnabled}} aria-current="page"{{end}}>
+          <span id="cv-nav-messages-label">{{if .MultipleConversations}}{{.Copy.messages}}{{else}}{{.Copy.conversationTab}}{{end}}</span>
+          <i class="cv-unread-dot" id="cv-unread-dot" aria-hidden="true" hidden></i>
+        </button>
+        <button type="button" id="cv-nav-help" data-route-target="help" hidden>{{.Copy.help}}</button>
+      </nav>
+
+      <div class="cv-route-stack">
+        <section class="cv-screen cv-screen-home" data-screen="home"{{if not .HomeEnabled}} hidden{{end}}>
+          <div class="cv-home-heading">
+            <p id="cv-home-welcome">{{.Welcome}}</p>
+            <h1 id="cv-home-headline" data-route-heading tabindex="-1">{{.Headline}}</h1>
+          </div>
+
+          <div class="cv-home-content">
+            <div class="cv-home-status" id="cv-home-initialization-status" role="status" hidden>
+              <span id="cv-home-initialization-message">{{.Copy.loading}}</span>
+              <button type="button" id="cv-home-initialization-retry" hidden>{{.Copy.retry}}</button>
+            </div>
+
+            <section class="cv-home-section{{if index .HomeBlockOff "recent_conversation"}} cv-home-block-off{{end}}" id="cv-home-recent" data-home-block="recent_conversation" style="order: {{index .HomeBlockOrder "recent_conversation"}}" hidden>
+              <div class="cv-section-label">
+                <h2>{{.Copy.recentConversation}}</h2>
+                <button type="button" data-route-target="messages">{{.Copy.viewAll}}</button>
+              </div>
+              <button class="cv-conversation-item" type="button" data-resume-conversation>
+                <span class="cv-presence-avatar" data-reception-avatar="recent" aria-hidden="true"><span>{{.TitleInitials}}</span><i hidden></i></span>
+                <span class="cv-conversation-summary">
+                  <span class="cv-conversation-row"><strong data-recent-title>{{.Title}}</strong><time id="cv-home-recent-time"></time></span>
+                  <span class="cv-conversation-row"><span id="cv-home-recent-preview">{{.Copy.conversationPrompt}}</span><i class="cv-unread-dot" id="cv-home-recent-unread-dot" aria-hidden="true" hidden></i></span>
+                </span>
+              </button>
+            </section>
+
+            <section class="cv-home-section{{if index .HomeBlockOff "start_conversation"}} cv-home-block-off{{end}}" data-home-block="start_conversation" style="order: {{index .HomeBlockOrder "start_conversation"}}">
+              <button class="cv-new-chat" type="button" id="cv-home-ask" data-new-conversation>
+                <span class="cv-new-chat-copy">
+                  <strong>{{.Copy.startConversation}}</strong>
+                  <span class="cv-eta" data-reception-eta hidden>
+                    <span class="cv-presence-avatar cv-presence-avatar-tiny" aria-hidden="true"></span>
+                    <span class="cv-eta-text"></span>
+                  </span>
+                </span>
+                <span class="cv-new-chat-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </span>
+              </button>
+              <button class="cv-continue-card" type="button" id="cv-home-continue" data-new-conversation hidden>
+                <span class="cv-continue-head">
+                  <span class="cv-presence-avatar cv-presence-avatar-tiny" data-reception-avatar="continue" aria-hidden="true"><span>{{.TitleInitials}}</span><i hidden></i></span>
+                  <strong id="cv-home-continue-name"></strong>
+                  <time id="cv-home-continue-time"></time>
+                  <i class="cv-unread-dot" id="cv-home-continue-unread-dot" aria-hidden="true" hidden></i>
+                </span>
+                <span class="cv-continue-preview" id="cv-home-continue-preview"></span>
+                <span class="cv-continue-eta" id="cv-home-continue-eta" hidden></span>
+                <span class="cv-continue-foot">
+                  <span>{{.Copy.continueConversation}}</span>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                </span>
+              </button>
+            </section>
+
+            <section class="cv-home-section cv-home-links{{if index .HomeBlockOff "links"}} cv-home-block-off{{end}}" id="cv-home-links" data-home-block="links" style="order: {{index .HomeBlockOrder "links"}}"{{if not .HomeLinks}} hidden{{end}}>
+              <div class="cv-section-label"><h2>{{.Copy.links}}</h2></div>
+              <ul class="cv-link-list" id="cv-home-link-list">
+                {{range .HomeLinks}}<li><a class="cv-link-row" href="{{.URL}}" target="_blank" rel="noopener noreferrer"><span>{{.Title}}</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg></a></li>{{end}}
+              </ul>
+            </section>
+          </div>
+        </section>
+
+        <section class="cv-screen" data-screen="messages"{{if or .HomeEnabled (not .MultipleConversations)}} hidden{{end}}>
+          <h1 class="cv-visually-hidden" data-route-heading tabindex="-1">{{.Copy.messages}}</h1>
+          <div class="cv-messages-space">
+            <div class="cv-empty-state" id="cv-messages-empty">
+              <div class="cv-empty-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-12.3 7.6L3.5 20.5l1-4.4A8.5 8.5 0 1 1 20.5 12z" /></svg>
+              </div>
+              <h2>{{.Copy.noMessages}}</h2>
+              <p>{{.Copy.noMessagesDescription}}</p>
+            </div>
+            <div class="cv-conversation-list" id="cv-conversation-list" hidden>
+            </div>
+            <div class="cv-inline-error" id="cv-initialization-error" role="status" hidden>
+              <p id="cv-initialization-error-message">{{.Copy.requestFailed}}</p>
+              <button type="button" id="cv-initialization-retry">{{.Copy.retry}}</button>
+            </div>
+          </div>
+          <div class="cv-screen-foot">
+            <button class="cv-new-chat" type="button" data-new-conversation>
+              <span class="cv-new-chat-copy">
+                <strong>{{.Copy.startConversation}}</strong>
+                <span class="cv-eta" data-reception-eta hidden>
+                  <span class="cv-presence-avatar cv-presence-avatar-tiny" aria-hidden="true"></span>
+                  <span class="cv-eta-text"></span>
+                </span>
+              </span>
+              <span class="cv-new-chat-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+              </span>
+            </button>
+          </div>
+        </section>
+
+        <section class="cv-screen" data-screen="help" hidden>
+          <h1 class="cv-visually-hidden" data-route-heading tabindex="-1">{{.Copy.help}}</h1>
+          <div class="cv-help-content">
+            <form class="cv-help-search" id="cv-help-search" role="search" action="#">
+              <label class="cv-visually-hidden" for="cv-help-input">{{.Copy.searchHelp}}</label>
+              <div class="cv-search-well">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                <input id="cv-help-input" type="search" autocomplete="off" maxlength="{{.HelpSearchMaxLength}}" enterkeyhint="search" placeholder="{{.Copy.searchHelp}}" />
+              </div>
+            </form>
+            <div id="cv-help-browse">
+              <h2 class="cv-section-label" id="cv-collection-count"></h2>
+              <div class="cv-collection-list" id="cv-collection-list"></div>
+            </div>
+            <div id="cv-help-results" hidden>
+              <h2 class="cv-section-label" id="cv-help-result-count" hidden></h2>
+              <p class="cv-help-status" id="cv-help-status" role="status"></p>
+              <ul class="cv-article-links" id="cv-help-result-list"></ul>
+            </div>
+          </div>
+          <div class="cv-help-contact">
+            <p>{{.Copy.stillNeedHelp}}</p>
+            <button type="button" id="cv-help-search-conversation">
+              <span>{{.Copy.startConversation}}</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </button>
+          </div>
+        </section>
+
+        <section class="cv-screen" data-screen="help-collection" hidden>
+          <header class="cv-detail-header">
+            <button class="cv-icon-button" type="button" data-help-back aria-label="{{.Copy.back}}" title="{{.Copy.back}}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+            {{if .ShowWidgetControls}}
+            <button class="cv-icon-button cv-close" type="button" data-close aria-label="{{.Copy.close}}" title="{{.Copy.close}}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+            {{end}}
+          </header>
+          <div class="cv-help-content cv-help-detail">
+            <div class="cv-help-collection-heading">
+              <h1 id="cv-help-collection-title" data-route-heading tabindex="-1"></h1>
+              <p><span id="cv-help-collection-description" hidden></span><small id="cv-help-collection-count"></small></p>
+            </div>
+            <ul class="cv-article-links" id="cv-help-collection-list"></ul>
+          </div>
+          <div class="cv-help-contact">
+            <p>{{.Copy.stillNeedHelp}}</p>
+            <button type="button" data-new-conversation>
+              <span>{{.Copy.startConversation}}</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </button>
+          </div>
+        </section>
+
+        <section class="cv-screen" data-screen="help-article" hidden>
+          <header class="cv-detail-header">
+            <button class="cv-icon-button" type="button" data-help-back aria-label="{{.Copy.back}}" title="{{.Copy.back}}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+            {{if .ShowWidgetControls}}
+            <button class="cv-icon-button cv-close" type="button" data-close aria-label="{{.Copy.close}}" title="{{.Copy.close}}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+            {{end}}
+          </header>
+          <div class="cv-help-content cv-help-detail">
+            <p class="cv-help-status" id="cv-help-article-status" role="status" hidden></p>
+            <article class="cv-help-article" id="cv-help-article" hidden>
+              <h1 id="cv-help-article-title" data-route-heading tabindex="-1"></h1>
+              <p class="cv-help-article-collection" id="cv-help-article-collection"></p>
+              <div class="cv-help-article-body" id="cv-help-article-body"></div>
+            </article>
+          </div>
+          <div class="cv-help-contact">
+            <p>{{.Copy.stillNeedHelp}}</p>
+            <button type="button" data-new-conversation>
+              <span>{{.Copy.startConversation}}</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </button>
+          </div>
+        </section>
+
+        <section class="cv-screen" data-screen="conversation"{{if or .HomeEnabled .MultipleConversations}} hidden{{end}}>
+          <header class="cv-conversation-header">
+            <button class="cv-icon-button" type="button" id="cv-conversation-back" data-back-to="home" aria-label="{{.Copy.back}}" title="{{.Copy.back}}">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>
+            </button>
+            <div class="cv-conversation-identity">
+              <div class="cv-presence-avatar" data-reception-avatar="active" aria-hidden="true"><span>{{.TitleInitials}}</span><i hidden></i></div>
+              <div>
+                <h1 data-reception-name tabindex="-1">{{.Title}}</h1>
+                <p class="cv-agent-activity" data-reception-activity hidden>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 8v4l2.5 1.5" /></svg>
+                  <span data-reception-activity-text></span>
+                </p>
+              </div>
+            </div>
+            <div class="cv-conversation-actions">
+              <button class="cv-icon-button" type="button" id="cv-more-toggle" aria-label="{{.Copy.more}}" title="{{.Copy.more}}" aria-expanded="false" aria-controls="cv-more-menu">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></svg>
+              </button>
+              {{if .ShowWidgetControls}}
+              <button class="cv-icon-button cv-close" type="button" data-close aria-label="{{.Copy.close}}" title="{{.Copy.close}}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+              {{end}}
+            </div>
+            <div class="cv-more-menu" id="cv-more-menu" hidden>
+              {{if .ShowWidgetControls}}
+              <button type="button" id="cv-expand">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+                <span>{{.Copy.expandWindow}}</span>
+              </button>
+              {{end}}
+            </div>
+          </header>
+
+          <div class="cv-conversation-body" id="cv-messages" aria-live="polite">
+            <div class="cv-conversation-intro" id="cv-conversation-intro">
+              <div class="cv-presence-avatar cv-presence-avatar-large" data-reception-avatar="active" aria-hidden="true"><span>{{.TitleInitials}}</span><i hidden></i></div>
+              <p data-channel-greeting>{{.Greeting}}</p>
+            </div>
+          </div>
+
+          <div class="cv-message-menu" id="cv-message-menu" role="menu" hidden>
+            <button id="cv-menu-reply" type="button" role="menuitem">{{.Copy.referenceReply}}</button>
+          </div>
+          <div class="cv-home-status cv-conversation-initialization" id="cv-conversation-initialization-status" role="status" hidden>
+            <span id="cv-conversation-initialization-message">{{.Copy.loading}}</span>
+            <button type="button" id="cv-conversation-initialization-retry" hidden>{{.Copy.retry}}</button>
+          </div>
+          <p class="cv-conversation-error" id="cv-conversation-error" role="status" hidden>{{.Copy.requestFailed}}</p>
+
+          <form class="cv-composer" id="cv-composer" action="#" method="dialog">
+            <button class="cv-latest-message" id="cv-latest-message" type="button" hidden>{{.Copy.referenceLatest}}</button>
+            <div class="cv-composer-main" id="cv-composer-main">
+              <div class="cv-composer-reference" id="cv-composer-reference" hidden>
+                <div><strong id="cv-composer-reference-author"></strong><span class="cv-message-reference-body" id="cv-composer-reference-body"></span></div>
+                <button id="cv-cancel-reply" type="button">{{.Copy.referenceCancel}}</button>
+              </div>
+              <div class="cv-composer-bar">
+                <button class="cv-tool" type="button" id="cv-attach" aria-label="{{.Copy.attach}}" title="{{.Copy.attach}}">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21.4 11-9.2 9.2a6 6 0 0 1-8.4-8.4l8.5-8.6A4 4 0 1 1 18 8.8l-8.6 8.6a2 2 0 0 1-2.8-2.8l8.5-8.5" /></svg>
+                </button>
+                <textarea id="cv-input" rows="1" maxlength="4000" aria-label="{{.Copy.message}}"></textarea>
+                <div class="cv-emoji-tool">
+                  <button class="cv-tool" type="button" id="cv-emoji-toggle" aria-label="{{.Copy.emoji}}" title="{{.Copy.emoji}}" aria-controls="cv-emoji" aria-expanded="false">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" /></svg>
+                  </button>
+                  <div class="cv-picker" id="cv-emoji" hidden></div>
+                </div>
+                <button class="cv-tool" type="button" id="cv-voice" aria-label="{{.Copy.recordVoice}}" title="{{.Copy.recordVoice}}">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6" /></svg>
+                </button>
+                <button class="cv-send" type="submit" id="cv-send" aria-label="{{.Copy.send}}" title="{{.Copy.send}}" disabled hidden>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 7-7 7 7M12 19V5" /></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="cv-recording" id="cv-recording" hidden>
+              <button class="cv-record-action" type="button" id="cv-record-cancel" aria-label="{{.Copy.cancelRecording}}" title="{{.Copy.cancelRecording}}">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+              <div class="cv-waveform" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+              <time id="cv-record-time">0:00</time>
+              <button class="cv-record-stop" type="button" id="cv-record-stop" aria-label="{{.Copy.stopRecording}}" title="{{.Copy.stopRecording}}">
+                <span aria-hidden="true"></span>
+              </button>
+            </div>
+            <input id="cv-file-input" type="file" multiple hidden />
+          </form>
+        </section>
+      </div>
+
+      {{end}}
+    </div>
+    {{if not .NotFound}}<script>window.MESSENGER_COMPOSER_EMOJIS = Object.freeze({{.ComposerEmojis}});{{.ChatJS}}</script>{{end}}
+  </body>
+</html>

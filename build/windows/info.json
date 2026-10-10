@@ -1,0 +1,15 @@
+{
+	"fixed": {
+		"file_version": "0.0.1"
+	},
+	"info": {
+		"0000": {
+			"ProductVersion": "0.0.1",
+			"CompanyName": "runforyou",
+			"FileDescription": "Luway is an open-source AI customer support teammate platform.",
+			"LegalCopyright": "© 2026 武汉润予科技有限公司",
+			"ProductName": "Luway",
+			"Comments": "https://luway.net"
+		}
+	}
+}
