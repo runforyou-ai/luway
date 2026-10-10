@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{{if eq .Page "notFound"}}<title>{{.Text.notFoundTitle}} · {{.Product}}</title>
+<meta name="robots" content="noindex">
+{{else if eq .Page "download"}}<title>{{.Text.downloadTitle}} · {{.Product}}</title>
+{{else}}<title>{{.Product}}</title>
+<meta name="description" content="{{.Text.description}}">
+{{end}}<link rel="icon" href="/favicon.png">
+<link rel="stylesheet" href="{{.Stylesheet}}">
+<script>(() => { const query = matchMedia("(prefers-color-scheme: dark)"); const apply = () => document.documentElement.classList.toggle("dark", query.matches); apply(); query.addEventListener("change", apply) })()</script>
+</head>
+<body class="site-body">
+{{define "icon"}}<svg class="site-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{.}}</svg>{{end}}
+<header class="site-header">
+  <a class="site-brand" href="{{.HomePath}}"><img src="/favicon.png" alt="" width="24" height="24">{{.Product}}</a>
+  <nav class="site-nav">{{if .Pricing}}<a href="#pricing">{{.Text.pricing}}</a>{{end}}<a href="{{.DocsPath}}">{{.Text.docs}}</a><a href="{{.DownloadPath}}"{{if eq .Page "download"}} aria-current="page"{{end}}>{{.Text.download}}</a></nav>
+  <select class="site-languages" aria-label="{{.Text.language}}" onchange="location.href = this.value">
+    {{range .Languages}}<option value="{{.Path}}" lang="{{.Lang}}"{{if .Current}} selected{{end}}>{{.Label}}</option>{{end}}
+  </select>
+  <a class="site-action" href="{{.AppPath}}" data-account-link="{{.Text.openApp}}">{{.Text.signIn}}</a>
+</header>
+<script>{{.Script}}</script>
+{{if eq .Page "notFound"}}
+<main class="home-not-found">
+  <h1>{{.Text.notFoundTitle}}</h1>
+  <p>{{.Text.notFoundBody}}</p>
+  <a class="home-button" href="{{.HomePath}}">{{.Text.backHome}}</a>
+</main>
+{{else if eq .Page "download"}}
+<main class="download home-container">
+  <h1>{{.Text.downloadTitle}}</h1>
+  <p class="home-lead">{{.Text.downloadBody}}</p>
+  {{with .ClientVersion}}<p class="download-version">{{.}}</p>{{end}}
+  <div class="download-platforms">
+    {{range .Platforms}}
+    <section class="download-platform" data-platform="{{.ID}}"{{if .Status}} aria-disabled="true"{{end}}>
+      <header>
+        <span class="home-feature-icon">{{template "icon" index $.Icons .Icon}}</span>
+        <h2>{{.Name}}</h2>
+        <span class="download-current">{{$.Text.downloadCurrent}}</span>
+      </header>
+      {{if .Status}}<p class="download-status">{{.Status}}</p>
+      {{else}}<ul class="download-files">
+        {{range .Downloads}}<li><a href="{{.URL}}" download>{{template "icon" index $.Icons "download"}}<span>{{.Label}}</span><span class="download-size">{{.Size}}</span></a></li>{{end}}
+      </ul>{{end}}
+    </section>
+    {{end}}
+  </div>
+  <p class="download-web">{{.Text.downloadWeb}} <a href="{{.AppPath}}">{{.Text.openApp}}</a></p>
+  <section id="executor" class="download-executor">
+    <h2>{{.Text.executorTitle}}</h2>
+    <p>{{.Text.executorBody}} <a href="{{.ComputersPath}}">{{.Text.executorDocs}}</a></p>
+    <div class="download-platforms">
+      {{range .Executors}}<section class="download-platform"{{if .Status}} aria-disabled="true"{{end}}>
+        <header><span class="home-feature-icon">{{template "icon" index $.Icons "server"}}</span><h3>{{.Name}}</h3></header>
+        {{if .Status}}<p class="download-status">{{.Status}}</p>
+        {{else}}<ul class="download-files">
+          {{range .Downloads}}<li><a href="{{.URL}}" download>{{template "icon" index $.Icons "download"}}<span>{{.Label}}</span><span class="download-size">{{.Size}}</span></a></li>{{end}}
+        </ul>{{end}}
+      </section>{{end}}
+    </div>
+  </section>
+</main>
+<script>(() => {
+  // 标出访问者当前设备对应的平台并排在最前。
+  const agent = navigator.userAgent
+  const touchMac = /Macintosh/.test(agent) && navigator.maxTouchPoints > 1
+  const platform = /iPhone|iPad|iPod/.test(agent) || touchMac ? "ios" : /Android/.test(agent) ? "android" : /Windows/.test(agent) ? "windows" : /Macintosh/.test(agent) ? "macos" : /Linux|X11/.test(agent) ? "linux" : ""
+  const card = platform && document.querySelector('[data-platform="' + platform + '"]')
+  if (card) card.dataset.current = ""
+})()</script>
+{{else}}
+<main>
+  <section class="home-hero home-container">
+    <div class="home-hero-copy">
+      {{if .SelfHost}}<p class="home-eyebrow">{{.Text.heroEyebrow}}</p>{{end}}
+      <h1>{{.Text.heroTitle}}</h1>
+      <p class="home-lead">{{.Text.heroBody}}</p>
+      <div class="home-actions">
+        <a class="home-button home-button-primary" href="{{.AppPath}}">{{.Text.openApp}}</a>
+        {{if .SelfHost}}<a class="home-button" href="{{.DeploymentPath}}">{{.Text.heroDeploy}}</a>
+        {{else if .Pricing}}<a class="home-button" href="#pricing">{{.Text.pricing}}</a>{{end}}
+      </div>
+    </div>
+    <div class="home-demo" aria-hidden="true">
+      <div class="home-demo-message home-demo-customer"><p>{{.Text.demoCustomer}}</p></div>
+      <div class="home-demo-message home-demo-reply">
+        <span class="home-demo-name">{{template "icon" index .Icons "agents"}}{{.Text.demoAgentName}}</span>
+        <p>{{.Text.demoAgentReply}}</p>
+      </div>
+      <div class="home-demo-event">{{template "icon" index .Icons "handoff"}}{{.Text.demoHandoff}}</div>
+      <div class="home-demo-message home-demo-reply">
+        <span class="home-demo-name">{{.Text.demoMemberName}}</span>
+        <p>{{.Text.demoMemberReply}}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="home-section home-container" aria-labelledby="home-features">
+    <h2 id="home-features">{{.Text.featuresTitle}}</h2>
+    <p class="home-section-lead">{{.Text.featuresBody}}</p>
+    <div class="home-features">
+      {{range .Features}}
+      <article class="home-feature">
+        <span class="home-feature-icon">{{template "icon" index $.Icons .Icon}}</span>
+        <h3>{{.Title}}</h3>
+        <p>{{.Body}}</p>
+      </article>
+      {{end}}
+    </div>
+  </section>
+
+  {{if .Pricing}}
+  <section id="pricing" class="home-section home-container" aria-labelledby="home-pricing">
+    <h2 id="home-pricing">{{.Text.pricingTitle}}</h2>
+    <p class="home-section-lead">{{.Text.pricingBody}}</p>
+    {{if .Plans}}
+    <div class="home-plans">
+      {{range .Plans}}
+      <article class="home-plan">
+        <h3>{{.Name}}</h3>
+        <p>{{.Seats}}</p>
+        <ul class="home-plan-prices">
+          {{range .Prices}}<li>{{.}}</li>{{end}}
+        </ul>
+        <a class="home-button home-button-primary" href="{{$.SignUpPath}}">{{$.Text.pricingSignUp}}</a>
+      </article>
+      {{end}}
+    </div>
+    {{end}}
+    {{if .Items}}
+    <div class="home-price-items">
+      <h3>{{.ItemsTitle}}</h3>
+      <p>{{.ItemsBody}}</p>
+      <ul class="home-price-item-packs">
+        {{range .Items}}<li><span>{{.Label}}</span><span class="home-price-item-price">{{.Price}}</span></li>{{end}}
+      </ul>
+    </div>
+    {{end}}
+  </section>
+  {{end}}
+
+  <section class="home-section home-container home-split">
+    <div class="home-panel">
+      <h2>{{.Text.platformsTitle}}</h2>
+      <p>{{.Text.platformsBody}}</p>
+      <ul class="home-platforms">
+        <li>{{template "icon" index .Icons "web"}}{{.Text.platformWeb}}</li>
+        <li>{{template "icon" index .Icons "desktop"}}{{.Text.platformDesktop}}</li>
+        <li>{{template "icon" index .Icons "mobile"}}{{.Text.platformMobile}}</li>
+      </ul>
+      <a class="home-link" href="{{.DownloadPath}}">{{template "icon" index .Icons "download"}}{{.Text.downloadTitle}}</a>
+    </div>
+    {{if .SelfHost}}
+    <div class="home-panel">
+      <h2>{{.Text.selfHostTitle}}</h2>
+      <p>{{.Text.selfHostBody}}</p>
+      <a class="home-link" href="{{.DeploymentPath}}">{{template "icon" index .Icons "server"}}{{.Text.selfHostAction}}</a>
+    </div>
+    {{end}}
+  </section>
+
+  <section class="home-closing home-container">
+    <h2>{{.Text.closingTitle}}</h2>
+    <p>{{.Text.closingBody}}</p>
+    <div class="home-actions">
+      <a class="home-button home-button-primary" href="{{.AppPath}}">{{.Text.openApp}}</a>
+      <a class="home-button" href="{{.DocsPath}}">{{.Text.docs}}</a>
+    </div>
+  </section>
+</main>
+{{end}}
+{{with .Copyright}}<footer class="home-footer home-container">{{.}}</footer>{{end}}
+</body>
+</html>

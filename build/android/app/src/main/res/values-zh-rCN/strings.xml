@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">同鹿</string>
+    <string name="notification_channel_messages">新消息</string>
+    <string name="notification_channel_messages_silent">新消息（静音）</string>
+</resources>

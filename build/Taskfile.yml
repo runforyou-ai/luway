@@ -1,0 +1,415 @@
+version: '3'
+
+tasks:
+  go:mod:tidy:
+    summary: Runs `go mod tidy`
+    internal: true
+    # 多架构构建会并发依赖此任务；只运行一次可避免同时写入 go.mod。
+    run: once
+    cmds:
+      - go mod tidy
+
+  install:frontend:deps:
+    summary: Install frontend dependencies
+    run: once
+    cmds:
+      - task: install:frontend:deps:{{.PACKAGE_MANAGER}}
+
+  install:frontend:deps:npm:
+    dir: frontend
+    sources:
+      - package.json
+      - package-lock.json
+    generates:
+      - node_modules
+    preconditions:
+      - sh: npm version
+        msg: "Looks like npm isn't installed. Npm is part of the Node installer: https://nodejs.org/en/download/"
+    cmds:
+      - npm install --no-audit
+
+  install:frontend:deps:bun:
+    dir: frontend
+    sources:
+      - package.json
+      - bun.lock
+      - bun.lockb
+    generates:
+      - node_modules
+    preconditions:
+      - sh: bun --version
+        msg: "bun not found"
+    cmds:
+      - bun install
+
+  install:frontend:deps:pnpm:
+    dir: frontend
+    sources:
+      - package.json
+      - pnpm-lock.yaml
+    generates:
+      - node_modules
+    preconditions:
+      - sh: pnpm --version
+        msg: "pnpm not found"
+    cmds:
+      - pnpm install
+
+  install:frontend:deps:yarn:
+    dir: frontend
+    sources:
+      - package.json
+      - yarn.lock
+    status:
+      - test -d node_modules || test -f .pnp.cjs
+    preconditions:
+      - sh: yarn --version
+        msg: "yarn not found"
+    cmds:
+      - yarn install
+
+  build:frontend:
+    summary: Build the frontend project
+    # 前端与绑定目录由各构建目标共用，每次任务重新生成，同一次多架构构建只执行一次。
+    run: once
+    dir: frontend
+    deps:
+      - task: install:frontend:deps
+      - task: generate:bindings
+        vars:
+          OBFUSCATED:
+            ref: .OBFUSCATED
+    cmds:
+      - task: frontend:run
+        vars:
+          SCRIPT: '{{if eq .DEV "true"}}build:dev{{else}}build{{end}}'
+    env:
+      PRODUCTION: '{{if eq .DEV "true"}}false{{else}}true{{end}}'
+
+  frontend:run:
+    summary: Run a frontend script with selected runner
+    cmds:
+      - task: frontend:run:{{.PACKAGE_MANAGER}}
+        vars:
+          SCRIPT: "{{.SCRIPT}}"
+    vars:
+      SCRIPT: "{{.SCRIPT}}"
+
+  frontend:run:npm:
+    dir: frontend
+    cmds:
+      - npm run {{.SCRIPT}} -q
+    vars:
+      SCRIPT: "{{.SCRIPT}}"
+
+  frontend:run:yarn:
+    dir: frontend
+    cmds:
+      - yarn {{.SCRIPT}}
+    vars:
+      SCRIPT: "{{.SCRIPT}}"
+
+  frontend:run:pnpm:
+    dir: frontend
+    cmds:
+      - pnpm run {{.SCRIPT}}
+    vars:
+      SCRIPT: "{{.SCRIPT}}"
+
+  frontend:run:bun:
+    dir: frontend
+    cmds:
+      - bun run {{.SCRIPT}}
+    vars:
+      SCRIPT: "{{.SCRIPT}}"
+
+  generate:bindings:
+    summary: Generates bindings for the frontend
+    run: once
+    deps:
+      - task: go:mod:tidy
+      # 分析程序入口前先生成 go:embed 引用的资源。
+      - task: build:messenger
+    # 绑定共享输出目录，按本轮入口、构建标签和混淆参数重新生成。
+    cmds:
+      # 绑定只描述原生端本机能力，各构建目标都分析根目录的原生端入口。
+      - wails3 generate bindings -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts -i .
+
+  generate:icons:
+    summary: Generates application icons for Windows and macOS
+    run: once
+    dir: build
+    # 每次构建重新生成，确保未纳入版本管理的 Assets.car 不会因缓存而缺失。
+    cmds:
+      - wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico -iconcomposerinput appicon.icon -macassetdir darwin
+
+  build:messenger:
+    summary: 构建网站 Messenger 共用的消息正文组件
+    run: once
+    deps:
+      - task: install:frontend:deps
+    cmds:
+      - task: frontend:run
+        vars:
+          SCRIPT: build:messenger
+
+  build:docs:
+    summary: 构建产品文档站点的样式与字体
+    run: once
+    deps:
+      - task: install:frontend:deps
+    cmds:
+      - task: frontend:run
+        vars:
+          SCRIPT: build:docs
+
+  dev:frontend:
+    summary: Runs the frontend in development mode
+    deps:
+      - task: install:frontend:deps
+    cmds:
+      - task: frontend:dev:{{.PACKAGE_MANAGER}}
+
+  frontend:dev:npm:
+    dir: frontend
+    cmds:
+      # Windows 直接执行 dev 脚本中的 Vite 命令，开发进程由 Node 接收终端退出信号。
+      - '{{if eq OS "windows"}}node node_modules/vite/bin/vite.js{{else}}npm run dev --{{end}} --port {{.VITE_PORT}} --strictPort'
+
+  frontend:dev:yarn:
+    dir: frontend
+    cmds:
+      - yarn dev --port {{.VITE_PORT}} --strictPort
+
+  frontend:dev:pnpm:
+    dir: frontend
+    cmds:
+      - pnpm dev --port {{.VITE_PORT}} --strictPort
+
+  frontend:dev:bun:
+    dir: frontend
+    cmds:
+      - bun run dev --port {{.VITE_PORT}} --strictPort
+
+  update:build-assets:
+    summary: 在独立目录生成官方脚手架与构建资源供升级对比
+    cmds:
+      - go run ./build/scripts/wailsreference "{{.APP_NAME}}"
+
+  build:server:
+    summary: Builds the application in server mode (no GUI, HTTP server only)
+    desc: |
+      Builds a production server binary by default: -tags server,production,
+      -trimpath and a stripped binary, mirroring the desktop `build` task.
+      Server mode runs as a pure HTTP server without native GUI dependencies.
+
+      Usage: task build:server [DEV=true] [OBFUSCATED=true] [EXTRA_TAGS=tag1,tag2]
+        DEV=true        development server (-tags server, no strip, inlining kept)
+        OBFUSCATED=true obfuscated build via garble (requires garble installed)
+        EXTRA_TAGS      additional comma-separated build tags
+    deps:
+      - task: build:frontend
+        vars:
+          DEV:
+            ref: .DEV
+          OBFUSCATED:
+            ref: .OBFUSCATED
+    preconditions:
+      - sh: '{{if eq .OBFUSCATED "true"}}command -v garble >/dev/null 2>&1{{else}}true{{end}}'
+        msg: "garble is required for obfuscated builds. Install it with: go install mvdan.cc/garble@v0.16.0 (requires Go 1.24+). See https://github.com/burrowers/garble/releases for version/toolchain compatibility."
+    cmds:
+      - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}" ./cmd/server'
+    vars:
+      BUILD_FLAGS: '-tags server{{if eq .DEV "true"}}{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -buildvcs=false -gcflags=all="-l"{{else}},production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s{{if .APP_VERSION}} -X github.com/runforyou-ai/luway/internal/common/buildinfo.Version={{.APP_VERSION}}{{end}}"{{end}}'
+
+  build:server:container-binary:
+    summary: 使用已构建的前端资源编译 Linux 容器内的静态服务端程序
+    vars:
+      TARGET_ARCH: '{{.ARCH | default ARCH}}'
+    env:
+      CGO_ENABLED: "0"
+      GOOS: linux
+      GOARCH: '{{.TARGET_ARCH}}'
+    preconditions:
+      - sh: test -f frontend/dist/index.html && test -f internal/publicweb/dist/markdown.js && test -d internal/productdocs/dist/site
+        msg: "请先构建前端、Messenger 与文档资源"
+    cmds:
+      - mkdir -p "{{.BIN_DIR}}/server-image"
+      - go build -tags server,production -trimpath -buildvcs=false -ldflags="-s -w -X github.com/runforyou-ai/luway/internal/common/buildinfo.Version={{.APP_VERSION | default "dev"}}" -o "{{.BIN_DIR}}/server-image/server" ./cmd/server
+
+  build:executor:
+    summary: 构建无界面执行器
+    desc: |
+      构建以工作区电脑凭据连接服务端的无界面执行器，为不依赖 Wails 与 CGO 的纯静态程序。
+      Usage: task build:executor [ARCH=amd64|arm64] [GOOS=linux|darwin|windows] [APP_VERSION=0.1.0]
+    cmds:
+      - go build -tags production -trimpath -buildvcs=false -ldflags="-w -s{{if .APP_VERSION}} -X github.com/runforyou-ai/luway/internal/common/buildinfo.Version={{.APP_VERSION}}{{end}}" -o "{{.BIN_DIR}}/{{.APP_NAME}}-executor-{{.GOOS}}-{{.TARGET_ARCH}}{{if eq .GOOS "windows"}}.exe{{end}}" ./cmd/executor
+    vars:
+      TARGET_ARCH: '{{.ARCH | default ARCH}}'
+    env:
+      CGO_ENABLED: "0"
+      GOOS: '{{.GOOS}}'
+      GOARCH: '{{.TARGET_ARCH}}'
+
+  build:docker:executor:
+    summary: 构建无界面执行器的 Linux 容器镜像
+    desc: |
+      镜像内含执行器与 bash、git、curl，派发的命令在容器内执行；需要其他命令行工具时以该镜像为基础扩展。
+      Usage: task build:docker:executor [TAG=myapp-executor:latest] [VERSION=0.1.0]
+    cmds:
+      - >-
+        docker build
+        --build-arg APP_VERSION={{.VERSION | default "dev"}}
+        -t {{.TAG | default (printf "%s-executor:latest" .APP_NAME)}}
+        -f build/docker/Dockerfile.executor .
+    vars:
+      TAG: "{{.TAG}}"
+    preconditions:
+      - sh: docker info > /dev/null 2>&1
+        msg: "Docker is required. Please install Docker first."
+
+  run:server:
+    summary: Builds and runs a development server (DEV=true)
+    desc: 按 .env 生成当前 worktree 的服务端配置文件 data/<程序名>/server.yaml，本地文件写入 data/files。
+    deps:
+      - task: build:server
+        vars:
+          DEV: "true"
+    env:
+      XDG_CONFIG_HOME: "{{.PROJECT_DIR}}/data"
+    cmds:
+      - go run -tags server ./internal/tools/devserverconfig
+      - '"./{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}" run'
+
+  build:docker:
+    summary: Builds a Docker image for server mode deployment
+    desc: |
+      Creates a minimal Docker image containing the production server binary.
+      Defaults to a pure-Go static binary on a distroless/static base. The
+      production frontend is built first so the embedded assets are current.
+
+      Usage: task build:docker [TAG=myapp:latest] [VERSION=0.1.0] [RELEASE=<目录>] [CGO_ENABLED=1] [GO_IMAGE=...] [RUNTIME_IMAGE=...]
+      RELEASE 指向 releasemanifest 的输出目录时，镜像内置其中的发布清单与客户端文件；清单版本须与 VERSION 一致。
+      For CGO apps, set CGO_ENABLED=1 with libc-compatible builder/runtime images, e.g.:
+        task build:docker CGO_ENABLED=1 GO_IMAGE=golang:1.27-bookworm RUNTIME_IMAGE=gcr.io/distroless/base-debian12
+    deps:
+      # Build the production frontend so frontend/dist (embedded by the Go build
+      # inside the image) is present and current in the Docker build context.
+      - task: build:frontend
+    cmds:
+      - >-
+        docker build
+        --build-arg CGO_ENABLED={{.CGO_ENABLED | default "0"}}
+        --build-arg GO_IMAGE={{.GO_IMAGE | default "golang:1.27-alpine"}}
+        --build-arg RUNTIME_IMAGE={{.RUNTIME_IMAGE | default "gcr.io/distroless/static-debian12"}}
+        --build-arg APP_VERSION={{.VERSION | default "dev"}}
+        {{if .RELEASE}}--build-context release={{.RELEASE}}{{end}}
+        -t {{.TAG | default (printf "%s:latest" .APP_NAME)}}
+        -f build/docker/Dockerfile.server .
+    vars:
+      TAG: "{{.TAG}}"
+    preconditions:
+      - sh: docker info > /dev/null 2>&1
+        msg: "Docker is required. Please install Docker first."
+      - sh: test -f build/docker/Dockerfile.server
+        msg: "缺少项目定制的 build/docker/Dockerfile.server，请从版本控制恢复；官方参考资源可用 wails3 task common:update:build-assets 生成。"
+
+  run:docker:
+    summary: Builds and runs the Docker image
+    desc: |
+      Builds the Docker image and runs it using SERVER_PORT for both the
+      container listener and host port mapping. The port defaults to 8080.
+      Set SERVER_PORT=80 and SERVER_HTTPS_PORT=443 to serve HTTPS directly.
+      按 .env 生成容器配置文件 data/docker/<程序名>/server.yaml，并把所在目录挂载为镜像的配置目录。
+      Usage: task run:docker [TAG=myapp:latest] [SERVER_PORT=18080]
+    deps:
+      - task: build:docker
+        vars:
+          TAG:
+            ref: .TAG
+          CGO_ENABLED:
+            ref: .CGO_ENABLED
+    cmds:
+      - XDG_CONFIG_HOME="{{.PROJECT_DIR}}/data/docker" SERVER_PORT={{.SERVER_PORT}} go run -tags server ./internal/tools/devserverconfig -container
+      - >-
+        docker run --rm
+        --add-host host.docker.internal:host-gateway
+        -v "{{.PROJECT_DIR}}/data/docker/{{.APP_NAME}}-server:/etc/{{.APP_NAME}}-server"
+        -v {{.APP_NAME}}-data:/var/lib/{{.APP_NAME}}-server
+        -p {{.SERVER_PORT}}:{{.SERVER_PORT}}
+        {{if .SERVER_HTTPS_PORT}}-p {{.SERVER_HTTPS_PORT}}:{{.SERVER_HTTPS_PORT}}{{end}}
+        {{.TAG | default (printf "%s:latest" .APP_NAME)}}
+    vars:
+      TAG: "{{.TAG}}"
+      SERVER_PORT: '{{.SERVER_PORT | default "8080"}}'
+
+  setup:docker:
+    summary: Builds Docker image for cross-compilation (~800MB download)
+    desc: |
+      Builds the Docker image needed for cross-compiling to any platform.
+      Run this once to enable cross-platform builds from any OS.
+    cmds:
+      - docker build -t wails-cross -f build/docker/Dockerfile.cross build/docker/
+    preconditions:
+      - sh: docker info > /dev/null 2>&1
+        msg: "Docker is required. Please install Docker first."
+
+  ios:device:list:
+    summary: Lists connected iOS devices (UDIDs)
+    cmds:
+      - xcrun xcdevice list
+
+  ios:run:device:
+    summary: Build, install, and launch on a physical iPhone using Apple tools (xcodebuild/devicectl)
+    vars:
+      PROJECT: '{{.PROJECT}}'   # e.g., build/ios/xcode/<YourProject>.xcodeproj
+      SCHEME: '{{.SCHEME}}'     # e.g., ios.dev
+      CONFIG: '{{.CONFIG | default "Debug"}}'
+      DERIVED: '{{.DERIVED | default "build/ios/DerivedData"}}'
+      UDID: '{{.UDID}}'         # from `task ios:device:list`
+      BUNDLE_ID: '{{.BUNDLE_ID}}' # e.g., com.yourco.wails.ios.dev
+      TEAM_ID: '{{.TEAM_ID}}'   # optional, if your project is not already set up for signing
+    preconditions:
+      - sh: xcrun -f xcodebuild
+        msg: "xcodebuild not found. Please install Xcode."
+      - sh: xcrun -f devicectl
+        msg: "devicectl not found. Please update to Xcode 15+ (which includes devicectl)."
+      - sh: test -n '{{.PROJECT}}'
+        msg: "Set PROJECT to your .xcodeproj path (e.g., PROJECT=build/ios/xcode/App.xcodeproj)."
+      - sh: test -n '{{.SCHEME}}'
+        msg: "Set SCHEME to your app scheme (e.g., SCHEME=ios.dev)."
+      - sh: test -n '{{.UDID}}'
+        msg: "Set UDID to your device UDID (see: task ios:device:list)."
+      - sh: test -n '{{.BUNDLE_ID}}'
+        msg: "Set BUNDLE_ID to your app's bundle identifier (e.g., com.yourco.wails.ios.dev)."
+    cmds:
+      - |
+        set -euo pipefail
+        echo "Building for device: UDID={{.UDID}} SCHEME={{.SCHEME}} PROJECT={{.PROJECT}}"
+        XCB_ARGS=(
+          -project "{{.PROJECT}}"
+          -scheme "{{.SCHEME}}"
+          -configuration "{{.CONFIG}}"
+          -destination "id={{.UDID}}"
+          -derivedDataPath "{{.DERIVED}}"
+          -allowProvisioningUpdates
+          -allowProvisioningDeviceRegistration
+        )
+        # Optionally inject signing identifiers if provided
+        if [ -n '{{.TEAM_ID}}' ]; then XCB_ARGS+=(DEVELOPMENT_TEAM={{.TEAM_ID}}); fi
+        if [ -n '{{.BUNDLE_ID}}' ]; then XCB_ARGS+=(PRODUCT_BUNDLE_IDENTIFIER={{.BUNDLE_ID}}); fi
+        xcodebuild "${XCB_ARGS[@]}" build | xcpretty || true
+        # If xcpretty isn't installed, run without it
+        if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+          xcodebuild "${XCB_ARGS[@]}" build
+        fi
+        # Find built .app
+        APP_PATH=$(find "{{.DERIVED}}/Build/Products" -type d -name "*.app" -maxdepth 3 | head -n 1)
+        if [ -z "$APP_PATH" ]; then
+          echo "Could not locate built .app under {{.DERIVED}}/Build/Products" >&2
+          exit 1
+        fi
+        echo "Installing: $APP_PATH"
+        xcrun devicectl device install app --device "{{.UDID}}" "$APP_PATH"
+        echo "Launching: {{.BUNDLE_ID}}"
+        xcrun devicectl device process launch --device "{{.UDID}}" --stderr console --stdout console "{{.BUNDLE_ID}}"

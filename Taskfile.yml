@@ -1,0 +1,9 @@
+version: '3'
+
+dotenv:
+  - .env
+
+includes:
+  app:
+    taskfile: ./build/tasks.yml
+    flatten: true

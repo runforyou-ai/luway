@@ -1,0 +1,365 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "files": {
+    "includes": [
+      "src/**/*.ts",
+      "src/**/*.tsx",
+      "!src/api/generated/**"
+    ]
+  },
+  "formatter": {
+    "enabled": false
+  },
+  "assist": {
+    "enabled": false
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "a11y": "off",
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      },
+      "style": {
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        "noArrayIndexKey": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "src/features/**",
+        "!src/features/workspace/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/state/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/state/**"
+                    ],
+                    "message": "收件箱 state 不依赖其他子目录。"
+                  },
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/shared/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/shared/**",
+                      "!@/features/inbox/state/**"
+                    ],
+                    "message": "收件箱 shared 只依赖 state。"
+                  },
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/list/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/list/**",
+                      "!@/features/inbox/shared/**",
+                      "!@/features/inbox/state/**"
+                    ],
+                    "message": "收件箱 list 只依赖 shared 与 state。"
+                  },
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/timeline/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/timeline/**",
+                      "!@/features/inbox/shared/**",
+                      "!@/features/inbox/state/**"
+                    ],
+                    "message": "收件箱 timeline 只依赖 shared 与 state。"
+                  },
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/composer/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/composer/**",
+                      "!@/features/inbox/shared/**",
+                      "!@/features/inbox/state/**"
+                    ],
+                    "message": "收件箱 composer 只依赖 shared 与 state。"
+                  },
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/group/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/group/**",
+                      "!@/features/inbox/shared/**",
+                      "!@/features/inbox/state/**"
+                    ],
+                    "message": "收件箱 group 只依赖 shared 与 state。"
+                  },
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/service/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/service/**",
+                      "!@/features/inbox/composer/**",
+                      "!@/features/inbox/timeline/**",
+                      "!@/features/inbox/shared/**",
+                      "!@/features/inbox/state/**"
+                    ],
+                    "message": "收件箱 service 只依赖 composer、timeline、shared 与 state。"
+                  },
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/search/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/search/**",
+                      "!@/features/inbox/list/**",
+                      "!@/features/inbox/shared/**",
+                      "!@/features/inbox/state/**"
+                    ],
+                    "message": "收件箱 search 只依赖 list、shared 与 state。"
+                  },
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/conversation/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/conversation/**",
+                      "!@/features/inbox/list/**",
+                      "!@/features/inbox/timeline/**",
+                      "!@/features/inbox/composer/**",
+                      "!@/features/inbox/service/**",
+                      "!@/features/inbox/group/**",
+                      "!@/features/inbox/search/**",
+                      "!@/features/inbox/shared/**",
+                      "!@/features/inbox/state/**"
+                    ],
+                    "message": "收件箱 conversation 不引用顶层路由入口。"
+                  },
+                  {
+                    "group": [
+                      "@/features/workspace/**"
+                    ],
+                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

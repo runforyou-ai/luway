@@ -1,0 +1,51 @@
+/** 按用途读取可选模型，平台模型与各供应商的工作区模型分组渲染下拉选项，选项值为模型编号。 */
+import { useTranslation } from "react-i18next"
+
+import { listAIModelOptions, type AIModelOption, type AIModelUsage } from "@/api"
+import { resourceKeys } from "@/hooks/resource-keys"
+import { useResource } from "@/hooks/use-resource"
+
+/** 读取当前工作区满足指定用途的模型，每次挂载重新读取。 */
+export function useAIModelOptions(usage: AIModelUsage) {
+  return useResource(
+    resourceKeys.aiModelOptions(usage),
+    () => listAIModelOptions(usage),
+    { staleTime: 0 },
+  )
+}
+
+/** 返回模型的展示名称：工作区模型带供应商名称，平台模型只显示模型名称。 */
+export function aiModelLabel(model: Pick<AIModelOption, "name"> & { provider: { name: string } | null }) {
+  return model.provider ? `${model.provider.name} · ${model.name}` : model.name
+}
+
+/** 平台模型归入同一组，工作区模型按供应商分组，保持读取顺序。 */
+export function AIModelOptionGroups({
+  models,
+}: {
+  models: readonly AIModelOption[]
+}) {
+  const { t } = useTranslation("common")
+  const groups = new Map<string, { label: string; models: AIModelOption[] }>()
+  for (const model of models) {
+    const key = model.provider?.id ?? ""
+    const group = groups.get(key)
+    if (group) {
+      group.models.push(model)
+    } else {
+      groups.set(key, {
+        label: model.provider?.name ?? t("aiModels.platformGroup"),
+        models: [model],
+      })
+    }
+  }
+  return [...groups.entries()].map(([key, group]) => (
+    <optgroup key={key} label={group.label}>
+      {group.models.map((model) => (
+        <option key={model.id} value={model.id}>
+          {model.name}
+        </option>
+      ))}
+    </optgroup>
+  ))
+}

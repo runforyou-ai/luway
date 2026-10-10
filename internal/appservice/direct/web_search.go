@@ -1,0 +1,110 @@
+//go:build server
+
+package direct
+
+import (
+	"context"
+	"errors"
+
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	websearchaction "github.com/runforyou-ai/luway/internal/actions/websearch"
+	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/integration/websearch"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
+	"github.com/runforyou-ai/support"
+	"github.com/uptrace/bun"
+)
+
+// webSearchOps 持有联网搜索设置的 Action 和 Query。
+type webSearchOps struct {
+	getWebSearchSettings    *websearchaction.GetSettingsQuery
+	updateWebSearchSettings *websearchaction.UpdateSettingsAction
+	testWebSearchService    *websearchaction.TestAction
+}
+
+// newWebSearchOps 创建联网搜索设置的业务依赖。
+func newWebSearchOps(db *bun.DB, connectionRunner *connectiontest.Runner) *webSearchOps {
+	return &webSearchOps{
+		getWebSearchSettings:    websearchaction.NewGetSettingsQuery(db),
+		updateWebSearchSettings: websearchaction.NewUpdateSettingsAction(db),
+		testWebSearchService:    websearchaction.NewTestAction(connectionRunner, websearch.NewClient()),
+	}
+}
+
+// GetWebSearchSettings 读取当前企业的联网搜索设置。
+func (o *webSearchOps) GetWebSearchSettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.WebSearchSettings, error) {
+	config, err := o.getWebSearchSettings.Execute(ctx, identity)
+	if err != nil {
+		return appservice.WebSearchSettings{}, appservice.FailedError(meta, i18n.ErrorWebSearchSettingsLoadFailed, err)
+	}
+	return webSearchSettingsFromConfig(config), nil
+}
+
+// UpdateWebSearchSettings 修改当前企业的联网搜索设置。
+func (o *webSearchOps) UpdateWebSearchSettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.WebSearchSettings) (appservice.WebSearchSettings, error) {
+	saved, err := o.updateWebSearchSettings.Execute(ctx, identity, support.MapPtr(input.Service, webSearchConfig))
+	if err != nil {
+		if validationError, ok := errors.AsType[*common.FieldError](err); ok {
+			return appservice.WebSearchSettings{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, dispatch.TranslateFields(validationError.Fields, webSearchFieldKeys))
+		}
+		if errors.Is(err, identityaction.ErrInvalid) {
+			return appservice.WebSearchSettings{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
+		}
+		return appservice.WebSearchSettings{}, appservice.FailedError(meta, i18n.ErrorWebSearchSettingsUpdateFailed, err)
+	}
+	return webSearchSettingsFromConfig(saved), nil
+}
+
+// TestWebSearchService 用草稿配置执行一次搜索，验证搜索服务可用。
+func (o *webSearchOps) TestWebSearchService(ctx context.Context, meta appservice.RequestMeta, _ *servermodels.Identity, input appservice.WebSearchService) error {
+	err := o.testWebSearchService.Execute(ctx, webSearchConfig(input))
+	if err == nil {
+		return nil
+	}
+	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
+		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, dispatch.TranslateFields(validationError.Fields, webSearchFieldKeys))
+	}
+	return webSearchError(meta, err)
+}
+
+// webSearchError 按连接失败原因转换调用搜索服务产生的错误。
+func webSearchError(meta appservice.RequestMeta, err error) error {
+	_, kind, _ := connectiontest.Details(err)
+	switch kind {
+	case connectiontest.FailureUnauthorized:
+		return appservice.UnavailableError(meta, i18n.ErrorWebSearchAuthenticationFailed, nil)
+	case connectiontest.FailureForbidden:
+		return appservice.UnavailableError(meta, i18n.ErrorWebSearchAuthorizationFailed, nil)
+	case connectiontest.FailureRateLimited:
+		return appservice.UnavailableError(meta, i18n.ErrorWebSearchRateLimited, nil)
+	default:
+		return appservice.UnavailableError(meta, i18n.ErrorWebSearchTestFailed, nil)
+	}
+}
+
+// webSearchFieldKeys 把联网搜索设置校验错误码映射为本地化文案键。
+var webSearchFieldKeys = map[common.FieldCode]i18n.Key{
+	websearchaction.ValidationProviderInvalid: i18n.FieldWebSearchProviderInvalid,
+	websearchaction.ValidationAPIKeyRequired:  i18n.FieldAPIKeyRequired,
+	websearchaction.ValidationBaseURLRequired: i18n.FieldWebSearchBaseURLRequired,
+	websearchaction.ValidationBaseURLInvalid:  i18n.FieldWebSearchBaseURLInvalid,
+}
+
+// webSearchConfig 转换搜索服务契约。
+func webSearchConfig(service appservice.WebSearchService) websearch.Config {
+	return websearch.Config{Provider: service.Provider, APIKey: service.APIKey, BaseURL: service.BaseURL}
+}
+
+// webSearchSettingsFromConfig 转换企业联网搜索设置契约。
+func webSearchSettingsFromConfig(config *websearch.Config) appservice.WebSearchSettings {
+	if config == nil {
+		return appservice.WebSearchSettings{}
+	}
+	return appservice.WebSearchSettings{Service: &appservice.WebSearchService{
+		Provider: config.Provider, APIKey: config.APIKey, BaseURL: config.BaseURL,
+	}}
+}

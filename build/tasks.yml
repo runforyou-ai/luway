@@ -1,0 +1,424 @@
+version: '3'
+
+vars:
+  PROJECT_DIR: '{{.PROJECT_DIR | default .ROOT_DIR}}'
+  MIGRATION_GUARD: '{{.MIGRATION_GUARD | default "go run -tags server ./internal/tools/migrationguard"}}'
+  APP_NAME: '{{.APP_NAME | default "luway"}}'
+  APP_DISPLAY_NAME: '{{.APP_DISPLAY_NAME | default "Luway"}}'
+  APP_DESCRIPTION: '{{.APP_DESCRIPTION | default "Luway is an open-source AI customer support teammate platform."}}'
+  BIN_DIR: '{{.BIN_DIR | default "bin"}}'
+  CGO_ENABLED: '{{.CGO_ENABLED | default "1"}}'
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.VITE_PORT | default (.WAILS_VITE_PORT | default 9245)}}'
+  GOOS: '{{.GOOS | default OS}}'
+  # golangci-lint 版本，升级时同步检查 .golangci.yml 中各检查项的变化。
+  GOLANGCI_LINT_VERSION: '{{.GOLANGCI_LINT_VERSION | default "v2.14.0"}}'
+
+includes:
+  common: ./Taskfile.yml
+  windows: ./windows/Taskfile.yml
+  darwin: ./darwin/Taskfile.yml
+  linux: ./linux/Taskfile.yml
+  ios: ./ios/Taskfile.yml
+  android: ./android/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{.GOOS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{.GOOS}}:package"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{.GOOS}}:run"
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  dev:mcp:
+    summary: Runs the application in development mode with desktop MCP enabled
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+    env:
+      WAILS_MCP: "1"
+
+  env:check:
+    silent: true
+    summary: 校验当前工作区开发环境
+    deps:
+      - env:check:server
+
+  env:check:database:
+    silent: true
+    run: once
+    summary: 校验当前工作区数据库环境
+    preconditions:
+      - sh: '{{if .POSTGRES_HOST}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 POSTGRES_HOST"
+      - sh: '{{if regexMatch "^[1-9][0-9]{0,4}$" .POSTGRES_PORT}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置有效的 POSTGRES_PORT"
+      - sh: '{{if .POSTGRES_USER}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 POSTGRES_USER"
+      - sh: '{{if .POSTGRES_PASSWORD}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 POSTGRES_PASSWORD"
+      - sh: '{{if regexMatch "^[a-z][a-z0-9_]{0,57}$" .POSTGRES_DB}}true{{else}}false{{end}}'
+        msg: "POSTGRES_DB 必须以小写字母开头，只包含小写字母、数字和下划线，且不超过 58 个字符"
+      - sh: '{{if regexMatch "_test$" .POSTGRES_DB}}false{{else}}true{{end}}'
+        msg: "POSTGRES_DB 不得以 _test 结尾，该后缀保留给当前工作区测试数据库"
+      - sh: '{{if regexMatch "^(disable|allow|prefer|require|verify-ca|verify-full)$" .POSTGRES_SSLMODE}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置有效的 POSTGRES_SSLMODE"
+    cmds:
+      - 'echo "PostgreSQL {{.POSTGRES_HOST}}:{{.POSTGRES_PORT}}/{{.POSTGRES_DB}}"'
+
+  env:check:server:
+    silent: true
+    summary: 校验当前工作区服务端环境
+    deps:
+      - env:check:database
+    preconditions:
+      - sh: '{{if .SERVER_PORT}}true{{else}}false{{end}}'
+        msg: "请在 .env 中配置 SERVER_PORT"
+    cmds:
+      - 'echo "Server {{.SERVER_PORT}}"'
+
+  db:up:
+    summary: 启动主工作区的开发数据库
+    preconditions:
+      - sh: test -d .git
+        msg: "数据库实例由主工作区管理"
+    cmds:
+      - docker compose -f docker-compose-dev.yml up -d --wait
+
+  db:ensure:
+    silent: true
+    summary: 确保当前工作区数据库已创建
+    deps:
+      - env:check:database
+    preconditions:
+      - sh: command -v psql >/dev/null 2>&1
+        msg: "未找到 psql，请先安装 PostgreSQL 客户端"
+    cmds:
+      - |
+        set -euo pipefail
+        unset PGHOSTADDR PGSERVICE
+        export PGHOST={{shellQuote .POSTGRES_HOST}} PGPORT={{shellQuote .POSTGRES_PORT}} PGUSER={{shellQuote .POSTGRES_USER}} PGPASSWORD={{shellQuote .POSTGRES_PASSWORD}} PGSSLMODE={{shellQuote .POSTGRES_SSLMODE}} PGDATABASE=postgres
+        exists=$(psql -v ON_ERROR_STOP=1 -tAc \
+          "SELECT 1 FROM pg_database WHERE datname = '{{.POSTGRES_DB}}'")
+        if [ "$exists" = "1" ]; then
+          echo "数据库 {{.POSTGRES_DB}} 已存在"
+        else
+          psql -v ON_ERROR_STOP=1 -qc 'CREATE DATABASE "{{.POSTGRES_DB}}"'
+          echo "已创建数据库 {{.POSTGRES_DB}}"
+        fi
+
+  db:reset:
+    silent: true
+    summary: 清空当前工作区数据库后重新执行服务端迁移
+    desc: |
+      删除并重建 .env 指定的当前工作区数据库，再执行全部迁移。
+      执行前请先停止服务端。
+    deps:
+      - env:check:database
+    preconditions:
+      - sh: command -v psql >/dev/null 2>&1
+        msg: "未找到 psql，请先安装 PostgreSQL 客户端"
+    cmds:
+      - |
+        set -euo pipefail
+        unset PGHOSTADDR PGSERVICE
+        export PGHOST={{shellQuote .POSTGRES_HOST}} PGPORT={{shellQuote .POSTGRES_PORT}} PGUSER={{shellQuote .POSTGRES_USER}} PGPASSWORD={{shellQuote .POSTGRES_PASSWORD}} PGSSLMODE={{shellQuote .POSTGRES_SSLMODE}} PGDATABASE=postgres
+        psql -v ON_ERROR_STOP=1 -qc 'DROP DATABASE IF EXISTS "{{.POSTGRES_DB}}" WITH (FORCE)'
+        psql -v ON_ERROR_STOP=1 -qc 'CREATE DATABASE "{{.POSTGRES_DB}}"'
+        echo "已重建数据库 {{.POSTGRES_DB}}"
+      - task: migrate
+
+  db:test:reset:
+    internal: true
+    silent: true
+    summary: 重建当前工作区测试数据库
+    deps:
+      - env:check:database
+    preconditions:
+      - sh: command -v psql >/dev/null 2>&1
+        msg: "未找到 psql，请先安装 PostgreSQL 客户端"
+    cmds:
+      - |
+        set -euo pipefail
+        unset PGHOSTADDR PGSERVICE
+        export PGHOST={{shellQuote .POSTGRES_HOST}} PGPORT={{shellQuote .POSTGRES_PORT}} PGUSER={{shellQuote .POSTGRES_USER}} PGPASSWORD={{shellQuote .POSTGRES_PASSWORD}} PGSSLMODE={{shellQuote .POSTGRES_SSLMODE}} PGDATABASE=postgres
+        psql -v ON_ERROR_STOP=1 -qc 'DROP DATABASE IF EXISTS "{{.POSTGRES_DB}}_test" WITH (FORCE)'
+        psql -v ON_ERROR_STOP=1 -qc 'CREATE DATABASE "{{.POSTGRES_DB}}_test"'
+        echo "已重建测试数据库 {{.POSTGRES_DB}}_test"
+
+  setup:docker:
+    summary: Builds Docker image for cross-compilation (~800MB download)
+    cmds:
+      - task: common:setup:docker
+
+  build:server:
+    summary: Builds the application in server mode (no GUI, HTTP server only)
+    cmds:
+      - task: common:build:server
+
+  build:executor:
+    summary: 构建无界面执行器，目标架构用 ARCH 指定
+    cmds:
+      - task: common:build:executor
+        vars:
+          ARCH: '{{.ARCH}}'
+
+  build:docker:executor:
+    summary: 构建无界面执行器的 Linux 容器镜像
+    cmds:
+      - task: common:build:docker:executor
+        vars:
+          TAG: '{{.TAG}}'
+          VERSION: '{{.VERSION}}'
+
+  run:server:
+    summary: Runs the application in server mode
+    deps:
+      - env:check:server
+    cmds:
+      - task: common:run:server
+
+  brand:apply:
+    summary: 把构建品牌同步到各平台打包元数据；PROFILE 指向品牌目录时先替换品牌文件和图标
+    cmds:
+      - go run ./build/scripts/applybrand {{.PROFILE}}
+
+  generate:appservice:
+    summary: 生成服务端认证分发、HTTP 路由、执行器客户端与前端契约
+    cmds:
+      - go generate ./internal/appservice
+
+  generate:i18n:
+    summary: 按中英文词条文件生成后端文案键常量
+    cmds:
+      - go generate ./internal/i18n
+
+  build:docker:
+    summary: Builds a Docker image for server mode deployment
+    cmds:
+      - task: common:build:docker
+        vars:
+          # 服务端镜像为纯静态二进制。
+          CGO_ENABLED: "0"
+
+  run:docker:
+    summary: Builds and runs the Docker image
+    cmds:
+      - task: common:run:docker
+        vars:
+          # 服务端镜像为纯静态二进制。
+          CGO_ENABLED: "0"
+
+  test:server:
+    silent: true
+    summary: 使用当前工作区测试数据库运行服务端集成测试
+    deps:
+      - check:pkg
+      - check:deps
+      - check:layers
+      - check:clock
+      - check:slog:server
+      - db:test:reset
+    cmds:
+      - go test -count=1 -parallel=8 -tags=server,testhash ./...
+    env:
+      CGO_ENABLED: "0"
+      TEST_POSTGRES_HOST: "{{.POSTGRES_HOST}}"
+      TEST_POSTGRES_PORT: "{{.POSTGRES_PORT}}"
+      TEST_POSTGRES_USER: "{{.POSTGRES_USER}}"
+      TEST_POSTGRES_PASSWORD: "{{.POSTGRES_PASSWORD}}"
+      TEST_POSTGRES_DB: "{{.POSTGRES_DB}}_test"
+      TEST_POSTGRES_SSLMODE: "{{.POSTGRES_SSLMODE}}"
+
+  bench:bus:
+    silent: true
+    summary: 压测消息总线，参数经 CLI_ARGS 传给 build/scripts/busbench（如 wails3 task bench:bus 'CLI_ARGS=-instances=4 -levels=1,8'），PostgreSQL 连接取当前工作区 .env
+    cmds:
+      - go run ./build/scripts/busbench {{.CLI_ARGS}}
+
+  check:desktop:
+    silent: true
+    summary: 校验当前平台原生端代码的依赖方向、日志调用并检查编译
+    deps:
+      - check:pkg
+      - check:deps
+      - check:layers
+      - check:slog:desktop
+    cmds:
+      - go vet ./...
+    env:
+      CGO_ENABLED: '{{if eq OS "windows"}}0{{else}}1{{end}}'
+
+  check:lint:
+    silent: true
+    summary: 按原生端与服务端构建标签运行 golangci-lint 静态检查
+    cmds:
+      - task: check:lint:desktop
+      - task: check:lint:server
+
+  check:lint:desktop:
+    silent: true
+    summary: 按当前平台原生端构建运行 golangci-lint 静态检查
+    cmds:
+      - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}} run ./...
+    env:
+      CGO_ENABLED: '{{if eq OS "windows"}}0{{else}}1{{end}}'
+
+  check:lint:server:
+    silent: true
+    summary: 按服务端构建运行 golangci-lint 静态检查
+    deps:
+      - common:build:messenger
+    cmds:
+      - go run github.com/golangci/golangci-lint/v2/cmd/golangci-lint@{{.GOLANGCI_LINT_VERSION}} run --build-tags server ./...
+    env:
+      CGO_ENABLED: "0"
+
+  check:pkg:
+    silent: true
+    summary: 校验 pkg 下的包及其测试在各构建标签组合下不依赖 internal
+    cmds:
+      - go run ./internal/tools/buildcheck pkg
+
+  check:clock:
+    silent: true
+    summary: 校验服务端专有代码不读取进程时钟，跨进程共享的时间判断统一取数据库时钟
+    cmds:
+      - go run ./internal/tools/clockguard internal/actions internal/api internal/appservice/direct internal/realtime internal/storage/server internal/task/server internal/servercli internal/serverapp
+
+  check:slog:server:
+    silent: true
+    summary: 按本机、Windows 与 Linux 服务端构建校验日志统一使用带 context 的 slog 调用且日志属性不使用作用域字段名
+    deps:
+      - common:build:messenger
+    cmds:
+      - go run ./internal/tools/buildcheck slog:server
+
+  check:slog:desktop:
+    silent: true
+    summary: 按本机与 Windows 原生端构建校验日志统一使用带 context 的 slog 调用且日志属性不使用作用域字段名，iOS 与 Android 专有文件需要 cgo 工具链，不在校验范围内
+    cmds:
+      - go run ./internal/tools/buildcheck slog:desktop
+
+  check:deps:
+    silent: true
+    summary: 校验原生端构建不依赖服务端实现与 Agent 运行时，移动端构建不依赖执行器，无界面执行器构建不依赖 Wails 与原生端实现，服务端构建不依赖 Wails 与原生端实现
+    cmds:
+      - go run ./internal/tools/buildcheck deps
+
+  check:frontend:
+    silent: true
+    summary: 用 Biome 检查前端代码与 feature、收件箱子目录的依赖方向
+    dir: frontend
+    deps:
+      - common:install:frontend:deps
+    cmds:
+      - npm run lint
+
+  check:layers:
+    silent: true
+    summary: 校验领域值、共享能力、集成、存储、业务操作与 Agent 运行时的依赖方向
+    deps:
+      - common:build:messenger
+    cmds:
+      - go run ./internal/tools/layercheck
+
+  migrate:
+    summary: 执行待运行的服务端迁移
+    desc: |
+      执行所有待运行的服务端迁移。服务端启动时也会自动执行。
+    deps:
+      - db:ensure
+    cmds:
+      - task: migrate:run
+        vars:
+          GOOSE_CMD: up
+          GOOSE_FLAGS: -allow-missing
+
+  migrate:status:
+    summary: 查看服务端迁移状态
+    desc: 查看每条迁移是否已执行。
+    deps:
+      - db:ensure
+    cmds:
+      - task: migrate:run
+        vars:
+          GOOSE_CMD: status
+
+  migrate:rollback:
+    summary: 回滚服务端迁移
+    desc: |
+      回滚最近一次迁移。
+      回滚多步：wails3 task migrate:rollback STEP=3
+      回滚到指定版本：wails3 task migrate:rollback VERSION=20260818032701
+      回滚前请先停止服务端，避免启动时再次自动 up。
+    deps:
+      - db:ensure
+    preconditions:
+      - sh: '{{if .STEP}}{{if regexMatch "^[1-9][0-9]*$" .STEP}}true{{else}}false{{end}}{{else}}true{{end}}'
+        msg: "STEP 必须是正整数，例如：wails3 task migrate:rollback STEP=3"
+      - sh: '{{if .VERSION}}{{if regexMatch "^[0-9]+$" .VERSION}}true{{else}}false{{end}}{{else}}true{{end}}'
+        msg: "VERSION 必须是迁移时间戳，例如：wails3 task migrate:rollback VERSION=20260818032701"
+    cmds:
+      - task: migrate:run
+        vars:
+          GOOSE_CMD: '{{if .VERSION}}down-to {{.VERSION}}{{else}}down{{end}}'
+          GOOSE_REPEAT: '{{if .VERSION}}1{{else}}{{.STEP | default 1}}{{end}}'
+
+  make:migration:
+    silent: true
+    summary: 创建服务端迁移文件
+    desc: |
+      在 internal/storage/server/migrations 下创建空迁移文件。
+      用法：wails3 task make:migration NAME=create_example_table
+    vars:
+      SERVER_MIGRATIONS_DIR: internal/storage/server/migrations
+    preconditions:
+      - sh: '{{if .NAME}}true{{else}}false{{end}}'
+        msg: "请指定 NAME，例如：wails3 task make:migration NAME=create_example_table"
+      - sh: '{{if .NAME}}{{if regexMatch "^[A-Za-z0-9_]+$" .NAME}}true{{else}}false{{end}}{{else}}true{{end}}'
+        msg: "NAME 只能包含字母、数字和下划线"
+    cmds:
+      - |
+        set -euo pipefail
+        file="{{.SERVER_MIGRATIONS_DIR}}/$(date +%Y%m%d%H%M%S)_{{.NAME}}.sql"
+        printf '%s\n' '-- +goose Up' '' '-- +goose Down' '' > "$file"
+        echo "Created $file"
+
+  migrate:run:
+    internal: true
+    silent: true
+    summary: 对服务端 PostgreSQL 执行 Goose 命令
+    vars:
+      SERVER_MIGRATIONS_DIR: internal/storage/server/migrations
+      GOOSE_REPEAT: '{{.GOOSE_REPEAT | default 1}}'
+      GOOSE_VERSION:
+        sh: go list -m -f '{{"{{.Version}}"}}' github.com/pressly/goose/v3
+    cmds:
+      - |
+        set -euo pipefail
+        unset PGHOSTADDR PGSERVICE
+        export PGHOST={{shellQuote .POSTGRES_HOST}} PGPORT={{shellQuote .POSTGRES_PORT}} PGUSER={{shellQuote .POSTGRES_USER}} PGPASSWORD={{shellQuote .POSTGRES_PASSWORD}} PGSSLMODE={{shellQuote .POSTGRES_SSLMODE}} PGDATABASE={{shellQuote .POSTGRES_DB}}
+        {{if eq .GOOSE_CMD "up"}}{{.MIGRATION_GUARD}}{{end}}
+        i=0
+        while [ "$i" -lt "{{.GOOSE_REPEAT}}" ]; do
+          go run github.com/pressly/goose/v3/cmd/goose@{{.GOOSE_VERSION}} \
+            {{.GOOSE_FLAGS}} \
+            -dir {{.SERVER_MIGRATIONS_DIR}} \
+            postgres \
+            "dbname={{.POSTGRES_DB}}" \
+            {{.GOOSE_CMD}}
+          i=$((i+1))
+        done

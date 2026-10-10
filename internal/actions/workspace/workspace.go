@@ -1,0 +1,171 @@
+//go:build server
+
+package workspace
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"unicode/utf8"
+
+	licenseaction "github.com/runforyou-ai/luway/internal/actions/license"
+	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/uptrace/bun"
+)
+
+var (
+	// ErrCreationNotAllowed 表示平台创建策略不允许该账号创建工作区。
+	ErrCreationNotAllowed = errors.New("workspace creation is not allowed for the account")
+	// ErrWorkspaceLimitReached 表示平台工作区数量已达到平台能力上限。
+	ErrWorkspaceLimitReached = errors.New("platform workspace limit is reached")
+)
+
+// Workspace 描述账号可进入的工作区。
+type Workspace struct {
+	ID     string
+	Name   string
+	Slug   string
+	Status domain.WorkspaceLifecycleStatus `bun:"lifecycle_status"`
+}
+
+// WorkspaceInput 定义新建工作区的名称。
+type WorkspaceInput struct {
+	Name string
+}
+
+// normalizeWorkspaceName 规范化并校验工作区名称，字段名与客户端表单一致。
+func normalizeWorkspaceName(name string) (string, map[string]ValidationCode) {
+	name = strings.TrimSpace(name)
+	fields := make(map[string]ValidationCode)
+	if name == "" {
+		fields["name"] = ValidationNameRequired
+	} else if utf8.RuneCountInString(name) > domain.WorkspaceNameMaxLength {
+		fields["name"] = ValidationNameTooLong
+	}
+	return name, fields
+}
+
+// NormalizeWorkspaceInput 规范化并校验工作区名称，字段名与客户端表单一致。
+func NormalizeWorkspaceInput(input WorkspaceInput) (WorkspaceInput, map[string]ValidationCode) {
+	var fields map[string]ValidationCode
+	input.Name, fields = normalizeWorkspaceName(input.Name)
+	return input, fields
+}
+
+// CreateWorkspaceAction 由已登录账号创建工作区。
+type CreateWorkspaceAction struct {
+	db          *bun.DB
+	initializer Initializer
+}
+
+// NewCreateWorkspaceAction 创建工作区新建操作。
+func NewCreateWorkspaceAction(db *bun.DB, initializer Initializer) *CreateWorkspaceAction {
+	return &CreateWorkspaceAction{db: db, initializer: initializer}
+}
+
+// Execute 校验名称后，在平台创建策略和平台工作区上限允许时创建工作区，账号以账号名称成为首位管理员成员。
+func (a *CreateWorkspaceAction) Execute(ctx context.Context, identity *servermodels.AccountIdentity, input WorkspaceInput) (Workspace, error) {
+	input, fields := NormalizeWorkspaceInput(input)
+	if len(fields) > 0 {
+		return Workspace{}, &ValidationError{Fields: fields}
+	}
+	var created *servermodels.Identity
+	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
+		// 锁定平台行，并发创建按同一份策略与工作区数量依次判断。
+		platform, err := platformaction.Lock(ctx, tx)
+		if err != nil {
+			return err
+		}
+		if err := checkWorkspaceCreation(ctx, tx, platform, identity.Account.IsPlatformAdmin); err != nil {
+			return err
+		}
+		created, err = Create(ctx, tx, CreateInput{Name: input.Name, Account: &identity.Account, AdminDisplayName: identity.Account.DisplayName, Initializer: a.initializer})
+		if err == nil {
+			realtime.Notify(ctx, realtime.Notification{AudienceKind: realtime.AudienceAccount, AudienceID: identity.Account.ID, Kind: realtime.KindMembershipAdded})
+		}
+		return err
+	})
+	if errors.Is(err, ErrCreationNotAllowed) || errors.Is(err, ErrWorkspaceLimitReached) {
+		return Workspace{}, err
+	}
+	if err != nil {
+		return Workspace{}, fmt.Errorf("create workspace: %w", err)
+	}
+	return Workspace{ID: created.Workspace.ID, Name: created.Workspace.Name, Slug: created.Workspace.Slug, Status: domain.WorkspaceLifecycleActive}, nil
+}
+
+// checkWorkspaceCreation 按平台创建策略和平台工作区上限判断账号能否再创建一个工作区。
+func checkWorkspaceCreation(ctx context.Context, db bun.IDB, platform *servermodels.Platform, platformAdmin bool) error {
+	if !domain.WorkspaceCreationPolicy(platform.WorkspaceCreationPolicy).Allows(platformAdmin) {
+		return ErrCreationNotAllowed
+	}
+	capabilities, err := licenseaction.Capabilities(ctx, db)
+	if err != nil {
+		return err
+	}
+	count, err := db.NewSelect().Model((*servermodels.Workspace)(nil)).Count(ctx)
+	if err != nil {
+		return err
+	}
+	if !capabilities.AllowsAnotherWorkspace(int(count)) {
+		return ErrWorkspaceLimitReached
+	}
+	return nil
+}
+
+// CanCreateWorkspaceQuery 判断账号当前能否创建工作区。
+type CanCreateWorkspaceQuery struct {
+	db *bun.DB
+}
+
+// NewCanCreateWorkspaceQuery 创建工作区创建资格查询。
+func NewCanCreateWorkspaceQuery(db *bun.DB) *CanCreateWorkspaceQuery {
+	return &CanCreateWorkspaceQuery{db: db}
+}
+
+// Execute 返回平台创建策略和平台工作区上限是否允许账号再创建一个工作区。
+func (q *CanCreateWorkspaceQuery) Execute(ctx context.Context, identity *servermodels.AccountIdentity) (bool, error) {
+	platform, err := platformaction.Load(ctx, q.db)
+	if err != nil {
+		return false, err
+	}
+	err = checkWorkspaceCreation(ctx, q.db, platform, identity.Account.IsPlatformAdmin)
+	if errors.Is(err, ErrCreationNotAllowed) || errors.Is(err, ErrWorkspaceLimitReached) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("check workspace creation: %w", err)
+	}
+	return true, nil
+}
+
+// ListAccountWorkspacesQuery 读取账号作为有效成员加入的工作区。
+type ListAccountWorkspacesQuery struct {
+	db *bun.DB
+}
+
+// NewListAccountWorkspacesQuery 创建账号工作区列表查询。
+func NewListAccountWorkspacesQuery(db *bun.DB) *ListAccountWorkspacesQuery {
+	return &ListAccountWorkspacesQuery{db: db}
+}
+
+// Execute 按工作区名称返回账号有有效成员身份的正常或已暂停工作区。
+func (q *ListAccountWorkspacesQuery) Execute(ctx context.Context, identity *servermodels.AccountIdentity) ([]Workspace, error) {
+	var workspaces []Workspace
+	if err := q.db.NewSelect().
+		TableExpr("workspaces AS o").
+		ColumnExpr("o.id::text AS id, o.name, o.slug, o.lifecycle_status").
+		Join("JOIN users AS u ON u.workspace_id = o.id").
+		Where("u.account_id = ?", identity.Account.ID).
+		Where("o.lifecycle_status IN (?)", bun.List([]domain.WorkspaceLifecycleStatus{domain.WorkspaceLifecycleActive, domain.WorkspaceLifecycleSuspended})).
+		Where("u.status = ?", domain.IdentityStatusActive).
+		OrderExpr("o.name ASC, o.id ASC").
+		Scan(ctx, &workspaces); err != nil {
+		return nil, fmt.Errorf("list account workspaces: %w", err)
+	}
+	return workspaces, nil
+}

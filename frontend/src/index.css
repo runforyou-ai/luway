@@ -1,0 +1,598 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+@import "./styles/theme-tokens.css";
+
+@custom-variant dark (&:is(.dark *));
+@custom-variant touch (&:is([data-platform="mobile"] *));
+
+@keyframes collapsible-down {
+  from { height: 0; }
+  to { height: var(--radix-collapsible-content-height); }
+}
+
+@keyframes collapsible-up {
+  from { height: var(--radix-collapsible-content-height); }
+  to { height: 0; }
+}
+
+/* 字号刻度整体收紧一档，正文基准 13px，用于管理界面的信息密度。 */
+@theme {
+    --text-xs: 0.6875rem;
+    --text-xs--line-height: 1rem;
+    --text-sm: 0.8125rem;
+    --text-sm--line-height: 1.25rem;
+    --text-base: 0.90625rem;
+    --text-base--line-height: 1.375rem;
+    --text-lg: 1rem;
+    --text-lg--line-height: 1.5rem;
+    --text-xl: 1.125rem;
+    --text-xl--line-height: 1.625rem;
+    --text-2xl: 1.25rem;
+    --text-2xl--line-height: 1.75rem;
+}
+
+@theme inline {
+    --font-sans: 'Inter Variable', Inter, 'PingFang SC', 'HarmonyOS Sans SC', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', monospace;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-secondary: var(--sidebar-secondary);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive-foreground: var(--destructive-foreground);
+    --color-destructive: var(--destructive);
+    --color-success: var(--success);
+    --color-warning: var(--warning);
+    --color-note: var(--note);
+    --color-note-border: var(--note-border);
+    --color-note-foreground: var(--note-foreground);
+    --color-note-active: var(--note-active);
+    --color-note-active-foreground: var(--note-active-foreground);
+    --color-badge-website: var(--badge-website);
+    --color-badge-telegram: var(--badge-telegram);
+    --color-badge-wechat: var(--badge-wechat);
+    --color-badge-wecom: var(--badge-wecom);
+    --color-file-pdf: var(--file-pdf);
+    --color-file-word: var(--file-word);
+    --color-file-sheet: var(--file-sheet);
+    --color-file-slide: var(--file-slide);
+    --color-file-code: var(--file-code);
+    --color-file-text: var(--file-text);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-primary-hover: var(--primary-hover);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground text-sm;
+    }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+    }
+  html {
+    @apply font-sans;
+    }
+  code, kbd, samp, pre {
+    @apply font-mono;
+    }
+}
+
+@layer components {
+  .app-phone-input {
+    @apply h-9 w-full rounded-md border border-input bg-transparent shadow-xs transition-[color,box-shadow];
+  }
+
+  .app-phone-input:focus-within {
+    @apply border-ring;
+  }
+
+  .app-phone-input:has(.PhoneInputInput[aria-invalid="true"]) {
+    @apply border-destructive ring-destructive/20 dark:ring-destructive/40;
+  }
+
+  .app-phone-input.PhoneInput--disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .app-phone-input .PhoneInputCountry {
+    @apply m-0 border-r px-3;
+  }
+
+  .app-phone-input .PhoneInputCountryIcon {
+    --PhoneInputCountryFlag-height: 1rem;
+  }
+
+  .app-phone-input .PhoneInputCountrySelectArrow {
+    @apply text-muted-foreground;
+  }
+
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+/* macOS 隐藏标题栏后为窗口按钮保留顶部空间。 */
+[data-native-os="darwin"] {
+  --app-macos-titlebar-height: 28px;
+}
+
+.app-window-drag-region {
+  display: none;
+}
+
+/*
+  窗口拖动区域统一显示箭头：光标为 auto 时 WebKit 会把按住拖动识别为文本选择而显示输入光标，
+  原生应用的标题栏始终是箭头。拖动区域内的输入框恢复文本光标。
+*/
+[data-native-os][data-window-fullscreen="false"] :is(
+    .app-window-drag-region,
+    .app-workspace-rail,
+    .app-workspace-titlebar-actions,
+    .app-workspace-top-drag-region
+  ) {
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-native-os][data-window-fullscreen="false"] .app-workspace-rail :is(input, textarea) {
+  cursor: text;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+[data-native-os="darwin"][data-window-fullscreen="false"] > .app-window-drag-region {
+  --wails-draggable: drag;
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 40;
+  display: block;
+  height: var(--app-macos-titlebar-height);
+}
+
+/* 桌面端入口小窗口的品牌栏和顶部留白用于拖动窗口。 */
+.app-desktop-app .app-entry-drag {
+  --wails-draggable: drag;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+[data-native-os="darwin"]:has(.app-workspace-shell, .app-conversation-window) > .app-window-drag-region {
+  display: none;
+}
+
+/* 会话独立窗口在 macOS 隐藏标题栏后为窗口按钮保留可拖动的顶部空间：留白显示箭头，内容区恢复默认光标。 */
+[data-native-os="darwin"][data-window-fullscreen="false"] .app-conversation-window {
+  --wails-draggable: drag;
+  cursor: default;
+  padding-top: var(--app-macos-titlebar-height);
+}
+
+[data-native-os="darwin"][data-window-fullscreen="false"] .app-conversation-window > * {
+  cursor: auto;
+}
+
+[data-native-os="darwin"] .app-conversation-window > * {
+  --wails-draggable: no-drag;
+}
+
+/*
+  工作台底层顶部略深，向下过渡回一级栏底色。
+  顶部间距分两组：标题栏操作行的高度和左侧让位按该行自身的按钮尺寸取值；
+  一级栏上沿在此基础上让开该行。标题栏操作行始终位于一级栏内，主内容卡片
+  不受该行影响，上沿只随平台变化。此处是 Web 端取值，卡片四周留白一致。
+*/
+.app-workspace-shell {
+  --app-workspace-chrome-top: color-mix(in oklab, var(--sidebar), black 3.5%);
+  /* 底部与顶部对称加深，主内容卡片底边与消息输入区的浅灰底拉开对比。 */
+  --app-workspace-chrome-bottom: color-mix(in oklab, var(--sidebar), black 3.5%);
+  --app-workspace-rail-width: 220px;
+  --app-workspace-content-inset: 6px;
+  --app-workspace-content-gutter: 6px;
+  --app-workspace-content-top: var(--app-workspace-content-gutter);
+  --app-workspace-rail-collapsed-width: 44px;
+  --app-workspace-rail-top-expanded: var(--app-workspace-content-gutter);
+  --app-workspace-rail-top: var(--app-workspace-rail-top-expanded);
+  --app-workspace-titlebar-height: 36px;
+  --app-workspace-titlebar-inset: 8px;
+  background:
+    radial-gradient(
+      ellipse 240px 420px at left top,
+      color-mix(in oklab, var(--sidebar-primary) 6%, transparent) 0%,
+      transparent 100%
+    ),
+    linear-gradient(
+      180deg,
+      var(--app-workspace-chrome-top) 0px,
+      var(--sidebar) 120px,
+      var(--sidebar) calc(100% - 120px),
+      var(--app-workspace-chrome-bottom) 100%
+    );
+}
+
+.dark .app-workspace-shell {
+  --app-workspace-chrome-top: color-mix(in oklab, var(--sidebar), black 20%);
+  /* 深色主题下消息输入区比工作台底色更暗，底部保持侧栏色即可形成对比。 */
+  --app-workspace-chrome-bottom: var(--sidebar);
+}
+
+.app-workspace-rail {
+  width: var(--app-workspace-rail-width);
+  padding-top: var(--app-workspace-rail-top);
+}
+
+/* 主内容卡片上沿按平台取值，右侧与底部留白一致。 */
+.app-workspace-content-frame {
+  margin: var(--app-workspace-content-top) var(--app-workspace-content-gutter)
+    var(--app-workspace-content-gutter) var(--app-workspace-content-inset);
+}
+
+/* 分栏页面由左栏和主区各自作为圆角卡片铺底色：主内容卡片本身透明、无阴影，两栏之间的缝透出工作台底色。 */
+@media (min-width: 48rem) {
+  .app-workspace-content-frame:has([data-slot="page-split"]) {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+/* 标题栏操作与窗口按钮同一水平线，macOS 上向右让开窗口按钮。 */
+.app-workspace-titlebar-actions {
+  height: var(--app-workspace-titlebar-height);
+  padding-left: var(--app-workspace-titlebar-inset);
+}
+
+/* Windows 文字菜单与顶栏共用高度，弹出菜单使用应用主题。 */
+.app-desktop-menu {
+  --wails-draggable: no-drag;
+  display: flex;
+  align-items: center;
+  height: var(--app-workspace-titlebar-height, 32px);
+  user-select: none;
+}
+
+.app-desktop-menu-trigger {
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  font-size: 13px;
+  outline: none;
+}
+
+.app-desktop-menu-trigger:is(:hover, :focus-visible, [data-state="open"]) {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+.app-desktop-menu-content {
+  --wails-draggable: no-drag;
+  z-index: 100;
+  min-width: 220px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: 0 4px 12px #0002;
+  outline: none;
+}
+
+.app-desktop-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  outline: none;
+  cursor: default;
+}
+
+.app-desktop-menu-item[data-highlighted] { background: var(--accent); }
+.app-desktop-menu-item[data-disabled] { opacity: .5; pointer-events: none; }
+
+/* Windows 入口页为完整菜单栏保留空间，全屏工作台与会话窗口保留菜单入口。 */
+[data-native-os="windows"] .app-entry-layout { padding-top: 32px; }
+[data-native-os="windows"] .app-entry-layout > :first-child { height: calc(100dvh - 32px); min-height: 0; }
+[data-native-os="windows"][data-window-fullscreen="true"] .app-conversation-window { padding-top: 34px; }
+
+/* Windows 与 Linux 的窗口控制按钮固定在顶栏右侧，交互区域参与原生命中检测。 */
+.app-window-controls {
+  --wails-draggable: no-drag;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  height: var(--app-workspace-titlebar-height, 32px);
+  user-select: none;
+}
+
+.app-window-control {
+  --wails-draggable: no-drag;
+  display: flex;
+  width: 46px;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  cursor: default;
+}
+
+.app-window-control svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}
+
+.app-window-control:hover {
+  color: var(--foreground);
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+}
+
+.app-window-control:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -3px;
+}
+
+.app-window-control[data-window-control="minimize"] {
+  --wails-non-client-region: minimize;
+}
+
+.app-window-control[data-window-control="maximize"] {
+  --wails-non-client-region: maximize;
+}
+
+.app-window-control[data-window-control="close"] {
+  --wails-non-client-region: close;
+}
+
+.app-window-control[data-window-control="close"]:hover {
+  color: white;
+  background: var(--destructive);
+}
+
+[data-window-fullscreen="true"] .app-window-controls {
+  display: none;
+}
+
+/* 会话窗口为右侧窗口按钮留出与工作台一致的标题栏。 */
+:is([data-native-os="windows"], [data-native-os="linux"])[data-window-fullscreen="false"] .app-conversation-window {
+  --app-workspace-titlebar-height: 34px;
+  --wails-draggable: drag;
+  padding-top: 36px;
+}
+
+:is([data-native-os="windows"], [data-native-os="linux"]) .app-conversation-window > * {
+  --wails-draggable: no-drag;
+}
+
+/* Windows 与 Linux 的顶栏与 macOS 共用高度，窗口按钮位于右侧。 */
+[data-native-os="windows"] .app-workspace-shell,
+[data-native-os="linux"] .app-workspace-shell {
+  --app-workspace-content-top: 36px;
+  --app-workspace-rail-top-expanded: 41px;
+  --app-workspace-titlebar-height: 34px;
+}
+
+/* macOS 主窗口隐藏标题栏，窗口按钮位于标准位置，顶部按其所占高度留白，左侧让开窗口按钮。 */
+[data-native-os="darwin"][data-window-fullscreen="false"] .app-workspace-shell {
+  --app-workspace-content-top: 36px;
+  --app-workspace-rail-top-expanded: 41px;
+  --app-workspace-titlebar-height: 34px;
+  --app-workspace-titlebar-inset: 80px;
+}
+
+/* 桌面端全屏后窗口按钮移出内容区，主内容卡片四周留白一致，顶部间距只由标题栏操作行决定。 */
+[data-native-os][data-window-fullscreen="true"] .app-workspace-shell {
+  --app-workspace-content-top: var(--app-workspace-content-gutter);
+  --app-workspace-rail-top-expanded: 40px;
+  --app-workspace-titlebar-height: 40px;
+}
+
+/*
+  一级栏收起为仅图标窄栏，宽度固定且不可拖动调整。Web 的收起开关由窄栏自身渲染，
+  顶部留白使其与主内容卡片首行的 48px 行居中对齐：卡片上沿加该行半高 24px，
+  再减开关半高 14px。
+*/
+.app-workspace-shell[data-rail-collapsed="true"] {
+  --app-workspace-rail-width: var(--app-workspace-rail-collapsed-width);
+  --app-workspace-rail-top: calc(var(--app-workspace-content-top) + 10px);
+}
+
+/* 桌面端窄栏的收起开关留在标题栏操作行，窄栏内容上沿与展开时一致；全屏时主内容卡片让开标题栏操作行。 */
+[data-native-os] .app-workspace-shell[data-rail-collapsed="true"] {
+  --app-workspace-rail-top: var(--app-workspace-rail-top-expanded);
+}
+
+[data-native-os][data-window-fullscreen="true"] .app-workspace-shell[data-rail-collapsed="true"] {
+  --app-workspace-content-top: var(--app-workspace-titlebar-height);
+}
+
+/* 一级栏整体、覆盖在其顶部的标题栏操作行和主内容卡片上方的空白区域用于拖动窗口。 */
+[data-native-os][data-window-fullscreen="false"] :is(
+    .app-workspace-rail,
+    .app-workspace-titlebar-actions
+  ) {
+  --wails-draggable: drag;
+}
+
+[data-native-os] :is(
+    .app-workspace-rail,
+    .app-workspace-titlebar-actions
+  ) :is(a, button, input) {
+  --wails-draggable: no-drag;
+}
+
+.app-workspace-top-drag-region {
+  display: none;
+}
+
+[data-native-os="windows"][data-window-fullscreen="true"] .app-workspace-shell {
+  --app-workspace-content-top: var(--app-workspace-titlebar-height);
+}
+
+.app-conversation-top-drag-region {
+  display: none;
+}
+
+:is([data-native-os="windows"], [data-native-os="linux"])[data-window-fullscreen="false"] .app-conversation-top-drag-region {
+  --wails-draggable: drag;
+  position: absolute;
+  inset: 0 138px auto 0;
+  height: 34px;
+  display: block;
+}
+
+[data-native-os][data-window-fullscreen="false"]
+  .app-workspace-top-drag-region {
+  --wails-draggable: drag;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--app-workspace-rail-width);
+  z-index: 20;
+  display: block;
+  height: var(--app-workspace-content-top);
+}
+
+/* Windows 原生命中区域与按钮区域分别定位，支持拖动、双击和系统窗口菜单。 */
+[data-native-os="windows"][data-window-fullscreen="false"] .app-workspace-top-drag-region {
+  --wails-non-client-region: caption;
+  left: var(--app-titlebar-menu-end, 92px);
+  right: 138px;
+}
+
+[data-native-os="windows"] :is(.app-entry-top-drag-region, .app-conversation-top-drag-region) {
+  --wails-non-client-region: caption;
+}
+
+[data-native-os="windows"] .app-conversation-top-drag-region {
+  left: var(--app-titlebar-menu-end, 0px);
+}
+
+/*
+  消息气泡正文与时间的收尾排版。时间默认浮动在正文末行右端；
+  Markdown 正文以段落或列表结尾时改为贴气泡右下角，并在末行尾部插入等宽占位；
+  带译文标签时时间区宽度不定，保持浮动排版，末行放不下时换到下一行。
+*/
+.app-message-body {
+  --app-message-time-space: 3.2em;
+}
+
+.app-message-body[data-delivery="true"] {
+  --app-message-time-space: 5em;
+}
+
+.app-message-body:not([data-translation="true"]):has(
+    .message-markdown > p:last-child,
+    .message-markdown > :is(ul, ol):last-child > li:last-child
+  )
+  .app-message-time {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  float: none;
+  margin-left: 0;
+}
+
+.app-message-body:not([data-translation="true"])
+  :is(
+    .message-markdown > p:last-child,
+    .message-markdown > :is(ul, ol):last-child > li:last-child
+  )::after {
+  display: inline-block;
+  width: var(--app-message-time-space);
+  content: "";
+}
+
+@keyframes message-location-highlight {
+  0%, 20% { background-color: color-mix(in oklch, var(--primary) 20%, transparent); }
+  100% { background-color: transparent; }
+}
+
+.message-location-highlight {
+  animation: message-location-highlight 2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .message-location-highlight {
+    animation: none;
+    background-color: color-mix(in oklch, var(--primary) 16%, transparent);
+  }
+}
+
+/*
+  主内容区的水平留白：窗口变宽时左右留白同步增长，把标题、工具栏和内容收在同一列内居中。
+  需要更宽内容的页面在根元素覆盖 --page-max。
+*/
+.app-page-gutter {
+  padding-inline: max(0.875rem, calc((100% - var(--page-max, 900px)) / 2));
+}
+
+@media (min-width: 40rem) {
+  .app-page-gutter {
+    padding-inline: max(1.25rem, calc((100% - var(--page-max, 900px)) / 2));
+  }
+}
+
+/*
+  表单的统一字段样式：字段间距放宽，字段内的输入框、下拉框和多行文本框加高、加大圆角并带浅色底；电话输入以外层容器作为整体控件。
+  由表单页内容区和弹窗、侧滑面板容器启用；只作用于表单字段内的控件，列表、表格和工具栏里的输入框保持组件默认样式。
+*/
+.app-form [data-slot=field-group] {
+  gap: 1.5rem;
+}
+
+.app-form [data-slot=field] :is([data-slot=input]:not(.PhoneInputInput), .app-phone-input, [data-slot=native-select], [data-slot=select-trigger]) {
+  height: 2.75rem;
+}
+
+.app-form [data-slot=field] :is([data-slot=input]:not(.PhoneInputInput), .app-phone-input, [data-slot=native-select], [data-slot=select-trigger], [data-slot=textarea]) {
+  border-radius: var(--radius);
+  background-color: color-mix(in oklab, var(--muted) 60%, transparent);
+}
+
+.dark .app-form [data-slot=field] :is([data-slot=input]:not(.PhoneInputInput), .app-phone-input, [data-slot=native-select], [data-slot=select-trigger], [data-slot=textarea]) {
+  background-color: color-mix(in oklab, var(--muted) 50%, transparent);
+}

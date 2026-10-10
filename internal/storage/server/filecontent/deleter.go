@@ -1,0 +1,42 @@
+//go:build server
+
+package filecontent
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/runforyou-ai/luway/internal/domain"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+)
+
+// Deleter 删除文件记录指向的内容。
+type Deleter struct {
+	local *LocalStore
+	s3    S3Settings
+}
+
+// NewDeleter 创建文件内容删除器，s3 返回删除时的对象存储配置。
+func NewDeleter(local *LocalStore, s3 S3Settings) *Deleter {
+	return &Deleter{local: local, s3: s3}
+}
+
+// Delete 按文件记录中的存储类型删除内容。
+func (d *Deleter) Delete(ctx context.Context, record *servermodels.File) error {
+	switch domain.FileStorageBackend(record.StorageBackend) {
+	case domain.FileStorageBackendLocal:
+		if err := d.local.DeleteParts(record.StorageKey); err != nil {
+			return err
+		}
+		return d.local.Delete(ctx, record.StorageKey)
+	case domain.FileStorageBackendS3:
+		if record.MultipartUploadID != nil {
+			if err := AbortMultipart(ctx, d.s3(), record.StorageKey, *record.MultipartUploadID); err != nil {
+				return err
+			}
+		}
+		return Delete(ctx, d.s3(), record.StorageKey)
+	default:
+		return fmt.Errorf("invalid file storage backend %q", record.StorageBackend)
+	}
+}
