@@ -13,6 +13,7 @@ import (
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -143,7 +144,7 @@ func TestCustomerNoteMentions(t *testing.T) {
 		}
 		for _, test := range cases {
 			test.input.ConversationID, test.input.ClientMessageID = f.conversationID, uuid.NewV7().String()
-			var validation *conversationaction.ValidationError
+			var validation *common.FieldError
 			_, err := send.Execute(ctx, f.owner, test.input)
 			require.ErrorAs(t, err, &validation, test.name)
 			require.Equal(t, servicesessionaction.ValidationMentionIdentityIDsInvalid, validation.Fields["mentionIdentityIds"], test.name)

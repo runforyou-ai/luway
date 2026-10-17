@@ -9,9 +9,9 @@ import (
 
 	contactaction "github.com/runforyou-ai/luway/internal/actions/contact"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
-	servicecategoryaction "github.com/runforyou-ai/luway/internal/actions/servicecategory"
+	servicepolicyaction "github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
@@ -26,20 +26,19 @@ import (
 
 // customerServiceOps 持有企业客服设置的业务实现依赖。
 type customerServiceOps struct {
-	getBusinessHours      *customerserviceaction.GetBusinessHoursQuery
-	updateBusinessHours   *customerserviceaction.UpdateBusinessHoursAction
-	getServiceTimeouts    *customerserviceaction.GetServiceTimeoutsQuery
-	updateServiceTimeouts *customerserviceaction.UpdateServiceTimeoutsAction
-	listCategories        *servicecategoryaction.ListQuery
-	createCategory        *servicecategoryaction.CreateAction
-	updateCategory        *servicecategoryaction.UpdateAction
-	archiveCategory       *servicecategoryaction.ArchiveAction
-	getIdentitySecret     *customerserviceaction.GetCustomerIdentitySecretQuery
-	regenerateSecret      *customerserviceaction.RegenerateCustomerIdentitySecretAction
+	getBusinessHours      *servicepolicyaction.GetBusinessHoursQuery
+	updateBusinessHours   *servicepolicyaction.UpdateBusinessHoursAction
+	getServiceTimeouts    *servicepolicyaction.GetServiceTimeoutsQuery
+	updateServiceTimeouts *servicepolicyaction.UpdateServiceTimeoutsAction
+	db                    *bun.DB
+	listCategories        *servicepolicyaction.ListQuery
+	createCategory        *servicepolicyaction.CreateAction
+	updateCategory        *servicepolicyaction.UpdateAction
+	archiveCategory       *servicepolicyaction.ArchiveAction
 	getRequesterProfile   *contactaction.GetCustomerProfileQuery
 	listBusinessQueries   *conversationaction.ListBusinessQueriesQuery
-	getSummarySettings    *customerserviceaction.GetServiceSummarySettingsQuery
-	updateSummarySettings *customerserviceaction.UpdateServiceSummarySettingsAction
+	getSummarySettings    *servicepolicyaction.GetServiceSummarySettingsQuery
+	updateSummarySettings *servicepolicyaction.UpdateServiceSummarySettingsAction
 	listSummaries         *servicesessionaction.ListServiceSummariesQuery
 	updateSummary         *servicesessionaction.UpdateServiceSessionSummaryAction
 }
@@ -47,20 +46,19 @@ type customerServiceOps struct {
 // newCustomerServiceOps 创建企业客服设置的业务实现依赖。
 func newCustomerServiceOps(db *bun.DB) *customerServiceOps {
 	return &customerServiceOps{
-		getBusinessHours:      customerserviceaction.NewGetBusinessHoursQuery(db),
-		updateBusinessHours:   customerserviceaction.NewUpdateBusinessHoursAction(db),
-		getServiceTimeouts:    customerserviceaction.NewGetServiceTimeoutsQuery(db),
-		updateServiceTimeouts: customerserviceaction.NewUpdateServiceTimeoutsAction(db),
-		listCategories:        servicecategoryaction.NewListQuery(db),
-		createCategory:        servicecategoryaction.NewCreateAction(db),
-		updateCategory:        servicecategoryaction.NewUpdateAction(db),
-		archiveCategory:       servicecategoryaction.NewArchiveAction(db),
-		getIdentitySecret:     customerserviceaction.NewGetCustomerIdentitySecretQuery(db),
-		regenerateSecret:      customerserviceaction.NewRegenerateCustomerIdentitySecretAction(db),
+		db:                    db,
+		getBusinessHours:      servicepolicyaction.NewGetBusinessHoursQuery(db),
+		updateBusinessHours:   servicepolicyaction.NewUpdateBusinessHoursAction(db),
+		getServiceTimeouts:    servicepolicyaction.NewGetServiceTimeoutsQuery(db),
+		updateServiceTimeouts: servicepolicyaction.NewUpdateServiceTimeoutsAction(db),
+		listCategories:        servicepolicyaction.NewListQuery(db),
+		createCategory:        servicepolicyaction.NewCreateAction(db),
+		updateCategory:        servicepolicyaction.NewUpdateAction(db),
+		archiveCategory:       servicepolicyaction.NewArchiveAction(db),
 		getRequesterProfile:   contactaction.NewGetCustomerProfileQuery(db),
 		listBusinessQueries:   conversationaction.NewListBusinessQueriesQuery(db),
-		getSummarySettings:    customerserviceaction.NewGetServiceSummarySettingsQuery(db),
-		updateSummarySettings: customerserviceaction.NewUpdateServiceSummarySettingsAction(db),
+		getSummarySettings:    servicepolicyaction.NewGetServiceSummarySettingsQuery(db),
+		updateSummarySettings: servicepolicyaction.NewUpdateServiceSummarySettingsAction(db),
 		listSummaries:         servicesessionaction.NewListServiceSummariesQuery(db),
 		updateSummary:         servicesessionaction.NewUpdateServiceSessionSummaryAction(db),
 	}
@@ -68,7 +66,7 @@ func newCustomerServiceOps(db *bun.DB) *customerServiceOps {
 
 // GetCustomerIdentitySecret 读取当前企业的客户身份密钥，未生成时为空。
 func (o *customerServiceOps) GetCustomerIdentitySecret(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.CustomerIdentitySecret, error) {
-	secret, err := o.getIdentitySecret.Execute(ctx, identity)
+	secret, err := customerchataction.GetCustomerIdentitySecret(ctx, o.db, identity)
 	if err != nil {
 		return appservice.CustomerIdentitySecret{}, appservice.FailedError(meta, i18n.ErrorCustomerIdentitySecretLoadFailed, err)
 	}
@@ -77,7 +75,7 @@ func (o *customerServiceOps) GetCustomerIdentitySecret(ctx context.Context, meta
 
 // RegenerateCustomerIdentitySecret 生成或重新生成当前企业的客户身份密钥，旧密钥立即失效。
 func (o *customerServiceOps) RegenerateCustomerIdentitySecret(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.CustomerIdentitySecret, error) {
-	secret, err := o.regenerateSecret.Execute(ctx, identity)
+	secret, err := customerchataction.RegenerateCustomerIdentitySecret(ctx, o.db, identity)
 	if err != nil {
 		if errors.Is(err, identityaction.ErrInvalid) {
 			return appservice.CustomerIdentitySecret{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAuthenticationRequired)
@@ -128,8 +126,11 @@ func (o *customerServiceOps) ListServiceBusinessQueries(ctx context.Context, met
 }
 
 // GetBusinessHours 读取当前企业的客服工作时间。
-func (o *customerServiceOps) GetBusinessHours(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.BusinessHours, error) {
-	hours, err := o.getBusinessHours.Execute(ctx, identity)
+func (o *customerServiceOps) GetBusinessHours(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string) (appservice.BusinessHours, error) {
+	if err := servicepolicyaction.RequireManage(identity, domain.ServiceAudience(audience)); err != nil {
+		return appservice.BusinessHours{}, servicePolicyError(meta, err)
+	}
+	hours, err := o.getBusinessHours.Execute(ctx, identity, domain.ServiceAudience(audience))
 	if err != nil {
 		return appservice.BusinessHours{}, appservice.FailedError(meta, i18n.ErrorBusinessHoursLoadFailed, err)
 	}
@@ -137,7 +138,10 @@ func (o *customerServiceOps) GetBusinessHours(ctx context.Context, meta appservi
 }
 
 // UpdateBusinessHours 修改当前企业的客服工作时间。
-func (o *customerServiceOps) UpdateBusinessHours(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.BusinessHours) (appservice.BusinessHours, error) {
+func (o *customerServiceOps) UpdateBusinessHours(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string, input appservice.BusinessHours) (appservice.BusinessHours, error) {
+	if err := servicepolicyaction.RequireManage(identity, domain.ServiceAudience(audience)); err != nil {
+		return appservice.BusinessHours{}, servicePolicyError(meta, err)
+	}
 	// 每周时段按周一到周日转换为领域值。
 	hours := domain.BusinessHours{Enabled: input.Enabled, TimeZone: input.TimeZone, Overrides: arr.OrEmpty(arr.Map(input.Overrides, func(override appservice.BusinessHoursOverride) domain.BusinessHoursOverride {
 		return domain.BusinessHoursOverride{Date: override.Date, Periods: businessHoursPeriodsToDomain(override.Periods)}
@@ -145,7 +149,7 @@ func (o *customerServiceOps) UpdateBusinessHours(ctx context.Context, meta appse
 	for day, periods := range input.Weekly {
 		hours.Weekly[day] = businessHoursPeriodsToDomain(periods)
 	}
-	saved, err := o.updateBusinessHours.Execute(ctx, identity, hours)
+	saved, err := o.updateBusinessHours.Execute(ctx, identity, domain.ServiceAudience(audience), hours)
 	if err != nil {
 		return appservice.BusinessHours{}, dispatch.Catalog{dispatch.FieldRule(businessHoursFieldKeys), dispatch.SessionRule}.Translate(meta, err, i18n.ErrorBusinessHoursUpdateFailed)
 	}
@@ -154,8 +158,11 @@ func (o *customerServiceOps) UpdateBusinessHours(ctx context.Context, meta appse
 }
 
 // GetServiceTimeouts 读取当前企业的客服超时时长。
-func (o *customerServiceOps) GetServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ServiceTimeouts, error) {
-	timeouts, err := o.getServiceTimeouts.Execute(ctx, identity)
+func (o *customerServiceOps) GetServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string) (appservice.ServiceTimeouts, error) {
+	if err := servicepolicyaction.RequireManage(identity, domain.ServiceAudience(audience)); err != nil {
+		return appservice.ServiceTimeouts{}, servicePolicyError(meta, err)
+	}
+	timeouts, err := o.getServiceTimeouts.Execute(ctx, identity, domain.ServiceAudience(audience))
 	if err != nil {
 		return appservice.ServiceTimeouts{}, appservice.FailedError(meta, i18n.ErrorServiceTimeoutsLoadFailed, err)
 	}
@@ -163,8 +170,11 @@ func (o *customerServiceOps) GetServiceTimeouts(ctx context.Context, meta appser
 }
 
 // UpdateServiceTimeouts 修改当前企业的客服超时时长。
-func (o *customerServiceOps) UpdateServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ServiceTimeouts) (appservice.ServiceTimeouts, error) {
-	saved, err := o.updateServiceTimeouts.Execute(ctx, identity, domain.ServiceTimeouts(input))
+func (o *customerServiceOps) UpdateServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string, input appservice.ServiceTimeouts) (appservice.ServiceTimeouts, error) {
+	if err := servicepolicyaction.RequireManage(identity, domain.ServiceAudience(audience)); err != nil {
+		return appservice.ServiceTimeouts{}, servicePolicyError(meta, err)
+	}
+	saved, err := o.updateServiceTimeouts.Execute(ctx, identity, domain.ServiceAudience(audience), domain.ServiceTimeouts(input))
 	if err != nil {
 		return appservice.ServiceTimeouts{}, dispatch.Catalog{dispatch.FieldRule(serviceTimeoutsFieldKeys), dispatch.SessionRule}.Translate(meta, err, i18n.ErrorServiceTimeoutsUpdateFailed)
 	}
@@ -174,8 +184,11 @@ func (o *customerServiceOps) UpdateServiceTimeouts(ctx context.Context, meta app
 }
 
 // ListServiceCategories 返回当前企业的咨询分类目录。
-func (o *customerServiceOps) ListServiceCategories(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ServiceCategoryList, error) {
-	records, err := o.listCategories.Execute(ctx, identity)
+func (o *customerServiceOps) ListServiceCategories(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string) (appservice.ServiceCategoryList, error) {
+	if !servicepolicyaction.ValidAudience(domain.ServiceAudience(audience)) {
+		return appservice.ServiceCategoryList{}, appservice.NotFoundError(meta, i18n.ErrorNotFound)
+	}
+	records, err := o.listCategories.Execute(ctx, identity, domain.ServiceAudience(audience))
 	if err != nil {
 		return appservice.ServiceCategoryList{}, serviceCategoryError(meta, err, i18n.ErrorServiceCategoryListFailed)
 	}
@@ -184,8 +197,11 @@ func (o *customerServiceOps) ListServiceCategories(ctx context.Context, meta app
 }
 
 // CreateServiceCategory 新增咨询分类。
-func (o *customerServiceOps) CreateServiceCategory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ServiceCategoryInput) (appservice.ServiceCategory, error) {
-	record, err := o.createCategory.Execute(ctx, identity, servicecategoryaction.Input{Name: input.Name, Description: input.Description, TeamID: input.TeamID})
+func (o *customerServiceOps) CreateServiceCategory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string, input appservice.ServiceCategoryInput) (appservice.ServiceCategory, error) {
+	if err := servicepolicyaction.RequireManage(identity, domain.ServiceAudience(audience)); err != nil {
+		return appservice.ServiceCategory{}, servicePolicyError(meta, err)
+	}
+	record, err := o.createCategory.Execute(ctx, identity, domain.ServiceAudience(audience), servicepolicyaction.Input{Name: input.Name, Description: input.Description, TeamID: input.TeamID})
 	if err != nil {
 		return appservice.ServiceCategory{}, serviceCategoryError(meta, err, i18n.ErrorServiceCategoryCreateFailed)
 	}
@@ -194,8 +210,11 @@ func (o *customerServiceOps) CreateServiceCategory(ctx context.Context, meta app
 }
 
 // UpdateServiceCategory 修改咨询分类。
-func (o *customerServiceOps) UpdateServiceCategory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, categoryID string, input appservice.ServiceCategoryInput) (appservice.ServiceCategory, error) {
-	record, err := o.updateCategory.Execute(ctx, identity, categoryID, servicecategoryaction.Input{Name: input.Name, Description: input.Description, TeamID: input.TeamID})
+func (o *customerServiceOps) UpdateServiceCategory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string, categoryID string, input appservice.ServiceCategoryInput) (appservice.ServiceCategory, error) {
+	if err := servicepolicyaction.RequireManage(identity, domain.ServiceAudience(audience)); err != nil {
+		return appservice.ServiceCategory{}, servicePolicyError(meta, err)
+	}
+	record, err := o.updateCategory.Execute(ctx, identity, domain.ServiceAudience(audience), categoryID, servicepolicyaction.Input{Name: input.Name, Description: input.Description, TeamID: input.TeamID})
 	if err != nil {
 		return appservice.ServiceCategory{}, serviceCategoryError(meta, err, i18n.ErrorServiceCategoryUpdateFailed)
 	}
@@ -204,8 +223,11 @@ func (o *customerServiceOps) UpdateServiceCategory(ctx context.Context, meta app
 }
 
 // DeleteServiceCategory 归档咨询分类。
-func (o *customerServiceOps) DeleteServiceCategory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, categoryID string) error {
-	if err := o.archiveCategory.Execute(ctx, identity, categoryID); err != nil {
+func (o *customerServiceOps) DeleteServiceCategory(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string, categoryID string) error {
+	if err := servicepolicyaction.RequireManage(identity, domain.ServiceAudience(audience)); err != nil {
+		return servicePolicyError(meta, err)
+	}
+	if err := o.archiveCategory.Execute(ctx, identity, domain.ServiceAudience(audience), categoryID); err != nil {
 		return serviceCategoryError(meta, err, i18n.ErrorServiceCategoryDeleteFailed)
 	}
 	slog.InfoContext(ctx, "咨询分类已删除", "service_category_id", categoryID)
@@ -214,15 +236,15 @@ func (o *customerServiceOps) DeleteServiceCategory(ctx context.Context, meta app
 
 // serviceCategoryFieldKeys 把咨询分类校验错误码映射为本地化文案键。
 var serviceCategoryFieldKeys = map[common.FieldCode]i18n.Key{
-	servicecategoryaction.ValidationNameDuplicate: i18n.FieldServiceCategoryNameDuplicate,
-	servicecategoryaction.ValidationTeamInvalid:   i18n.FieldTeamInvalid,
+	servicepolicyaction.ValidationNameDuplicate: i18n.FieldServiceCategoryNameDuplicate,
+	servicepolicyaction.ValidationTeamInvalid:   i18n.FieldTeamInvalid,
 }
 
 // serviceCategoryErrors 是咨询分类操作的错误转换规则。
 var serviceCategoryErrors = dispatch.Catalogs(dispatch.CommonErrors, dispatch.Catalog{
 	dispatch.FieldRule(serviceCategoryFieldKeys),
-	dispatch.Is(servicecategoryaction.ErrNotFound, dispatch.NotFound(i18n.ErrorServiceCategoryNotFound)),
-	dispatch.Is(servicecategoryaction.ErrLimitReached, dispatch.Invalid(i18n.ErrorServiceCategoryLimitReached)),
+	dispatch.Is(servicepolicyaction.ErrNotFound, dispatch.NotFound(i18n.ErrorServiceCategoryNotFound)),
+	dispatch.Is(servicepolicyaction.ErrLimitReached, dispatch.Invalid(i18n.ErrorServiceCategoryLimitReached)),
 })
 
 // serviceCategoryError 把咨询分类操作错误转换为结构化、本地化错误。
@@ -231,7 +253,7 @@ func serviceCategoryError(meta appservice.RequestMeta, err error, failureKey i18
 }
 
 // serviceCategoryFromAction 转换咨询分类契约。
-func serviceCategoryFromAction(record servicecategoryaction.Record) appservice.ServiceCategory {
+func serviceCategoryFromAction(record servicepolicyaction.Record) appservice.ServiceCategory {
 	category := appservice.ServiceCategory{ID: record.ID, Name: record.Name, Description: record.Description, CreatedAt: record.CreatedAt, UpdatedAt: record.UpdatedAt}
 	if record.TeamID != nil && record.TeamName != nil {
 		category.Team = &appservice.TeamSummary{ID: *record.TeamID, Name: *record.TeamName}
@@ -264,8 +286,11 @@ func businessHoursPeriodsToDomain(periods []appservice.BusinessHoursPeriod) []do
 }
 
 // GetServiceSummarySettings 读取当前企业的周期小结设置。
-func (o *customerServiceOps) GetServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.ServiceSummarySettings, error) {
-	settings, err := o.getSummarySettings.Execute(ctx, identity)
+func (o *customerServiceOps) GetServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string) (appservice.ServiceSummarySettings, error) {
+	if err := servicepolicyaction.RequireManage(identity, domain.ServiceAudience(audience)); err != nil {
+		return appservice.ServiceSummarySettings{}, servicePolicyError(meta, err)
+	}
+	settings, err := o.getSummarySettings.Execute(ctx, identity, domain.ServiceAudience(audience))
 	if err != nil {
 		return appservice.ServiceSummarySettings{}, appservice.FailedError(meta, i18n.ErrorServiceSummarySettingsLoadFailed, err)
 	}
@@ -273,9 +298,12 @@ func (o *customerServiceOps) GetServiceSummarySettings(ctx context.Context, meta
 }
 
 // UpdateServiceSummarySettings 修改当前企业的周期小结设置。
-func (o *customerServiceOps) UpdateServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ServiceSummarySettings) (appservice.ServiceSummarySettings, error) {
+func (o *customerServiceOps) UpdateServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, audience string, input appservice.ServiceSummarySettings) (appservice.ServiceSummarySettings, error) {
+	if err := servicepolicyaction.RequireManage(identity, domain.ServiceAudience(audience)); err != nil {
+		return appservice.ServiceSummarySettings{}, servicePolicyError(meta, err)
+	}
 	settings := domain.ServiceSummarySettings{DecisionModelID: input.DecisionModelID, SummaryModelID: input.SummaryModelID, Locale: input.Locale}
-	saved, err := o.updateSummarySettings.Execute(ctx, identity, settings)
+	saved, err := o.updateSummarySettings.Execute(ctx, identity, domain.ServiceAudience(audience), settings)
 	if err != nil {
 		return appservice.ServiceSummarySettings{}, dispatch.Catalog{dispatch.FieldRule(serviceSummarySettingsFieldKeys), dispatch.SessionRule}.Translate(meta, err, i18n.ErrorServiceSummarySettingsUpdateFailed)
 	}
@@ -322,7 +350,7 @@ func (o *customerServiceOps) UpdateServiceSessionSummary(ctx context.Context, me
 func serviceSessionSummaryFromAction(summary servicesessionaction.ServiceSessionSummary) appservice.ServiceSessionSummary {
 	return appservice.ServiceSessionSummary{
 		ServiceSessionID: summary.ServiceSessionID, ConversationID: summary.ConversationID,
-		Source: summary.Source, ChannelType: summary.ChannelType, ChannelName: summary.ChannelName,
+		Audience: summary.Audience, Source: summary.Source, ChannelType: summary.ChannelType, ChannelName: summary.ChannelName,
 		ClosedAt: summary.ClosedAt, CloseReason: summary.CloseReason,
 		Summary: summary.Summary, Resolved: summary.Resolved, CategoryID: summary.CategoryID, CategoryName: summary.CategoryName,
 		EditedAt: summary.EditedAt, EditedBy: summary.EditedByName,
@@ -334,19 +362,19 @@ func serviceSessionSummaryFromAction(summary servicesessionaction.ServiceSession
 
 // businessHoursFieldKeys 把客服工作时间校验错误码映射为本地化文案键。
 var businessHoursFieldKeys = map[common.FieldCode]i18n.Key{
-	customerserviceaction.ValidationTimeZoneInvalid: i18n.FieldTimeZoneInvalid,
-	customerserviceaction.ValidationWeeklyInvalid:   i18n.FieldBusinessHoursWeeklyInvalid,
-	customerserviceaction.ValidationOverrideInvalid: i18n.FieldBusinessHoursOverrideInvalid,
+	servicepolicyaction.ValidationTimeZoneInvalid: i18n.FieldTimeZoneInvalid,
+	servicepolicyaction.ValidationWeeklyInvalid:   i18n.FieldBusinessHoursWeeklyInvalid,
+	servicepolicyaction.ValidationOverrideInvalid: i18n.FieldBusinessHoursOverrideInvalid,
 }
 
 // serviceTimeoutsFieldKeys 把客服超时时长校验错误码映射为本地化文案键。
 var serviceTimeoutsFieldKeys = map[common.FieldCode]i18n.Key{
-	customerserviceaction.ValidationReclaimNotAfterRemind: i18n.FieldServiceReclaimNotAfterReminder,
+	servicepolicyaction.ValidationReclaimNotAfterRemind: i18n.FieldServiceReclaimNotAfterReminder,
 }
 
 // serviceSummarySettingsFieldKeys 把周期小结设置校验错误码映射为本地化文案键。
 var serviceSummarySettingsFieldKeys = map[common.FieldCode]i18n.Key{
-	customerserviceaction.ValidationSummaryModelInvalid: i18n.FieldServiceSummaryModelInvalid,
+	servicepolicyaction.ValidationSummaryModelInvalid: i18n.FieldServiceSummaryModelInvalid,
 }
 
 // serviceSessionSummaryFieldKeys 把小结校验错误码映射为本地化文案键。
@@ -367,4 +395,12 @@ var serviceSessionSummaryErrors = dispatch.Catalog{
 		return nil
 	},
 	dispatch.SessionRule,
+}
+
+// servicePolicyError 转换服务对象与管理权限校验错误。
+func servicePolicyError(meta appservice.RequestMeta, err error) error {
+	if errors.Is(err, servicepolicyaction.ErrAudienceInvalid) {
+		return appservice.NotFoundError(meta, i18n.ErrorNotFound)
+	}
+	return appservice.ForbiddenError(meta, i18n.ErrorPermissionDenied)
 }

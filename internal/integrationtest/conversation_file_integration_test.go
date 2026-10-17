@@ -3,7 +3,6 @@
 package integrationtest
 
 import (
-	"bytes"
 	"context"
 	"io"
 	"testing"
@@ -11,48 +10,44 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
-	"github.com/runforyou-ai/luway/internal/actions/conversationfile"
 	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/common/textfile"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
-	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
 )
 
-// conversationFileFixture 是会话文件区测试的群聊、成员、本地文件存储与文件区读写。
+// conversationFileFixture 是会话文件区测试的群聊、成员、S3 文件存储与文件区读写。
 type conversationFileFixture struct {
 	navigationFixture
-	local   *serverfilecontent.LocalStore
-	store   *conversationfile.Store
-	members *conversationfile.MemberFiles
+	files   *servertest.Files
+	store   *conversationaction.Store
+	members *conversationaction.MemberFiles
 }
 
-// newConversationFileFixture 以临时目录作为本地文件存储创建会话文件区读写。
+// newConversationFileFixture 以隔离 S3 测试桶创建会话文件区读写。
 func newConversationFileFixture(t *testing.T) conversationFileFixture {
 	t.Helper()
-	local, err := serverfilecontent.NewLocalStore(t.TempDir())
-	require.NoError(t, err)
-	settings := func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} }
+	files := servertest.NewFiles(t)
 	f := newNavigationFixture(t)
-	store := conversationfile.NewStore(f.db, func() domain.FileStorageBackend { return domain.FileStorageBackendLocal },
-		serverfilecontent.NewWriter(local, settings), serverfilecontent.NewReader(local, settings))
-	return conversationFileFixture{navigationFixture: f, local: local, store: store, members: conversationfile.NewMemberFiles(store)}
+	store := conversationaction.NewStore(f.db,
+		files.Store, files.Store)
+	return conversationFileFixture{navigationFixture: f, files: files, store: store, members: conversationaction.NewMemberFiles(store)}
 }
 
 // upload 以成员身份上传文件内容并完成上传，返回文件编号。
 func (f conversationFileFixture) upload(t *testing.T, identity *servermodels.Identity, purpose domain.FilePurpose, name string, content []byte) string {
 	t.Helper()
 	ctx := context.Background()
-	file, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, identity, domain.FileStorageBackendLocal, fileaction.UploadInput{
+	file, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, identity, fileaction.UploadInput{
 		Purpose: purpose, FileName: name, ContentType: "text/plain", ByteSize: int64(len(content)),
 	})
 	require.NoError(t, err)
-	require.NoError(t, f.local.Save(ctx, file.StorageKey, bytes.NewReader(content), int64(len(content))))
+	require.NoError(t, f.files.Put(ctx, file.StorageKey, content))
 	_, err = markFileUploaded(ctx, f.db, identity, file.ID, "")
 	require.NoError(t, err)
 	return file.ID
@@ -63,7 +58,7 @@ func (f conversationFileFixture) content(t *testing.T, identity *servermodels.Id
 	t.Helper()
 	_, record, err := f.members.File(context.Background(), identity, f.groupID, id)
 	require.NoError(t, err)
-	reader, err := serverfilecontent.NewReader(f.local, func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} }).Open(context.Background(), record)
+	reader, err := f.files.Store.Open(context.Background(), record)
 	require.NoError(t, err)
 	defer reader.Close()
 	data, err := io.ReadAll(reader)
@@ -88,11 +83,11 @@ func TestConversationFilesMemberAccess(t *testing.T) {
 	require.Equal(t, "方案 (2).md", second.Path)
 	// 其他成员上传的文件、消息附件用途的文件与已加入的文件都不能再次加入。
 	_, err = f.members.AddUpload(ctx, f.owner, f.groupID, f.upload(t, f.member, domain.FilePurposeConversationFile, "其他.md", []byte("x")))
-	require.ErrorIs(t, err, conversationfile.ErrNotFound)
+	require.ErrorIs(t, err, conversationaction.ErrFileNotFound)
 	_, err = f.members.AddUpload(ctx, f.owner, f.groupID, f.upload(t, f.owner, domain.FilePurposeMessageAttachment, "附件.md", []byte("x")))
-	require.ErrorIs(t, err, conversationfile.ErrNotFound)
+	require.ErrorIs(t, err, conversationaction.ErrFileNotFound)
 	_, err = f.members.AddUpload(ctx, f.owner, f.groupID, first.FileID)
-	require.ErrorIs(t, err, conversationfile.ErrNotFound)
+	require.ErrorIs(t, err, conversationaction.ErrFileNotFound)
 
 	// 消息附件保存为新文件，同名时追加序号。
 	message, err := directchataction.NewSendAttachmentMessageAction(f.db, testEnqueuer, nil).Execute(ctx, f.owner, directchataction.AttachmentMessageInput{
@@ -113,14 +108,14 @@ func TestConversationFilesMemberAccess(t *testing.T) {
 	require.Empty(t, cmp.Diff([]string{"方案 (2).md", "方案 (3).md", "方案.md"}, paths))
 
 	// 在会话锁内复核修改人失败时放弃写入，文件区中没有该文件。
-	_, err = f.store.Write(ctx, conversationfile.WriteInput{
+	_, err = f.store.Write(ctx, conversationaction.WriteInput{
 		WorkspaceID: f.owner.Workspace.ID, ConversationID: f.groupID, Path: "revoked.txt", Data: []byte("x"),
-		Mode: conversationfile.WriteNew, SubjectID: f.subjectID, UserID: f.member.User.ID,
+		Mode: conversationaction.WriteNew, SubjectID: f.subjectID, UserID: f.member.User.ID,
 		Authorize: func(context.Context, bun.Tx) error { return conversationaction.ErrConversationNotFound },
 	})
 	require.ErrorIs(t, err, conversationaction.ErrConversationNotFound)
 	_, _, err = f.store.Lookup(ctx, f.owner.Workspace.ID, f.groupID, "", "revoked.txt")
-	require.ErrorIs(t, err, conversationfile.ErrNotFound)
+	require.ErrorIs(t, err, conversationaction.ErrFileNotFound)
 
 	// 不在群内的成员看不到文件区。
 	outsiderEmail := servertest.UniqueEmail("outsider")
@@ -144,11 +139,11 @@ func TestConversationFilesMemberAccess(t *testing.T) {
 	// 删除后文件区不再列出该文件，内容文件交给过期清理。
 	require.NoError(t, f.members.Delete(ctx, f.member, f.groupID, first.ID))
 	_, _, err = f.members.File(ctx, f.owner, f.groupID, first.ID)
-	require.ErrorIs(t, err, conversationfile.ErrNotFound)
+	require.ErrorIs(t, err, conversationaction.ErrFileNotFound)
 	retired := &servermodels.File{ID: first.FileID}
 	require.NoError(t, f.db.NewSelect().Model(retired).WherePK().Scan(ctx))
 	require.Equal(t, string(domain.FileStatusDeleting), retired.Status)
-	require.ErrorIs(t, f.members.Delete(ctx, f.member, f.groupID, first.ID), conversationfile.ErrNotFound)
+	require.ErrorIs(t, f.members.Delete(ctx, f.member, f.groupID, first.ID), conversationaction.ErrFileNotFound)
 
 	// 上传完成后成员被停用时提交被拒绝。
 	pending := f.upload(t, f.member, domain.FilePurposeConversationFile, "disabled.txt", []byte("x"))
@@ -164,33 +159,33 @@ func TestConversationFilesWrite(t *testing.T) {
 	f := newConversationFileFixture(t)
 	ctx := context.Background()
 	subject := f.subjectID
-	write := func(path, content, base string, mode conversationfile.WriteMode) (conversationfile.Entry, error) {
-		return f.store.Write(ctx, conversationfile.WriteInput{
+	write := func(path, content, base string, mode conversationaction.WriteMode) (conversationaction.Entry, error) {
+		return f.store.Write(ctx, conversationaction.WriteInput{
 			WorkspaceID: f.owner.Workspace.ID, ConversationID: f.groupID, Path: path, Data: []byte(content),
 			Mode: mode, BaseHash: base, SubjectID: subject, UserID: f.member.User.ID,
 		})
 	}
 
-	created, err := write("docs/../报告.md", "v1", "", conversationfile.WriteReplace)
+	created, err := write("docs/../报告.md", "v1", "", conversationaction.WriteReplace)
 	require.NoError(t, err)
 	require.Equal(t, "报告.md", created.Path)
 	require.Equal(t, "text/markdown", created.ContentType)
-	_, err = write("../报告.md", "v1", "", conversationfile.WriteReplace)
-	require.ErrorIs(t, err, conversationfile.ErrInvalidPath)
-	_, err = write("报告.md", "v2", "", conversationfile.WriteReplace)
-	require.ErrorIs(t, err, conversationfile.ErrNotRead)
-	_, err = write("报告.md", "v2", textfile.Hash([]byte("other")), conversationfile.WriteReplace)
-	require.ErrorIs(t, err, conversationfile.ErrModified)
-	repeated, err := write("报告.md", "v1", "", conversationfile.WriteReplace)
+	_, err = write("../报告.md", "v1", "", conversationaction.WriteReplace)
+	require.ErrorIs(t, err, conversationaction.ErrInvalidPath)
+	_, err = write("报告.md", "v2", "", conversationaction.WriteReplace)
+	require.ErrorIs(t, err, conversationaction.ErrNotRead)
+	_, err = write("报告.md", "v2", textfile.Hash([]byte("other")), conversationaction.WriteReplace)
+	require.ErrorIs(t, err, conversationaction.ErrModified)
+	repeated, err := write("报告.md", "v1", "", conversationaction.WriteReplace)
 	require.NoError(t, err)
 	require.Equal(t, created.FileID, repeated.FileID)
-	updated, err := write("报告.md", "v2", created.ContentHash, conversationfile.WriteReplace)
+	updated, err := write("报告.md", "v2", created.ContentHash, conversationaction.WriteReplace)
 	require.NoError(t, err)
 	require.Equal(t, created.ID, updated.ID)
 	require.NotEqual(t, created.FileID, updated.FileID)
 	require.Equal(t, []byte("v2"), f.content(t, f.owner, updated.ID))
-	_, err = write("报告.md", "v3", "", conversationfile.WriteNew)
-	require.ErrorIs(t, err, conversationfile.ErrExists)
+	_, err = write("报告.md", "v3", "", conversationaction.WriteNew)
+	require.ErrorIs(t, err, conversationaction.ErrExists)
 
 	// 被替换与未采用的内容文件都交给过期清理。
 	var statuses []string

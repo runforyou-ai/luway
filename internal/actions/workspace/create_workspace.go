@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/internal/storage/server/pgerr"
@@ -28,17 +29,36 @@ type Initializer func(context.Context, bun.Tx, string) error
 
 // Create 在调用方事务内创建工作区、客服设置、内置角色与默认权限，并把账号加为首位管理员成员。
 func Create(ctx context.Context, tx bun.Tx, input CreateInput) (*servermodels.Identity, error) {
+	createdBy := ""
+	if input.Account != nil {
+		createdBy = input.Account.ID
+	}
 	// 工作区访问标识由服务端随机生成并在创建后保持固定。
-	workspace, err := insertWorkspace(ctx, tx, input.Name, func() string {
+	workspace, err := insertWorkspace(ctx, tx, input.Name, createdBy, func() string {
 		return "ws-" + strings.ToLower(rand.Text())
 	})
 	if err != nil {
 		return nil, err
 	}
-	// 客服设置行随工作区创建，各项取列默认值。
+	// 客服设置与媒体理解设置行随工作区创建，各项取列默认值。
 	if _, err := tx.NewInsert().Model(&servermodels.CustomerServiceSetting{WorkspaceID: workspace.ID}).
 		Column("workspace_id").
 		Exec(ctx); err != nil {
+		return nil, err
+	}
+	if _, err := tx.NewInsert().Model(&servermodels.WorkspaceMediaSetting{WorkspaceID: workspace.ID}).
+		Column("workspace_id").
+		Exec(ctx); err != nil {
+		return nil, err
+	}
+
+	// 两类服务策略和评测设置在工作区创建事务中分别初始化。
+	for _, audience := range []domain.ServiceAudience{domain.ServiceAudienceCustomer, domain.ServiceAudienceEmployee} {
+		if _, err := tx.NewInsert().Model(&servermodels.ServicePolicy{WorkspaceID: workspace.ID, Audience: audience}).Column("workspace_id", "audience").Exec(ctx); err != nil {
+			return nil, err
+		}
+	}
+	if _, err := tx.NewInsert().Model(&servermodels.WorkspaceEvaluationSetting{WorkspaceID: workspace.ID}).Column("workspace_id").Exec(ctx); err != nil {
 		return nil, err
 	}
 
@@ -113,18 +133,22 @@ func Create(ctx context.Context, tx bun.Tx, input CreateInput) (*servermodels.Id
 	}, nil
 }
 
-// insertWorkspace 插入工作区，标识冲突时重新生成，最多尝试三次。
-func insertWorkspace(ctx context.Context, tx bun.Tx, name string, generateSlug func() string) (*servermodels.Workspace, error) {
+// insertWorkspace 插入工作区，标识冲突时重新生成，最多尝试三次；createdByAccountID 可为空（回填前旧数据）。
+func insertWorkspace(ctx context.Context, tx bun.Tx, name, createdByAccountID string, generateSlug func() string) (*servermodels.Workspace, error) {
 	for range 3 {
-		workspace := &servermodels.Workspace{Slug: generateSlug(), Name: name}
+		workspace := &servermodels.Workspace{Slug: generateSlug(), Name: name, CreatedByAccountID: createdByAccountID}
+		columns := []string{"slug", "name"}
+		if createdByAccountID != "" {
+			columns = append(columns, "created_by_account_id")
+		}
 		result, err := tx.NewInsert().
 			Model(workspace).
-			Column("slug", "name").
+			Column(columns...).
 			On("CONFLICT (slug) DO NOTHING").
-			Returning("id, lifecycle_status, created_at, updated_at").
+			Returning("id, lifecycle_status, created_at, updated_at, created_by_account_id").
 			Exec(ctx)
 		if pgerr.UniqueViolationOn(err, "workspaces_name_unique") {
-			return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+			return nil, &common.FieldError{Fields: map[string]common.FieldCode{"name": ValidationNameDuplicate}}
 		}
 		if err != nil {
 			return nil, err

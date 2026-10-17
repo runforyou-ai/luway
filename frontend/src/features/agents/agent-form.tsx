@@ -7,7 +7,7 @@ import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
 import { AgentExecutionMode, FilePurpose, createAgent, type ServiceAudience } from "@/api"
-import { AgentModelField } from "@/components/agent-fields/agent-model-field"
+import { AgentModelField } from "@/features/agents/fields/agent-model-field"
 import { FormActions } from "@/components/form/form-actions"
 import { FormInputField } from "@/components/form/form-input-field"
 import { ImagePicker } from "@/components/image-picker"

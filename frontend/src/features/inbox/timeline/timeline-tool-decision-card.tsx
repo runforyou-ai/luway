@@ -9,7 +9,7 @@ import {
   ToolDecisionPermission,
   toolDecisionTitle,
   useToolDecisionStatusText,
-} from "@/components/agent-tool-decision"
+} from "@/features/tool-decisions/public"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"

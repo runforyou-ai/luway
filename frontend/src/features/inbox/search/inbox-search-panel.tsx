@@ -1,4 +1,5 @@
-/** 全局搜索模态的搜索结果：分组结果、会话分页列表和最近打开。 */
+/** 全局搜索模态的搜索结果：分组结果、会话分页列表和恢复建议。 */
+import { SearchIcon, XIcon } from "lucide-react"
 import { useEffect, useRef, type MouseEvent, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -61,18 +62,36 @@ function SearchGroup({
   count,
   viewAllLabel,
   onViewAll,
+  clearLabel,
+  onClear,
   children,
 }: {
   title: string
   count: number
   viewAllLabel?: string
   onViewAll?: () => void
+  clearLabel?: string
+  onClear?: () => void
   children: ReactNode
 }) {
   if (count === 0) return null
   return (
     <section>
-      <h3 className="px-3 pt-2.5 pb-1 text-xs font-semibold text-muted-foreground">{title}</h3>
+      <div className="flex items-center gap-2 px-3 pt-2.5 pb-1">
+        <h3 className="min-w-0 flex-1 text-xs font-semibold text-muted-foreground">{title}</h3>
+        {clearLabel && onClear ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            className="h-auto px-1.5 py-0 text-xs text-muted-foreground"
+            onMouseDown={keepSearchFocus}
+            onClick={onClear}
+          >
+            {clearLabel}
+          </Button>
+        ) : null}
+      </div>
       {children}
       {viewAllLabel && count >= searchGroupLimit ? (
         <Button
@@ -101,6 +120,7 @@ function SearchResultRow({
   title,
   detail,
   time,
+  action,
   onSelect,
   onOpen,
 }: {
@@ -112,66 +132,83 @@ function SearchResultRow({
   title: ReactNode
   detail?: ReactNode
   time?: string
+  action?: ReactNode
   onSelect: (index: number) => void
   onOpen: () => void
 }) {
   return (
-    <button
-      type="button"
-      role="option"
-      aria-selected={selected}
-      aria-disabled={disabled}
+    <div
+      role="presentation"
       data-search-index={index}
       data-inbox-id={inboxId}
       className={cn(
-        "flex w-full min-w-0 items-center gap-2.5 rounded-md px-3 py-1.5 text-left",
+        "flex w-full min-w-0 items-center gap-1 rounded-md",
         selected ? "bg-accent text-accent-foreground" : "hover:bg-muted",
         disabled && "cursor-not-allowed opacity-50",
       )}
-      onMouseDown={keepSearchFocus}
       onMouseMove={() => onSelect(index)}
-      onClick={() => {
-        if (!disabled) onOpen()
-      }}
     >
-      <span className="shrink-0">{avatar}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm">{title}</span>
-        {detail ? (
-          <span className={cn("block truncate text-xs text-muted-foreground", selected && "text-accent-foreground/75")}>{detail}</span>
-        ) : null}
-      </span>
-      {time ? <span className="shrink-0 text-xs text-muted-foreground">{time}</span> : null}
-    </button>
+      <button
+        type="button"
+        role="option"
+        aria-selected={selected}
+        aria-disabled={disabled}
+        disabled={disabled}
+        className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-1.5 text-left outline-none"
+        onMouseDown={keepSearchFocus}
+        onClick={() => {
+          if (!disabled) onOpen()
+        }}
+      >
+        <span className="shrink-0">{avatar}</span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm">{title}</span>
+          {detail ? (
+            <span className={cn("block truncate text-xs text-muted-foreground", selected && "text-accent-foreground/75")}>{detail}</span>
+          ) : null}
+        </span>
+        {time ? <span className="shrink-0 text-xs text-muted-foreground">{time}</span> : null}
+      </button>
+      {action ? <span className="shrink-0 pr-1.5">{action}</span> : null}
+    </div>
   )
 }
 
-/** 渲染分组结果或会话分页列表。 */
-export function InboxSearchPanel({ search, identity }: { search: InboxSearchState; identity: Identity }) {
+/** 渲染分组结果、恢复建议或会话分页列表。 */
+export function InboxSearchPanel({
+  search,
+  identity,
+  onRemoveQuery,
+  onClearQueries,
+}: {
+  search: InboxSearchState
+  identity: Identity
+  onRemoveQuery?: (text: string) => void
+  onClearQueries?: () => void
+}) {
   const { t } = useTranslation(["inbox", "common"])
   const contactName = useContactName()
   const conversationName = useConversationName()
   const formatTime = useConversationTime()
   const listRef = useRef<HTMLDivElement>(null)
   const query = search.text.trim()
+  const querySuggestionCount = search.querySuggestions.length
+  const conversationSuggestionOffset = querySuggestionCount
 
   useEffect(() => {
     // 键盘移动选择时保持选中项可见。
     listRef.current?.querySelector(`[data-search-index="${search.selectedIndex}"]`)?.scrollIntoView({ block: "nearest" })
   }, [search.selectedIndex])
 
-  const conversationRows = (conversations: InboxConversation[]) =>
-    conversations.map((conversation, index) => (
+  const conversationRows = (conversations: InboxConversation[], indexOffset = 0) =>
+    conversations.map((conversation, position) => (
       <SearchResultRow
         key={conversation.id}
-        index={index}
+        index={indexOffset + position}
         inboxId={conversation.id}
-        selected={search.selectedIndex === index}
+        selected={search.selectedIndex === indexOffset + position}
         avatar={<ConversationAvatar conversation={conversation} className="size-7" />}
-        title={highlightName(
-          conversationName(conversation),
-          search.showRecent ? "" : query,
-        )}
+        title={highlightName(conversationName(conversation), search.showSuggestions ? "" : query)}
         onSelect={search.setActiveIndex}
         onOpen={() => search.open({ kind: "conversation", conversation })}
       />
@@ -181,11 +218,47 @@ export function InboxSearchPanel({ search, identity }: { search: InboxSearchStat
   const empty = search.conversations.length + search.messages.length + search.people.length === 0
 
   let body: ReactNode = null
-  if (search.showRecent) {
+  if (search.showSuggestions) {
     body = (
-      <SearchGroup title={t("searchRecent")} count={search.recentConversations.length}>
-        {conversationRows(search.recentConversations)}
-      </SearchGroup>
+      <>
+        <SearchGroup
+          title={t("searchRecentQueries")}
+          count={querySuggestionCount}
+          clearLabel={onClearQueries ? t("searchClearRecentQueries") : undefined}
+          onClear={onClearQueries}
+        >
+          {search.querySuggestions.map((item, position) => (
+            <SearchResultRow
+              key={`query:${item.text}`}
+              index={position}
+              selected={search.selectedIndex === position}
+              avatar={<SearchIcon className="size-4 text-muted-foreground" />}
+              title={highlightName(item.text, query)}
+              action={
+                onRemoveQuery ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-xs"
+                    className="size-6 text-muted-foreground"
+                    aria-label={t("searchRemoveRecentQuery")}
+                    title={t("searchRemoveRecentQuery")}
+                    onMouseDown={keepSearchFocus}
+                    onClick={() => onRemoveQuery(item.text)}
+                  >
+                    <XIcon className="size-3.5" />
+                  </Button>
+                ) : null
+              }
+              onSelect={search.setActiveIndex}
+              onOpen={() => search.selectQuery(item.text)}
+            />
+          ))}
+        </SearchGroup>
+        <SearchGroup title={t("searchRecent")} count={search.recentConversations.length}>
+          {conversationRows(search.recentConversations, conversationSuggestionOffset)}
+        </SearchGroup>
+      </>
     )
   } else if (query && search.paged && !search.pending) {
     body = (

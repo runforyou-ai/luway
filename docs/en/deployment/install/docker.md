@@ -45,7 +45,7 @@ docker exec {{slug}}-server /server status
 
 ## Persistent data
 
-The data directory inside the container is `/var/lib/{{slug}}-server`. When the deployment doesn't use object storage, local files are saved in `files` under it. Mount this directory as a volume so the files survive when the container is recreated. With object storage, files are stored in the bucket. See [File storage](/docs/en/deployment/configure/storage/).
+Files are stored in S3. Configure [File storage](/docs/en/deployment/configure/storage/) after installation. The data directory still holds logs and embedded message queue data; preserve its volume in container deployments.
 
 ## Ports and HTTPS
 

@@ -10,17 +10,51 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support/arr"
 	"github.com/uptrace/bun"
 )
 
-// resolveEmbeddingModel 读取同企业可用的向量模型及其来源，不可用时返回 embedding_model_unavailable。
-func resolveEmbeddingModel(ctx context.Context, db bun.IDB, workspaceID, modelID string) (*aimodel.Model, error) {
-	model, err := aimodel.Resolve(ctx, db, workspaceID, modelID, domain.AIModelUsageEmbedding)
+// resolveEmbeddingModel 读取同企业可用的向量模型及其来源；Auto 时按 sticky 钉住池成员，选型变化时写回知识库。
+func resolveEmbeddingModel(ctx context.Context, db bun.IDB, workspaceID, knowledgeBaseID, modelID, stickyMemberID string) (*aimodel.Model, error) {
+	model, newSticky, err := aimodel.ResolveAutoSticky(ctx, db, workspaceID, modelID, stickyMemberID, domain.AIModelUsageEmbedding)
 	if errors.Is(err, aimodel.ErrUnavailable) {
 		return nil, &modelcall.EmbeddingError{Code: "embedding_model_unavailable"}
 	}
-	return model, err
+	if err != nil {
+		return nil, err
+	}
+	if newSticky != stickyMemberID {
+		if err := persistEmbeddingSticky(ctx, db, workspaceID, knowledgeBaseID, newSticky); err != nil {
+			return nil, err
+		}
+	}
+	return model, nil
+}
+
+// persistEmbeddingSticky 写入或清空知识库的 embedding Auto 钉住成员。
+func persistEmbeddingSticky(ctx context.Context, db bun.IDB, workspaceID, knowledgeBaseID, stickyMemberID string) error {
+	query := db.NewUpdate().Model((*servermodels.KnowledgeBase)(nil)).
+		Where("workspace_id = ?", workspaceID).
+		Where("id = ?", knowledgeBaseID)
+	if stickyMemberID == "" {
+		query = query.Set("embedding_sticky_member_id = NULL")
+	} else {
+		query = query.Set("embedding_sticky_member_id = ?", stickyMemberID)
+	}
+	_, err := query.Exec(ctx)
+	return err
+}
+
+// loadEmbeddingSticky 读取知识库当前钉住的 embedding 池成员编号。
+func loadEmbeddingSticky(ctx context.Context, db bun.IDB, workspaceID, knowledgeBaseID string) (string, error) {
+	var sticky string
+	err := db.NewSelect().Model((*servermodels.KnowledgeBase)(nil)).
+		ColumnExpr("COALESCE(kb.embedding_sticky_member_id::text, '')").
+		Where("kb.workspace_id = ?", workspaceID).
+		Where("kb.id = ?", knowledgeBaseID).
+		Scan(ctx, &sticky)
+	return sticky, err
 }
 
 // indexPublication 固定一次分段发布的来源模型、分段批次、向量模型编号和模型调用所服务的业务对象类型。
@@ -37,7 +71,11 @@ func embedAndPublish(ctx context.Context, db *bun.DB, invoker *modelcall.Invoker
 	if current, err := updateIndexStage(ctx, db, publication.Model, batch.SourceID, batch.BatchID, domain.KnowledgeIndexEmbedding); err != nil || !current {
 		return false, err
 	}
-	model, err := resolveEmbeddingModel(ctx, db, batch.WorkspaceID, publication.EmbeddingModelID)
+	sticky, err := loadEmbeddingSticky(ctx, db, batch.WorkspaceID, batch.KnowledgeBaseID)
+	if err != nil {
+		return false, err
+	}
+	model, err := resolveEmbeddingModel(ctx, db, batch.WorkspaceID, batch.KnowledgeBaseID, publication.EmbeddingModelID, sticky)
 	var failure *modelcall.EmbeddingError
 	if errors.As(err, &failure) {
 		return false, &ProcessError{Code: failure.Code, Stage: domain.KnowledgeIndexEmbedding}

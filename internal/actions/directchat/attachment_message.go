@@ -15,6 +15,7 @@ import (
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
 	"github.com/runforyou-ai/luway/internal/actions/membersend"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -40,7 +41,7 @@ func (a *SendAttachmentMessageAction) Execute(ctx context.Context, identity *ser
 	clientMessageID, valid := str.NormalizeUUID(input.ClientMessageID)
 	input.ClientMessageID = clientMessageID
 	input.Body = strings.TrimSpace(input.Body)
-	fields := map[string]conversationaction.ValidationCode{}
+	fields := map[string]common.FieldCode{}
 	if !valid {
 		fields["clientMessageId"] = conversationaction.ValidationClientMessageIDInvalid
 	}
@@ -66,7 +67,7 @@ func (a *SendAttachmentMessageAction) Execute(ctx context.Context, identity *ser
 		fields["body"] = conversationaction.ValidationBodyTooLong
 	}
 	if len(fields) > 0 {
-		return AttachmentMessageResult{}, &conversationaction.ValidationError{Fields: fields}
+		return AttachmentMessageResult{}, &common.FieldError{Fields: fields}
 	}
 	var result AttachmentMessageResult
 	err := conversationaction.RunInTxWithUniqueRetry(ctx, a.db, map[string]struct{}{

@@ -10,8 +10,6 @@ import (
 )
 
 var (
-	// ErrPageSizeInvalid 表示每页数量超出上限。
-	ErrPageSizeInvalid = errors.New("team performance page size invalid")
 	// ErrDimensionInvalid 表示拆分维度不是渠道或咨询分类。
 	ErrDimensionInvalid = errors.New("team performance dimension invalid")
 	// ErrIssueInvalid 表示问题会话的筛选类型不适用于团队表现。
@@ -20,10 +18,12 @@ var (
 
 // Input 定义报表统计范围：最近 Days 天内关闭的周期，ChannelID 为空表示全部渠道；PublicQueue 限定公共队列，否则 TeamID 限定团队，两者都未给出表示全部队列。
 type Input struct {
-	Days        int
-	ChannelID   string
-	TeamID      string
-	PublicQueue bool
+	Audience      domain.ServiceAudience
+	ServiceSource domain.ServiceSource
+	Days          int
+	ChannelID     string
+	TeamID        string
+	PublicQueue   bool
 }
 
 // Summary 定义统计范围内已关闭周期的整体计数与时长，排除小结状态为无实质诉求的周期，时长以秒计，没有样本时为空。

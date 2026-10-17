@@ -9,7 +9,7 @@ import {
   isGroupInboxConversation,
   type InboxConversation,
 } from "@/api"
-import { PersonalAgentPresenceMark } from "@/components/personal-agent-presence-mark"
+import { PersonalAgentPresenceMark } from "@/features/agents/public"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { messageChannelTypeDefinition } from "@/lib/message-channel-types"
 import { cn } from "@/lib/utils"

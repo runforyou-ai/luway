@@ -29,6 +29,9 @@ import (
 // maxErrorRunes 是调用记录中失败原因保留的字符上限。
 const maxErrorRunes = 1000
 
+// errCallFinished 表示调用已终态，不得再准入或补预占。
+var errCallFinished = errors.New("AI model call already finished")
+
 // Scope 定义一次模型调用的归属：工作区、发起主体与所服务的业务对象。
 type Scope struct {
 	WorkspaceID string
@@ -106,15 +109,16 @@ func (u *Usage) add(other Usage) {
 	u.OutputTokens += other.OutputTokens
 }
 
-// call 是一次进行中的模型调用记录，routes 是本次调用的来源尝试顺序。
+// call 是一次进行中的模型调用记录，routes 是本次调用的来源尝试顺序，estimate 是开始时的预估用量。
 type call struct {
-	invoker *Invoker
-	id      string
-	routes  []aimodel.Route
-	usage   Usage
+	invoker  *Invoker
+	id       string
+	routes   []aimodel.Route
+	estimate Usage
+	usage    Usage
 }
 
-// begin 在同一事务内写入调用记录并执行开始回调，回调失败时整个事务回滚；成功后按来源权重与熔断状态排出本次调用的尝试顺序。
+// begin 在同一事务内写入调用记录并执行开始回调，回调失败时整个事务回滚；成功后按来源权重与熔断状态排出本次调用的尝试顺序。平台 Auto 在首选成员当前不可用时改用后续仍可用的成员预占。
 func (i *Invoker) begin(ctx context.Context, scope Scope, target *aimodel.Model, estimate Usage) (*call, error) {
 	ctx = context.WithoutCancel(ctx)
 	record := &servermodels.AIModelCall{
@@ -127,19 +131,36 @@ func (i *Invoker) begin(ctx context.Context, scope Scope, target *aimodel.Model,
 	if record.ID != "" {
 		columns = append(columns, "id")
 	}
+	routes := attemptOrder(target.Routes, trippedRoutes(ctx, i.db, target.Routes))
 	err := serverstorage.RunInTx(ctx, i.db, func(ctx context.Context, tx bun.Tx) error {
 		if _, err := tx.NewInsert().Model(record).Column(columns...).Returning("id").Exec(ctx); err != nil {
 			return err
 		}
-		if i.lifecycle != nil {
-			return i.lifecycle.Begin(ctx, tx, Facts{CallID: record.ID, WorkspaceID: scope.WorkspaceID, ModelID: target.ID, Scope: target.Scope, Usage: estimate})
+		if i.lifecycle == nil {
+			return nil
 		}
-		return nil
+		facts := Facts{
+			CallID: record.ID, WorkspaceID: scope.WorkspaceID, ModelID: target.ID,
+			Scope: target.Scope, Usage: estimate,
+		}
+		if len(routes) == 0 {
+			return i.lifecycle.Begin(ctx, tx, facts)
+		}
+		var last error
+		for _, route := range routes {
+			facts.PrimaryRouteID = route.ID
+			last = i.lifecycle.Begin(ctx, tx, facts)
+			if errors.Is(last, aimodel.ErrUnavailable) {
+				continue
+			}
+			return last
+		}
+		return last
 	})
 	if err != nil {
 		return nil, fmt.Errorf("record AI model call: %w", err)
 	}
-	return &call{invoker: i, id: record.ID, routes: attemptOrder(target.Routes, trippedRoutes(ctx, i.db, target.Routes))}, nil
+	return &call{invoker: i, id: record.ID, routes: routes, estimate: estimate}, nil
 }
 
 // beginAttempt 写入进行中的上游尝试。
@@ -154,7 +175,7 @@ func (c *call) beginAttempt(ctx context.Context, route aimodel.Route) (string, e
 			return err
 		}
 		if parent == nil {
-			return errors.New("AI model call already finished")
+			return errCallFinished
 		}
 		_, err = tx.NewInsert().Model(record).
 			Column("call_id", "route_id", "provider_id", "provider_name", "identifier", "status").
@@ -216,6 +237,29 @@ func (i *Invoker) run(ctx context.Context, scope Scope, target *aimodel.Model, e
 	}
 	err = errors.New("AI model has no route")
 	for _, route := range record.routes {
+		if authorizer, ok := i.lifecycle.(RouteAuthorizer); ok {
+			authErr := serverstorage.RunInTx(context.WithoutCancel(ctx), i.db, func(ctx context.Context, tx bun.Tx) error {
+				parent, err := lockRunning(ctx, tx, record.id)
+				if err != nil {
+					return err
+				}
+				if parent == nil {
+					return errCallFinished
+				}
+				return authorizer.AuthorizeRoute(ctx, tx, Facts{
+					CallID: record.id, WorkspaceID: scope.WorkspaceID, ModelID: target.ID,
+					PrimaryRouteID: route.ID, Scope: target.Scope, Usage: record.estimate,
+				})
+			})
+			if errors.Is(authErr, aimodel.ErrUnavailable) {
+				slog.WarnContext(ctx, "模型来源当前不可用，跳过", "ai_model_call_id", record.id, "route_id", route.ID, "provider_id", route.ProviderID)
+				continue
+			}
+			if authErr != nil {
+				err = authErr
+				break
+			}
+		}
 		attemptID, beginErr := record.beginAttempt(ctx, route)
 		if beginErr != nil {
 			err = beginErr

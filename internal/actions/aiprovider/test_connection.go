@@ -8,6 +8,7 @@ import (
 	"github.com/runforyou-ai/einorun/provider/apierr"
 	"github.com/runforyou-ai/einorun/provider/probe"
 	"github.com/runforyou-ai/einorun/provider/vendor"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/pkg/connectiontest"
 )
@@ -27,7 +28,7 @@ func NewTestConnectionAction(runner *connectiontest.Runner, client connectiontes
 func (a *TestConnectionAction) Execute(ctx context.Context, input ConnectionInput) error {
 	input, fields := normalizeConnectionInput(input)
 	if len(fields) > 0 {
-		return &ValidationError{Fields: fields}
+		return &common.FieldError{Fields: fields}
 	}
 	return a.runner.Run(ctx, connectionTarget(input.Brand), connectiontest.ProbeFunc(func(ctx context.Context) error {
 		return connectionError(probe.Run(ctx, a.client, probe.Endpoint{

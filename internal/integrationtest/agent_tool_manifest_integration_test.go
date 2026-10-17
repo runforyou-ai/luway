@@ -7,6 +7,7 @@ package integrationtest
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -20,17 +21,16 @@ import (
 	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
-	"github.com/runforyou-ai/luway/internal/actions/conversationfile"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
 	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
-	websearchaction "github.com/runforyou-ai/luway/internal/actions/websearch"
+	"github.com/runforyou-ai/luway/internal/actions/webtools"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/websearch"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
-	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
@@ -49,6 +49,15 @@ func (m *manifestCaptureModel) Generate(_ context.Context, _ []*schema.AgenticMe
 	names := make([]string, 0)
 	for _, info := range model.GetCommonOptions(&model.Options{}, opts...).Tools {
 		names = append(names, info.Name)
+		if info.Name == agentruntime.CustomerHistoryToolName {
+			parameters, err := info.ParamsOneOf.ToJSONSchema()
+			if err != nil {
+				return nil, err
+			}
+			if slices.Contains(parameters.Required, "query") {
+				return nil, fmt.Errorf("历史工具 query 应为可选参数")
+			}
+		}
 	}
 	m.calls = append(m.calls, names)
 	return assistantText("好的"), nil
@@ -144,7 +153,7 @@ func TestAgentToolManifest(t *testing.T) {
 	t.Parallel()
 	db, identity, _, modelID := newAIWorkspace(t)
 	ctx := context.Background()
-	_, err := websearchaction.NewUpdateSettingsAction(db).Execute(ctx, identity, &websearch.Config{Provider: domain.WebSearchProviderTavily, APIKey: "tvly-key"})
+	_, err := webtools.UpdateSearchSettings(ctx, db, identity, &websearch.Config{Provider: domain.WebSearchProviderTavily, APIKey: "tvly-key"})
 	require.NoError(t, err)
 	tasks := servertest.NewTasks()
 	runtime, err := agentruntime.New()
@@ -152,11 +161,9 @@ func TestAgentToolManifest(t *testing.T) {
 	capture := &manifestCaptureModel{}
 	upstreams := fakeUpstreams(nil, nil)
 	upstreams.Chat = func(context.Context, modelprovider.ChatConfig) (model.AgenticModel, error) { return capture, nil }
-	local, err := serverfilecontent.NewLocalStore(t.TempDir())
-	require.NoError(t, err)
-	s3 := func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} }
-	files := conversationfile.NewStore(db, func() domain.FileStorageBackend { return domain.FileStorageBackendLocal },
-		serverfilecontent.NewWriter(local, s3), serverfilecontent.NewReader(local, s3))
+	storage := servertest.NewFiles(t)
+	files := conversationaction.NewStore(db,
+		storage.Store, storage.Store)
 	scheduler := agentrunaction.NewScheduler(tasks)
 	f := &manifestFixture{
 		t: t, ctx: ctx, db: db, identity: identity, modelID: modelID, tasks: scheduler, model: capture,
@@ -246,8 +253,8 @@ func TestAgentToolManifest(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assignment, visible := f.manifestExecute(f.manifestQueuedRun(conversationID))
-		// 员工服务不关联客户，不提供客户历史检索。
-		check(t, assignment, visible, agentruntime.SceneEmployeeService, slices.DeleteFunc(slices.Clone(service), func(name string) bool { return name == agentruntime.CustomerHistoryToolName }))
+		// 员工服务复用历史检索，读取同一发起人以往的服务记录。
+		check(t, assignment, visible, agentruntime.SceneEmployeeService, service)
 	})
 
 	// 重复执行尝试以已写入的快照为准：快照写入后企业关闭联网搜索时，web_search 仍按快照注册，调用时返回不可用，清单与注册结果保持一致。
@@ -266,7 +273,7 @@ func TestAgentToolManifest(t *testing.T) {
 		require.NoError(t, err)
 		_, err = db.NewUpdate().Model((*servermodels.AgentRun)(nil)).Set("behavior_snapshot = ?::jsonb", string(encoded)).Where("id = ?", run.ID).Exec(ctx)
 		require.NoError(t, err)
-		_, err = websearchaction.NewUpdateSettingsAction(db).Execute(ctx, identity, nil)
+		_, err = webtools.UpdateSearchSettings(ctx, db, identity, nil)
 		require.NoError(t, err)
 		assignment, visible := f.manifestExecute(run)
 		require.Contains(t, assignment.Tools, agentruntime.WebSearchToolName, "快照清单")

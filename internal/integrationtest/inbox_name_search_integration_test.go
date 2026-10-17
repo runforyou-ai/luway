@@ -184,7 +184,7 @@ func TestInboxNameSearchRules(t *testing.T) {
 	require.Empty(t, load(f.owner, listAll), "聊天列表范围不应命中客户会话")
 
 	// 已退出的群聊不再命中。
-	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.member, percent.ID))
+	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.member, percent.ID))
 	require.Empty(t, load(f.member, readable("完成率")), "已退出的群聊不应命中")
 	require.Equal(t, []string{percent.ID}, load(f.owner, readable("完成率")), "搜索不应跨企业")
 

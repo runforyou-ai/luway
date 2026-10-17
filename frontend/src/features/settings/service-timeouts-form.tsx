@@ -1,4 +1,5 @@
 /** 企业客服分配与提醒设置表单。 */
+import { useServicePolicyAudience } from "./service-policy-context"
 import { useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -57,7 +58,8 @@ function createServiceTimeoutsSchema(messages: {
 /** 读取客服超时时长并显示设置表单。 */
 export function ServiceTimeoutsSettings() {
   const { t } = useTranslation("settings")
-  const timeouts = useResource(resourceKeys.serviceTimeouts(), () => getServiceTimeouts())
+  const audience = useServicePolicyAudience()
+  const timeouts = useResource(resourceKeys.serviceTimeouts(audience), () => getServiceTimeouts(audience))
   return (
     <ResourceContent resources={timeouts} errorMessage={t("customerService.timeouts.loadError")}>
       {timeouts.data ? (
@@ -78,6 +80,7 @@ export function ServiceTimeoutsSettings() {
 /** 维护未回复提醒、未回复回收、队列等待提醒与 AI 跟进、AI 关闭会话时长，修改后自动保存。 */
 function ServiceTimeoutsForm({ values }: { values: ServiceTimeoutsFormValues }) {
   const { t } = useTranslation("settings")
+  const audience = useServicePolicyAudience()
   const invalidate = useResourceInvalidator()
   const schema = useMemo(
     () =>
@@ -98,14 +101,14 @@ function ServiceTimeoutsForm({ values }: { values: ServiceTimeoutsFormValues }) 
     schema,
     autoSave: true,
     save: async (values) => {
-      await updateServiceTimeouts({
+      await updateServiceTimeouts(audience, {
         responseReminderMinutes: Number(values.responseReminderMinutes),
         responseReclaimMinutes: Number(values.responseReclaimMinutes),
         queueReminderMinutes: Number(values.queueReminderMinutes),
         aiFollowUpMinutes: Number(values.aiFollowUpMinutes),
         aiCloseMinutes: Number(values.aiCloseMinutes),
       })
-      void invalidate(resourceKeys.serviceTimeouts())
+      void invalidate(resourceKeys.serviceTimeouts(audience))
     },
     errorMessage: t("customerService.timeouts.saveError"),
     errorFields: [...timeoutFields],

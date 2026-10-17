@@ -209,12 +209,21 @@ export class SyncCoordinator {
       case "server_hello":
         this.headsRevision += 1
         this.applyHeads(frame.syncHeads, this.headsRevision)
-        // 无同步探针的知识、记忆、操作、渠道与报表数据在订阅就绪后重新读取。
+        // 无同步探针且影响角标/入口的域在订阅就绪后立即重读。
         this.enqueue([
-          ...knowledgeGapKeys(), resourceKeys.agentMemories(), resourceKeys.agentToolDecisions(),
-          resourceKeys.messageChannel(), resourceKeys.messageChannels(),
-          resourceKeys.teamPerformanceReport(), resourceKeys.teamPerformanceMembers(),
-          resourceKeys.teamPerformanceBreakdowns(), resourceKeys.teamPerformanceIssues(), resourceKeys.serviceIssue(),
+          ...knowledgeGapKeys(),
+          resourceKeys.agentToolDecisions(),
+          resourceKeys.messageChannel(),
+          resourceKeys.messageChannels(),
+        ])
+        // 报表与记忆无角标依赖，延后一轮合并窗口再失效，减轻重连风暴。
+        this.enqueueDeferred([
+          resourceKeys.agentMemories(),
+          resourceKeys.teamPerformanceReport(),
+          resourceKeys.teamPerformanceMembers(),
+          resourceKeys.teamPerformanceBreakdowns(),
+          resourceKeys.teamPerformanceIssues(),
+          resourceKeys.serviceIssue(),
         ])
         return
       case "tool_decisions_changed":
@@ -346,6 +355,15 @@ export class SyncCoordinator {
       this.pending.set(JSON.stringify(key), key)
     }
     this.flushTimer ??= setTimeout(() => this.flush(), this.timing.invalidationWindowMs)
+  }
+
+  /** 在下一轮合并窗口再登记失效，用于 hello 后次要域分期刷新。 */
+  private enqueueDeferred(keys: ResourceKey[]) {
+    if (this.disposed || keys.length === 0) {
+      return
+    }
+    const delay = this.timing.invalidationWindowMs * 2
+    setTimeout(() => this.enqueue(keys), delay)
   }
 
   /** 登记展示指定类型会话的聊天列表，在合并窗口结束时与同批其他类型一起失效。 */

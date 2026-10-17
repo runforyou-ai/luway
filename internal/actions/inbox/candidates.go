@@ -3,7 +3,7 @@
 package inbox
 
 import (
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/contact"
 	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -17,7 +17,7 @@ func listable(workspaceID, identityID sqlArg, kind conversationaccess.Kind) sche
 	return conversationaccess.Listable(conversationaccess.Viewer{WorkspaceID: workspaceID, IdentityID: identityID}, "cv", kind)
 }
 
-// serviceConversationAccessQuery 共用服务会话列表范围和公开摘要所需的有效关联；发起人按聊天主体关联联系人或企业身份，渠道只对渠道来源存在；活动时间计入内部消息，末条消息取查看者可见的最后一条。
+// serviceConversationAccessQuery 共用服务会话列表范围和公开摘要所需的有效关联；发起人按聊天主体关联联系人或企业身份，渠道只对渠道来源存在；活动时间计入内部消息。候选只投影 last_activity_at，可见末条消息由详情查询另行关联。
 func (q *LoadInboxQuery) serviceConversationAccessQuery(workspaceID, identityID sqlArg) *bun.SelectQuery {
 	return q.db.NewSelect().TableExpr("service_conversations AS svc").
 		ColumnExpr("cv.id, GREATEST(cv.last_activity_at, cv.last_internal_activity_at) AS last_activity_at").
@@ -28,9 +28,8 @@ func (q *LoadInboxQuery) serviceConversationAccessQuery(workspaceID, identityID 
 		Join("LEFT JOIN workspace_identities AS requester_oi ON requester_oi.id = requester_cs.source_id AND requester_oi.workspace_id = requester_cs.workspace_id AND requester_cs.kind = ?", domain.ChatSubjectKindWorkspaceIdentity).
 		Join("LEFT JOIN channel_conversations AS cc ON cc.conversation_id = svc.conversation_id AND cc.workspace_id = svc.workspace_id").
 		Join("LEFT JOIN channel_identities AS ci ON ci.id = cc.channel_identity_id AND ci.workspace_id = cc.workspace_id").
-		Join("LEFT JOIN channels AS ch ON ch.id = ci.channel_id AND ch.workspace_id = ci.workspace_id").
+		Join("LEFT JOIN channels AS ch ON ch.id = COALESCE(current.channel_id, ci.channel_id) AND ch.workspace_id = current.workspace_id").
 		Join("LEFT JOIN messages AS msg ON msg.id = cv.last_message_id AND msg.workspace_id = cv.workspace_id AND msg.conversation_id = cv.id AND msg.deleted_at IS NULL").
-		Join("LEFT JOIN LATERAL (?) AS last_visible ON TRUE", lastVisibleMessageQuery(q.db, identityID)).
 		Where("svc.workspace_id = ?", workspaceID).
 		Where("?", listable(workspaceID, identityID, conversationaccess.KindService))
 }
@@ -197,8 +196,8 @@ func (q *LoadInboxQuery) matchConversationNames(identity *servermodels.Identity,
 					AND member_cs.source_id <> ? AND `+name("member_oi.display_name")+` ILIKE ?))))
 			OR (cv.type = ? AND `+name("peer_oi.display_name")+` ILIKE ?)
 			OR (cv.type = ? AND (`+name("cv.title")+` ILIKE ? OR `+name("agent_oi.display_name")+` ILIKE ? OR `+name("agent_user_oi.display_name")+` ILIKE ?))
-			OR (cv.type = ? AND (`+name(contactname.Expr("c", "ci.display_name"))+` ILIKE ? OR c.number = ? OR `+name("channel_requester_oi.display_name")+` ILIKE ?))`,
+			OR (cv.type = ? AND (`+name(contact.Expr("c", "ci.display_name"))+` ILIKE ? OR c.number = ? OR `+name("channel_requester_oi.display_name")+` ILIKE ?))`,
 			domain.ConversationTypeGroup, pattern, domain.ChatSubjectKindWorkspaceIdentity, identity.WorkspaceIdentity.ID, pattern,
 			domain.ConversationTypeDirect, pattern,
-			domain.ConversationTypeAgent, pattern, pattern, pattern, domain.ConversationTypeChannel, pattern, contactname.Number(search), pattern)
+			domain.ConversationTypeAgent, pattern, pattern, pattern, domain.ConversationTypeChannel, pattern, contact.Number(search), pattern)
 }

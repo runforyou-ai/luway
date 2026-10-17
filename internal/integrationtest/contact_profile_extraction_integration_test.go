@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	contactprofileaction "github.com/runforyou-ai/luway/internal/actions/contactprofile"
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -26,9 +26,9 @@ func TestContactProfileExtraction(t *testing.T) {
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
 	tasks := servertest.NewTasks()
-	coordinator := newGroupAgentCoordinator(f.db)
+	coordinator := newGroupAgentCanceller(f.db)
 	providerID := seedSummaryModels(t, f.db, f.owner)
-	_, err := customerservice.NewUpdateServiceSummarySettingsAction(f.db).Execute(ctx, f.owner, domain.ServiceSummarySettings{
+	_, err := servicepolicy.NewUpdateServiceSummarySettingsAction(f.db).Execute(ctx, f.owner, domain.ServiceAudienceCustomer, domain.ServiceSummarySettings{
 		DecisionModelID: new(aiModelID(t, f.db, providerID, "decision-model")),
 		SummaryModelID:  new(aiModelID(t, f.db, providerID, "chat-model")),
 		Locale:          domain.LocaleChineseSimplified,

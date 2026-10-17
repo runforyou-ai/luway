@@ -3,12 +3,16 @@ title: Mobile push
 order: 4
 ---
 
-Configure push notifications for mobile apps.
+Configure mobile notification delivery.
 
-This page is being written.
+## Delivery options
 
-## Push options
+Workspace notifications to mobile devices go through a push channel from the server. The current release does not include mobile apps or an official push relay.
 
 ## Official push relay
 
-## Self-managed push
+The official push relay is not available yet. If the server calls the push API, the result is undeliverable rather than a silent success. This page will describe requirements and settings when the relay opens.
+
+## Self-hosted push
+
+A self-hosted push channel is not available yet. Until then, use the web and desktop apps for notifications.

@@ -48,7 +48,7 @@ func TestServiceSessionTeamQueue(t *testing.T) {
 	t.Parallel()
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
-	coordinator := newGroupAgentCoordinator(f.db)
+	coordinator := newGroupAgentCanceller(f.db)
 	scheduler := agentrunaction.NewScheduler(testEnqueuer)
 	claim := servicesessionaction.NewClaimServiceSessionAction(f.db, coordinator, testEnqueuer)
 	transfer := servicesessionaction.NewTransferServiceSessionAction(f.db, coordinator, scheduler, testEnqueuer)

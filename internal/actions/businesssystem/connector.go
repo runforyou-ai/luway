@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/runforyou-ai/luway/internal/agentcontract"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
 	mcpintegration "github.com/runforyou-ai/luway/internal/integration/mcp"
@@ -78,9 +79,9 @@ func (c *Connector) Discover(ctx context.Context, input ConnectionInput) (Discov
 	document, err := c.openapi.Discover(ctx, openapi.Source{SpecURL: connection.SpecURL, Spec: connection.Spec})
 	switch {
 	case errors.Is(err, openapi.ErrSpecInvalid):
-		return Discovery{}, &ValidationError{Fields: map[string]ValidationCode{specField(connection): ValidationSpecInvalid}}
+		return Discovery{}, &common.FieldError{Fields: map[string]common.FieldCode{specField(connection): ValidationSpecInvalid}}
 	case errors.Is(err, openapi.ErrSpecEmpty):
-		return Discovery{}, &ValidationError{Fields: map[string]ValidationCode{specField(connection): ValidationSpecEmpty}}
+		return Discovery{}, &common.FieldError{Fields: map[string]common.FieldCode{specField(connection): ValidationSpecEmpty}}
 	case err != nil:
 		return Discovery{}, err
 	}
@@ -88,7 +89,7 @@ func (c *Connector) Discover(ctx context.Context, input ConnectionInput) (Discov
 		connection.BaseURL = document.ServerURL
 	}
 	if connection.BaseURL == "" {
-		return Discovery{}, &ValidationError{Fields: map[string]ValidationCode{"baseUrl": ValidationBaseURLRequired}}
+		return Discovery{}, &common.FieldError{Fields: map[string]common.FieldCode{"baseUrl": ValidationBaseURLRequired}}
 	}
 	return Discovery{Connection: domain.BusinessSystemConnection{HTTP: &connection}, Tools: document.Tools}, nil
 }

@@ -88,6 +88,14 @@ export interface ConversationWindowInput {
 }
 
 /**
+ * FileInput 定义原生端保存的文件：Name 为建议文件名，Content 为文件内容。
+ */
+export interface FileInput {
+    "name": string;
+    "content": string | null;
+}
+
+/**
  * ImageFile 定义原生端选择的图片文件。
  */
 export interface ImageFile {
@@ -305,14 +313,6 @@ export enum NotificationPermissionStatus {
     NotificationPermissionStatusDenied = "denied",
     NotificationPermissionStatusUnsupported = "unsupported",
 };
-
-/**
- * TextFileInput 定义原生端保存的文本文件：Name 为建议文件名，Content 为 UTF-8 文本内容。
- */
-export interface TextFileInput {
-    "name": string;
-    "content": string;
-}
 
 /**
  * UnreadIndicatorState 定义未读数量和托盘提醒条件。

@@ -168,7 +168,7 @@ func TestSyncHeadsConversationChanges(t *testing.T) {
 		require.NoError(t, err)
 	})
 	expectHeads("移出群", true, 1, func() {
-		_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: second.ID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+		_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: second.ID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 		require.NoError(t, err)
 	})
 
@@ -258,7 +258,7 @@ func TestSyncHeadsIdentityProfile(t *testing.T) {
 		return nil
 	})
 
-	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	heads, err := backend.GetSyncHeads(ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Workspace.ID})
 	stored := loadSyncHeads(t, f.db, lonely)
 	require.NoError(t, err)

@@ -9,7 +9,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import type { CustomerSessionActions } from "@/features/inbox/service/customer-session-actions"
+import type { CustomerSessionActions } from "@/features/inbox/public"
 import { focusDialogContainer } from "@/lib/dialog-focus"
 
 /** 按同事、团队和公共队列分组列出转交去向，选择后关闭面板并执行转交；转交进行中禁用全部去向，关闭后的焦点由 onCloseAutoFocus 处理。 */

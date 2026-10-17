@@ -2,14 +2,16 @@
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
-import type { Identity } from "@/api"
+import { ServiceAudience, type Identity } from "@/api"
+import { AgentEvaluationSettings } from "@/features/settings/agent-evaluation-settings"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { ChangePasswordForm } from "@/features/settings/change-password-form"
-import { CustomerServiceSettings } from "@/features/settings/customer-service-settings"
+import { ServicePolicySettings } from "@/features/settings/service-policy-settings"
 import { ComputerListPage } from "@/features/settings/computer-list-page"
 import { LocalEnvironmentSettings } from "@/features/settings/local-environment-settings"
 import { GeneralSettingsForm } from "@/features/settings/general-settings-form"
+import { MediaUnderstandingSettings } from "@/features/settings/media-understanding-settings"
 import { NotificationSettingsForm } from "@/features/settings/notification-settings-form"
 import { ProfileSettingsForm } from "@/features/settings/profile-settings-form"
 import { UserPreferencesForm } from "@/features/settings/user-preferences-form"
@@ -27,7 +29,10 @@ const formSections = {
   computers: { variant: "default", render: () => <ComputerListPage /> },
   local: { variant: "default", render: () => <LocalEnvironmentSettings /> },
   general: { render: (identity: Identity) => <GeneralSettingsForm workspace={identity.workspace} /> },
-  customerService: { render: () => <CustomerServiceSettings /> },
+  employeeService: { render: () => <ServicePolicySettings key="employee" audience={ServiceAudience.Employee} /> },
+  aiEvaluation: { render: () => <AgentEvaluationSettings /> },
+  mediaUnderstanding: { render: () => <MediaUnderstandingSettings /> },
+  customerService: { render: () => <ServicePolicySettings key="customer" audience={ServiceAudience.Customer} /> },
 } satisfies Record<string, SettingsFormSectionDefinition>
 
 /** 设置页外壳，承载独立的设置页面。 */

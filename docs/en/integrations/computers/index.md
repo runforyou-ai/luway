@@ -17,7 +17,7 @@ A workspace computer belongs to the workspace and keeps working when a member le
 
 The headless executor is a standalone program without a graphical interface for Linux, Windows, and macOS on x64 and ARM64. You can get it in one of these ways:
 
-- Download: **Download executor** in the dialog opens this server's download page. In the **Workspace computer executor** section, download the archive that matches the server version and extract the executor program.
+- Download: **Download executor** in the dialog opens this server's download page. In the **Shared computer executor** section, download the archive that matches the server version and extract the executor program.
 - Container image: the executor image is published with each release in the same registry as the server image. Its name is the server image name with the trailing `-server` replaced by `-executor`, and its tag matches the server version. It includes bash, git, and curl and supports x64 and ARM64.
 - Build from source: run `wails3 task build:executor` in the repository root (set the architecture with `ARCH`); the program is written to `bin/`. Run `wails3 task build:docker:executor` to build the container image.
 

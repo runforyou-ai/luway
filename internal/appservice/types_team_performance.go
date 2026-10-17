@@ -2,6 +2,9 @@ package appservice
 
 // TeamPerformanceReportInput 定义团队表现报表的统计范围：最近 Days 天内结束的会话，ChannelID 为空表示全部渠道；PublicQueue 限定公共队列，否则 TeamID 限定团队，两者都未给出表示全部队列。
 type TeamPerformanceReportInput struct {
+	Audience      ServiceAudience `json:"audience,omitempty" query:"audience" validate:"omitempty,oneof=customer employee" msg:"field.service_audience_invalid"`
+	ServiceSource ServiceSource   `json:"serviceSource,omitempty" query:"serviceSource" validate:"omitempty,oneof=channel direct" msg:"error.validation_failed"`
+
 	Days        int    `json:"days" query:"days,default=30"`
 	ChannelID   string `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
 	TeamID      string `json:"teamId" query:"teamId" validate:"omitempty,uuid" msg:"error.team_not_found"`
@@ -36,12 +39,14 @@ type TeamPerformanceReport struct {
 
 // TeamPerformanceMemberListInput 定义客服表现的统计范围与分页。
 type TeamPerformanceMemberListInput struct {
-	Days        int    `json:"days" query:"days,default=30"`
-	ChannelID   string `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
-	TeamID      string `json:"teamId" query:"teamId" validate:"omitempty,uuid" msg:"error.team_not_found"`
-	PublicQueue bool   `json:"publicQueue" query:"publicQueue"`
-	Page        int    `json:"page" query:"page,default=1"`
-	PageSize    int    `json:"pageSize" query:"pageSize,default=50"`
+	Audience      ServiceAudience `json:"audience,omitempty" query:"audience" validate:"omitempty,oneof=customer employee" msg:"field.service_audience_invalid"`
+	ServiceSource ServiceSource   `json:"serviceSource,omitempty" query:"serviceSource" validate:"omitempty,oneof=channel direct" msg:"error.validation_failed"`
+	Days          int             `json:"days" query:"days,default=30"`
+	ChannelID     string          `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
+	TeamID        string          `json:"teamId" query:"teamId" validate:"omitempty,uuid" msg:"error.team_not_found"`
+	PublicQueue   bool            `json:"publicQueue" query:"publicQueue"`
+	Page          int             `json:"page" query:"page,default=1"`
+	PageSize      int             `json:"pageSize" query:"pageSize,default=50"`
 }
 
 // TeamPerformanceMember 定义一位客服在统计范围内关闭时由其负责的周期：Closed 为周期数，Satisfied 与 SatisfactionJudged 为其中推断满意与已判定满意度的周期数，Issues 为其中不满意、真人答错或态度问题成立的周期数。
@@ -63,13 +68,15 @@ type TeamPerformanceMemberList struct {
 
 // TeamPerformanceBreakdownInput 定义按维度拆分的统计范围与分页。
 type TeamPerformanceBreakdownInput struct {
-	Days        int                    `json:"days" query:"days,default=30"`
-	ChannelID   string                 `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
-	TeamID      string                 `json:"teamId" query:"teamId" validate:"omitempty,uuid" msg:"error.team_not_found"`
-	PublicQueue bool                   `json:"publicQueue" query:"publicQueue"`
-	Dimension   ServiceReportDimension `json:"dimension" query:"dimension"`
-	Page        int                    `json:"page" query:"page,default=1"`
-	PageSize    int                    `json:"pageSize" query:"pageSize,default=50"`
+	Audience      ServiceAudience        `json:"audience,omitempty" query:"audience" validate:"omitempty,oneof=customer employee" msg:"field.service_audience_invalid"`
+	ServiceSource ServiceSource          `json:"serviceSource,omitempty" query:"serviceSource" validate:"omitempty,oneof=channel direct" msg:"error.validation_failed"`
+	Days          int                    `json:"days" query:"days,default=30"`
+	ChannelID     string                 `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
+	TeamID        string                 `json:"teamId" query:"teamId" validate:"omitempty,uuid" msg:"error.team_not_found"`
+	PublicQueue   bool                   `json:"publicQueue" query:"publicQueue"`
+	Dimension     ServiceReportDimension `json:"dimension" query:"dimension"`
+	Page          int                    `json:"page" query:"page,default=1"`
+	PageSize      int                    `json:"pageSize" query:"pageSize,default=50"`
 }
 
 // TeamPerformanceBreakdown 定义按渠道或咨询分类拆分的已关闭周期数、需要过真人的周期数与按工作时间计的真人首响中位数（秒，没有样本时为空）；ID 为空表示未分类。
@@ -89,11 +96,13 @@ type TeamPerformanceBreakdownList struct {
 
 // TeamPerformanceIssueListInput 定义真人接待问题会话的统计范围、问题类型与分页。
 type TeamPerformanceIssueListInput struct {
-	Days        int              `json:"days" query:"days,default=30"`
-	ChannelID   string           `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
-	TeamID      string           `json:"teamId" query:"teamId" validate:"omitempty,uuid" msg:"error.team_not_found"`
-	PublicQueue bool             `json:"publicQueue" query:"publicQueue"`
-	Issue       ServiceIssueType `json:"issue" query:"issue,default=all"`
-	Page        int              `json:"page" query:"page,default=1"`
-	PageSize    int              `json:"pageSize" query:"pageSize,default=50"`
+	Audience      ServiceAudience  `json:"audience,omitempty" query:"audience" validate:"omitempty,oneof=customer employee" msg:"field.service_audience_invalid"`
+	ServiceSource ServiceSource    `json:"serviceSource,omitempty" query:"serviceSource" validate:"omitempty,oneof=channel direct" msg:"error.validation_failed"`
+	Days          int              `json:"days" query:"days,default=30"`
+	ChannelID     string           `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
+	TeamID        string           `json:"teamId" query:"teamId" validate:"omitempty,uuid" msg:"error.team_not_found"`
+	PublicQueue   bool             `json:"publicQueue" query:"publicQueue"`
+	Issue         ServiceIssueType `json:"issue" query:"issue,default=all"`
+	Page          int              `json:"page" query:"page,default=1"`
+	PageSize      int              `json:"pageSize" query:"pageSize,default=50"`
 }

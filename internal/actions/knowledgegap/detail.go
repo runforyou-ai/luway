@@ -31,6 +31,8 @@ type Message struct {
 
 // Detail 定义待补知识详情：来源周期的对客沟通、AI 起草的问答、默认加入的知识库与处理结果。
 type Detail struct {
+	Audience                  domain.ServiceAudience `bun:"audience"`
+	ServiceSource             domain.ServiceSource   `bun:"service_source"`
 	servermodels.KnowledgeGap `bun:",extend"`
 	Question                  string    `bun:"question"`
 	CategoryName              *string   `bun:"category_name"`
@@ -52,7 +54,7 @@ func (q *GetQuery) Execute(ctx context.Context, identity *servermodels.Identity,
 	detail := &Detail{}
 	err := q.db.NewSelect().Model(detail).
 		ColumnExpr("kg.*").
-		ColumnExpr("sc.name AS category_name, ss.agent_identity_id").
+		ColumnExpr("svc.audience, svc.source AS service_source, sc.name AS category_name, ss.agent_identity_id").
 		ColumnExpr("? AS handleable", handleableSQL(identity)).
 		ColumnExpr("coalesce(CASE WHEN qm.deleted_at IS NULL THEN qm.body END, '') AS question").
 		// 提问为未删除、有正文的文字消息，接待的 AI 员工仍服务该周期的服务对象，且提问尚未加入评测时可以加入；规则与 agentevaluation 的 addCapturedCase 一致。
@@ -64,6 +66,7 @@ func (q *GetQuery) Execute(ctx context.Context, identity *servermodels.Identity,
 			q.db.NewSelect().TableExpr("agent_evaluation_cases AS aec").ColumnExpr("1").
 				Where("aec.workspace_id = kg.workspace_id AND aec.question_message_id = kg.question_message_id")).
 		Join("JOIN service_sessions AS ss ON ss.id = kg.service_session_id AND ss.workspace_id = kg.workspace_id").
+		Join("JOIN service_conversations AS svc ON svc.workspace_id = ss.workspace_id AND svc.id = ss.service_conversation_id").
 		Join("LEFT JOIN service_categories AS sc ON sc.id = ss.category_id AND sc.workspace_id = ss.workspace_id").
 		Join("LEFT JOIN messages AS qm ON qm.id = kg.question_message_id AND qm.workspace_id = kg.workspace_id").
 		Where("kg.workspace_id = ? AND kg.id = ?", identity.Workspace.ID, id).

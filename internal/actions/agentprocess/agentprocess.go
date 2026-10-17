@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/runforyou-ai/einorun"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -111,7 +110,7 @@ func SettleEndedRuns(ctx context.Context, db bun.IDB, workspaceID string, runIDs
 	if _, err := db.NewUpdate().Model((*servermodels.AgentToolCall)(nil)).
 		Set("status = ?", domain.AgentToolCallCancelled).
 		Set("completed_at = now()").
-		Where("workspace_id = ? AND agent_run_id IN (?) AND handover IS DISTINCT FROM ? AND local_agent_session_id IS NULL", workspaceID, bun.List(runIDs), einorun.HandoverSubmitted).
+		Where("workspace_id = ? AND agent_run_id IN (?) AND handover IS DISTINCT FROM ? AND local_agent_session_id IS NULL", workspaceID, bun.List(runIDs), agentcontract.HandoverSubmitted).
 		Where("status IN (?)", bun.List([]domain.AgentToolCallStatus{domain.AgentToolCallQueued, domain.AgentToolCallWaiting})).
 		Exec(ctx); err != nil {
 		return fmt.Errorf("cancel pending agent tool calls: %w", err)
@@ -140,7 +139,7 @@ func SettleEndedRuns(ctx context.Context, db bun.IDB, workspaceID string, runIDs
 	}
 	var running []servermodels.AgentToolCall
 	if err := db.NewSelect().Model(&running).
-		Where("atc.workspace_id = ? AND atc.agent_run_id IN (?) AND atc.status = ? AND atc.handover IS DISTINCT FROM ?", workspaceID, bun.List(runIDs), domain.AgentToolCallRunning, einorun.HandoverSubmitted).
+		Where("atc.workspace_id = ? AND atc.agent_run_id IN (?) AND atc.status = ? AND atc.handover IS DISTINCT FROM ?", workspaceID, bun.List(runIDs), domain.AgentToolCallRunning, agentcontract.HandoverSubmitted).
 		OrderExpr("atc.id").For("UPDATE").Scan(ctx); err != nil {
 		return fmt.Errorf("lock running agent tool calls: %w", err)
 	}

@@ -15,6 +15,7 @@ import (
 	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
 	"github.com/runforyou-ai/luway/internal/actions/seat"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -44,7 +45,7 @@ func NewUpdateStatusAction(db *bun.DB, enqueuer servertask.TxEnqueuer, seats sea
 // Execute 禁用或恢复用户账号，管理员只有管理员可以禁用或恢复，并在禁用时清理渠道分配、把其负责的开放客服周期退回原队列、停用其负责的个人 AI 员工、取消等待其确认或审批的 AI 员工操作；恢复时校验席位上限，个人 AI 员工保持停用。平台管理员的成员身份不可停用。
 func (a *UpdateStatusAction) Execute(ctx context.Context, identity *servermodels.Identity, userID string, status domain.IdentityStatus) (*User, error) {
 	if status != domain.IdentityStatusActive && status != domain.IdentityStatusInactive {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"status": ValidationStatusInvalid}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"status": ValidationStatusInvalid}}
 	}
 	var output *User
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {

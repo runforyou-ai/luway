@@ -29,7 +29,7 @@ func TestInboxIndependentConversation(t *testing.T) {
 	f := newNavigationFixture(t)
 	ctx := context.Background()
 	login := servertest.LoginMember(t, f.db, f.owner.Workspace.ID, f.member.Account.Email, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	meta := appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Workspace.ID}
 	summary, err := backend.GetInboxConversation(ctx, meta, f.groupID)
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestInboxIndependentConversation(t *testing.T) {
 		require.ErrorAs(t, err, &apiError)
 		require.Equal(t, "conversation_unavailable", apiError.Reason)
 	}
-	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 	require.NoError(t, err)
 	request.Query.Scope = domain.InboxScopeChat
 	batch, err = backend.ReadInboxConversations(ctx, meta, request)
@@ -72,7 +72,7 @@ func TestInboxIndependentConversation(t *testing.T) {
 	require.Equal(t, appservice.InboxConversationUnavailable, batch.Results[0].Availability)
 	_, err = groupchataction.NewAddGroupConversationMembersAction(f.db).Execute(ctx, f.owner, groupchataction.GroupConversationMembersInput{ConversationID: f.groupID, MemberIdentityIDs: []string{f.member.WorkspaceIdentity.ID}})
 	require.NoError(t, err)
-	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, f.groupID)
+	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, f.groupID)
 	require.NoError(t, err)
 	summary, err = backend.GetInboxConversation(ctx, meta, f.groupID)
 	require.NoError(t, err)

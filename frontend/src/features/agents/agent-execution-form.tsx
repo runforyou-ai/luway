@@ -3,7 +3,7 @@ import { useEffect, useMemo } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 
-import { updateAgentExecution, type AgentData } from "@/api"
+import { PermissionCode, updateAgentExecution, type AgentData } from "@/api"
 import { AgentBehaviorSummary } from "@/components/agent-behavior-summary"
 import {
   Field,
@@ -12,13 +12,14 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Textarea } from "@/components/ui/textarea"
-import { AgentKnowledgeField } from "@/components/agent-fields/agent-knowledge-field"
-import { AgentBusinessSystemsField } from "@/components/agent-fields/agent-business-systems-field"
-import { AgentModelField } from "@/components/agent-fields/agent-model-field"
+import { AgentKnowledgeField } from "@/features/agents/fields/agent-knowledge-field"
+import { AgentBusinessSystemsField } from "@/features/agents/fields/agent-business-systems-field"
+import { AgentModelField } from "@/features/agents/fields/agent-model-field"
 import {
   createAgentExecutionSchema,
   type AgentExecutionFormValues,
 } from "@/features/agents/agent-schema"
+import { usePermission } from "@/contexts/workspace-context"
 import { useFormLifetime } from "@/hooks/use-form-lifetime"
 import { useAutoSave } from "@/hooks/use-auto-save"
 import { useRequestErrorReporter } from "@/hooks/use-request-error-reporter"
@@ -33,6 +34,7 @@ export function AgentExecutionForm({
   onSaved: () => void
 }) {
   const { t } = useTranslation(["agents", "common"])
+  const canManageBusinessSystems = usePermission(PermissionCode.PermissionWorkspaceManage)
   const reportError = useRequestErrorReporter()
   const schema = useMemo(
     () =>
@@ -147,7 +149,7 @@ export function AgentExecutionForm({
             <Field>
               <FieldLabel>{t("businessSystems.label")}</FieldLabel>
               <FieldDescription>{t("businessSystems.help")}</FieldDescription>
-              <AgentBusinessSystemsField value={field.value} onChange={field.onChange} disabled={form.formState.isSubmitting} />
+              <AgentBusinessSystemsField canManage={canManageBusinessSystems} value={field.value} onChange={field.onChange} disabled={form.formState.isSubmitting} />
             </Field>
           )}
         />

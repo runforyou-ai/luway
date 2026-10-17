@@ -25,7 +25,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/integration/wechat"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
-	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
@@ -114,13 +113,12 @@ func TestWechatInbound(t *testing.T) {
 	client := wechat.NewClient(server.Client(), wechat.WithBaseURL(server.URL))
 	tasks := servertest.NewTasks()
 	deployment := servertest.NewDeployment(t, db)
-	service := direct.New(db, direct.DeploymentConfig{Deployment: deployment, Wechat: client}, nil, nil, nil, tasks, nil, nil, nil)
+	service := direct.New(db, direct.DeploymentConfig{Deployment: deployment, Wechat: client}, nil, nil, tasks, nil, nil, nil)
 	adapters := channeladapter.NewRegistry()
 	adapters.Register(domain.ChannelTypeWechatKey, wechataction.NewAdapter(db, client, domain.ChannelTypeWechatKey))
 	adapters.Register(domain.ChannelTypeWechatAuthorization, wechataction.NewAdapter(db, client, domain.ChannelTypeWechatAuthorization))
-	local, err := serverfilecontent.NewLocalStore(t.TempDir())
-	require.NoError(t, err)
-	writer := serverfilecontent.NewWriter(local, func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} })
+	files := servertest.NewFiles(t)
+	writer := files.Store
 	scheduler := &countingAgentScheduler{}
 	retrieve := channelinboundaction.NewRetrieveMediaAction(db, adapters, writer, scheduler)
 	f := &wechatInboundFixture{
@@ -129,15 +127,21 @@ func TestWechatInbound(t *testing.T) {
 			api.WithWechatPlatformEvents(wechataction.NewReceivePlatformEventAction(db, tasks)),
 			api.WithWechatMessages(wechataction.NewReceiveMessageAction(db, tasks)),
 		),
-		receiver: channelinboundaction.NewReceiveEventAction(db, adapters, scheduler, localStorage, tasks, retrieve, func() string { return servertest.PublicURL }),
+		receiver: channelinboundaction.NewReceiveEventAction(db, adapters, scheduler, tasks, retrieve, func() string { return servertest.PublicURL }),
 		tasks:    tasks,
 	}
-	installed, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
+	admin := servertest.InstallPlatform(t, service, appservice.InstallPlatformInput{
 		PublicURL: servertest.PublicURL, WorkspaceName: "公众号消息", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: domain.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	adminMeta := servertest.AdminMeta(admin.AdminToken)
+	userAuth, err := service.Login(ctx, appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}, appservice.LoginInput{Email: "admin@example.test", Password: "password123"})
 	require.NoError(t, err)
-	meta := appservice.RequestMeta{Token: installed.Auth.Token, WorkspaceID: installed.Workspace.ID, Locale: domain.LocaleChineseSimplified}
+	workspaces, err := service.ListWorkspaces(ctx, appservice.RequestMeta{Token: userAuth.Token, Locale: domain.LocaleChineseSimplified})
+	require.NoError(t, err)
+	require.Len(t, workspaces.Items, 1)
+	workspace := workspaces.Items[0]
+	meta := appservice.RequestMeta{Token: userAuth.Token, WorkspaceID: workspace.ID, Locale: domain.LocaleChineseSimplified}
 
 	// 连接密钥接入渠道，渠道详情给出服务器地址。
 	appID := randomWechatAppID()
@@ -234,7 +238,7 @@ func TestWechatInbound(t *testing.T) {
 
 	// 配置平台后为同一公众号建立授权接入渠道。
 	fake.set("/cgi-bin/component/api_component_token", `{"component_access_token":"platform-token","expires_in":7200}`)
-	_, err = service.SaveWechatPlatform(ctx, meta, appservice.WechatPlatformInput{
+	_, err = service.SaveWechatPlatform(ctx, adminMeta, appservice.WechatPlatformInput{
 		ComponentAppID: testComponentAppID, ComponentAppSecret: "secret", Token: testComponentToken, EncodingAESKey: testComponentAESKey,
 	})
 	require.NoError(t, err)
@@ -243,7 +247,7 @@ func TestWechatInbound(t *testing.T) {
 	_, err = db.NewUpdate().TableExpr("channels").Set("provider_account_id = ?", appID).Where("id = ?", authorizationChannelID).Exec(ctx)
 	require.NoError(t, err)
 	_, err = db.NewRaw(`INSERT INTO wechat_authorizations (channel_id, workspace_id, component_app_id, refresh_token, permission_ids, nick_name, head_image_url, principal_name, user_name, authorized_at)
-		VALUES (?, ?, ?, 'refresh', '{1,2,11}', '服务号', '', '主体', 'gh_test', now())`, authorizationChannelID, installed.Workspace.ID, testComponentAppID).Exec(ctx)
+		VALUES (?, ?, ?, 'refresh', '{1,2,11}', '服务号', '', '主体', 'gh_test', now())`, authorizationChannelID, workspace.ID, testComponentAppID).Exec(ctx)
 	require.NoError(t, err)
 
 	// 第三方平台转发的推送按平台凭据解密，同一 OpenID 在授权接入渠道中对应同一联系人；未授权的公众号照常回复 success。
@@ -282,7 +286,7 @@ func TestWechatInbound(t *testing.T) {
 			<-start
 			assert.NoError(t, db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
 				ensured, err := contactaction.EnsureChannelIdentity(ctx, tx, contactaction.EnsureChannelIdentityInput{
-					WorkspaceID: installed.Workspace.ID, ChannelID: channelID, ExternalID: "o-user-3",
+					WorkspaceID: workspace.ID, ChannelID: channelID, ExternalID: "o-user-3",
 					ContactID: uuid.NewV7().String(), IdentityID: uuid.NewV7().String(),
 				})
 				if err == nil {

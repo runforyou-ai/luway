@@ -18,7 +18,7 @@ import {
   groupProfileSchema,
   groupTitleMaxLength,
   groupDescriptionMaxLength,
-} from "@/features/inbox/group/group-conversation-schema"
+} from "@/features/inbox/public"
 import { useFormLifetime } from "@/hooks/use-form-lifetime"
 import { usePendingImageUpload } from "@/hooks/use-pending-image-upload"
 import { recoverSession } from "@/lib/session-navigation"

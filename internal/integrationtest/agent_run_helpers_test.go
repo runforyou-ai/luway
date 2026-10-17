@@ -4,7 +4,7 @@ package integrationtest
 
 import (
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
-	"github.com/runforyou-ai/luway/internal/actions/conversationfile"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	servicehandoffaction "github.com/runforyou-ai/luway/internal/actions/servicehandoff"
@@ -24,11 +24,11 @@ type testAgentRun struct {
 
 // newTestAgentRun 按 Agent 运行执行的构造参数创建测试用的运行执行、停止与取消、服务周期退回与转人工承接处理。
 func newTestAgentRun(db *bun.DB, enqueuer servertask.TxEnqueuer, runtime agentruntime.Runtime, invoker *modelcall.Invoker, attachments *agentrunaction.AttachmentReader,
-	knowledge agentrunaction.KnowledgeRetrieval, emailSender customernotify.Sender, sharedFiles *conversationfile.Store, documents agentrunaction.DocumentConverter) *testAgentRun {
+	knowledge agentrunaction.KnowledgeRetrieval, emailSender customernotify.Sender, sharedFiles *conversationaction.Store, documents agentrunaction.DocumentConverter) *testAgentRun {
 	return &testAgentRun{
 		ExecuteAction:         agentrunaction.NewExecuteAction(db, enqueuer, runtime, invoker, attachments, knowledge, emailSender, sharedFiles, documents),
 		RunCancellation:       agentrunaction.NewRunCancellation(db, enqueuer),
-		Returner:              servicehandoffaction.NewReturner(enqueuer),
+		Returner:              servicehandoffaction.NewReturner(enqueuer, agentrunaction.CancelServiceSessionRuns),
 		ReturnedHandoffAction: servicehandoffaction.NewReturnedHandoffAction(db, enqueuer, emailSender),
 	}
 }

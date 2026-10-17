@@ -10,12 +10,11 @@ import (
 	"log/slog"
 	"uuid"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/channeldelivery"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
+	servicepolicyaction "github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
 	"github.com/runforyou-ai/luway/internal/actions/servicestate"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
@@ -69,7 +68,11 @@ func customerHandoffNotice(ctx context.Context, db bun.IDB, emailSender customer
 	if err != nil {
 		return "", err
 	}
-	employee := domain.ChannelCapabilitiesOf(domain.ChannelType(channel.Type)).Audience == domain.ServiceAudienceEmployee
+	policy, err := servicepolicyaction.ForConversation(ctx, db, channel.WorkspaceID, conversationID)
+	if err != nil {
+		return "", err
+	}
+	employee := policy.Audience == domain.ServiceAudienceEmployee
 	if assigneeName != nil {
 		key := i18n.AgentCustomerHandoffAssigned
 		if employee {
@@ -77,7 +80,7 @@ func customerHandoffNotice(ctx context.Context, db bun.IDB, emailSender customer
 		}
 		return i18n.LocalizeCustomerTemplate(locale, key, map[string]any{"Name": *assigneeName}), nil
 	}
-	notice, err := queuedHandoffNotice(ctx, db, channel.WorkspaceID, locale, employee)
+	notice, err := queuedHandoffNotice(ctx, db, channel.WorkspaceID, locale, policy.Audience)
 	if err != nil {
 		return "", err
 	}
@@ -88,9 +91,9 @@ func customerHandoffNotice(ctx context.Context, db bun.IDB, emailSender customer
 	return notice + "\n\n" + i18n.LocalizeCustomerTemplate(locale, i18n.AgentCustomerHandoffEmailRequest, nil), nil
 }
 
-// queuedHandoffNotice 生成留在队列的转人工话术：数据库时刻在工作时间内时告知排队，非工作时间告知下次处理时间；employee 为真时使用面向同事的话术。
-func queuedHandoffNotice(ctx context.Context, db bun.IDB, workspaceID string, locale domain.CustomerLocale, employee bool) (string, error) {
-	hours, err := customerserviceaction.LoadBusinessHours(ctx, db, workspaceID)
+// queuedHandoffNotice 生成留在队列的转人工话术：数据库时刻在工作时间内时告知排队，非工作时间告知下次处理时间；员工服务使用面向同事的话术。
+func queuedHandoffNotice(ctx context.Context, db bun.IDB, workspaceID string, locale domain.CustomerLocale, audience domain.ServiceAudience) (string, error) {
+	hours, err := servicepolicyaction.LoadBusinessHours(ctx, db, workspaceID, audience)
 	if err != nil {
 		return "", err
 	}
@@ -99,7 +102,7 @@ func queuedHandoffNotice(ctx context.Context, db bun.IDB, workspaceID string, lo
 		return "", err
 	}
 	queued, afterHours, unscheduled := i18n.AgentCustomerHandoffQueued, i18n.AgentCustomerHandoffAfterHours, i18n.AgentCustomerHandoffAfterHoursUnscheduled
-	if employee {
+	if audience == domain.ServiceAudienceEmployee {
 		queued, afterHours, unscheduled = i18n.EmployeeChannelHandoffQueued, i18n.EmployeeChannelHandoffAfterHours, i18n.EmployeeChannelHandoffAfterHoursUnscheduled
 	}
 	if hours.Open(now) {
@@ -210,13 +213,13 @@ func (a *ReturnedHandoffAction) HandOffReturnedSession(ctx context.Context, inpu
 		if err != nil {
 			return err
 		}
-		participantID, err := agentmessage.EnsureCustomerParticipant(ctx, tx, input.WorkspaceID, session.ConversationID, input.AgentIdentityID)
+		participantID, err := chatstate.EnsureCustomerParticipant(ctx, tx, input.WorkspaceID, session.ConversationID, input.AgentIdentityID)
 		if err != nil {
 			return err
 		}
 		// 对客通知不结束客户等待，写入后恢复通知前的等待起点与本轮提醒时间。
 		awaitingReplySince, remindedAt := session.AwaitingReplySince, session.RemindedAt
-		if _, err := agentmessage.AppendCustomer(ctx, tx, a.enqueuer, conversation, session, deliveryRoute, &servermodels.Message{
+		if _, err := chatstate.AppendCustomer(ctx, tx, a.enqueuer, conversation, session, deliveryRoute, &servermodels.Message{
 			ID: uuid.NewV7().String(), WorkspaceID: input.WorkspaceID, ConversationID: session.ConversationID,
 			ServiceSessionID: &session.ID, SenderParticipantID: &participantID,
 			Type: string(domain.MessageTypeText), Body: notice, IdempotencyKey: &input.NoticeKey,

@@ -2,9 +2,9 @@
 
 /** 服务端应用契约的类型、枚举与接口常量，由 internal/appservice 生成。 */
 
-export const APIVersion = 1
+export const APIVersion = 3
 
-export const MinServerAPIVersion = 1
+export const MinServerAPIVersion = 3
 
 export const ClientAPIVersionHeader = "X-Client-API-Version"
 
@@ -22,6 +22,7 @@ export const AIModelInputModality = {
   Image: "image",
   Audio: "audio",
   Video: "video",
+  File: "file",
 } as const
 
 /** 表示模型支持的输入模态。 */
@@ -77,6 +78,8 @@ export const AIModelUsage = {
   Decision: "decision",
   Embedding: "embedding",
   Rerank: "rerank",
+  OCR: "ocr",
+  Transcription: "transcription",
 } as const
 
 /** 表示业务使用模型的用途，每种用途对应确定的模型类型与输入能力要求。 */
@@ -93,6 +96,8 @@ export interface AIPerformanceBreakdown {
 
 /** 定义按维度拆分的统计范围与分页。 */
 export interface AIPerformanceBreakdownInput {
+  audience?: ServiceAudience
+  serviceSource?: ServiceSource
   days?: number
   channelId?: string
   agentId?: string
@@ -110,6 +115,8 @@ export interface AIPerformanceBreakdownList {
 
 /** 定义问题会话的统计范围、问题类型与分页。 */
 export interface AIPerformanceIssueListInput {
+  audience?: ServiceAudience
+  serviceSource?: ServiceSource
   days?: number
   channelId?: string
   agentId?: string
@@ -128,6 +135,8 @@ export interface AIPerformanceReport {
 
 /** 定义 AI 表现报表的统计范围：最近 Days 天内结束、由 AI 员工接待过的会话，ChannelID 为空表示全部渠道；AgentID 限定周期的接待 AI 员工，Mine 限定为当前成员负责的 AI 员工。 */
 export interface AIPerformanceReportInput {
+  audience?: ServiceAudience
+  serviceSource?: ServiceSource
   days?: number
   channelId?: string
   agentId?: string
@@ -299,6 +308,12 @@ export interface ActivateLicenseOnlineInput {
 /** 定义加入会话共享文件区的已上传文件。 */
 export interface AddConversationFileInput {
   fileId: string
+}
+
+/** 包含平台管理员账号与后台会话；Token 仅供 HTTP 层写入 Cookie，不出现在 JSON 响应中。 */
+export interface AdminAuth {
+  account: Account
+  expiresAt: string
 }
 
 /** 定义 AI 员工信息，Behavior 是该员工当前生效的内置工作规则与可用工具，HandoffTeamID 为空表示转人工进入公共队列，Responsible 为空表示未指定负责人，Computer 为空表示不使用工作区电脑。 */
@@ -498,6 +513,11 @@ export interface AgentEvaluationRunSummary {
   errors: number
   createdAt: string
   completedAt: string | null
+}
+
+/** 定义独立于服务策略的 AI 评测判断模型。 */
+export interface AgentEvaluationSettings {
+  decisionModelId: string | null
 }
 
 /** 定义运行发起时冻结的用例内容。 */
@@ -1142,13 +1162,6 @@ export interface BusinessToolSettingInput {
   outbound: boolean | null
   disabled: boolean
   parameterBindings: ParameterBinding[]
-}
-
-/** 定义平台当前生效的能力；WorkspaceLimit 为 0 表示不限工作区数量，PushRelay 表示是否向移动设备发送离线推送。 */
-export interface Capabilities {
-  workspaceLimit: number
-  customBranding: boolean
-  pushRelay: boolean
 }
 
 /** 定义当前用户修改密码所需字段。 */
@@ -2173,6 +2186,16 @@ export interface CustomerVisit {
   country: string
 }
 
+/** 是可下载的 ZIP 诊断包。 */
+export interface DiagnosticBundle {
+  name: string
+  content: string
+}
+
+/** 主动上传诊断包的请求体（当前无附加字段）。 */
+export interface DiagnosticUploadInput {
+}
+
 /** 定义按目标身份查找单聊的结果。 */
 export interface DirectConversationLookup {
   conversation: InboxConversation | null
@@ -2197,6 +2220,23 @@ export interface DirectTextMessageInput {
   body: string
   replyToMessageId: string
 }
+
+/** 表示系统邮件的接入方式。 */
+export const EmailProvider = {
+  /** 通过 SMTP 服务器发送邮件。 */
+  SMTP: "smtp",
+  /** 通过 Amazon SES API 发送邮件。 */
+  SES: "ses",
+  /** 通过 Mailgun API 发送邮件。 */
+  Mailgun: "mailgun",
+  /** 通过 Postmark API 发送邮件。 */
+  Postmark: "postmark",
+  /** 通过 Resend API 发送邮件。 */
+  Resend: "resend",
+} as const
+
+/** 表示系统邮件的接入方式。 */
+export type EmailProvider = (typeof EmailProvider)[keyof typeof EmailProvider]
 
 /** 表示业务失败种类。 */
 export const ErrorKind = {
@@ -2229,16 +2269,12 @@ export interface FileDownload {
   url: string
 }
 
-/** 定义待上传分片的序号。 */
-export interface FilePartUploadInput {
-  partNumber: number
-}
-
 /** 表示文件上传用途。 */
 export const FilePurpose = {
   MessageAttachment: "message_attachment",
   KnowledgeDocument: "knowledge_document",
   UserAvatar: "user_avatar",
+  ContactAvatar: "contact_avatar",
   GroupImage: "group_image",
   AgentAvatar: "agent_avatar",
   ConversationFile: "conversation_file",
@@ -2249,6 +2285,8 @@ export type FilePurpose = (typeof FilePurpose)[keyof typeof FilePurpose]
 
 /** 包含待上传文件和内容上传请求。 */
 export interface FileUpload {
+  key: string
+  uploadId: string
   partSize: number
   file: File
   request: FileUploadRequest
@@ -2267,6 +2305,13 @@ export interface FileUploadRequest {
   method: string
   url: string
   headers: Record<string, string>
+}
+
+/** 定义 Uppy 请求的受限 S3 操作。 */
+export interface FileUploadSignInput {
+  method: string
+  uploadId: string
+  partNumber: number
 }
 
 /** 定义 AI 草稿的稳定编号、目标和首条消息。 */
@@ -2421,6 +2466,8 @@ export interface HeaderBinding {
 export interface Identity {
   workspace: CurrentWorkspace
   user: CurrentUser
+  /** 表示当前请求使用平台支援会话进入工作区。 */
+  supportMode: boolean
 }
 
 /** 定义成员收件箱查询结果。 */
@@ -2463,6 +2510,7 @@ export type InboxAssigneeFilter = (typeof InboxAssigneeFilter)[keyof typeof Inbo
 
 /** 定义收件箱渠道筛选候选。 */
 export interface InboxChannel {
+  audience: ServiceAudience
   id: string
   type: ChannelType
   name: string
@@ -2687,8 +2735,8 @@ export interface InboxWindowInput {
   endCursor: string
 }
 
-/** 定义首次安装输入：部署地址、平台管理员账号和第一个工作区。 */
-export interface InstallWorkspaceInput {
+/** 定义首次安装输入：部署地址、默认工作区名称与平台管理员账号。 */
+export interface InstallPlatformInput {
   publicURL: string
   workspaceName: string
   displayName: string
@@ -2696,12 +2744,6 @@ export interface InstallWorkspaceInput {
   password: string
   locale: Locale
   timeZone: string
-}
-
-/** 包含首次安装创建的工作区和平台管理员登录会话。 */
-export interface InstallWorkspaceResult {
-  auth: Auth
-  workspace: Workspace
 }
 
 /** 定义部署名称、平台是否已完成首次安装、注册策略是否开放注册、平台使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。 */
@@ -2951,6 +2993,8 @@ export type KnowledgeDocumentSourceKind = (typeof KnowledgeDocumentSourceKind)[k
 
 /** 定义待补知识详情：Question 为客户提问原文，DraftStatus 为草稿状态，Draft 只在已起草时给出；DefaultKnowledgeBaseID 为接待 AI 员工绑定的问答知识库，KnowledgeBaseID 与 QAEntryID 为加入的知识库与问答；Evaluable 表示提问可以同时加入接待 AI 员工的评测。 */
 export interface KnowledgeGap {
+  audience: ServiceAudience
+  serviceSource: ServiceSource
   id: string
   conversationId: string
   questionMessageId: string
@@ -3004,6 +3048,8 @@ export interface KnowledgeGapList {
 
 /** 定义待补知识清单的渠道、AI 员工、处理状态与分页：ChannelID 为空表示全部渠道，AgentID 限定登记时负责的 AI 员工，Mine 限定为当前成员负责的 AI 员工。 */
 export interface KnowledgeGapListInput {
+  audience?: ServiceAudience
+  serviceSource?: ServiceSource
   channelId?: string
   agentId?: string
   mine?: boolean
@@ -3039,6 +3085,8 @@ export type KnowledgeGapStatus = (typeof KnowledgeGapStatus)[keyof typeof Knowle
 
 /** 定义清单中的一条待补知识；Question 优先取 AI 起草的问题，其次为客户提问原文，HasDraft 表示 AI 已起草问答。 */
 export interface KnowledgeGapSummary {
+  audience: ServiceAudience
+  serviceSource: ServiceSource
   id: string
   conversationId: string
   questionMessageId: string
@@ -3164,26 +3212,24 @@ export interface KnowledgeWebDocumentInput {
   sourceUrl: string
 }
 
-/** 定义服务器标识、授权状态、授权编号、客户、签发与到期时间、当前生效的能力、与 control 同步时查不到本服务器授权的起始时间，以及与 control 的同步结果；未激活或已到期时能力为免费取值。 */
+/** 定义部署标识、授权状态、授权编号、客户、签发与到期时间；有效授权解锁全部产品功能。 */
 export interface License {
-  serverId: string
+  deploymentId: string
   status: LicenseStatus
   licenseId: string
   customer: string
   issuedAt: string | null
   expiresAt: string | null
-  capabilities: Capabilities
-  controlMissingAt: string | null
-  sync: PlatformControlStatus
+  licensed: boolean
 }
 
 /** 表示授权状态。 */
 export const LicenseStatus = {
   /** 表示平台未激活授权。 */
   None: "none",
-  /** 表示授权在有效期内。 */
+  /** 表示授权在有效期内，产品功能全开。 */
   Active: "active",
-  /** 表示授权已到期，平台按免费取值运行。 */
+  /** 表示授权已到期，按未授权运行。 */
   Expired: "expired",
 } as const
 
@@ -3244,6 +3290,12 @@ export interface MarkConversationMentionReviewedInput {
 export interface MarkConversationReadInput {
   lastReadMessageId: string
   clearUnreadMark: boolean
+}
+
+/** 定义工作区媒体理解兜底模型；为空表示不启用对应投影。 */
+export interface MediaUnderstandingSettings {
+  ocrModelId: string | null
+  transcriptionModelId: string | null
 }
 
 /** 定义可分配的企业身份选择项。 */
@@ -3412,6 +3464,8 @@ export const PermissionCode = {
   PermissionAIEmployeesManage: "ai_employees.manage",
   /** 管理渠道与客服设置。 */
   PermissionCustomerServiceManage: "customer_service.manage",
+  /** 管理员工服务策略与员工渠道。 */
+  PermissionEmployeeServiceManage: "employee_service.manage",
   /** 新建、编辑与删除外部联系人。 */
   PermissionExternalContactsManage: "external_contacts.manage",
   /** 查看 AI 表现与团队表现报表。 */
@@ -3512,6 +3566,7 @@ export interface PlatformAccountList {
 
 /** 定义平台账号列表的筛选与分页条件，Status 缺省为有效账号。 */
 export interface PlatformAccountListInput {
+  workspaceId?: string
   query?: string
   status?: AccountStatus
   page?: number
@@ -3524,12 +3579,6 @@ export interface PlatformActivityWindow {
   activeWorkspaces: number
   newAccounts: number
   newWorkspaces: number
-}
-
-/** 定义部署地址与证书设置的修改值。 */
-export interface PlatformAddressInput {
-  publicURL: string
-  certificate: PlatformCertificate
 }
 
 /** 定义部署品牌：Names 按界面语言覆盖产品名称，SDKName 为网站嵌入脚本对象名，Icon 为替换网站图标的 PNG 图片，均为空时沿用构建品牌。 */
@@ -3570,13 +3619,6 @@ export interface PlatformCertificateStatus {
   renewalFailedAt: string | null
 }
 
-/** 定义与 control 同步的结果：SyncedAt 为最近一次成功的时间，从未成功时为空；FailedAt 与 Error 为此后最近一次失败的时间与原因。 */
-export interface PlatformControlStatus {
-  syncedAt: string | null
-  failedAt: string | null
-  error: string
-}
-
 /** 定义一天内的活跃账号数、活跃工作区数、新增账号数和新增工作区数，Date 为 YYYY-MM-DD。 */
 export interface PlatformDailyActivity {
   date: string
@@ -3592,28 +3634,10 @@ export interface PlatformDatabaseStatus {
   migration: number
 }
 
-/** 定义整个部署共用的部署配置；Certificate 是部署地址的证书设置，CertificateStatus 是证书的当前状态，HTTPSServers 表示部署中有直接提供 HTTPS 的服务器在线，此时 HTTPS 部署地址使用该证书；BrandingLicensed 表示授权当前授予自定义品牌，未授予时部署品牌保存后不生效；HomePricing 表示产品首页展示价格区块，此时首页的自部署介绍设置生效。 */
+/** 定义对象存储与邮件发送配置，供系统设置中的存储与邮件页面使用。 */
 export interface PlatformDeployment {
-  name: string
-  publicURL: string
-  certificate: PlatformCertificate
-  certificateStatus: PlatformCertificateStatus
-  httpsServers: boolean
-  timeZone: string
-  telemetryEnabled: boolean
   storage: PlatformStorageSettings
   email: PlatformEmailSettings
-  branding: PlatformBrandingSettings
-  home: PlatformHomeSettings
-  brandingLicensed: boolean
-  homePricing: boolean
-}
-
-/** 定义部署名称、平台时区与上报开关的修改值。 */
-export interface PlatformDeploymentBasicsInput {
-  name: string
-  timeZone: string
-  telemetryEnabled: boolean
 }
 
 /** 定义诊断信息中的部署配置，不含密码与密钥；HasIcon 表示配置了网站图标。 */
@@ -3625,7 +3649,6 @@ export interface PlatformDeploymentSummary {
   storage: PlatformStorageSummary
   email: PlatformEmailSummary
   branding: PlatformBrandingSummary
-  home: PlatformHomeSettings
 }
 
 /** 定义诊断信息中一次最终失败的后台任务；WorkspaceID 为所属工作区编号，平台级任务为空，Attempt 为已尝试次数，FailedAt 为最终失败的时间。 */
@@ -3656,23 +3679,111 @@ export interface PlatformDiagnostics {
   failedTasks: PlatformDiagnosticTask[]
 }
 
-/** 定义 SMTP 邮件发送配置，Host 为空时关闭邮件发送；Security 为 starttls、tls 或 none。 */
-export interface PlatformEmailSettings {
-  host: string
-  port: number
-  username: string
-  password: string
-  security: string
+/** 定义邮件配置保存参数，空密钥保留同服务商且身份未变的已存值。 */
+export interface PlatformEmailInput {
+  enabled: boolean
+  provider: EmailProvider
   fromAddress: string
+  fromName: string
+  smtp: PlatformEmailSMTPInput | null
+  ses: PlatformEmailSESInput | null
+  mailgun: PlatformEmailMailgunInput | null
+  postmark: PlatformEmailPostmarkInput | null
+  resend: PlatformEmailResendInput | null
 }
 
-/** 定义诊断信息中不含账号密码的邮件发送配置，Enabled 为假表示未配置 SMTP 主机。 */
-export interface PlatformEmailSummary {
-  enabled: boolean
+/** 定义 Mailgun 的配置保存参数。 */
+export interface PlatformEmailMailgunInput {
+  domain: string
+  region: string
+  apiKey: string
+}
+
+/** 定义 Mailgun 的配置读取结果。 */
+export interface PlatformEmailMailgunSettings {
+  domain: string
+  region: string
+  apiKeySet: boolean
+}
+
+/** 定义 Postmark 的配置保存参数。 */
+export interface PlatformEmailPostmarkInput {
+  messageStream: string
+  serverToken: string
+}
+
+/** 定义 Postmark 的配置读取结果。 */
+export interface PlatformEmailPostmarkSettings {
+  messageStream: string
+  serverTokenSet: boolean
+}
+
+/** 定义 Resend 的配置保存参数。 */
+export interface PlatformEmailResendInput {
+  apiKey: string
+}
+
+/** 定义 Resend 的配置读取结果。 */
+export interface PlatformEmailResendSettings {
+  apiKeySet: boolean
+}
+
+/** 定义 SES 的配置保存参数。 */
+export interface PlatformEmailSESInput {
+  region: string
+  accessKeyID: string
+  secretAccessKey: string
+}
+
+/** 定义 SES 的配置读取结果。 */
+export interface PlatformEmailSESSettings {
+  region: string
+  accessKeyID: string
+  secretAccessKeySet: boolean
+}
+
+/** 定义 SMTP 的配置保存参数。 */
+export interface PlatformEmailSMTPInput {
   host: string
   port: number
   security: string
+  username: string
+  password: string
+}
+
+/** 定义 SMTP 的配置读取结果。 */
+export interface PlatformEmailSMTPSettings {
+  host: string
+  port: number
+  security: string
+  username: string
+  passwordSet: boolean
+}
+
+/** 定义邮件配置读取结果，密钥只返回是否已设置。 */
+export interface PlatformEmailSettings {
+  enabled: boolean
+  provider: EmailProvider
   fromAddress: string
+  fromName: string
+  smtp: PlatformEmailSMTPSettings | null
+  ses: PlatformEmailSESSettings | null
+  mailgun: PlatformEmailMailgunSettings | null
+  postmark: PlatformEmailPostmarkSettings | null
+  resend: PlatformEmailResendSettings | null
+}
+
+/** 定义诊断中的邮件配置摘要。 */
+export interface PlatformEmailSummary {
+  enabled: boolean
+  provider: EmailProvider
+  fromAddress: string
+  fromName: string
+}
+
+/** 定义测试邮件的收件邮箱。 */
+export interface PlatformEmailTestInput {
+  to: string
 }
 
 /** 定义一次近 7 天内最终失败的后台任务；WorkspaceName 为所属工作区名称，平台级任务为空，Attempt 为已尝试次数，FailedAt 为最终失败的时间。 */
@@ -3698,11 +3809,6 @@ export interface PlatformFailedTaskListInput {
   pageSize?: number
 }
 
-/** 定义产品首页配置：SelfHost 表示首页提供价格区块时展示自部署介绍，不提供价格区块时首页始终展示。 */
-export interface PlatformHomeSettings {
-  selfHost: boolean
-}
-
 /** 定义诊断信息中的对象存储检查结果：Enabled 为假表示文件写入服务器本地目录；Error 为存储桶检查失败的原因，可以访问时为空。 */
 export interface PlatformObjectStorageStatus {
   enabled: boolean
@@ -3721,12 +3827,6 @@ export interface PlatformOverview {
   trend: PlatformDailyActivity[]
 }
 
-/** 定义平台注册策略和工作区创建策略的修改值。 */
-export interface PlatformPoliciesInput {
-  registrationPolicy: RegistrationPolicy
-  workspaceCreationPolicy: WorkspaceCreationPolicy
-}
-
 /** 定义服务端进程与后台任务各队列的运行状态；DelayedTasks 为推迟到指定时间执行或等待重试的任务数，NotifyQueueUsage 为 PostgreSQL 通知队列的使用比例（0 到 1）。 */
 export interface PlatformRuntimeStatus {
   servers: PlatformServer[]
@@ -3736,7 +3836,7 @@ export interface PlatformRuntimeStatus {
 }
 
 /**
- * 定义一个服务端进程及其最近一次心跳；BusDriver 为消息总线的传输驱动（postgres 或 nats），BusConnected 为最近一次心跳时消息总线是否可用，
+ * 定义一个服务端进程及其最近一次心跳；BusDriver 为消息总线的传输驱动（nats），BusConnected 为最近一次心跳时消息总线是否可用，
  * BusMessageRate 与 BusFailures 为上一个心跳间隔内消息总线的发送速率（条/秒）与发送失败和丢弃的消息数，Online 表示 30 秒内有心跳，Config 为进程启动时的服务端配置。
  */
 export interface PlatformServer {
@@ -3753,14 +3853,13 @@ export interface PlatformServer {
   config: PlatformServerConfig
 }
 
-/** 定义服务端进程的启动配置与本机目录，只包含不含密码和地址凭据的字段；Listen 为监听地址与端口，HTTPSPort 为本服务器直接提供 HTTPS 的端口，为 0 表示由前面的代理提供 HTTPS，LogLevel 为控制台日志的输出级别，LocalDirectory 为部署未开启对象存储时写入文件的本地目录。 */
+/** 定义服务端进程的启动配置与本机目录，只包含不含密码和地址凭据的字段；Listen 为监听地址与端口，HTTPSPort 为本服务器直接提供 HTTPS 的端口，为 0 表示由前面的代理提供 HTTPS，LogLevel 为控制台日志的输出级别。 */
 export interface PlatformServerConfig {
   listen: string
   httpsPort: number
   database: PlatformServerDatabaseConfig
   nats: PlatformServerNATSConfig
   logLevel: string
-  localDirectory: string
   clientsDirectory: string
 }
 
@@ -3773,61 +3872,43 @@ export interface PlatformServerDatabaseConfig {
   sslMode: string
 }
 
-/** 定义一条服务端日志：InstanceID 为写入日志的服务端进程实例编号；TraceID、Operation、TaskRunID、Action、Queue、WorkspaceID 与 AccountID 取自日志作用域，WorkspaceName 为所属工作区名称；EventID 为上报 control 的错误事件编号；Attributes 为日志的其他属性。 */
-export interface PlatformServerLog {
-  id: string
-  occurredAt: string
-  level: ServerLogLevel
-  instanceId: string
-  hostname: string
-  version: string
-  message: string
-  traceId: string | null
-  operation: string | null
-  taskRunId: string | null
-  action: string | null
-  queue: string | null
-  workspaceId: string | null
-  workspaceName: string | null
-  accountId: string | null
-  error: string | null
-  eventId: string | null
-  attributes: Record<string, string>
-}
-
-/** 定义一页服务端日志；NextCursor 为空表示没有更早的日志。 */
-export interface PlatformServerLogList {
-  logs: PlatformServerLog[]
-  nextCursor: string
-}
-
-/** 定义服务端日志列表的游标、页大小与筛选条件：Cursor 为上一页返回的 NextCursor，为空时从最新的日志读起；MinLevel 为空表示全部级别；Entry 匹配业务入口方法或后台任务名称；其余条件为空时不筛选。 */
-export interface PlatformServerLogListInput {
-  cursor?: string
-  pageSize?: number
-  minLevel?: ServerLogLevel
-  instanceId?: string
-  workspaceId?: string
-  entry?: string
-  traceId?: string
-}
-
 /** 定义去掉凭据的 NATS 地址、命名空间与任务队列副本数。 */
 export interface PlatformServerNATSConfig {
   url: string
-  namespace: string
-  replicas: number
 }
 
-/** 定义平台注册策略与工作区创建策略。 */
-export interface PlatformSettings {
+/** 定义站点设置：部署名称与时区、注册与创建策略、访问地址与证书、部署品牌；BrandingLicensed 为假时 Branding 为构建品牌默认值且不可通过保存修改。 */
+export interface PlatformSite {
+  name: string
+  timeZone: string
   registrationPolicy: RegistrationPolicy
-  workspaceCreationPolicy: WorkspaceCreationPolicy
+  workspaceCreationQuota: number
+  publicURL: string
+  certificate: PlatformCertificate
+  certificateStatus: PlatformCertificateStatus
+  httpsServers: boolean
+  branding: PlatformBrandingSettings
+  brandingLicensed: boolean
 }
 
-/** 定义对象存储配置：Enabled 为假时新文件写入各服务器的本地文件目录，已有文件按各自的存储位置读取。 */
+/** 定义站点设置的修改值；上传证书的 Certificate 与 PrivateKey 为空时保留已存值；未授权时忽略 Branding。 */
+export interface PlatformSiteInput {
+  name: string
+  timeZone: string
+  registrationPolicy: RegistrationPolicy
+  workspaceCreationQuota: number
+  publicURL: string
+  certificate: PlatformCertificate
+  branding: PlatformBrandingSettings
+}
+
+/** 返回保存时的实际源站匿名读取结果。 */
+export interface PlatformStorageCheck {
+  originAccess: StorageOriginAccess
+}
+
+/** 定义整个部署共用的 S3 上传接口、文件访问地址与凭据。 */
 export interface PlatformStorageSettings {
-  enabled: boolean
   endpoint: string
   publicBaseURL: string
   region: string
@@ -3839,7 +3920,6 @@ export interface PlatformStorageSettings {
 
 /** 定义诊断信息中不含密钥的对象存储配置。 */
 export interface PlatformStorageSummary {
-  enabled: boolean
   endpoint: string
   publicBaseURL: string
   region: string
@@ -4005,7 +4085,7 @@ export interface ReadInboxConversationsInput {
 export interface RealtimeConnection {
   userId: string
   sessionId: string
-  prefix: string
+  token: string
   path: string
   members: RealtimeMember[]
 }
@@ -4151,17 +4231,6 @@ export interface RunStreamToolCall {
   description?: string
   activity?: string
 }
-
-/** 表示服务端日志级别。 */
-export const ServerLogLevel = {
-  Debug: "debug",
-  Info: "info",
-  Warn: "warn",
-  Error: "error",
-} as const
-
-/** 表示服务端日志级别。 */
-export type ServerLogLevel = (typeof ServerLogLevel)[keyof typeof ServerLogLevel]
 
 /** 定义客服筛选候选列表。 */
 export interface ServiceAssigneeList {
@@ -4513,6 +4582,7 @@ export type ServiceSessionStatus = (typeof ServiceSessionStatus)[keyof typeof Se
 export interface ServiceSessionSummary {
   serviceSessionId: string
   conversationId: string
+  audience: ServiceAudience
   source: ServiceSource
   channelType: ChannelType | null
   channelName: string | null
@@ -4643,6 +4713,23 @@ export const SessionState = {
 /** 表示会话入口。 */
 export type SessionState = (typeof SessionState)[keyof typeof SessionState]
 
+/** 与领域中的源站访问检测结果保持一致。 */
+export const StorageOriginAccess = {
+  Public: "public",
+  Restricted: "restricted",
+  Unknown: "unknown",
+} as const
+
+/** 与领域中的源站访问检测结果保持一致。 */
+export type StorageOriginAccess = (typeof StorageOriginAccess)[keyof typeof StorageOriginAccess]
+
+/** 是平台管理员支援进入工作区后签发的短期用户端凭证。 */
+export interface SupportAccess {
+  token: string
+  expiresAt: string
+  workspace: Workspace
+}
+
 /** 保存同步探针的不透明比较值，客户端只判断与上次返回是否相同。 */
 export interface SyncHeads {
   conversationCount: number
@@ -4749,6 +4836,8 @@ export interface TeamPerformanceBreakdown {
 
 /** 定义按维度拆分的统计范围与分页。 */
 export interface TeamPerformanceBreakdownInput {
+  audience?: ServiceAudience
+  serviceSource?: ServiceSource
   days?: number
   channelId?: string
   teamId?: string
@@ -4766,6 +4855,8 @@ export interface TeamPerformanceBreakdownList {
 
 /** 定义真人接待问题会话的统计范围、问题类型与分页。 */
 export interface TeamPerformanceIssueListInput {
+  audience?: ServiceAudience
+  serviceSource?: ServiceSource
   days?: number
   channelId?: string
   teamId?: string
@@ -4794,6 +4885,8 @@ export interface TeamPerformanceMemberList {
 
 /** 定义客服表现的统计范围与分页。 */
 export interface TeamPerformanceMemberListInput {
+  audience?: ServiceAudience
+  serviceSource?: ServiceSource
   days?: number
   channelId?: string
   teamId?: string
@@ -4832,6 +4925,8 @@ export interface TeamPerformanceReport {
 
 /** 定义团队表现报表的统计范围：最近 Days 天内结束的会话，ChannelID 为空表示全部渠道；PublicQueue 限定公共队列，否则 TeamID 限定团队，两者都未给出表示全部队列。 */
 export interface TeamPerformanceReportInput {
+  audience?: ServiceAudience
+  serviceSource?: ServiceSource
   days?: number
   channelId?: string
   teamId?: string
@@ -5054,6 +5149,26 @@ export interface WeComBotChannelConnection {
 export interface WeComBotChannelConnectionInput {
   botId: string
   secret: string
+}
+
+/** 表示网页读取服务商。 */
+export const WebFetchProvider = {
+  /** 表示服务端直连抓取，不执行 JavaScript。 */
+  Direct: "direct",
+  /** 表示 Jina Reader。 */
+  Jina: "jina",
+  /** 表示 Firecrawl Scrape。 */
+  Firecrawl: "firecrawl",
+} as const
+
+/** 表示网页读取服务商。 */
+export type WebFetchProvider = (typeof WebFetchProvider)[keyof typeof WebFetchProvider]
+
+/** 定义企业的网页读取设置；默认使用内置直连抓取。 */
+export interface WebFetchSettings {
+  provider: WebFetchProvider
+  apiKey: string
+  baseUrl: string
 }
 
 /** 表示联网搜索服务商。 */
@@ -5282,7 +5397,7 @@ export interface WechatKeyChannel {
   connection: WechatKeyConnection
 }
 
-/** 定义密钥接入渠道的公众号凭据、服务器地址与验证状态、各服务器出口 IP 与接口调用凭据状态；尚未连接时 AppID 为空。 */
+/** 定义密钥接入渠道的公众号凭据、服务器地址、验证状态与接口调用凭据状态；尚未连接时 AppID 为空。 */
 export interface WechatKeyConnection {
   appId: string
   appSecret: string
@@ -5293,7 +5408,6 @@ export interface WechatKeyConnection {
   serverUrl: string
   /** 是微信按当前 Token 验证服务器地址成功的时间，尚未验证时为空。 */
   serverVerifiedAt: string | null
-  servers: WechatServer[]
   /** 是公众号接口调用凭据的到期时间，尚未成功获取时为空。 */
   accessTokenExpiresAt: string | null
   /** 与 TokenFailure 是最近一次获取凭据失败的时间与原因，之后成功获取时为空。 */
@@ -5325,7 +5439,7 @@ export const WechatPermission = {
 /** 表示授权接入公众号须授予的权限集。 */
 export type WechatPermission = (typeof WechatPermission)[keyof typeof WechatPermission]
 
-/** 定义部署的微信第三方平台配置、需填写到微信开放平台的接入信息、各服务器出口 IP 与平台凭据状态；Configured 为假时凭据字段为空。 */
+/** 定义部署的微信第三方平台配置、需填写到微信开放平台的接入信息与平台凭据状态；Configured 为假时凭据字段为空。 */
 export interface WechatPlatform {
   configured: boolean
   /** 是平台可用状态，Configured 为假时为空。 */
@@ -5340,7 +5454,6 @@ export interface WechatPlatform {
   eventUrl: string
   /** 是授权公众号消息与事件接收地址，其中的 $APPID$ 由微信替换为公众号 AppID。 */
   messageUrl: string
-  servers: WechatServer[]
   verifyTicketReceivedAt: string | null
   /** 是平台接口调用凭据的到期时间，尚未成功获取时为空。 */
   accessTokenExpiresAt: string | null
@@ -5373,13 +5486,6 @@ export const WechatPlatformStatus = {
 
 /** 表示第三方平台的可用状态。 */
 export type WechatPlatformStatus = (typeof WechatPlatformStatus)[keyof typeof WechatPlatformStatus]
-
-/** 定义一台服务端进程的主机名、配置的出口 IP 与是否在线；EgressIP 为空表示未配置。 */
-export interface WechatServer {
-  hostname: string
-  egressIp: string
-  online: boolean
-}
 
 /** 表示最近一次获取微信接口调用凭据失败的原因。 */
 export const WechatTokenFailure = {
@@ -5426,17 +5532,6 @@ export interface WorkspaceAttentionList {
 export interface WorkspaceComputerInput {
   name: string
 }
-
-/** 表示平台内可以创建工作区的账号范围。 */
-export const WorkspaceCreationPolicy = {
-  /** 允许所有有效账号创建工作区。 */
-  AnyAccount: "any_account",
-  /** 只允许平台管理员创建工作区。 */
-  PlatformAdmin: "platform_admin",
-} as const
-
-/** 表示平台内可以创建工作区的账号范围。 */
-export type WorkspaceCreationPolicy = (typeof WorkspaceCreationPolicy)[keyof typeof WorkspaceCreationPolicy]
 
 /** 表示工作区身份类型。 */
 export const WorkspaceIdentityType = {

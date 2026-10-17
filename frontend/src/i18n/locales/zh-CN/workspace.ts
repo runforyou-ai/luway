@@ -13,6 +13,7 @@ const workspace = {
   responsibleGapCount: "{{count}} 条待补知识待处理",
   contacts: "通讯录",
   settings: "设置",
+  openAdmin: "平台后台",
   appVersion: "版本 {{version}}",
   openUserMenu: "打开 {{name}} 的用户菜单",
   openUserMenuWithUnread: "打开 {{name}} 的用户菜单，其他工作区有 {{count}} 条未读",

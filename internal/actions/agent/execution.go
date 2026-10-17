@@ -17,7 +17,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support/arr"
-	"github.com/runforyou-ai/support/str"
 	"github.com/uptrace/bun"
 )
 
@@ -82,7 +81,7 @@ func normalizeExecutionInput(input ExecutionInput) (ExecutionInput, error) {
 	}
 	// 规范化托管执行的模型编号、系统指令，知识库编号按集合保存。
 	managed := *input.Managed
-	managed.ModelID, _ = str.NormalizeUUID(managed.ModelID)
+	managed.ModelID, _ = aimodel.NormalizeRef(managed.ModelID)
 	managed.SystemInstruction = strings.TrimSpace(managed.SystemInstruction)
 	managed.KnowledgeBaseIDs, _ = common.NormalizeUUIDs(managed.KnowledgeBaseIDs)
 	slices.Sort(managed.KnowledgeBaseIDs)
@@ -208,7 +207,7 @@ func decodeRevisionExecution(revision servermodels.AgentRevision) (Execution, er
 	if err != nil {
 		return Execution{}, err
 	}
-	if !str.IsUUID(revision.ModelID) || utf8.RuneCountInString(configuration.SystemInstruction) > maxSystemInstructionLength {
+	if _, ok := aimodel.NormalizeRef(revision.ModelID); !ok || utf8.RuneCountInString(configuration.SystemInstruction) > maxSystemInstructionLength {
 		return Execution{}, errors.New("managed execution configuration is invalid")
 	}
 	return Execution{

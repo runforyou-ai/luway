@@ -9,20 +9,20 @@ import (
 	"fmt"
 
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
-	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support/str"
 	"github.com/uptrace/bun"
 )
 
-// AuthorizeRunStreamQuery 校验成员对一次运行所属会话的阅读资格。
+// AuthorizeRunStreamQuery 经注入的 Guard 校验成员对一次运行所属会话的阅读资格。
 type AuthorizeRunStreamQuery struct {
-	db *bun.DB
+	db    *bun.DB
+	guard ConversationGuard
 }
 
-// NewAuthorizeRunStreamQuery 创建运行过程流授权查询。
-func NewAuthorizeRunStreamQuery(db *bun.DB) *AuthorizeRunStreamQuery {
-	return &AuthorizeRunStreamQuery{db: db}
+// NewAuthorizeRunStreamQuery 创建运行过程流授权查询；guard 复核会话阅读资格。
+func NewAuthorizeRunStreamQuery(db *bun.DB, guard ConversationGuard) *AuthorizeRunStreamQuery {
+	return &AuthorizeRunStreamQuery{db: db, guard: guard}
 }
 
 // Execute 返回运行所属会话编号；运行不存在、不属于本企业或会话不可读时返回 ErrRunProcessUnavailable。
@@ -42,7 +42,7 @@ func (q *AuthorizeRunStreamQuery) Execute(ctx context.Context, identity *serverm
 		return "", fmt.Errorf("load agent run conversation: %w", err)
 	}
 	// 会话不可读与运行不存在对外是同一结果，不暴露运行是否存在。
-	if err := conversationaccess.RequireReadable(ctx, q.db, identity, conversationID); err != nil {
+	if err := q.guard.RequireReadable(ctx, q.db, identity, conversationID); err != nil {
 		if errors.Is(err, chatstate.ErrConversationNotFound) {
 			return "", ErrRunProcessUnavailable
 		}

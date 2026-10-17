@@ -50,8 +50,8 @@ func newProfileFixture(t *testing.T) profileFixture {
 	require.NoError(t, err)
 	_, err = newGroupSendAction(f.db).Execute(ctx, f.member, groupchataction.GroupTextMessageInput{ConversationID: left.ID, ClientMessageID: uuid.NewV7().String(), Body: "退出前的发言"})
 	require.NoError(t, err)
-	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.member, left.ID))
-	_, err = servicesessionaction.NewClaimServiceSessionAction(f.db, newGroupAgentCoordinator(f.db), testEnqueuer).Execute(ctx, f.member, f.conversationID)
+	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.member, left.ID))
+	_, err = servicesessionaction.NewClaimServiceSessionAction(f.db, newGroupAgentCanceller(f.db), testEnqueuer).Execute(ctx, f.member, f.conversationID)
 	require.NoError(t, err)
 	return profileFixture{customerReadFixture: f, directID: direct.Conversation.ID, leftGroupID: left.ID}
 }
@@ -127,7 +127,7 @@ func TestMemberProfileConversationInvalidation(t *testing.T) {
 	feed.expect(t, append(changedNotices(), feed.notice(f.member.User.ID, realtime.KindIdentityProfileChanged, "", loadProfileVersion(t, f.db, f.member.User.ID)))...)
 
 	// 本人只换头像同样推进。
-	avatar, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.member, domain.FileStorageBackendLocal, fileaction.UploadInput{
+	avatar, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.member, fileaction.UploadInput{
 		Purpose: domain.FilePurposeUserAvatar, FileName: "avatar.png", ContentType: "image/png", ByteSize: 1024,
 	})
 	require.NoError(t, err)
@@ -205,7 +205,7 @@ func TestAgentProfileConversationInvalidation(t *testing.T) {
 	insertAIModels(t, f.db, model)
 	// uploadAvatar 上传一张待关联的 AI 员工头像。
 	uploadAvatar := func() string {
-		file, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.owner, domain.FileStorageBackendLocal, fileaction.UploadInput{
+		file, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.owner, fileaction.UploadInput{
 			Purpose: domain.FilePurposeAgentAvatar, FileName: "agent.png", ContentType: "image/png", ByteSize: 1024,
 		})
 		require.NoError(t, err)
@@ -445,7 +445,7 @@ func TestProfileInvalidationLockOrder(t *testing.T) {
 	require.NoError(t, err)
 	// 转交会追加系统事件，按实测记录一次转交对客户会话版本的推进次数。
 	beforeTransfer := loadConversationVersion(t, f.db, f.conversationID)
-	_, err = servicesessionaction.NewTransferServiceSessionAction(f.db, newGroupAgentCoordinator(f.db), nil, testEnqueuer).Execute(ctx, f.member, servicesessionaction.TransferServiceSessionInput{ConversationID: f.conversationID, TargetKind: domain.ServiceSessionTargetMember, IdentityID: f.owner.WorkspaceIdentity.ID})
+	_, err = servicesessionaction.NewTransferServiceSessionAction(f.db, newGroupAgentCanceller(f.db), nil, testEnqueuer).Execute(ctx, f.member, servicesessionaction.TransferServiceSessionInput{ConversationID: f.conversationID, TargetKind: domain.ServiceSessionTargetMember, IdentityID: f.owner.WorkspaceIdentity.ID})
 	require.NoError(t, err)
 	transferDelta := loadConversationVersion(t, f.db, f.conversationID) - beforeTransfer
 	// 第三名成员入群，群消息与转交分别由不同账号发起，互不在账号行上等待。
@@ -476,7 +476,7 @@ func TestProfileInvalidationLockOrder(t *testing.T) {
 	}()
 	transferred := make(chan error, 1)
 	go func() {
-		_, err := servicesessionaction.NewTransferServiceSessionAction(f.db, newGroupAgentCoordinator(f.db), nil, testEnqueuer).Execute(ctx, f.owner, servicesessionaction.TransferServiceSessionInput{ConversationID: f.conversationID, TargetKind: domain.ServiceSessionTargetMember, IdentityID: f.member.WorkspaceIdentity.ID})
+		_, err := servicesessionaction.NewTransferServiceSessionAction(f.db, newGroupAgentCanceller(f.db), nil, testEnqueuer).Execute(ctx, f.owner, servicesessionaction.TransferServiceSessionInput{ConversationID: f.conversationID, TargetKind: domain.ServiceSessionTargetMember, IdentityID: f.member.WorkspaceIdentity.ID})
 		transferred <- err
 	}()
 	// 两个写入都进入锁等待后再放行改名事务。

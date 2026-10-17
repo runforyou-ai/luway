@@ -15,13 +15,22 @@ import (
 	"github.com/go-playground/validator/v10"
 	"github.com/go-playground/validator/v10/non-standard/validators"
 	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
+	"github.com/runforyou-ai/support/str"
 )
 
 // requestValidator 以 json 字段名报告校验失败的字段，notblank 要求去掉首尾空白后非空。
 var requestValidator = func() *validator.Validate {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	if err := validate.RegisterValidation("notblank", validators.NotBlank); err != nil {
+		panic(err)
+	}
+	// modelref 接受平台 Auto 或 UUID 模型引用。
+	if err := validate.RegisterValidation("modelref", func(fl validator.FieldLevel) bool {
+		value := strings.TrimSpace(fl.Field().String())
+		return value == domain.AIModelRefAuto || str.IsUUID(value)
+	}); err != nil {
 		panic(err)
 	}
 	validate.RegisterTagNameFunc(func(field reflect.StructField) string {

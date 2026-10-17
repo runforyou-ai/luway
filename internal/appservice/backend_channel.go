@@ -8,37 +8,37 @@ type ChannelBackend interface {
 	//appservice:route GET /channel-types perm=none
 	ListMessageChannelTypes(context.Context, RequestMeta) (MessageChannelTypeList, error)
 	// ListMessageChannels 返回消息渠道列表。
-	//appservice:route GET /channels perm=customer_service.manage
+	//appservice:route GET /channels perm=none
 	ListMessageChannels(context.Context, RequestMeta) (MessageChannelList, error)
 	// GetWebsiteChannel 返回网站渠道详情。
 	//appservice:route GET /channels/{channelID:uuid}/website perm=customer_service.manage
 	GetWebsiteChannel(context.Context, RequestMeta, string) (WebsiteChannel, error)
 	// GetWeComBotChannel 返回企业微信智能机器人渠道详情与连接状态。
-	//appservice:route GET /channels/{channelID:uuid}/wecom-bot perm=customer_service.manage
+	//appservice:route GET /channels/{channelID:uuid}/wecom-bot perm=employee_service.manage
 	GetWeComBotChannel(context.Context, RequestMeta, string) (WeComBotChannel, error)
 	// SaveWeComBotChannelConnection 保存企业微信智能机器人的长连接凭据。
-	//appservice:route PUT /channels/{channelID:uuid}/wecom-bot/connection perm=customer_service.manage
+	//appservice:route PUT /channels/{channelID:uuid}/wecom-bot/connection perm=employee_service.manage
 	SaveWeComBotChannelConnection(context.Context, RequestMeta, string, WeComBotChannelConnectionInput) (WeComBotChannel, error)
 	// ListChannelAccounts 返回服务员工渠道中的外部账号及其绑定成员。
-	//appservice:route GET /channels/{channelID:uuid}/accounts perm=customer_service.manage
+	//appservice:route GET /channels/{channelID:uuid}/accounts perm=employee_service.manage
 	ListChannelAccounts(context.Context, RequestMeta, string) (ChannelAccountList, error)
 	// BindChannelAccount 把服务员工渠道中的外部账号绑定或改绑到成员。
-	//appservice:route PUT /channels/{channelID:uuid}/accounts/{accountID:uuid}/member perm=customer_service.manage
+	//appservice:route PUT /channels/{channelID:uuid}/accounts/{accountID:uuid}/member perm=employee_service.manage
 	BindChannelAccount(context.Context, RequestMeta, string, string, ChannelAccountBindingInput) error
 	// UnbindChannelAccount 解除外部账号与成员的绑定。
-	//appservice:route DELETE /channels/{channelID:uuid}/accounts/{accountID:uuid}/member perm=customer_service.manage
+	//appservice:route DELETE /channels/{channelID:uuid}/accounts/{accountID:uuid}/member perm=employee_service.manage
 	UnbindChannelAccount(context.Context, RequestMeta, string, string) error
 	// GetMessageChannel 返回消息渠道基础信息。
-	//appservice:route GET /channels/{channelID:uuid} perm=customer_service.manage
+	//appservice:route GET /channels/{channelID:uuid} perm=none
 	GetMessageChannel(context.Context, RequestMeta, string) (MessageChannelSummary, error)
 	// CreateMessageChannel 创建消息渠道。
-	//appservice:route POST /channels status=201 perm=customer_service.manage
+	//appservice:route POST /channels status=201 perm=none
 	CreateMessageChannel(context.Context, RequestMeta, CreateMessageChannelInput) (MessageChannelSummary, error)
 	// UpdateMessageChannel 修改消息渠道基础信息。
-	//appservice:route PUT /channels/{channelID:uuid} perm=customer_service.manage
+	//appservice:route PUT /channels/{channelID:uuid} perm=none
 	UpdateMessageChannel(context.Context, RequestMeta, string, MessageChannelBasicsInput) (MessageChannelSummary, error)
 	// UpdateMessageChannelReception 修改消息渠道接待设置。
-	//appservice:route PUT /channels/{channelID:uuid}/reception perm=customer_service.manage
+	//appservice:route PUT /channels/{channelID:uuid}/reception perm=none
 	UpdateMessageChannelReception(context.Context, RequestMeta, string, MessageChannelReceptionInput) (MessageChannelSummary, error)
 	// UpdateWebsiteChannelChatInterface 修改网站渠道聊天窗口外观与对话功能。
 	//appservice:route PUT /channels/{channelID:uuid}/website/chat-interface perm=customer_service.manage
@@ -53,10 +53,10 @@ type ChannelBackend interface {
 	//appservice:route PUT /channels/{channelID:uuid}/website/help-center perm=customer_service.manage
 	UpdateWebsiteChannelHelpCenter(context.Context, RequestMeta, string, WebsiteChannelHelpCenterInput) (WebsiteChannelHelpCenter, error)
 	// DeactivateMessageChannel 停用消息渠道。
-	//appservice:route POST /channels/{channelID:uuid}/deactivate perm=customer_service.manage
+	//appservice:route POST /channels/{channelID:uuid}/deactivate perm=none
 	DeactivateMessageChannel(context.Context, RequestMeta, string) (MessageChannelSummary, error)
 	// ActivateMessageChannel 启用消息渠道。
-	//appservice:route POST /channels/{channelID:uuid}/activate perm=customer_service.manage
+	//appservice:route POST /channels/{channelID:uuid}/activate perm=none
 	ActivateMessageChannel(context.Context, RequestMeta, string) (MessageChannelSummary, error)
 	// ListChannelOptions 返回当前企业的渠道选择项。
 	//appservice:route GET /channels/options perm=none

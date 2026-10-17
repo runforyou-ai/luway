@@ -3,28 +3,29 @@ title: Platform overview
 order: 1
 ---
 
-Platform administrators review the platform's scale, activity, customer service usage, and model usage. For how servers and background tasks are running, see the **Runtime status**, **Recent errors**, and **Logs** tabs, described in [Status and diagnostics](/docs/en/deployment/manage/diagnostics/).
+Platform administrators review the platform's scale, activity, customer service usage, and model usage. For how servers and background tasks are running, see **Runtime status** and **Recent errors** under the **Monitor** sidebar group, described in [Status and diagnostics](/docs/en/deployment/manage/diagnostics/).
 
 ## Open platform administration
 
-Platform administrators open **Settings** in any workspace. The **Platform** group in the left navigation contains **Overview**, **Workspaces & accounts**, **Deployment**, and **License**. Only platform administrators see this group.
+Open `/admin` (or continue there after first-time setup) and sign in with a platform admin account. You land on the **Dashboard**. The sidebar groups **Operations**, **Monitor**, **System**, and related items such as the dashboard, workspace management, user management, business usage, runtime status, recent errors, system settings, and license.
 
-## Accounts and workspaces
+## Dashboard
 
-The **Platform scale** tab of **Overview** shows:
+**Operations → Dashboard** is the admin home page. It prioritizes:
 
-- The total number of accounts and the accounts added in the last 30 days;
-- The total number of workspaces and the total members across all workspaces;
-- Active accounts and active workspaces in the last 7 and 30 days;
-- Daily active accounts for the last 30 days. Hover over a bar to see that day's active workspaces and new accounts. A text message appears when there were no active accounts in that period.
+- **Needs attention**: license status, waiting and delayed tasks, and recent error count;
+- **Business usage (last 7 days)**: service sessions, AI resolution rate, knowledge gaps, and model failure rate;
+- **Platform scale**: account and workspace totals and growth, activity for the last 7 / 30 days, and the daily active trend for the last 30 days.
 
-The server ID, license status, and workspace limit are on the **License** page. See [License](/docs/en/deployment/manage/license/).
+Click account or workspace metric cards to open user or workspace management. Click license, runtime, errors, or business usage summaries to open those detail pages. **Monitor** keeps business usage, runtime status, and recent errors.
+
+The deployment ID and license status are also on the **License** page. Self-created workspace quota is under **System settings → Site settings**. See [License](/docs/en/deployment/manage/license/).
 
 The workspace total includes active and suspended workspaces. For each workspace's scale, storage, and last activity, see [Accounts and workspaces](/docs/en/deployment/manage/accounts-workspaces/).
 
 ## Business usage
 
-The **Business usage** tab of **Overview** summarizes customer service data and model usage for the whole platform and for each workspace over the selected period (last 7, 30, or 90 days):
+Sidebar **Monitor → Business usage** summarizes customer service data and model usage for the whole platform and for each workspace over the selected period (last 7, 30, or 90 days):
 
 | Metric | Description |
 | --- | --- |
@@ -52,7 +53,7 @@ For the storage each workspace uses, see [Accounts and workspaces](/docs/en/depl
 
 - Active account: an account that sent a message or handled a customer conversation (replied, took over, closed, or transferred it) that day. An account in several workspaces counts once at the platform level.
 - Active workspace: a workspace with an active member, or with customer messages or AI employee replies that day.
-- Activity and new records are split into days by the **platform time zone**. You change it under **Deployment → Basics**; see [Platform time zone](/docs/en/deployment/configure/address/#platform-time-zone). After a change, all history is recounted in the new time zone, and the page shows that it is recounting until it finishes.
+- Activity and new records are split into days by the **platform time zone**. You change it under **Platform admin → System settings → Site settings**; see [Platform time zone](/docs/en/deployment/configure/address/#platform-time-zone). After a change, all history is recounted in the new time zone, and the page shows that it is recounting until it finishes.
 - Activity is summarized every 10 minutes, so recent actions may appear a little later.
 - Business usage counts service sessions by the time they ended and model calls by the time they started, across active and suspended workspaces.
 - Usage data contains only counts, durations, and statuses. It never includes message content, customer profiles, or credentials.

@@ -12,7 +12,7 @@ import {
   updateWebsiteChannelHelpCenter,
   type WebsiteChannel,
 } from "@/api"
-import { AgentResourcePickerField } from "@/components/agent-fields/agent-resource-picker-field"
+import { ResourcePickerField } from "@/components/resource-picker-field"
 import { SwitchField } from "@/components/form/switch-field"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import type { WebsiteHelpCenterPreviewDraft } from "@/features/channels/website/website-chat-preview"
@@ -125,7 +125,7 @@ export function WebsiteChannelHelpCenterForm({
           render={({ field }) => (
             <Field>
               <FieldLabel>{t("helpCenter.knowledgeBases")}</FieldLabel>
-              <AgentResourcePickerField
+              <ResourcePickerField
                 value={field.value}
                 onChange={field.onChange}
                 disabled={form.formState.isSubmitting}

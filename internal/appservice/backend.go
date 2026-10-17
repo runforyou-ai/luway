@@ -6,7 +6,7 @@ package appservice
 //
 // 每个方法必须携带一条 appservice:route 指令，格式为：
 //
-//	appservice:route <HTTP方法> <路径> [status=201] [query=<参数名>] [auth=public|account|admin] [perm=<权限代码>|none] [manual]
+//	appservice:route <HTTP方法> <路径> [status=201] [query=<参数名>] [auth=public|account|bearer|admin] [perm=<权限代码>|none] [manual]
 //
 // appservicegen 按指令生成服务端认证分发、net/http 路由与前端 TypeScript 契约和调用函数；
 // manual 标记的方法由 api 包手写注册 HTTP 路由。路径相对服务端 /api，其中的 {参数} 依次对应签名中的 string 参数，
@@ -42,6 +42,8 @@ type Backend interface {
 	ContactBackend
 	IntegrationBackend
 	WebSearchBackend
+	WebFetchBackend
+	MediaSettingsBackend
 	AIPerformanceBackend
 	TeamPerformanceBackend
 	ServiceIssueBackend

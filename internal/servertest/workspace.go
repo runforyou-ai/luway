@@ -4,10 +4,12 @@ package servertest
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 	"uuid"
 
 	accountaction "github.com/runforyou-ai/luway/internal/actions/account"
@@ -42,7 +44,48 @@ type InstalledWorkspace struct {
 	Token    string
 }
 
-// InstallWorkspace 创建名称和标识独立的工作区及管理员账号并签发登录会话。
+// PlatformAdmin 表示测试中已安装平台后的管理员后台会话。
+type PlatformAdmin struct {
+	Account    appservice.Account
+	AdminToken string
+}
+
+// InstallPlatform 调用应用服务完成首次安装，返回平台管理员后台会话令牌。
+func InstallPlatform(t testing.TB, backend interface {
+	InstallPlatform(context.Context, appservice.RequestMeta, appservice.InstallPlatformInput) (appservice.AdminAuth, error)
+}, input appservice.InstallPlatformInput) PlatformAdmin {
+	t.Helper()
+	if input.PublicURL == "" {
+		input.PublicURL = PublicURL
+	}
+	if input.Locale == "" {
+		input.Locale = domain.LocaleChineseSimplified
+	}
+	if input.TimeZone == "" {
+		input.TimeZone = "Asia/Shanghai"
+	}
+	if input.WorkspaceName == "" {
+		input.WorkspaceName = UniqueWorkspaceName("默认工作区")
+	}
+	auth, err := backend.InstallPlatform(context.Background(), appservice.RequestMeta{Locale: input.Locale}, input)
+	require.NoError(t, err)
+	return PlatformAdmin{Account: auth.Account, AdminToken: auth.Token}
+}
+
+// AdminMeta 构造带平台后台会话的请求元数据。
+func AdminMeta(adminToken string) appservice.RequestMeta {
+	return appservice.RequestMeta{AdminToken: adminToken, Locale: domain.LocaleChineseSimplified}
+}
+
+// IssueUserToken 为账号签发用户端会话令牌。
+func IssueUserToken(t testing.TB, db *bun.DB, account *servermodels.Account) string {
+	t.Helper()
+	session, err := authaction.IssueUserSession(context.Background(), db, account)
+	require.NoError(t, err)
+	return session.Token
+}
+
+// InstallWorkspace 创建名称和标识独立的工作区及管理员账号并签发用户端登录会话。
 func InstallWorkspace(t testing.TB, db *bun.DB, spec WorkspaceSpec) InstalledWorkspace {
 	t.Helper()
 	ctx := context.Background()
@@ -81,14 +124,41 @@ func InstallWorkspace(t testing.TB, db *bun.DB, spec WorkspaceSpec) InstalledWor
 	return ResolveMemberSession(t, db, workspaceID, token)
 }
 
-// EnsurePlatform 在共享测试库中写入平台行与部署版本，注册仅限受邀、工作区仅平台管理员可创建，部署地址为 PublicURL；已存在时保留原行。
+// EnsurePlatform 在共享测试库中写入平台行与部署版本，注册仅限受邀、自建额度 0，部署地址为 PublicURL；已存在时保留原行。
 func EnsurePlatform(t testing.TB, db *bun.DB) {
 	t.Helper()
 	_, err := db.NewInsert().Model(&servermodels.Platform{
-		RegistrationPolicy:      string(domain.RegistrationPolicyInvitationOnly),
-		WorkspaceCreationPolicy: string(domain.WorkspaceCreationPolicyPlatformAdmin),
-		PublicURL:               PublicURL,
-	}).Column("registration_policy", "workspace_creation_policy", "public_url").On("CONFLICT DO NOTHING").Exec(context.Background())
+		RegistrationPolicy:     string(domain.RegistrationPolicyInvitationOnly),
+		WorkspaceCreationQuota: 0,
+		PublicURL:              PublicURL,
+		S3PublicBaseURL:        PublicURL + "/files",
+	}).Column("registration_policy", "workspace_creation_quota", "public_url", "s3_public_base_url").On("CONFLICT DO NOTHING").Exec(context.Background())
+	require.NoError(t, err)
+}
+
+// SeedActiveLicense 写入一条未过期授权，使平台视为已授权（不经 JWT 验签）。
+func SeedActiveLicense(t testing.TB, db *bun.DB) {
+	t.Helper()
+	ctx := context.Background()
+	var deploymentID string
+	require.NoError(t, db.NewSelect().Model((*servermodels.Platform)(nil)).Column("deployment_id").Limit(1).Scan(ctx, &deploymentID))
+	now := time.Now().UTC()
+	_, err := db.NewInsert().Model(&servermodels.License{
+		DeploymentID: deploymentID,
+		LicenseID:    uuid.NewV7().String(),
+		Customer:     "测试客户",
+		LicenseCode:  "test-license",
+		Capabilities: json.RawMessage(`{}`),
+		IssuedAt:     now.Add(-time.Hour),
+		ExpiresAt:    now.AddDate(1, 0, 0),
+	}).On("CONFLICT (deployment_id) DO UPDATE").
+		Set("license_id = EXCLUDED.license_id").
+		Set("customer = EXCLUDED.customer").
+		Set("license_code = EXCLUDED.license_code").
+		Set("capabilities = EXCLUDED.capabilities").
+		Set("issued_at = EXCLUDED.issued_at").
+		Set("expires_at = EXCLUDED.expires_at").
+		Exec(ctx)
 	require.NoError(t, err)
 }
 

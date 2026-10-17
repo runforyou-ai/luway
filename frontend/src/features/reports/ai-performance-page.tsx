@@ -1,12 +1,12 @@
 /** AI 表现报表页：概览、待补知识、问题会话、按渠道与按咨询分类五个与地址同步的页签，共用渠道与 AI 员工筛选；报表页签按结束时间筛选，待补知识按处理状态筛选，问题会话按问题类型筛选，打开的条目编号保存在地址中；没有数据报表权限时只显示待补知识。 */
-import { useEffect } from "react"
+import { useEffect, type ComponentType } from "react"
 import { useTranslation } from "react-i18next"
 
 import { PermissionCode, ServiceReportDimension, getAIPerformanceReport, listAgents } from "@/api"
 import { ListToolbar, ListToolbarFilter } from "@/components/list-toolbar"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
-import { ReportPeriodFilter } from "@/components/report-parts"
+import { ReportPeriodFilter } from "@/components/metrics"
 import { ResourceContent } from "@/components/resource-content"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { usePermission } from "@/contexts/workspace-context"
@@ -20,10 +20,11 @@ import {
   AIKnowledgeGapList,
   AIPerformanceBreakdownList,
   AIPerformanceIssueList,
+  type KnowledgeGapSheetProps,
   type ReportFilter,
 } from "./ai-performance-lists"
 import { AIPerformanceOverview } from "./ai-performance-overview"
-import { ReportChannelFilter, useReportSearchParams } from "./report-filters"
+import { ReportChannelFilter, ReportServiceFilters, reportServiceScope, useReportSearchParams } from "./report-filters"
 
 /** 页签，第一个为默认值。 */
 const reportTabs = ["overview", "knowledgeGaps", "issues", "channels", "categories"] as const
@@ -35,6 +36,8 @@ const parameterDefaults = {
   tab: reportTabs[0],
   days: String(periodOptions[0]),
   channel: "",
+  audience: "",
+  source: "",
   agent: "",
   status: gapStatuses[0],
   gap: "",
@@ -45,8 +48,12 @@ const parameterDefaults = {
 /** 打开条目的地址参数。 */
 const openItems = ["gap", "session"] as const
 
-/** 显示 AI 客服表现报表，页签和筛选保存在地址中。 */
-export function AIPerformancePage() {
+/** 显示 AI 客服表现报表，页签和筛选保存在地址中；KnowledgeGapSheet 由 shell 注入。 */
+export function AIPerformancePage({
+  KnowledgeGapSheet,
+}: {
+  KnowledgeGapSheet?: ComponentType<KnowledgeGapSheetProps>
+} = {}) {
   const { t } = useTranslation("agents")
   const [searchParams, setParameters] = useReportSearchParams(parameterDefaults, openItems)
   const days =
@@ -55,6 +62,7 @@ export function AIPerformancePage() {
   const channelId = searchParams.get("channel") ?? ""
   const agent = searchParams.get("agent") ?? ""
   const filter: ReportFilter = {
+    ...reportServiceScope(searchParams),
     channelId,
     agentId: agent === mineAgentFilter ? "" : agent,
     mine: agent === mineAgentFilter,
@@ -63,7 +71,7 @@ export function AIPerformancePage() {
   const canViewAgents = usePermission(PermissionCode.PermissionAIEmployeesManage)
   // 选定渠道时不显示按渠道拆分；没有数据报表权限时只显示待补知识。
   const tabs = reportTabs.filter(
-    (value) => (canViewReports || value === "knowledgeGaps") && !(channelId && value === "channels"),
+    (value) => (canViewReports || value === "knowledgeGaps") && !((channelId || filter.serviceSource === "direct") && value === "channels"),
   )
   const tab = tabs.find((value) => value === searchParams.get("tab")) ?? tabs[0]
   const status = gapStatuses.find((value) => value === searchParams.get("status")) ?? gapStatuses[0]
@@ -110,7 +118,8 @@ export function AIPerformancePage() {
         {tab === "knowledgeGaps" ? null : (
           <ReportPeriodFilter value={days} onValueChange={(value) => setParameters({ days: value })} />
         )}
-        <ReportChannelFilter value={channelId} onValueChange={(value) => setParameters({ channel: value })} />
+        <ReportServiceFilters audience={filter.audience} serviceSource={filter.serviceSource} onAudienceChange={(value) => setParameters({ audience: value, source: "", channel: "" })} onSourceChange={(value) => setParameters({ source: value, channel: "" })} />
+        <ReportChannelFilter audience={filter.audience} serviceSource={filter.serviceSource} value={channelId} onValueChange={(value) => setParameters({ channel: value })} />
         <ListToolbarFilter
           label={t("performance.agent")}
           allLabel={t("performance.allAgents")}
@@ -168,6 +177,7 @@ export function AIPerformancePage() {
           status={status}
           gapId={gapId}
           onGapChange={(value) => setParameters({ gap: value })}
+          KnowledgeGapSheet={KnowledgeGapSheet}
         />
       ) : tab === "issues" ? (
         <AIPerformanceIssueList

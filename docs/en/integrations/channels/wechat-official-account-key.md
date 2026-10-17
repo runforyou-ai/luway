@@ -10,7 +10,6 @@ This page is being written.
 ## Prerequisites
 
 - A verified service account, and an administrator who can sign in to Settings & Development › Basic Configuration in the WeChat Official Account Platform.
-- The deployer has set each server's egress IP (`server.egressIP`) in its server configuration. See the [configuration reference](/docs/en/deployment/configure/configuration/).
 - An Official Account can be connected to only one key-access channel in a deployment. Once a channel is connected, its AppID can't be changed; create a new channel for a different Official Account.
 
 ## Connect the Official Account
@@ -24,7 +23,7 @@ Enter the Official Account credentials on the channel's **Connection** tab:
 | Message encryption | Safe mode or plaintext mode; safe mode is recommended |
 | EncodingAESKey | 43 letters or digits in safe mode; can be generated |
 
-Before saving, add every server egress IP listed under **IP whitelist** on the **Connection** tab to the IP whitelist under Settings & Development › Basic Configuration. When you save, {{product}} uses the AppID and AppSecret to obtain an API credential from WeChat and saves only after it succeeds. If an egress IP isn't on the whitelist, the error names that IP.
+Before saving, add the public egress IP of every server, which you need to look up yourself, to the IP whitelist under Settings & Development › Basic Configuration. When you save, {{product}} uses the AppID and AppSecret to obtain an API credential from WeChat and saves only after it succeeds. If an egress IP isn't on the whitelist, the error names that IP.
 
 ## Connection status
 

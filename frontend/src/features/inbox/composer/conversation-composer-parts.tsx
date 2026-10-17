@@ -19,7 +19,7 @@ import { useDateTime } from "@/hooks/use-date-time"
 import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import { messagePreview } from "@/features/inbox/shared/message-preview"
 import { cn } from "@/lib/utils"
-import composerEmojis from "../../../../../internal/publicweb/composer-emojis.json"
+import composerEmojis from "../../../../../internal/web/messenger/composer-emojis.json"
 
 import { ConversationAttachmentUpload } from "./conversation-attachment-upload"
 import type { ServiceRecipient } from "./conversation-composer-types"

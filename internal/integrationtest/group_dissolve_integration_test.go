@@ -21,7 +21,7 @@ func TestDissolveGroupPreservesMembers(t *testing.T) {
 	t.Parallel()
 	f := newNavigationFixture(t)
 	ctx := context.Background()
-	dissolve := groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCoordinator(f.db))
+	dissolve := groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCanceller(f.db))
 	_, err := dissolve.Execute(ctx, f.member, f.groupID)
 	require.ErrorIs(t, err, conversationaction.ErrGroupOwnerRequired, "member dissolve")
 	foreign := newNavigationFixture(t)
@@ -63,13 +63,13 @@ func TestDissolveDoesNotRestoreFormerMember(t *testing.T) {
 	t.Parallel()
 	f := newNavigationFixture(t)
 	ctx := context.Background()
-	leave := groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db))
+	leave := groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db))
 	require.NoError(t, leave.Execute(ctx, f.member, f.groupID))
 	var conflict *conversationaction.ConflictError
 	err := leave.Execute(ctx, f.owner, f.groupID)
 	require.ErrorAs(t, err, &conflict, "last owner leave")
 	require.Equal(t, groupchataction.ConflictReasonGroupOwnerCannotLeave, conflict.Reason, "last owner leave")
-	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, f.groupID)
+	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, f.groupID)
 	require.NoError(t, err)
 	_, err = groupchataction.NewGetGroupConversationQuery(f.db).Execute(ctx, f.member, f.groupID)
 	require.ErrorIs(t, err, conversationaction.ErrConversationNotFound, "former member access")
@@ -93,7 +93,7 @@ func TestDissolveSerializesWithGroupWrites(t *testing.T) {
 				if operation == "transfer_first" {
 					_, err = groupchataction.NewTransferGroupConversationOwnerAction(f.db).Execute(ctx, f.owner, groupchataction.GroupConversationOwnerInput{ConversationID: f.groupID, OwnerIdentityID: f.member.WorkspaceIdentity.ID})
 				} else {
-					_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, f.groupID)
+					_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, f.groupID)
 				}
 				dissolved <- err
 			}()
@@ -110,7 +110,7 @@ func TestDissolveSerializesWithGroupWrites(t *testing.T) {
 				case "transfer":
 					_, err = groupchataction.NewTransferGroupConversationOwnerAction(f.db).Execute(ctx, f.owner, groupchataction.GroupConversationOwnerInput{ConversationID: f.groupID, OwnerIdentityID: f.member.WorkspaceIdentity.ID})
 				case "dissolve", "transfer_first":
-					_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, f.groupID)
+					_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, f.groupID)
 				}
 				written <- err
 			}()

@@ -35,9 +35,9 @@ func QueryOrDefault(query url.Values, name, defaultValue string) string {
 	return defaultValue
 }
 
-// RequestMeta 从请求头提取令牌、目标工作区和语言，构造应用服务请求元数据。
+// RequestMeta 从请求头与平台后台 Cookie 提取令牌、目标工作区和语言，构造应用服务请求元数据。
 func RequestMeta(request *http.Request) appservice.RequestMeta {
-	return appservice.RequestMetaFromHTTP(request.Header)
+	return appservice.RequestMetaFromRequest(request)
 }
 
 // BindJSON 解析 JSON 请求体，失败时写入校验错误响应并返回 false。

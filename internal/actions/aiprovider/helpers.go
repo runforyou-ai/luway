@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/internal/storage/server/pgerr"
@@ -99,7 +100,7 @@ func diffModels(stored, models []Model) (modelChanges, error) {
 		}
 		previous, exists := storedByID[model.ID]
 		if !exists {
-			return modelChanges{}, &ValidationError{Fields: map[string]ValidationCode{"models": ValidationModelsInvalid}}
+			return modelChanges{}, &common.FieldError{Fields: map[string]common.FieldCode{"models": ValidationModelsInvalid}}
 		}
 		kept.Add(model.ID)
 		changes.updated = append(changes.updated, model)
@@ -126,7 +127,7 @@ func validateReferencedModels(ctx context.Context, db bun.IDB, workspaceID strin
 	for _, reference := range references {
 		model, exists := modelByID[reference.ModelID]
 		if !exists || !aimodel.Satisfies(reference.Usage, model.Type, model.InputModalities) {
-			return &ValidationError{Fields: map[string]ValidationCode{"models": ValidationModelsInUse}}
+			return &common.FieldError{Fields: map[string]common.FieldCode{"models": ValidationModelsInUse}}
 		}
 	}
 	return nil
@@ -237,9 +238,9 @@ func recordFromModel(provider servermodels.AIProvider, models []Model) Record {
 func conflictError(err error) error {
 	switch {
 	case pgerr.UniqueViolationOn(err, "ai_providers_workspace_name_unique"):
-		return &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+		return &common.FieldError{Fields: map[string]common.FieldCode{"name": ValidationNameDuplicate}}
 	case pgerr.UniqueViolationOn(err, "ai_model_routes_provider_identifier_unique"):
-		return &ValidationError{Fields: map[string]ValidationCode{"models": ValidationModelsInvalid}}
+		return &common.FieldError{Fields: map[string]common.FieldCode{"models": ValidationModelsInvalid}}
 	default:
 		return nil
 	}

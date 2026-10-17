@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router"
 import { toast } from "sonner"
 
 import { AgentToolCallStatus, ToolIntervention, type AgentToolDecision } from "@/api"
-import { toolDecisionTitle } from "@/components/agent-tool-decision"
+import { toolDecisionTitle } from "./agent-tool-decision"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { PageHeader } from "@/components/page-header"
 import { ResourceListLayout } from "@/components/resource-list"

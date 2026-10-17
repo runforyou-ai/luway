@@ -12,16 +12,13 @@ import (
 	"github.com/runforyou-ai/support/set"
 )
 
-// ValidationCode 标识角色字段校验结果。
-type ValidationCode = common.FieldCode
-
 // 角色的字段校验码。
 const (
-	ValidationNameRequired       ValidationCode = "ROLE_NAME_REQUIRED"
-	ValidationNameTooLong        ValidationCode = "ROLE_NAME_TOO_LONG"
-	ValidationNameDuplicate      ValidationCode = "ROLE_NAME_DUPLICATE"
-	ValidationDescriptionTooLong ValidationCode = "ROLE_DESCRIPTION_TOO_LONG"
-	ValidationPermissionsInvalid ValidationCode = "ROLE_PERMISSIONS_INVALID"
+	ValidationNameRequired       common.FieldCode = "ROLE_NAME_REQUIRED"
+	ValidationNameTooLong        common.FieldCode = "ROLE_NAME_TOO_LONG"
+	ValidationNameDuplicate      common.FieldCode = "ROLE_NAME_DUPLICATE"
+	ValidationDescriptionTooLong common.FieldCode = "ROLE_DESCRIPTION_TOO_LONG"
+	ValidationPermissionsInvalid common.FieldCode = "ROLE_PERMISSIONS_INVALID"
 )
 
 const (
@@ -31,12 +28,9 @@ const (
 	maxRoleDescriptionLength = 200
 )
 
-// ValidationError 表示角色字段校验失败。
-type ValidationError = common.FieldError
-
 // normalizeInput 规范化可编辑字段并按权限目录顺序整理权限。
-func normalizeInput(input Input, custom bool) (Input, map[string]ValidationCode) {
-	fields := make(map[string]ValidationCode)
+func normalizeInput(input Input, custom bool) (Input, map[string]common.FieldCode) {
+	fields := make(map[string]common.FieldCode)
 	if custom {
 		input.Name = strings.TrimSpace(input.Name)
 		input.Description = strings.TrimSpace(input.Description)

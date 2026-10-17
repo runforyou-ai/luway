@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -41,7 +42,7 @@ func (a *UpdateAIProviderAction) Execute(ctx context.Context, identity *servermo
 			APIKey: update.APIKey, APIURL: update.APIURL, Models: update.Models,
 		})
 		if len(fields) > 0 {
-			return &ValidationError{Fields: fields}
+			return &common.FieldError{Fields: fields}
 		}
 		stored, err := loadModels(ctx, tx, current.ID)
 		if err != nil {

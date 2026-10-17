@@ -83,8 +83,8 @@ func TestWebsiteVisitorDirectoryHTTP(t *testing.T) {
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
 	scheduler := agentrunaction.NewScheduler(testEnqueuer)
-	visitorService := direct.NewWebsiteVisitorBackend(f.db, scheduler, testEnqueuer, nil, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
-	application := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	visitorService := direct.NewWebsiteVisitorBackend(f.db, scheduler, testEnqueuer, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
+	application := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	client := websiteVisitorHTTP{service: api.NewService(application, api.WithWebsiteVisitor(visitorService, func() bool { return false }))}
 	directoryPath := "/public/website-channels/" + f.channelID + "/conversations"
 	messagesPath := "/public/website-channels/" + f.channelID + "/messages"

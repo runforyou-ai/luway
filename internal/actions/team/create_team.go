@@ -21,9 +21,9 @@ type CreateTeamAction struct{ db *bun.DB }
 func NewCreateTeamAction(db *bun.DB) *CreateTeamAction { return &CreateTeamAction{db: db} }
 
 // Execute 校验并创建当前企业的团队。
-func (a *CreateTeamAction) Execute(ctx context.Context, identity *servermodels.Identity, input Input) (*TeamRecord, error) {
+func (a *CreateTeamAction) Execute(ctx context.Context, identity *servermodels.Identity, input Input) (*Record, error) {
 	input = normalizeInput(input)
-	record := &TeamRecord{}
+	record := &Record{}
 	err := serverstorage.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
@@ -39,7 +39,7 @@ func (a *CreateTeamAction) Execute(ctx context.Context, identity *servermodels.I
 		if err != nil {
 			return err
 		}
-		*record = TeamRecord{ID: team.ID, Name: team.Name, Description: team.Description, CreatedAt: team.CreatedAt, UpdatedAt: team.UpdatedAt}
+		*record = Record{ID: team.ID, Name: team.Name, Description: team.Description, CreatedAt: team.CreatedAt, UpdatedAt: team.UpdatedAt}
 		return nil
 	})
 	if err != nil {

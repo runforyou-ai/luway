@@ -88,7 +88,7 @@ type customerReplyContext struct {
 func (a *GenerateServiceReplySuggestionsAction) Execute(ctx context.Context, identity *servermodels.Identity, input ServiceReplySuggestionsInput) ([]string, error) {
 	input, fields := normalizeServiceReplySuggestionsInput(input)
 	if len(fields) > 0 {
-		return nil, &conversationaction.ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	workspaceID := identity.Workspace.ID
 	links := a.attachments.links

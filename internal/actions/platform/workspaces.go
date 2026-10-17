@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -64,7 +65,7 @@ type WorkspaceRecord struct {
 // WorkspaceListOutput 定义平台工作区分页结果。
 type WorkspaceListOutput struct {
 	Workspaces []WorkspaceRecord
-	Page       common.PageInfo
+	Page       apptypes.PageInfo
 }
 
 // ListWorkspacesQuery 读取平台内的全部工作区。
@@ -112,7 +113,7 @@ func (q *ListWorkspacesQuery) Execute(ctx context.Context, input WorkspaceListIn
 		Scan(ctx, &workspaces); err != nil {
 		return WorkspaceListOutput{}, fmt.Errorf("list platform workspaces: %w", err)
 	}
-	return WorkspaceListOutput{Workspaces: workspaces, Page: common.PageInfo{Number: input.Page, Size: input.PageSize, Total: int(total)}}, nil
+	return WorkspaceListOutput{Workspaces: workspaces, Page: apptypes.PageInfo{Number: input.Page, Size: input.PageSize, Total: int(total)}}, nil
 }
 
 // selectWorkspaceRecords 返回读取工作区列表行的查询，规模列取当前值，最近活跃距今天数取按日指标，按数据库时钟与平台时区计算，统计日期晚于今天时取 0。

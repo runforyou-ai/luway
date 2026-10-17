@@ -12,7 +12,7 @@ type WechatTokenFailure = domain.WechatTokenFailure
 // WechatPlatformStatus 表示第三方平台的可用状态。
 type WechatPlatformStatus = domain.WechatPlatformStatus
 
-// WechatPlatform 定义部署的微信第三方平台配置、需填写到微信开放平台的接入信息、各服务器出口 IP 与平台凭据状态；Configured 为假时凭据字段为空。
+// WechatPlatform 定义部署的微信第三方平台配置、需填写到微信开放平台的接入信息与平台凭据状态；Configured 为假时凭据字段为空。
 type WechatPlatform struct {
 	Configured bool `json:"configured"`
 	// Status 是平台可用状态，Configured 为假时为空。
@@ -26,9 +26,8 @@ type WechatPlatform struct {
 	// EventURL 是授权事件接收地址。
 	EventURL string `json:"eventUrl"`
 	// MessageURL 是授权公众号消息与事件接收地址，其中的 $APPID$ 由微信替换为公众号 AppID。
-	MessageURL             string         `json:"messageUrl"`
-	Servers                []WechatServer `json:"servers"`
-	VerifyTicketReceivedAt *time.Time     `json:"verifyTicketReceivedAt"`
+	MessageURL             string     `json:"messageUrl"`
+	VerifyTicketReceivedAt *time.Time `json:"verifyTicketReceivedAt"`
 	// AccessTokenExpiresAt 是平台接口调用凭据的到期时间，尚未成功获取时为空。
 	AccessTokenExpiresAt *time.Time `json:"accessTokenExpiresAt"`
 	// TokenFailedAt 与 TokenFailure 是最近一次获取凭据失败的时间与原因，之后成功获取时为空。
@@ -36,13 +35,6 @@ type WechatPlatform struct {
 	TokenFailure  *WechatTokenFailure `json:"tokenFailure"`
 	// TokenFailureDetail 在白名单失败时是微信识别的调用方 IP，其他失败时是错误码与说明。
 	TokenFailureDetail string `json:"tokenFailureDetail"`
-}
-
-// WechatServer 定义一台服务端进程的主机名、配置的出口 IP 与是否在线；EgressIP 为空表示未配置。
-type WechatServer struct {
-	Hostname string `json:"hostname"`
-	EgressIP string `json:"egressIp"`
-	Online   bool   `json:"online"`
 }
 
 // WechatPlatformInput 定义平台管理员提交的第三方平台凭据。
@@ -73,7 +65,7 @@ type WechatKeyChannel struct {
 	Connection WechatKeyConnection `json:"connection"`
 }
 
-// WechatKeyConnection 定义密钥接入渠道的公众号凭据、服务器地址与验证状态、各服务器出口 IP 与接口调用凭据状态；尚未连接时 AppID 为空。
+// WechatKeyConnection 定义密钥接入渠道的公众号凭据、服务器地址、验证状态与接口调用凭据状态；尚未连接时 AppID 为空。
 type WechatKeyConnection struct {
 	AppID          string                `json:"appId"`
 	AppSecret      string                `json:"appSecret"`
@@ -83,8 +75,7 @@ type WechatKeyConnection struct {
 	// ServerURL 是填写在公众号服务器配置中的消息接收地址。
 	ServerURL string `json:"serverUrl"`
 	// ServerVerifiedAt 是微信按当前 Token 验证服务器地址成功的时间，尚未验证时为空。
-	ServerVerifiedAt *time.Time     `json:"serverVerifiedAt"`
-	Servers          []WechatServer `json:"servers"`
+	ServerVerifiedAt *time.Time `json:"serverVerifiedAt"`
 	WechatTokenState
 }
 

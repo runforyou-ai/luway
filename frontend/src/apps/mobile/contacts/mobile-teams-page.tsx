@@ -12,7 +12,7 @@ import { MobilePageHeader, MobileSearchBar } from "@/apps/mobile/shared/mobile-p
 import { MobilePagedList } from "@/apps/mobile/shared/mobile-paged-list"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { Button } from "@/components/ui/button"
-import { WorkStatusBadge, workStatusLabel } from "@/components/work-status"
+import { WorkStatusBadge, workStatusLabel } from "@/features/contacts/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useListSearchParams } from "@/hooks/use-list-search-params"

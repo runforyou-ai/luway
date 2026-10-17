@@ -14,7 +14,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/channeladapter"
 	"github.com/runforyou-ai/luway/internal/actions/channelbinding"
 	"github.com/runforyou-ai/luway/internal/actions/channeldelivery"
-	"github.com/runforyou-ai/luway/internal/actions/channelmessage"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -30,15 +29,14 @@ type ReceiveEventAction struct {
 	db             *bun.DB
 	adapters       *channeladapter.Registry
 	agentScheduler conversationaction.CustomerAgentMessageScheduler
-	mediaBackend   func() domain.FileStorageBackend
 	tasks          servertask.TxEnqueuer
 	retrieve       *RetrieveMediaAction
 	publicURL      func() string
 }
 
-// NewReceiveEventAction 创建渠道入站事件处理任务，mediaBackend 返回入站媒体的存储类型，retrieve 在事务提交后立即取回媒体，publicURL 返回生成绑定链接的部署地址。
-func NewReceiveEventAction(db *bun.DB, adapters *channeladapter.Registry, agentScheduler conversationaction.CustomerAgentMessageScheduler, mediaBackend func() domain.FileStorageBackend, tasks servertask.TxEnqueuer, retrieve *RetrieveMediaAction, publicURL func() string) *ReceiveEventAction {
-	return &ReceiveEventAction{db: db, adapters: adapters, agentScheduler: agentScheduler, mediaBackend: mediaBackend, tasks: tasks, retrieve: retrieve, publicURL: publicURL}
+// NewReceiveEventAction 创建渠道入站事件处理任务，retrieve 在事务提交后立即取回媒体，publicURL 返回生成绑定链接的部署地址。
+func NewReceiveEventAction(db *bun.DB, adapters *channeladapter.Registry, agentScheduler conversationaction.CustomerAgentMessageScheduler, tasks servertask.TxEnqueuer, retrieve *RetrieveMediaAction, publicURL func() string) *ReceiveEventAction {
+	return &ReceiveEventAction{db: db, adapters: adapters, agentScheduler: agentScheduler, tasks: tasks, retrieve: retrieve, publicURL: publicURL}
 }
 
 // Execute 在渠道仍启用且连接的平台账号未变化时处理事件；需要回复提示或绑定链接时在事务提交后经渠道发送。
@@ -176,8 +174,7 @@ func (a *ReceiveEventAction) receiveMessage(ctx context.Context, tx bun.Tx, chan
 	for _, item := range event.Media {
 		parts = append(parts, Input{Body: item.Caption, ExternalMedia: &ExternalMedia{
 			ExternalID: item.Ref, FileName: item.FileName, ContentType: item.ContentType, ByteSize: item.ByteSize,
-			ImageWidth: item.Width, ImageHeight: item.Height, StorageBackend: a.mediaBackend(),
-		}})
+			ImageWidth: item.Width, ImageHeight: item.Height}})
 	}
 	displayName := support.NilIfZero(event.SenderName)
 	var media []RetrieveMediaInput
@@ -188,9 +185,9 @@ func (a *ReceiveEventAction) receiveMessage(ctx context.Context, tx bun.Tx, chan
 		part.IdempotencyKey, part.OriginatedAt = base+strconv.Itoa(index), event.OccurredAt
 		// 平台消息编号对应写入的第一条消息，引用按平台消息编号关联。
 		if index == 0 && event.MessageID != "" {
-			part.ChannelMessage = &channelmessage.Inbound{AccountID: input.AccountID, ConversationID: event.ChatID, MessageID: event.MessageID}
+			part.ChannelMessage = &ChannelMessage{AccountID: input.AccountID, ConversationID: event.ChatID, MessageID: event.MessageID}
 			if reply := event.Reply; reply != nil {
-				part.ChannelMessage.Reply = &channelmessage.Reply{MessageID: reply.MessageID, Body: reply.Body, SenderName: reply.SenderName, SenderIsBot: reply.SenderIsBot}
+				part.ChannelMessage.Reply = &ChannelReply{MessageID: reply.MessageID, Body: reply.Body, SenderName: reply.SenderName, SenderIsBot: reply.SenderIsBot}
 			}
 		}
 		if assertion := input.Assertion; assertion != nil {

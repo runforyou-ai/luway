@@ -11,6 +11,7 @@ import (
 	"uuid"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -27,11 +28,11 @@ func NewCreateUploadAction(db *bun.DB) *CreateUploadAction {
 	return &CreateUploadAction{db: db}
 }
 
-// Execute 校验元数据并创建指定存储位置的待上传文件。
-func (a *CreateUploadAction) Execute(ctx context.Context, identity *servermodels.Identity, backend domain.FileStorageBackend, input UploadInput) (*servermodels.File, error) {
+// Execute 校验元数据并创建待上传文件。
+func (a *CreateUploadAction) Execute(ctx context.Context, identity *servermodels.Identity, input UploadInput) (*servermodels.File, error) {
 	input, fields := NormalizeUploadInput(input)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	var record *servermodels.File
 	err := serverstorage.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
@@ -39,34 +40,31 @@ func (a *CreateUploadAction) Execute(ctx context.Context, identity *servermodels
 			return err
 		}
 		var err error
-		record, err = CreatePending(ctx, tx, identity, backend, input)
+		record, err = CreatePending(ctx, tx, identity, input)
 		return err
 	})
 	return record, err
 }
 
 // CreatePending 使用已规范化的元数据在业务事务中创建文件记录。
-func CreatePending(ctx context.Context, tx bun.Tx, identity *servermodels.Identity, backend domain.FileStorageBackend, input UploadInput) (*servermodels.File, error) {
+func CreatePending(ctx context.Context, tx bun.Tx, identity *servermodels.Identity, input UploadInput) (*servermodels.File, error) {
 	partSize := int64(0)
-	if input.ByteSize > domain.FilePartSize {
-		// 大文件按 S3 最多 10000 片增大片大小。
-		partSize = max(domain.FilePartSize, (input.ByteSize-1)/10000+1)
+	if input.ByteSize > domain.FileMultipartThreshold {
+		// 每次 ListParts 最多返回 1000 片，保证 Uppy 恢复时能取得完整清单。
+		partSize = max(domain.FilePartSize, (input.ByteSize-1)/1000+1)
 	}
-	record, err := pendingFile(identity.Workspace.ID, identity.User.ID, backend, input, partSize)
+	record, err := pendingFile(identity.Workspace.ID, identity.User.ID, input, partSize)
 	if err != nil {
 		return nil, err
 	}
 	return record, insertPendingFile(ctx, tx, record)
 }
 
-// pendingFile 按归属、存储位置和分片大小构造待上传文件记录。
-func pendingFile(workspaceID, createdByUserID string, backend domain.FileStorageBackend, input UploadInput, partSize int64) (*servermodels.File, error) {
-	if backend != domain.FileStorageBackendLocal && backend != domain.FileStorageBackendS3 {
-		return nil, fmt.Errorf("invalid file storage backend %q", backend)
-	}
+// pendingFile 按归属、对象键和分片大小构造待上传文件记录。
+func pendingFile(workspaceID, createdByUserID string, input UploadInput, partSize int64) (*servermodels.File, error) {
 	id := uuid.NewV7().String()
 	record := &servermodels.File{ID: id, WorkspaceID: workspaceID, CreatedByUserID: createdByUserID,
-		Purpose: string(input.Purpose), StorageBackend: string(backend), StorageKey: storageKey(workspaceID, id, input.FileName, input.ContentType),
+		Purpose: string(input.Purpose), StorageKey: storageKey(workspaceID, id, input.FileName, input.ContentType),
 		OriginalName: input.FileName, ContentType: input.ContentType, ByteSize: input.ByteSize, PartSize: partSize, Status: string(domain.FileStatusPending)}
 	// 知识文档原件使用独立目录，读取时必须校验登录身份与文件状态。
 	if input.Purpose == domain.FilePurposeKnowledgeDocument {

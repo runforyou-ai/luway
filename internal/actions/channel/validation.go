@@ -19,21 +19,15 @@ const (
 	DefaultWebsiteChannelThemeColor = "#2563EB"
 )
 
-// ValidationCode 标识渠道字段校验结果。
-type ValidationCode = common.FieldCode
-
 const (
-	ValidationRoutingTargetInvalid ValidationCode = "CHANNEL_ROUTING_TARGET_INVALID"
-	ValidationHomeBlocksInvalid    ValidationCode = "CHANNEL_HOME_BLOCKS_INVALID"
-	ValidationAllowedHostInvalid   ValidationCode = "CHANNEL_ALLOWED_HOST_INVALID"
-	ValidationKnowledgeBaseInvalid ValidationCode = "CHANNEL_KNOWLEDGE_BASE_INVALID"
+	ValidationRoutingTargetInvalid common.FieldCode = "CHANNEL_ROUTING_TARGET_INVALID"
+	ValidationHomeBlocksInvalid    common.FieldCode = "CHANNEL_HOME_BLOCKS_INVALID"
+	ValidationAllowedHostInvalid   common.FieldCode = "CHANNEL_ALLOWED_HOST_INVALID"
+	ValidationKnowledgeBaseInvalid common.FieldCode = "CHANNEL_KNOWLEDGE_BASE_INVALID"
 )
 
-// ValidationError 表示渠道字段校验失败。
-type ValidationError = common.FieldError
-
 // normalizeCreateMessageChannelInput 规范化消息渠道创建输入并校验接待设置。
-func normalizeCreateMessageChannelInput(input CreateMessageChannelInput) (CreateMessageChannelInput, map[string]ValidationCode) {
+func normalizeCreateMessageChannelInput(input CreateMessageChannelInput) (CreateMessageChannelInput, map[string]common.FieldCode) {
 	input.Type = domain.ChannelType(strings.TrimSpace(string(input.Type)))
 	normalized, fields := normalizeMessageChannelInput(input.MessageChannelInput)
 	input.MessageChannelInput = normalized
@@ -41,7 +35,7 @@ func normalizeCreateMessageChannelInput(input CreateMessageChannelInput) (Create
 }
 
 // normalizeMessageChannelInput 规范化消息渠道通用输入并校验接待设置。
-func normalizeMessageChannelInput(input MessageChannelInput) (MessageChannelInput, map[string]ValidationCode) {
+func normalizeMessageChannelInput(input MessageChannelInput) (MessageChannelInput, map[string]common.FieldCode) {
 	basics := normalizeMessageChannelBasics(MessageChannelBasicsInput{
 		Name:          input.Name,
 		Description:   input.Description,
@@ -69,10 +63,10 @@ func normalizeMessageChannelBasics(input MessageChannelBasicsInput) MessageChann
 }
 
 // normalizeMessageChannelReception 规范化并校验渠道接待设置：新会话可交给成员、团队或公共队列，失败去向只能是团队或公共队列。
-func normalizeMessageChannelReception(input MessageChannelReceptionInput) (MessageChannelReceptionInput, map[string]ValidationCode) {
+func normalizeMessageChannelReception(input MessageChannelReceptionInput) (MessageChannelReceptionInput, map[string]common.FieldCode) {
 	input.NewConversationTarget = normalizeRoutingTarget(input.NewConversationTarget)
 	input.FallbackTarget = normalizeRoutingTarget(input.FallbackTarget)
-	fields := make(map[string]ValidationCode)
+	fields := make(map[string]common.FieldCode)
 	if !routingTargetShapeValid(input.NewConversationTarget) {
 		fields["newConversationTarget"] = ValidationRoutingTargetInvalid
 	}
@@ -114,10 +108,10 @@ func normalizeWebsiteChannelChatInterfaceInput(input WebsiteChannelChatInterface
 }
 
 // normalizeWebsiteChannelHomeInput 规范化首页问候语与链接，并校验卡片包含每种类型各一次。
-func normalizeWebsiteChannelHomeInput(input WebsiteChannelHomeInput) (WebsiteChannelHomeInput, map[string]ValidationCode) {
+func normalizeWebsiteChannelHomeInput(input WebsiteChannelHomeInput) (WebsiteChannelHomeInput, map[string]common.FieldCode) {
 	input.Welcome = strings.TrimSpace(input.Welcome)
 	input.Headline = strings.TrimSpace(input.Headline)
-	fields := make(map[string]ValidationCode)
+	fields := make(map[string]common.FieldCode)
 	// 首页卡片必须恰好包含每种卡片各一次。
 	var seen set.Set[domain.WebsiteHomeBlockType]
 	for _, block := range input.Blocks {
@@ -140,8 +134,8 @@ func normalizeWebsiteChannelHomeInput(input WebsiteChannelHomeInput) (WebsiteCha
 }
 
 // normalizeWebsiteChannelAccessInput 规范化并校验允许使用的网站。
-func normalizeWebsiteChannelAccessInput(input WebsiteChannelAccessInput) (WebsiteChannelAccessInput, map[string]ValidationCode) {
-	fields := make(map[string]ValidationCode)
+func normalizeWebsiteChannelAccessInput(input WebsiteChannelAccessInput) (WebsiteChannelAccessInput, map[string]common.FieldCode) {
+	fields := make(map[string]common.FieldCode)
 	normalized, ok := embedhost.NormalizeAll(input.AllowedHosts)
 	if !ok {
 		fields["allowedHosts"] = ValidationAllowedHostInvalid

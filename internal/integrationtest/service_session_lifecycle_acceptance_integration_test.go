@@ -160,7 +160,7 @@ var lifecycleSessionDynamic = cmpopts.IgnoreFields(servermodels.ServiceSession{}
 	"ID", "CreatedAt", "UpdatedAt", "WorkspaceID", "ConversationID", "ServiceConversationID", "OpeningMessageID", "LastMessageID", "LastMessageAt",
 	"AssignedAt", "AssigneeAssignedAt", "AwaitingReplySince", "QueuedAt", "RemindedAt", "FirstResponseAt", "HumanRequestedAt", "HumanAssignedAt",
 	"HumanFirstResponseAt", "HumanFirstResponseSec", "StatusChangedAt", "ClosedAt", "ResolutionRequestedAt", "VisitorContext",
-	"SummaryStatus", "Summary", "Resolved", "SummaryEditedByID", "SummaryEditedAt", "HandoffMessageID", "HandoffSummary")
+	"SummaryStatus", "Summary", "Resolved", "SummaryEditedByID", "SummaryEditedAt", "HandoffMessageID", "HandoffSummary", "ChannelID")
 
 // lifecycleSessionTimes 给出周期各时间字段是否已记录。
 func lifecycleSessionTimes(session servermodels.ServiceSession) map[string]bool {
@@ -324,6 +324,7 @@ func testLifecycleSessionAIPath(t *testing.T, f lifecycleSessionFixture) {
 	requireLifecycleSession(t, "关闭", servermodels.ServiceSession{
 		Sequence: 1, Status: string(domain.ServiceSessionStatusClosed), TeamID: &teamID, AssigneeIdentityID: &firstID, AgentIdentityID: &agentID,
 		ClosedByIdentityID: &firstID, CloseReason: new(string(domain.ServiceSessionCloseManual)), HumanFirstResponseSec: before.HumanFirstResponseSec,
+		AIOnly: new(false),
 	}, lifecycleSessionTimeSet("assigned_at", "assignee_assigned_at", "first_response_at", "human_requested_at", "human_assigned_at", "human_first_response_at", "closed_at"), session)
 	requireSameTime(t, "关闭时间即状态变化时间", session.StatusChangedAt, session.ClosedAt)
 	requireSameTime(t, "关闭人领取即关闭时刻", *session.ClosedAt, session.AssigneeAssignedAt)

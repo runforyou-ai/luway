@@ -3,7 +3,9 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
@@ -17,6 +19,12 @@ func TraceMiddleware(next http.Handler) http.Handler {
 			traceID = logscope.NewTraceID()
 		}
 		writer.Header().Set(appservice.TraceHeader, traceID)
-		next.ServeHTTP(writer, request.WithContext(logscope.WithTrace(request.Context(), traceID)))
+		ctx := logscope.WithTrace(request.Context(), traceID)
+		started := time.Now() //clock:local
+		defer func() {
+			duration := time.Since(started) //clock:local
+			slog.InfoContext(ctx, "HTTP 请求完成", "method", request.Method, "path", request.URL.Path, "duration_ms", float64(duration.Microseconds())/1000)
+		}()
+		next.ServeHTTP(writer, request.WithContext(ctx))
 	})
 }

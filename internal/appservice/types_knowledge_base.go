@@ -11,13 +11,13 @@ type KnowledgeBaseCategory = domain.KnowledgeBaseCategory
 
 // KnowledgeBaseInput 定义知识库可编辑字段。
 type KnowledgeBaseInput struct {
-	EmbeddingModelID        string                `json:"embeddingModelId" validate:"uuid" msg:"field.knowledge_base_embedding_model_invalid"`
+	EmbeddingModelID        string                `json:"embeddingModelId" validate:"modelref" msg:"field.knowledge_base_embedding_model_invalid"`
 	EmbeddingDimension      int                   `json:"embeddingDimension" validate:"oneof=384 512 768 1024 1536 2048 3072" msg:"field.knowledge_base_embedding_dimension_invalid"`
 	ChunkLength             *int                  `json:"chunkLength"`
 	ChunkOverlap            *int                  `json:"chunkOverlap"`
 	RetrievalCount          int                   `json:"retrievalCount" validate:"min=1,max=20" msg:"field.knowledge_base_retrieval_count_invalid"`
 	RetrievalScoreThreshold float64               `json:"retrievalScoreThreshold" validate:"min=0,max=1" msg:"field.knowledge_base_retrieval_score_threshold_invalid"`
-	RerankModelID           string                `json:"rerankModelId" validate:"uuid" msg:"field.knowledge_base_rerank_model_invalid"`
+	RerankModelID           string                `json:"rerankModelId" validate:"modelref" msg:"field.knowledge_base_rerank_model_invalid"`
 	Name                    string                `json:"name" validate:"notblank,max=120" msg:"notblank=field.knowledge_base_name_required,max=field.knowledge_base_name_too_long"`
 	Category                KnowledgeBaseCategory `json:"category" validate:"oneof=standard qa" msg:"field.knowledge_base_category_invalid"`
 	Description             string                `json:"description" validate:"max=1000" msg:"field.knowledge_base_description_too_long"`

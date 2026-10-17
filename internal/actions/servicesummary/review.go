@@ -9,9 +9,10 @@ import (
 	"math"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/decision"
@@ -22,7 +23,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ReviewActionName 在客服处理周期关闭后推断满意度并检查 AI 客服与真人客服的答复。
+// ReviewActionName 在处理人处理周期关闭后推断满意度并检查 AI 员工与处理同事的答复。
 const ReviewActionName = "service_session.review"
 
 const (
@@ -44,7 +45,7 @@ type ReviewInput struct {
 	ClosedAt         time.Time `json:"closedAt"`
 }
 
-// Review 由判断模型为本次关闭的周期推断满意度，检查 AI 客服是否答错、应转人工未转和态度问题，以及真人客服是否答错和态度问题，结果按周期覆盖写入，AI 答错时登记待补知识；周期已重开或再次关闭、客户没有发言或未设置判断模型时不写入。
+// Review 由判断模型为本次关闭的周期推断满意度，检查 AI 员工是否答错、应转人工未转和态度问题，以及处理同事是否答错和态度问题，结果按周期覆盖写入，AI 答错时登记待补知识；周期已重开或再次关闭、发起人没有发言或未设置判断模型时不写入。
 func (w *Worker) Review(ctx context.Context, input ReviewInput) error {
 	session := &servermodels.ServiceSession{}
 	if err := w.db.NewSelect().Model(session).
@@ -55,11 +56,11 @@ func (w *Worker) Review(ctx context.Context, input ReviewInput) error {
 	if !stillClosedAt(session, input.ClosedAt) {
 		return nil
 	}
-	settings, err := customerservice.LoadServiceSummarySettings(ctx, w.db, input.WorkspaceID)
+	settings, err := servicepolicy.SummaryForSession(ctx, w.db, input.WorkspaceID, input.ServiceSessionID)
 	if err != nil {
 		return err
 	}
-	decisionModel, err := customerservice.LoadModel(ctx, w.db, input.WorkspaceID, settings.DecisionModelID, domain.AIModelUsageDecision)
+	decisionModel, err := aimodel.LoadOptional(ctx, w.db, input.WorkspaceID, settings.DecisionModelID, domain.AIModelUsageDecision)
 	if err != nil || decisionModel == nil {
 		return err
 	}
@@ -74,7 +75,7 @@ func (w *Worker) Review(ctx context.Context, input ReviewInput) error {
 		ColumnExpr("? AS requester_spoke", messagequery.RequesterSpoke("ss")).
 		ColumnExpr("? AS agent_replied", messagequery.AgentReplied("ss")).
 		ColumnExpr("? AS human_replied", messagequery.HumanReplied("ss")).
-		ColumnExpr("? AS ai_only", messagequery.AIOnly("ss")).
+		ColumnExpr("COALESCE(ss.ai_only, false) AS ai_only").
 		Where("ss.workspace_id = ? AND ss.id = ?", input.WorkspaceID, input.ServiceSessionID).
 		Scan(ctx, &participation); err != nil {
 		return fmt.Errorf("load service session participation: %w", err)
@@ -88,23 +89,23 @@ func (w *Worker) Review(ctx context.Context, input ReviewInput) error {
 	}
 	questions := map[string]decision.Question{
 		"satisfaction": {Kind: decision.KindScore, Levels: []string{"不满意", "一般", "满意"},
-			Instructions: "根据客户在这段沟通中的表达，判断客户对本次服务的满意程度。"},
+			Instructions: "根据发起人在这段沟通中的表达，判断发起人对本次服务的满意程度。"},
 	}
 	if participation.AgentReplied {
 		questions["ai_incorrect"] = decision.Question{Kind: decision.KindYesNo,
-			Instructions: "AI 客服的答复中有与事实不符或凭空编造的内容，例如给出了错误的时效、价格、政策或操作步骤。"}
+			Instructions: "AI 员工的答复中有与事实不符或凭空编造的内容，例如给出了错误的时效、价格、政策或操作步骤。"}
 		questions["ai_poor_attitude"] = decision.Question{Kind: decision.KindYesNo,
-			Instructions: "AI 客服的答复敷衍、生硬、推诿，或反复答非所问。"}
+			Instructions: "AI 员工的答复敷衍、生硬、推诿，或反复答非所问。"}
 	}
 	if participation.AgentReplied && participation.AIOnly {
 		questions["ai_missed_handoff"] = decision.Question{Kind: decision.KindYesNo,
-			Instructions: "客户明确要求人工、提出投诉，或问题需要人工判断或办理，AI 客服却没有转人工而自行结束了沟通。"}
+			Instructions: "发起人明确要求人工、提出投诉，或问题需要人工判断或办理，AI 员工却没有转人工而自行结束了沟通。"}
 	}
 	if participation.HumanReplied {
 		questions["human_incorrect"] = decision.Question{Kind: decision.KindYesNo,
-			Instructions: "真人客服的答复中有与事实不符的内容，例如给出了错误的时效、价格、政策或操作步骤。"}
+			Instructions: "处理同事的答复中有与事实不符的内容，例如给出了错误的时效、价格、政策或操作步骤。"}
 		questions["human_poor_attitude"] = decision.Question{Kind: decision.KindYesNo,
-			Instructions: "真人客服的答复敷衍、生硬、推诿，或反复答非所问。"}
+			Instructions: "处理同事的答复敷衍、生硬、推诿，或反复答非所问。"}
 	}
 	generateCtx, cancel := context.WithTimeout(ctx, summaryTimeout)
 	defer cancel()
@@ -162,7 +163,7 @@ func (w *Worker) Review(ctx context.Context, input ReviewInput) error {
 			}
 		}
 		realtime.Notify(ctx, realtime.ServiceInboxReportsChanged(input.WorkspaceID))
-		slog.InfoContext(logscope.WithWorkspace(ctx, input.WorkspaceID), "客服周期质检已完成", "service_session_id", input.ServiceSessionID,
+		slog.InfoContext(logscope.WithWorkspace(ctx, input.WorkspaceID), "服务周期质检已完成", "service_session_id", input.ServiceSessionID,
 			"satisfaction", support.Deref(review.Satisfaction), "questions", len(questions))
 		return nil
 	})

@@ -24,8 +24,6 @@ const (
 	routeUnheldDelay = 2 * time.Second
 	// routePruneInterval 是删除过期路由租约的间隔。
 	routePruneInterval = time.Minute
-	// uniqueLockTTL 是带去重键的任务占用该键的最长时长，覆盖最长 24 小时的延迟执行与其后的重试。
-	uniqueLockTTL = 48 * time.Hour
 	// FailureRetention 是最终失败任务的保留时长，运行概况统计这段时间内的失败任务。
 	FailureRetention = 7 * 24 * time.Hour
 )

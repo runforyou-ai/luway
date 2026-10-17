@@ -114,7 +114,7 @@ func (s *Scheduler) returnIneligibleAgentSession(ctx context.Context, db bun.IDB
 		Scan(ctx); err != nil {
 		return fmt.Errorf("load unavailable customer agent identity: %w", err)
 	}
-	cancelled, err := servicehandoff.ReturnUnavailableAssigneeSession(ctx, db, s.enqueuer, session.WorkspaceID, session.ConversationID, session.ID, assignee, key)
+	cancelled, err := servicehandoff.ReturnUnavailableAssigneeSession(ctx, db, s.enqueuer, CancelServiceSessionRuns, session.WorkspaceID, session.ConversationID, session.ID, assignee, key)
 	if err != nil {
 		return err
 	}

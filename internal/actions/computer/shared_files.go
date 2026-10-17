@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/runforyou-ai/luway/internal/actions/conversationfile"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -23,7 +23,7 @@ var ErrSyncUnavailable = errors.New("computer operation cannot sync shared files
 
 // SharedFile 是会话共享文件区中的一个文件及其当前内容文件。
 type SharedFile struct {
-	conversationfile.Entry
+	conversationaction.Entry
 	Content *servermodels.File
 }
 
@@ -44,34 +44,34 @@ type SharedCommitInput struct {
 // SharedFilesAction 为电脑上执行中的命令与本机 Agent 轮次同步所属会话的共享文件区：给出文件清单、创建内容上传并把上传完成的内容写回。
 type SharedFilesAction struct {
 	db    *bun.DB
-	store *conversationfile.Store
+	store *conversationaction.Store
 }
 
 // NewSharedFilesAction 创建电脑同步会话共享文件区的处理。
-func NewSharedFilesAction(db *bun.DB, store *conversationfile.Store) *SharedFilesAction {
+func NewSharedFilesAction(db *bun.DB, store *conversationaction.Store) *SharedFilesAction {
 	return &SharedFilesAction{db: db, store: store}
 }
 
 // author 返回调用所属运行写入共享文件区的文件区与署名；调用须派发到这台电脑、正在执行且是命令或本机 Agent 轮次。
-func (a *SharedFilesAction) author(ctx context.Context, computer Identity, callID string) (conversationfile.RunAuthor, error) {
+func (a *SharedFilesAction) author(ctx context.Context, computer Identity, callID string) (conversationaction.RunAuthor, error) {
 	if !str.IsUUID(callID) {
-		return conversationfile.RunAuthor{}, ErrSyncUnavailable
+		return conversationaction.RunAuthor{}, ErrSyncUnavailable
 	}
 	call := &servermodels.AgentToolCall{}
 	err := a.db.NewSelect().Model(call).Column("agent_run_id", "operation").
 		Where("atc.workspace_id = ? AND atc.id = ? AND atc.computer_id = ? AND atc.status = ?", computer.WorkspaceID, callID, computer.ComputerID, domain.AgentToolCallRunning).
 		Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) || err == nil && (call.Operation == nil || !call.Operation.Operation.Kind.SyncsSharedFiles()) {
-		return conversationfile.RunAuthor{}, ErrSyncUnavailable
+		return conversationaction.RunAuthor{}, ErrSyncUnavailable
 	}
 	if err != nil {
-		return conversationfile.RunAuthor{}, fmt.Errorf("load syncing computer operation: %w", err)
+		return conversationaction.RunAuthor{}, fmt.Errorf("load syncing computer operation: %w", err)
 	}
 	run := &servermodels.AgentRun{}
 	if err := a.db.NewSelect().Model(run).Where("agr.workspace_id = ? AND agr.id = ?", computer.WorkspaceID, call.AgentRunID).Scan(ctx); err != nil {
-		return conversationfile.RunAuthor{}, fmt.Errorf("load syncing computer operation run: %w", err)
+		return conversationaction.RunAuthor{}, fmt.Errorf("load syncing computer operation run: %w", err)
 	}
-	return conversationfile.LoadRunAuthor(ctx, a.db, run)
+	return conversationaction.LoadRunAuthor(ctx, a.db, run)
 }
 
 // List 返回调用所属会话共享文件区中的全部文件及其当前内容文件，按路径排序。
@@ -84,7 +84,7 @@ func (a *SharedFilesAction) List(ctx context.Context, computer Identity, callID 
 	if err != nil {
 		return nil, err
 	}
-	ids := arr.Map(entries, func(entry conversationfile.Entry) string { return entry.FileID })
+	ids := arr.Map(entries, func(entry conversationaction.Entry) string { return entry.FileID })
 	contents := map[string]*servermodels.File{}
 	if len(ids) > 0 {
 		var records []*servermodels.File
@@ -104,32 +104,32 @@ func (a *SharedFilesAction) List(ctx context.Context, computer Identity, callID 
 	return files, nil
 }
 
-// CreateUpload 为写回调用所属会话共享文件区中的一个文件创建内容上传，路径不合法时返回 conversationfile.ErrInvalidPath。
-func (a *SharedFilesAction) CreateUpload(ctx context.Context, computer Identity, callID string, backend domain.FileStorageBackend, input SharedUploadInput) (*servermodels.File, error) {
+// CreateUpload 为写回调用所属会话共享文件区中的一个文件创建内容上传，路径不合法时返回 conversationaction.ErrInvalidPath。
+func (a *SharedFilesAction) CreateUpload(ctx context.Context, computer Identity, callID string, input SharedUploadInput) (*servermodels.File, error) {
 	author, err := a.author(ctx, computer, callID)
 	if err != nil {
 		return nil, err
 	}
 	normalized, ok := domain.NormalizeConversationFilePath(input.Path)
 	if !ok {
-		return nil, conversationfile.ErrInvalidPath
+		return nil, conversationaction.ErrInvalidPath
 	}
-	return fileaction.CreateComputerUpload(ctx, a.db, computer.WorkspaceID, author.UserID, computer.ComputerID, backend, fileaction.UploadInput{
+	return fileaction.CreateComputerUpload(ctx, a.db, computer.WorkspaceID, author.UserID, computer.ComputerID, fileaction.UploadInput{
 		FileName: path.Base(normalized), ContentType: input.ContentType, ByteSize: input.ByteSize,
 	})
 }
 
 // Commit 核验已上传的内容并按同步基准写回调用所属会话共享文件区：文件在电脑上次同步后未被改动时写入原路径，否则另存为冲突副本；修改人为运行的 AI 员工。
-func (a *SharedFilesAction) Commit(ctx context.Context, computer Identity, callID string, input SharedCommitInput, finalize fileaction.FinalizeFunc) (conversationfile.Entry, error) {
+func (a *SharedFilesAction) Commit(ctx context.Context, computer Identity, callID string, input SharedCommitInput, finalize fileaction.FinalizeFunc) (conversationaction.Entry, error) {
 	author, err := a.author(ctx, computer, callID)
 	if err != nil {
-		return conversationfile.Entry{}, err
+		return conversationaction.Entry{}, err
 	}
 	if _, err := fileaction.CompleteComputerUpload(ctx, a.db, computer.WorkspaceID, computer.ComputerID, input.FileID, finalize); err != nil {
-		return conversationfile.Entry{}, err
+		return conversationaction.Entry{}, err
 	}
-	return a.store.Adopt(ctx, conversationfile.WriteInput{
+	return a.store.Adopt(ctx, conversationaction.WriteInput{
 		WorkspaceID: computer.WorkspaceID, ConversationID: author.Area, Path: input.Path,
-		Mode: conversationfile.WriteSynced, BaseHash: input.BaseHash, SubjectID: author.SubjectID, UserID: author.UserID,
+		Mode: conversationaction.WriteSynced, BaseHash: input.BaseHash, SubjectID: author.SubjectID, UserID: author.UserID,
 	}, input.FileID)
 }

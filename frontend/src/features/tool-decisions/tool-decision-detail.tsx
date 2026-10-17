@@ -8,7 +8,7 @@ import {
   ToolDecisionArguments,
   ToolDecisionPermission,
   useToolDecisionStatusText,
-} from "@/components/agent-tool-decision"
+} from "./agent-tool-decision"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { useDateTime } from "@/hooks/use-date-time"

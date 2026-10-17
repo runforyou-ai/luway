@@ -1,9 +1,9 @@
 /** 首次安装表单校验规则。 */
 import { z } from "zod"
 
-import { workspaceNameField } from "@/lib/workspace-schema"
 import { displayNamePattern } from "@/lib/display-name"
 import { isHTTPOrigin } from "@/lib/http-url"
+import { workspaceNameField } from "@/lib/workspace-schema"
 
 type SetupTranslator = (
   key: "publicURLInvalid" | "displayNameInvalid" | "passwordTooLong",

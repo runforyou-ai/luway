@@ -14,7 +14,7 @@ import { useResource } from "@/hooks/use-resource"
 
 import { issueTypesOf } from "./report-format"
 import { ServiceIssueEvaluationDialog } from "./service-issue-evaluation-dialog"
-import { ServiceTranscript } from "@/components/service-transcript"
+import { ServiceTranscript } from "@/features/inbox/transcript"
 
 /** 按周期编号打开侧栏，serviceSessionId 为空时关闭，只标出 issueTypes 中成立的问题类型；issueTypes 含应转人工未转且该项成立时提供加入评测；关闭时由 onCloseAutoFocus 决定焦点去向。 */
 export function ServiceIssueSheet({

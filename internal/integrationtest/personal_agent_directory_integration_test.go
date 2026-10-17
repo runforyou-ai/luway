@@ -10,7 +10,7 @@ import (
 	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	computeraction "github.com/runforyou-ai/luway/internal/actions/computer"
-	memberaction "github.com/runforyou-ai/luway/internal/actions/member"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -67,7 +67,7 @@ func TestPersonalAgentDirectory(t *testing.T) {
 	})
 
 	t.Run("个人 AI 员工不进入成员候选与写回复候选", func(t *testing.T) {
-		options, err := memberaction.NewListOptionsQuery(db).Execute(ctx, member, memberaction.ListOptionsInput{Query: "目录", Page: 1, PageSize: 50})
+		options, err := teamaction.NewListOptionsQuery(db).Execute(ctx, member, teamaction.ListOptionsInput{Query: "目录", Page: 1, PageSize: 50})
 		require.NoError(t, err)
 		require.Len(t, options.Members, 1)
 		require.Equal(t, service.IdentityID, options.Members[0].ID)

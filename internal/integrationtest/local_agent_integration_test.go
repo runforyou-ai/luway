@@ -4,7 +4,6 @@ package integrationtest
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"uuid"
 
@@ -14,14 +13,13 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess/processquery"
 	computeraction "github.com/runforyou-ai/luway/internal/actions/computer"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
-	"github.com/runforyou-ai/luway/internal/actions/conversationfile"
+	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
-	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	"github.com/runforyou-ai/luway/internal/common/textfile"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
-	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
+	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -100,7 +98,7 @@ func testLocalAgentDelegation(t *testing.T, f *personalAgentFixture, modelID str
 	testComputerSharedFiles(t, f, turn.ID)
 
 	// 过程更新按序号写入，重复上报保留首次写入，只在调用执行中接受。
-	process := processquery.NewToolCallProcessQuery(db)
+	process := processquery.NewToolCallProcessQuery(db, conversationaccess.Guard{})
 	require.NoError(t, operations.ReportUpdates(ctx, f.computerIdentity(), turn.ID, []computeraction.UpdateInput{
 		{Seq: 1, Update: domain.ToolCallUpdate{Kind: domain.ToolCallUpdateMessage, Text: "我来看看"}},
 		{Seq: 2, Update: domain.ToolCallUpdate{Kind: domain.ToolCallUpdateStep, Step: &domain.ToolCallStep{ID: "s1", Title: "编辑 login.css", Status: "in_progress"}}},
@@ -253,30 +251,18 @@ func testLocalAgentDelegation(t *testing.T, f *personalAgentFixture, modelID str
 // 其他电脑与已结束的调用不能同步。
 func testComputerSharedFiles(t *testing.T, f *personalAgentFixture, callID string) {
 	ctx, db := f.ctx, f.db
-	local, err := serverfilecontent.NewLocalStore(t.TempDir())
-	require.NoError(t, err)
-	settings := func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} }
-	store := conversationfile.NewStore(db, func() domain.FileStorageBackend { return domain.FileStorageBackendLocal },
-		serverfilecontent.NewWriter(local, settings), serverfilecontent.NewReader(local, settings))
+	storage := servertest.NewFiles(t)
+	store := conversationaction.NewStore(db,
+		storage.Store, storage.Store)
 	action := computeraction.NewSharedFilesAction(db, store)
-	finalize := func(ctx context.Context, record *servermodels.File) (serverfilecontent.UploadedObject, error) {
-		info, err := local.Stat(ctx, record.StorageKey)
-		if err != nil {
-			return serverfilecontent.UploadedObject{}, err
-		}
-		return serverfilecontent.UploadedObject{ByteSize: info.Size()}, nil
-	}
-	commit := func(path, content, base string) (conversationfile.Entry, error) {
-		record, err := action.CreateUpload(ctx, f.computerIdentity(), callID, domain.FileStorageBackendLocal, computeraction.SharedUploadInput{
+	finalize := storage.Store.Inspect
+	commit := func(path, content, base string) (conversationaction.Entry, error) {
+		record, err := action.CreateUpload(ctx, f.computerIdentity(), callID, computeraction.SharedUploadInput{
 			Path: path, ContentType: "text/markdown", ByteSize: int64(len(content)),
 		})
 		require.NoError(t, err)
 		require.Equal(t, f.computer.Record.ID, *record.UploaderComputerID)
-		// 本地存储的内容凭电脑凭据写入，电脑凭据只能写入该电脑同步时创建的上传。
-		upload, err := direct.NewLocalObjectAuthorizer(db).AuthorizeUpload(ctx, direct.LocalObjectCredentials{Bearer: f.computer.Credential}, record.StorageKey, "")
-		require.NoError(t, err)
-		require.Equal(t, record.ID, upload.FileID)
-		require.NoError(t, local.Save(ctx, record.StorageKey, strings.NewReader(content), int64(len(content))))
+		require.NoError(t, storage.Put(ctx, record.StorageKey, []byte(content)))
 		return action.Commit(ctx, f.computerIdentity(), callID, computeraction.SharedCommitInput{Path: path, FileID: record.ID, BaseHash: base}, finalize)
 	}
 
@@ -306,6 +292,6 @@ func testComputerSharedFiles(t *testing.T, f *personalAgentFixture, callID strin
 
 	_, err = action.List(ctx, computeraction.Identity{WorkspaceID: f.identity.Workspace.ID, ComputerID: uuid.NewV7().String()}, callID)
 	require.ErrorIs(t, err, computeraction.ErrSyncUnavailable)
-	_, err = action.CreateUpload(ctx, f.computerIdentity(), callID, domain.FileStorageBackendLocal, computeraction.SharedUploadInput{Path: "../越界.md", ByteSize: 1})
-	require.ErrorIs(t, err, conversationfile.ErrInvalidPath)
+	_, err = action.CreateUpload(ctx, f.computerIdentity(), callID, computeraction.SharedUploadInput{Path: "../越界.md", ByteSize: 1})
+	require.ErrorIs(t, err, conversationaction.ErrInvalidPath)
 }

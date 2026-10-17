@@ -14,6 +14,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	"github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -95,19 +96,14 @@ func (a *ScanExpiredAction) Execute(ctx context.Context, _ ScanExpiredInput) err
 	}
 }
 
-// ContentDeleter 删除文件记录指向的内容。
-type ContentDeleter interface {
-	Delete(context.Context, *servermodels.File) error
-}
-
 // DeleteExpiredAction 删除一个仍处于过期状态的临时文件。
 type DeleteExpiredAction struct {
 	db      *bun.DB
-	deleter ContentDeleter
+	deleter filecontent.Deleter
 }
 
 // NewDeleteExpiredAction 创建过期文件删除 Action。
-func NewDeleteExpiredAction(db *bun.DB, deleter ContentDeleter) *DeleteExpiredAction {
+func NewDeleteExpiredAction(db *bun.DB, deleter filecontent.Deleter) *DeleteExpiredAction {
 	return &DeleteExpiredAction{db: db, deleter: deleter}
 }
 
@@ -151,6 +147,6 @@ func (a *DeleteExpiredAction) Execute(ctx context.Context, input DeleteExpiredIn
 	}); err != nil {
 		return err
 	}
-	slog.InfoContext(logscope.WithWorkspace(ctx, record.WorkspaceID), "过期文件已清理", "file_id", record.ID, "storage_backend", record.StorageBackend)
+	slog.InfoContext(logscope.WithWorkspace(ctx, record.WorkspaceID), "过期文件已清理", "file_id", record.ID)
 	return nil
 }

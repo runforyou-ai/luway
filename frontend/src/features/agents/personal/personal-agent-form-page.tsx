@@ -3,12 +3,13 @@ import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useSearchParams } from "react-router"
 
-import { getPersonalAgent, isNotFoundApiError } from "@/api"
+import { PermissionCode, getPersonalAgent, isNotFoundApiError } from "@/api"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { ResourceContent } from "@/components/resource-content"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PersonalAgentEditForm } from "@/features/agents/personal/personal-agent-form"
+import { usePermission } from "@/contexts/workspace-context"
 import { usePersonalAgentInvalidator } from "@/hooks/use-personal-agent-invalidator"
 import { AgentMemoryPanel } from "@/features/agents/personal/agent-memory-panel"
 import { resourceKeys } from "@/hooks/resource-keys"
@@ -18,6 +19,7 @@ import { useReturnTo } from "@/hooks/use-return-to"
 /** 编辑当前成员负责的个人 AI 员工。 */
 export function PersonalAgentFormPage() {
   const { t } = useTranslation("agents")
+  const canManageBusinessSystems = usePermission(PermissionCode.PermissionWorkspaceManage)
   const { agentId = "" } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
   const invalidate = usePersonalAgentInvalidator()
@@ -61,7 +63,7 @@ export function PersonalAgentFormPage() {
                 <TabsTrigger value="memory">{t("personal.tabs.memory")}</TabsTrigger>
               </TabsList>
               <TabsContent value="basic" forceMount className="mt-6 data-[state=inactive]:hidden">
-                <PersonalAgentEditForm detail={detail.data} onSaved={() => void invalidate(agentId)} />
+                <PersonalAgentEditForm canManageBusinessSystems={canManageBusinessSystems} detail={detail.data} onSaved={() => void invalidate(agentId)} />
               </TabsContent>
               <TabsContent value="memory" className="mt-6">
                 <AgentMemoryPanel agentId={detail.data.personalAgent.id} />

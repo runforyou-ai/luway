@@ -33,13 +33,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { personalAgentUnavailableLabel } from "@/features/inbox/shared/agent-run-status"
-import { useConversationListActions } from "@/features/inbox/list/conversation-list-menu"
-import { useAccountDisabledReason } from "@/features/inbox/conversation/use-account-disabled-reason"
-import { useConversationArchive } from "@/features/inbox/list/use-conversation-archive"
-import { useConversationSummary } from "@/features/inbox/shared/use-conversation-summary"
-import { useConversationTypingLabel } from "@/features/inbox/shared/use-conversation-typing"
-import { useFirstChatMessage } from "@/features/inbox/conversation/use-first-chat-message"
+import { personalAgentUnavailableLabel } from "@/features/inbox/public"
+import { useConversationListActions } from "@/features/inbox/public"
+import { useAccountDisabledReason } from "@/features/inbox/public"
+import { useConversationArchive } from "@/features/inbox/public"
+import { useConversationSummary } from "@/features/inbox/public"
+import { useConversationTypingLabel } from "@/features/inbox/public"
+import { useFirstChatMessage } from "@/features/inbox/public"
+import { useConversationName } from "@/hooks/use-conversation-name"
 import { useMountedRef } from "@/hooks/use-mounted-ref"
 /** 移动端真人单聊路由状态：draftPeer 为草稿对端，handoffFrom 为首发后替换前的草稿路由编号。 */
 export type MobileIndividualLocationState = MobileLocateState & {
@@ -225,10 +226,11 @@ function MobileIndividualConversation({ conversationID }: { conversationID: stri
   const data = summary.data === undefined && initial?.id === activeConversationID
     ? initial : summary.data
   const conversation = data && isDirectInboxConversation(data) ? data : null
+  const conversationName = useConversationName()
   const disabledReason = useAccountDisabledReason(conversation)
   if (!activeConversationID) return <Navigate to={chatsURL} replace />
   const peerName =
-    conversation?.direct.peerName.trim() ||
+    (conversation ? conversationName(conversation) : "") ||
     draftPeer?.displayName ||
     t("unknownSender")
 

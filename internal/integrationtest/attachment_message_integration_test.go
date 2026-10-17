@@ -29,8 +29,8 @@ func TestAttachmentMessages(t *testing.T) {
 	send := directchataction.NewSendAttachmentMessageAction(f.db, testEnqueuer, nil)
 	query := conversationaction.NewListConversationMessagesQuery(f.db)
 	for _, target := range []string{"group", "direct"} {
-		file, err := upload.Execute(ctx, f.owner, domain.FileStorageBackendLocal, fileaction.UploadInput{
-			Purpose: domain.FilePurposeMessageAttachment, FileName: "附件 " + target + ".arbitrary", ContentType: "", ByteSize: domain.FilePartSize + 1,
+		file, err := upload.Execute(ctx, f.owner, fileaction.UploadInput{
+			Purpose: domain.FilePurposeMessageAttachment, FileName: "附件 " + target + ".arbitrary", ContentType: "", ByteSize: domain.FileMultipartThreshold + 1,
 		})
 		require.NoError(t, err)
 		require.Equal(t, domain.FilePartSize, file.PartSize)
@@ -130,7 +130,7 @@ func TestAttachmentMessages(t *testing.T) {
 func uploadedAttachment(t *testing.T, db *bun.DB, identity *servermodels.Identity, name, contentType string) string {
 	t.Helper()
 	ctx := context.Background()
-	file, err := fileaction.NewCreateUploadAction(db).Execute(ctx, identity, domain.FileStorageBackendLocal, fileaction.UploadInput{
+	file, err := fileaction.NewCreateUploadAction(db).Execute(ctx, identity, fileaction.UploadInput{
 		Purpose: domain.FilePurposeMessageAttachment, FileName: name, ContentType: contentType, ByteSize: 7,
 	})
 	require.NoError(t, err)

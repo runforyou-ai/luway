@@ -7,11 +7,14 @@ import { Link, Navigate, useNavigate, useSearchParams } from "react-router"
 import { AgentToolCallStatus, ToolIntervention } from "@/api"
 import { mobileNotificationPath, mobilePendingPath, useMobileBack } from "@/apps/mobile/shared/mobile-navigation"
 import { MobilePageHeader, MobilePageState, MobileScrollArea } from "@/apps/mobile/shared/mobile-page"
-import { toolDecisionTitle } from "@/components/agent-tool-decision"
+import {
+  toolDecisionTitle,
+  ToolDecisionDetailActions,
+  ToolDecisionDetailContent,
+  usePendingToolDecisions,
+} from "@/features/tool-decisions/public"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { LoadingIndicator } from "@/components/loading-indicator"
-import { ToolDecisionDetailActions, ToolDecisionDetailContent } from "@/features/tool-decisions/tool-decision-detail"
-import { usePendingToolDecisions } from "@/features/tool-decisions/use-pending-tool-decisions"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useToolDecisionActions } from "@/hooks/use-tool-decision-actions"
 

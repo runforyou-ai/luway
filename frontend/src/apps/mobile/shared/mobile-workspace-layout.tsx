@@ -10,12 +10,13 @@ import {
   MobileNavigationProvider,
   useMobileNavigation,
 } from "@/apps/mobile/shared/mobile-navigation"
-import { useResponsibleKnowledgeGapCount } from "@/features/knowledge-gaps/use-responsible-knowledge-gaps"
+import { useResponsibleKnowledgeGapCount } from "@/features/knowledge-gaps/public"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { UnsavedChangesGuard } from "@/components/unsaved-changes-guard"
 import { useWorkspaceAttention } from "@/hooks/use-workspace-attention"
-import { loadInboxAttention } from "@/features/inbox/list/inbox-attention"
-import { SessionShell } from "@/features/session/session-shell"
+import { InboxRuntimeProviders } from "@/apps/shell/inbox-runtime"
+import { loadInboxAttention } from "@/features/inbox/shell"
+import { SessionShell } from "@/features/session/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource } from "@/hooks/use-resource"
 import { hasPermission } from "@/lib/permissions"
@@ -29,20 +30,26 @@ function MobileMessageNotifications({ identity }: { identity: Identity }) {
   return null
 }
 
-/** 在登录外壳内为所有移动端页面提供身份、导航上下文和未保存内容确认，回到前台时重建实时事件流。 */
+/**
+ * 在登录外壳内为所有移动端页面提供身份、导航上下文和未保存内容确认，回到前台时重建实时事件流。
+ * InboxRuntime 工作台级挂载以保留草稿/发出中消息/附件队列跨设置与消息页导航。
+ */
 export function MobileWorkspaceLayout() {
   return (
     <SessionShell restartOnResume>
       {(identity) => (
         <MobileWorkspaceContext value={identity}>
-          <MobileMessageNotifications identity={identity} />
-          <MobileNavigationProvider>
-            <UnsavedChangesGuard>
-              <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-sidebar pt-[env(safe-area-inset-top)]">
-                <Outlet />
-              </div>
-            </UnsavedChangesGuard>
-          </MobileNavigationProvider>
+          {/* 工作台级挂载以保留草稿/发出中消息/附件队列跨设置与消息页导航。 */}
+          <InboxRuntimeProviders userId={identity.user.id}>
+            <MobileMessageNotifications identity={identity} />
+            <MobileNavigationProvider>
+              <UnsavedChangesGuard>
+                <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-sidebar pt-[env(safe-area-inset-top)]">
+                  <Outlet />
+                </div>
+              </UnsavedChangesGuard>
+            </MobileNavigationProvider>
+          </InboxRuntimeProviders>
         </MobileWorkspaceContext>
       )}
     </SessionShell>

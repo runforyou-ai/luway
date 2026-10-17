@@ -13,11 +13,15 @@ import (
 	"sync/atomic"
 	"time"
 
+	"errors"
+
 	"github.com/nats-io/nats.go"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/messaging/outbox"
 	"github.com/runforyou-ai/luway/pkg/clusterbus"
 	"github.com/runforyou-ai/support/arr"
+	"github.com/uptrace/bun"
 )
 
 const (
@@ -40,8 +44,9 @@ var active atomic.Pointer[Publisher]
 // droppedWarned 标记发布器为空期间是否已记录丢弃通知的 WARN，每段空缺只记录一次，发布器启动时重置。
 var droppedWarned atomic.Bool
 
-// Publisher 在提交后执行授权撤销，经 jetcast 或消息总线合并发布业务通知，并发布运行流。
+// Publisher 在提交后执行授权撤销，经应用网关或消息总线合并发布业务通知，并发布运行流。
 type Publisher struct {
+	outbox    *outbox.Dispatcher
 	membersMu sync.RWMutex
 	members   MemberPublisher
 	bus       *clusterbus.Bus
@@ -76,7 +81,7 @@ type MemberPublisher interface {
 	Publish(context.Context, Notification) error
 }
 
-// SetMembers 注入 Jetcast 实时传输。
+// SetMembers 注入应用网关实时传输。
 func (p *Publisher) SetMembers(members MemberPublisher) {
 	p.membersMu.Lock()
 	defer p.membersMu.Unlock()
@@ -102,8 +107,30 @@ type Payload struct {
 }
 
 // NewPublisher 创建经指定消息总线发布通知的发布器。
-func NewPublisher(bus *clusterbus.Bus) *Publisher {
-	return &Publisher{bus: bus, pending: map[mergeKey]queuedNotification{}, sources: map[string]*RunStreamSource{}}
+func NewPublisher(bus *clusterbus.Bus, db *bun.DB) *Publisher {
+	p := &Publisher{bus: bus, pending: map[mergeKey]queuedNotification{}, sources: map[string]*RunStreamSource{}}
+	p.outbox = outbox.New(db, "realtime", p.publishOutbox)
+	return p
+}
+
+// publishOutbox 按登记顺序发布业务通知并向投递器返回发布确认。
+func (p *Publisher) publishOutbox(ctx context.Context, _ string, raw json.RawMessage) error {
+	var items []Notification
+	if err := json.Unmarshal(raw, &items); err != nil {
+		return err
+	}
+	p.membersMu.RLock()
+	members := p.members
+	p.membersMu.RUnlock()
+	if members == nil {
+		return errors.New("realtime gateway is not ready")
+	}
+	for _, n := range items {
+		if err := members.Publish(ctx, n); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Bus 返回发布器使用的消息总线，供内部运行信号订阅。
@@ -150,6 +177,7 @@ func (p *Publisher) Start() error {
 		}
 	}
 	p.begin(p.bus.Broadcast)
+	p.outbox.Start(context.Background())
 	p.reconnectDone = make(chan struct{})
 	go p.watchReconnect()
 	slog.InfoContext(context.Background(), "实时通知发布器已启动", "instance_id", p.bus.ID())
@@ -172,6 +200,7 @@ func (p *Publisher) begin(send func(topic string, data []byte) error) {
 
 // Stop 停止接收通知、等待发布协程退出并结束本实例的运行流，尚未发布的通知直接丢弃；执行中的运行流随执行尝试结束。
 func (p *Publisher) Stop() error {
+	p.outbox.Stop()
 	if p.stop == nil {
 		return nil
 	}

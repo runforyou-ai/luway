@@ -22,7 +22,6 @@ var _ appservice.ComputerBackend = (*Backend)(nil)
 // computerOps 持有电脑的 Action 和 Query。
 type computerOps struct {
 	db                      *bun.DB
-	realtimePrefix          string
 	registerComputer        *computeraction.RegisterComputerAction
 	listComputers           *computeraction.ListComputersQuery
 	revokeComputer          *computeraction.RevokeComputerAction

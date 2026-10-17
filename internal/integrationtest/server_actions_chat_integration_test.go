@@ -323,12 +323,12 @@ func (s *serverActionsFixture) testGroupChat(t *testing.T) {
 		Title: "群聊解散测试", MemberIdentityIDs: []string{memberLogin.Identity.WorkspaceIdentity.ID},
 	})
 	require.NoError(t, err)
-	remainingGroup, err := groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCoordinator(db)).Execute(context.Background(), loggedIn.Identity, groupchataction.GroupConversationMemberInput{
+	remainingGroup, err := groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCanceller(db)).Execute(context.Background(), loggedIn.Identity, groupchataction.GroupConversationMemberInput{
 		ConversationID: dissolvedGroup.ID, MemberIdentityID: memberLogin.Identity.WorkspaceIdentity.ID,
 	})
 	require.NoError(t, err)
 	require.Len(t, remainingGroup.Participants, 1, "remaining group")
-	_, err = groupchataction.NewDissolveGroupConversationAction(db, newGroupAgentCoordinator(db)).Execute(context.Background(), loggedIn.Identity, dissolvedGroup.ID)
+	_, err = groupchataction.NewDissolveGroupConversationAction(db, newGroupAgentCanceller(db)).Execute(context.Background(), loggedIn.Identity, dissolvedGroup.ID)
 	require.NoError(t, err)
 	itemsPage, _, err := inbox.Execute(context.Background(), loggedIn.Identity, inboxaction.LoadInput{Scope: domain.InboxScopeChat})
 	items := itemsPage.Conversations

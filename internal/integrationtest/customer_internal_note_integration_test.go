@@ -70,7 +70,7 @@ func TestCustomerInternalNotes(t *testing.T) {
 	require.Equal(t, note.ID, last.ID)
 	require.Equal(t, domain.MessageVisibilityInternal, last.Visibility)
 
-	visitor := direct.NewWebsiteVisitorBackend(f.db, nil, testEnqueuer, nil, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
+	visitor := direct.NewWebsiteVisitorBackend(f.db, nil, testEnqueuer, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
 	externalID := "web-session:0123456789abcdef0123456789abcdef"
 	page, err := visitor.ListMessages(ctx, appservice.WebsiteVisitorMeta{}, f.channelID, externalID, f.conversationID, appservice.WebsiteVisitorMessageHistoryInput{})
 	require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestCustomerInternalNotes(t *testing.T) {
 
 	t.Run("对客引用资格排除内部备注", func(t *testing.T) {
 		login := servertest.LoginMember(t, f.db, f.owner.Workspace.ID, f.member.Account.Email, "password123")
-		backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+		backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 		window, err := backend.ListConversationMessages(ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Workspace.ID}, f.conversationID, appservice.ConversationMessageListInput{})
 		require.NoError(t, err)
 		checked := false

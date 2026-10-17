@@ -10,8 +10,10 @@ import (
 	agentevaluationaction "github.com/runforyou-ai/luway/internal/actions/agentevaluation"
 	knowledgebaseaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
 	knowledgegapaction "github.com/runforyou-ai/luway/internal/actions/knowledgegap"
+	"github.com/runforyou-ai/luway/internal/actions/reportpage"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -43,7 +45,7 @@ func newKnowledgeGapOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer) *knowled
 func (o *knowledgeGapOps) ListKnowledgeGaps(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.KnowledgeGapListInput) (appservice.KnowledgeGapList, error) {
 	agents := reportAgentScope(identity, input.AgentID, input.Mine)
 	list, err := o.listKnowledgeGaps.Execute(ctx, identity, knowledgegapaction.ListInput{
-		Scope:  knowledgegapaction.Scope{ChannelID: input.ChannelID, Agents: agents},
+		Scope:  knowledgegapaction.Scope{Audience: input.Audience, ServiceSource: input.ServiceSource, ChannelID: input.ChannelID, Agents: agents},
 		Status: input.Status, Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
@@ -51,7 +53,7 @@ func (o *knowledgeGapOps) ListKnowledgeGaps(ctx context.Context, meta appservice
 	}
 	gaps := arr.Map(list.Gaps, func(gap knowledgegapaction.Summary) appservice.KnowledgeGapSummary {
 		return appservice.KnowledgeGapSummary{
-			ID: gap.ID, ConversationID: gap.ConversationID, QuestionMessageID: support.Deref(gap.QuestionMessageID), Question: gap.Question,
+			Audience: gap.Audience, ServiceSource: gap.ServiceSource, ID: gap.ID, ConversationID: gap.ConversationID, QuestionMessageID: support.Deref(gap.QuestionMessageID), Question: gap.Question,
 			Source: appservice.KnowledgeGapSource(gap.Source), Status: appservice.KnowledgeGapStatus(gap.Status), CategoryName: support.Deref(gap.CategoryName),
 			HasDraft: gap.HasDraft, OccurredAt: gap.OccurredAt, Handleable: gap.Handleable,
 		}
@@ -65,7 +67,7 @@ func (o *knowledgeGapOps) GetKnowledgeGap(ctx context.Context, meta appservice.R
 	if err != nil {
 		return appservice.KnowledgeGap{}, knowledgeGapError(meta, err, i18n.ErrorKnowledgeGapLoadFailed)
 	}
-	output := appservice.KnowledgeGap{
+	output := appservice.KnowledgeGap{Audience: detail.Audience, ServiceSource: detail.ServiceSource,
 		ID: detail.ID, ConversationID: detail.ConversationID, QuestionMessageID: support.Deref(detail.QuestionMessageID),
 		Question: detail.Question, Source: appservice.KnowledgeGapSource(detail.Source), Status: appservice.KnowledgeGapStatus(detail.Status),
 		CategoryName: support.Deref(detail.CategoryName), OccurredAt: detail.OccurredAt, DraftStatus: appservice.KnowledgeGapDraftStatus(detail.DraftStatus),
@@ -122,10 +124,11 @@ func (o *knowledgeGapOps) DismissKnowledgeGap(ctx context.Context, meta appservi
 
 // knowledgeGapErrors 是待补知识的错误转换规则。
 var knowledgeGapErrors = dispatch.Catalog{
+	dispatch.Is(reportpage.ErrServiceScopeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
 	dispatch.Is(knowledgegapaction.ErrNotFound, dispatch.NotFound(i18n.ErrorKnowledgeGapNotFound)),
 	dispatch.Is(knowledgegapaction.ErrForbidden, dispatch.Forbidden(i18n.ErrorPermissionDenied)),
 	dispatch.Is(knowledgegapaction.ErrHandled, dispatch.Conflict(i18n.ErrorKnowledgeGapHandled, "knowledge_gap_handled")),
-	dispatch.Is(knowledgegapaction.ErrPageSizeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
+	dispatch.Is(common.ErrPageSizeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
 	dispatch.SessionRule,
 }
 

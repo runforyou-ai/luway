@@ -7,6 +7,6 @@ type RealtimePeerConnection struct {
 	Channel          string `json:"channel"`
 	TypingChannel    string `json:"typingChannel,omitempty"`
 	ReceptionChannel string `json:"receptionChannel,omitempty"`
-	Prefix           string `json:"prefix"`
-	Path             string `json:"path"`
+
+	Path string `json:"path"`
 }

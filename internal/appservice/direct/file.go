@@ -6,10 +6,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"net/http"
 
 	computeraction "github.com/runforyou-ai/luway/internal/actions/computer"
-	conversationfileaction "github.com/runforyou-ai/luway/internal/actions/conversationfile"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	"github.com/runforyou-ai/luway/internal/actions/filemaintenance"
 	"github.com/runforyou-ai/luway/internal/appservice"
@@ -29,37 +28,35 @@ type fileOps struct {
 	cancelFileUpload   *filemaintenance.CancelUploadAction
 	completeFileUpload *fileaction.CompleteUploadAction
 	getFile            *fileaction.GetQuery
-	conversationFiles  *conversationfileaction.MemberFiles
+	conversationFiles  *conversationaction.MemberFiles
 	// computerSharedFiles 为电脑上执行中的命令与本机 Agent 轮次同步会话共享文件区。
 	computerSharedFiles *computeraction.SharedFilesAction
-	localFiles          *serverfilecontent.LocalStore
 	s3                  serverfilecontent.S3Settings
 	links               serverfilecontent.Links
-	reader              *serverfilecontent.Reader
+	reader              *serverfilecontent.Store
 }
 
 // newFileOps 创建文件存储的业务实现依赖，s3 返回部署当前的对象存储配置。
-func newFileOps(db *bun.DB, localFiles *serverfilecontent.LocalStore, s3 serverfilecontent.S3Settings, links serverfilecontent.Links) *fileOps {
-	reader := serverfilecontent.NewReader(localFiles, s3)
-	store := conversationfileaction.NewStore(db, func() domain.FileStorageBackend { return s3().Backend() },
-		serverfilecontent.NewWriter(localFiles, s3), reader)
+func newFileOps(db *bun.DB, s3 serverfilecontent.S3Settings, links serverfilecontent.Links) *fileOps {
+	reader := serverfilecontent.NewStore(s3)
+	store := conversationaction.NewStore(db,
+		serverfilecontent.NewStore(s3), reader)
 	return &fileOps{
 		createFileUpload:    fileaction.NewCreateUploadAction(db),
 		cancelFileUpload:    filemaintenance.NewCancelUploadAction(db),
 		completeFileUpload:  fileaction.NewCompleteUploadAction(db),
 		getFile:             fileaction.NewGetQuery(db),
-		conversationFiles:   conversationfileaction.NewMemberFiles(store),
+		conversationFiles:   conversationaction.NewMemberFiles(store),
 		computerSharedFiles: computeraction.NewSharedFilesAction(db, store),
-		localFiles:          localFiles,
 		reader:              reader,
 		s3:                  s3,
 		links:               links,
 	}
 }
 
-// CreateFileUpload 创建当前存储开关对应的文件上传请求；分片上传在对象存储中同时建立分片会话。
+// CreateFileUpload 创建 S3 文件上传请求；分片上传在对象存储中同时建立分片会话。
 func (o *fileOps) CreateFileUpload(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.FileUploadInput) (appservice.FileUpload, error) {
-	record, err := o.createFileUpload.Execute(ctx, identity, o.s3().Backend(), fileaction.UploadInput{
+	record, err := o.createFileUpload.Execute(ctx, identity, fileaction.UploadInput{
 		Purpose:     domain.FilePurpose(input.Purpose),
 		FileName:    input.FileName,
 		ContentType: input.ContentType,
@@ -68,35 +65,34 @@ func (o *fileOps) CreateFileUpload(ctx context.Context, meta appservice.RequestM
 	if err != nil {
 		return appservice.FileUpload{}, fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 	}
-	contentURL, err := o.links.URL(domain.FileStorageBackend(record.StorageBackend), record.StorageKey)
+	contentURL, err := o.links.URL(record.StorageKey)
 	if err != nil {
 		return appservice.FileUpload{}, fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 	}
 	if record.PartSize > 0 {
-		if record.StorageBackend == string(domain.FileStorageBackendS3) {
-			uploadID, err := serverfilecontent.CreateMultipart(ctx, o.s3(), record.StorageKey, record.ContentType)
-			if err != nil {
-				return appservice.FileUpload{}, fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
-			}
-			stored, err := o.createFileUpload.SetMultipartUpload(ctx, identity, record.ID, uploadID)
-			if err == nil && !stored {
-				err = fileaction.ErrFileNotFound
-			}
-			if err != nil {
-				// 分片会话未保存时立即清理远端会话。
-				if cleanupErr := serverfilecontent.AbortMultipart(context.WithoutCancel(ctx), o.s3(), record.StorageKey, uploadID); cleanupErr != nil {
-					slog.WarnContext(ctx, "清除未保存的分片会话失败", "file_id", record.ID, "error", cleanupErr)
-				}
-				return appservice.FileUpload{}, fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
-			}
+		uploadID, err := serverfilecontent.CreateMultipart(ctx, o.s3(), record.StorageKey, record.ContentType)
+		if err != nil {
+			return appservice.FileUpload{}, fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 		}
-		return appservice.FileUpload{File: fileFromModel(record, contentURL), PartSize: record.PartSize}, nil
+		stored, err := o.createFileUpload.SetMultipartUpload(ctx, identity, record.ID, uploadID)
+		if err == nil && !stored {
+			err = fileaction.ErrFileNotFound
+		}
+		if err != nil {
+			// 分片会话未保存时立即清理远端会话。
+			if cleanupErr := serverfilecontent.AbortMultipart(context.WithoutCancel(ctx), o.s3(), record.StorageKey, uploadID); cleanupErr != nil {
+				slog.WarnContext(ctx, "清除未保存的分片会话失败", "file_id", record.ID, "error", cleanupErr)
+			}
+			return appservice.FileUpload{}, fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
+		}
+
+		return appservice.FileUpload{File: fileFromModel(record, contentURL), PartSize: record.PartSize, Key: record.StorageKey, UploadID: uploadID}, nil
 	}
-	request, err := o.fileUploadRequest(ctx, meta, record, contentURL)
+	request, err := o.fileUploadRequest(ctx, record)
 	if err != nil {
 		return appservice.FileUpload{}, fileOperationError(meta, err, i18n.ErrorFileUploadCreateFailed)
 	}
-	return appservice.FileUpload{File: fileFromModel(record, contentURL), Request: request}, nil
+	return appservice.FileUpload{File: fileFromModel(record, contentURL), Request: request, Key: record.StorageKey}, nil
 }
 
 // CompleteFileUpload 核验文件内容并将上传标记为完成。
@@ -105,28 +101,16 @@ func (o *fileOps) CompleteFileUpload(ctx context.Context, meta appservice.Reques
 	if err != nil {
 		return appservice.File{}, fileOperationError(meta, err, i18n.ErrorFileUploadCompleteFailed)
 	}
-	// 清除已合并的本地分片。
-	if record.PartSize > 0 && record.StorageBackend == string(domain.FileStorageBackendLocal) {
-		if err := o.localFiles.DeleteParts(record.StorageKey); err != nil {
-			slog.WarnContext(ctx, "清理已合并分片失败", "file_id", record.ID, "error", err)
-		}
-	}
-	contentURL, err := o.links.URL(domain.FileStorageBackend(record.StorageBackend), record.StorageKey)
+	contentURL, err := o.links.URL(record.StorageKey)
 	if err != nil {
 		return appservice.File{}, fileOperationError(meta, err, i18n.ErrorFileUploadCompleteFailed)
 	}
-	slog.InfoContext(logscope.WithWorkspace(ctx, record.WorkspaceID), "文件上传已完成", "file_id", record.ID, "storage_backend", record.StorageBackend)
+	slog.InfoContext(logscope.WithWorkspace(ctx, record.WorkspaceID), "文件上传已完成", "file_id", record.ID)
 	return fileFromModel(record, contentURL), nil
 }
 
-// fileUploadRequest 返回本地上传地址或 S3 预签名请求。
-func (o *fileOps) fileUploadRequest(ctx context.Context, meta appservice.RequestMeta, record *servermodels.File, contentURL string) (appservice.FileUploadRequest, error) {
-	if record.StorageBackend == string(domain.FileStorageBackendLocal) {
-		return appservice.FileUploadRequest{
-			Method: http.MethodPut, URL: contentURL,
-			Headers: map[string]string{"Authorization": "Bearer " + meta.Token, "Content-Type": record.ContentType},
-		}, nil
-	}
+// fileUploadRequest 返回 S3 预签名上传请求。
+func (o *fileOps) fileUploadRequest(ctx context.Context, record *servermodels.File) (appservice.FileUploadRequest, error) {
 	signed, err := serverfilecontent.PresignPut(ctx, o.s3(), record.StorageKey, record.ContentType, record.ByteSize)
 	if err != nil {
 		return appservice.FileUploadRequest{}, fmt.Errorf("presign S3 file upload: %w", err)

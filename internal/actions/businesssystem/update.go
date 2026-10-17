@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -29,7 +30,7 @@ func NewUpdateBusinessSystemAction(db *bun.DB, test *TestConnectionAction) *Upda
 func (a *UpdateBusinessSystemAction) Execute(ctx context.Context, identity *servermodels.Identity, businessSystemID string, input Input) (*Record, error) {
 	input, fields := normalizeInput(input)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	existing, err := loadBusinessSystem(ctx, a.db, identity.Workspace.ID, businessSystemID, false)
 	if err != nil {
@@ -37,7 +38,7 @@ func (a *UpdateBusinessSystemAction) Execute(ctx context.Context, identity *serv
 	}
 	// 传输方式创建后不能修改。
 	if existing.Transport != input.Connection.Transport {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"transport": ValidationTransportChanged}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"transport": ValidationTransportChanged}}
 	}
 	// 网络探测在写事务外执行，失败时不保存配置。
 	connection, tools, err := a.test.Execute(ctx, input.Connection)
@@ -54,7 +55,7 @@ func (a *UpdateBusinessSystemAction) Execute(ctx context.Context, identity *serv
 			return err
 		}
 		if current.Transport != connection.Transport {
-			return &ValidationError{Fields: map[string]ValidationCode{"transport": ValidationTransportChanged}}
+			return &common.FieldError{Fields: map[string]common.FieldCode{"transport": ValidationTransportChanged}}
 		}
 		// 写入新工具目录并结束进行中的更新；工具目录来源变化时清除工具设置，否则只保留新目录中仍存在的工具设置。
 		current.Tools, current.ToolsRefreshID, current.ToolsFailure = tools, nil, ""
@@ -81,7 +82,7 @@ func (a *UpdateBusinessSystemAction) Execute(ctx context.Context, identity *serv
 	})
 	// 工作区内名称不区分大小写且保持唯一。
 	if pgerr.UniqueViolationOn(err, "business_systems_workspace_name_unique") {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"name": ValidationNameDuplicate}}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update business system: %w", err)

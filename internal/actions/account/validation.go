@@ -14,23 +14,17 @@ import (
 	"github.com/runforyou-ai/support/validate"
 )
 
-// ValidationCode 标识账号字段的校验结果。
-type ValidationCode = common.FieldCode
-
 const (
-	ValidationDisplayNameRequired      ValidationCode = "ACCOUNT_DISPLAY_NAME_REQUIRED"
-	ValidationDisplayNameInvalid       ValidationCode = "ACCOUNT_DISPLAY_NAME_INVALID"
-	ValidationEmailInvalid             ValidationCode = "ACCOUNT_EMAIL_INVALID"
-	ValidationEmailDuplicate           ValidationCode = "ACCOUNT_EMAIL_DUPLICATE"
-	ValidationPasswordTooShort         ValidationCode = "ACCOUNT_PASSWORD_TOO_SHORT"
-	ValidationPasswordTooLong          ValidationCode = "ACCOUNT_PASSWORD_TOO_LONG"
-	ValidationCurrentPasswordIncorrect ValidationCode = "ACCOUNT_CURRENT_PASSWORD_INCORRECT"
-	ValidationLocaleInvalid            ValidationCode = "ACCOUNT_LOCALE_INVALID"
-	ValidationTimeZoneInvalid          ValidationCode = "ACCOUNT_TIME_ZONE_INVALID"
+	ValidationDisplayNameRequired      common.FieldCode = "ACCOUNT_DISPLAY_NAME_REQUIRED"
+	ValidationDisplayNameInvalid       common.FieldCode = "ACCOUNT_DISPLAY_NAME_INVALID"
+	ValidationEmailInvalid             common.FieldCode = "ACCOUNT_EMAIL_INVALID"
+	ValidationEmailDuplicate           common.FieldCode = "ACCOUNT_EMAIL_DUPLICATE"
+	ValidationPasswordTooShort         common.FieldCode = "ACCOUNT_PASSWORD_TOO_SHORT"
+	ValidationPasswordTooLong          common.FieldCode = "ACCOUNT_PASSWORD_TOO_LONG"
+	ValidationCurrentPasswordIncorrect common.FieldCode = "ACCOUNT_CURRENT_PASSWORD_INCORRECT"
+	ValidationLocaleInvalid            common.FieldCode = "ACCOUNT_LOCALE_INVALID"
+	ValidationTimeZoneInvalid          common.FieldCode = "ACCOUNT_TIME_ZONE_INVALID"
 )
-
-// ValidationError 表示账号字段校验失败。
-type ValidationError = common.FieldError
 
 // NewAccountInput 定义新建本地账号的字段。
 type NewAccountInput struct {
@@ -42,8 +36,8 @@ type NewAccountInput struct {
 }
 
 // ValidateNewAccount 校验新建本地账号的字段，字段名与客户端表单一致。
-func ValidateNewAccount(input NewAccountInput) map[string]ValidationCode {
-	fields := make(map[string]ValidationCode)
+func ValidateNewAccount(input NewAccountInput) map[string]common.FieldCode {
+	fields := make(map[string]common.FieldCode)
 	if input.DisplayName == "" {
 		fields["displayName"] = ValidationDisplayNameRequired
 	} else if !domain.IdentityDisplayNameValid(input.DisplayName) {
@@ -65,7 +59,7 @@ func ValidateNewAccount(input NewAccountInput) map[string]ValidationCode {
 }
 
 // passwordCode 返回密码长度不符合要求时的校验结果。
-func passwordCode(password string) (ValidationCode, bool) {
+func passwordCode(password string) (common.FieldCode, bool) {
 	switch err := commonpassword.Validate(password); {
 	case errors.Is(err, commonpassword.ErrTooShort):
 		return ValidationPasswordTooShort, true

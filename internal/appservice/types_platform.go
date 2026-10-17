@@ -12,18 +12,8 @@ type AccountStatus = domain.AccountStatus
 // RegistrationPolicy 表示平台的账号注册策略。
 type RegistrationPolicy = domain.RegistrationPolicy
 
-// WorkspaceCreationPolicy 表示平台内可以创建工作区的账号范围。
-type WorkspaceCreationPolicy = domain.WorkspaceCreationPolicy
-
 // LicenseStatus 表示授权状态。
 type LicenseStatus = domain.LicenseStatus
-
-// Capabilities 定义平台当前生效的能力；WorkspaceLimit 为 0 表示不限工作区数量，PushRelay 表示是否向移动设备发送离线推送。
-type Capabilities struct {
-	WorkspaceLimit int  `json:"workspaceLimit"`
-	CustomBranding bool `json:"customBranding"`
-	PushRelay      bool `json:"pushRelay"`
-}
 
 // PlatformOverview 定义平台规模与活跃情况；活跃与新增按 TimeZone 划分日期，StatsRebuilding 表示正在按新时区重建。
 type PlatformOverview struct {
@@ -37,17 +27,15 @@ type PlatformOverview struct {
 	Trend           []PlatformDailyActivity `json:"trend"`
 }
 
-// License 定义服务器标识、授权状态、授权编号、客户、签发与到期时间、当前生效的能力、与 control 同步时查不到本服务器授权的起始时间，以及与 control 的同步结果；未激活或已到期时能力为免费取值。
+// License 定义部署标识、授权状态、授权编号、客户、签发与到期时间；有效授权解锁全部产品功能。
 type License struct {
-	ServerID         string                `json:"serverId"`
-	Status           LicenseStatus         `json:"status"`
-	LicenseID        string                `json:"licenseId"`
-	Customer         string                `json:"customer"`
-	IssuedAt         *time.Time            `json:"issuedAt"`
-	ExpiresAt        *time.Time            `json:"expiresAt"`
-	Capabilities     Capabilities          `json:"capabilities"`
-	ControlMissingAt *time.Time            `json:"controlMissingAt"`
-	Sync             PlatformControlStatus `json:"sync"`
+	DeploymentID string        `json:"deploymentId"`
+	Status       LicenseStatus `json:"status"`
+	LicenseID    string        `json:"licenseId"`
+	Customer     string        `json:"customer"`
+	IssuedAt     *time.Time    `json:"issuedAt"`
+	ExpiresAt    *time.Time    `json:"expiresAt"`
+	Licensed     bool          `json:"licensed"`
 }
 
 // ActivateLicenseInput 定义平台管理员粘贴的授权码。
@@ -77,24 +65,14 @@ type PlatformDailyActivity struct {
 	NewWorkspaces    int    `json:"newWorkspaces"`
 }
 
-// PlatformSettings 定义平台注册策略与工作区创建策略。
-type PlatformSettings struct {
-	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy"`
-	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy"`
-}
-
-// PlatformPoliciesInput 定义平台注册策略和工作区创建策略的修改值。
-type PlatformPoliciesInput struct {
-	RegistrationPolicy      RegistrationPolicy      `json:"registrationPolicy" validate:"oneof=open invitation_only" msg:"field.registration_policy_invalid"`
-	WorkspaceCreationPolicy WorkspaceCreationPolicy `json:"workspaceCreationPolicy" validate:"oneof=any_account platform_admin" msg:"field.workspace_creation_policy_invalid"`
-}
 
 // PlatformAccountListInput 定义平台账号列表的筛选与分页条件，Status 缺省为有效账号。
 type PlatformAccountListInput struct {
-	Query    string        `json:"query" query:"query"`
-	Status   AccountStatus `json:"status" query:"status,default=active" validate:"oneof=active inactive" msg:"field.user_status_invalid"`
-	Page     int           `json:"page" query:"page,default=1"`
-	PageSize int           `json:"pageSize" query:"pageSize,default=50"`
+	WorkspaceID string        `json:"workspaceId" query:"workspaceId" validate:"omitempty,uuid" msg:"error.platform_workspace_not_found"`
+	Query       string        `json:"query" query:"query"`
+	Status      AccountStatus `json:"status" query:"status,default=active" validate:"oneof=active inactive" msg:"field.user_status_invalid"`
+	Page        int           `json:"page" query:"page,default=1"`
+	PageSize    int           `json:"pageSize" query:"pageSize,default=50"`
 }
 
 // PlatformAccount 定义平台账号列表中的一个账号及其加入的工作区数量。
@@ -222,7 +200,7 @@ type PlatformRuntimeStatus struct {
 	NotifyQueueUsage float64             `json:"notifyQueueUsage"`
 }
 
-// PlatformServer 定义一个服务端进程及其最近一次心跳；BusDriver 为消息总线的传输驱动（postgres 或 nats），BusConnected 为最近一次心跳时消息总线是否可用，
+// PlatformServer 定义一个服务端进程及其最近一次心跳；BusDriver 为消息总线的传输驱动（nats），BusConnected 为最近一次心跳时消息总线是否可用，
 // BusMessageRate 与 BusFailures 为上一个心跳间隔内消息总线的发送速率（条/秒）与发送失败和丢弃的消息数，Online 表示 30 秒内有心跳，Config 为进程启动时的服务端配置。
 type PlatformServer struct {
 	ID             string               `json:"id"`
@@ -238,14 +216,13 @@ type PlatformServer struct {
 	Config         PlatformServerConfig `json:"config"`
 }
 
-// PlatformServerConfig 定义服务端进程的启动配置与本机目录，只包含不含密码和地址凭据的字段；Listen 为监听地址与端口，HTTPSPort 为本服务器直接提供 HTTPS 的端口，为 0 表示由前面的代理提供 HTTPS，LogLevel 为控制台日志的输出级别，LocalDirectory 为部署未开启对象存储时写入文件的本地目录。
+// PlatformServerConfig 定义服务端进程的启动配置与本机目录，只包含不含密码和地址凭据的字段；Listen 为监听地址与端口，HTTPSPort 为本服务器直接提供 HTTPS 的端口，为 0 表示由前面的代理提供 HTTPS，LogLevel 为控制台日志的输出级别。
 type PlatformServerConfig struct {
 	Listen           string                       `json:"listen"`
 	HTTPSPort        int                          `json:"httpsPort"`
 	Database         PlatformServerDatabaseConfig `json:"database"`
 	NATS             PlatformServerNATSConfig     `json:"nats"`
 	LogLevel         string                       `json:"logLevel"`
-	LocalDirectory   string                       `json:"localDirectory"`
 	ClientsDirectory string                       `json:"clientsDirectory"`
 }
 
@@ -260,33 +237,38 @@ type PlatformServerDatabaseConfig struct {
 
 // PlatformServerNATSConfig 定义去掉凭据的 NATS 地址、命名空间与任务队列副本数。
 type PlatformServerNATSConfig struct {
-	URL       string `json:"url"`
-	Namespace string `json:"namespace"`
-	Replicas  int    `json:"replicas"`
+	URL string `json:"url"`
 }
 
-// PlatformDeployment 定义整个部署共用的部署配置；Certificate 是部署地址的证书设置，CertificateStatus 是证书的当前状态，HTTPSServers 表示部署中有直接提供 HTTPS 的服务器在线，此时 HTTPS 部署地址使用该证书；BrandingLicensed 表示授权当前授予自定义品牌，未授予时部署品牌保存后不生效；HomePricing 表示产品首页展示价格区块，此时首页的自部署介绍设置生效。
+// PlatformSite 定义站点设置：部署名称与时区、注册与创建策略、访问地址与证书、部署品牌；BrandingLicensed 为假时 Branding 为构建品牌默认值且不可通过保存修改。
+type PlatformSite struct {
+	Name                   string                    `json:"name"`
+	TimeZone               string                    `json:"timeZone"`
+	RegistrationPolicy     RegistrationPolicy        `json:"registrationPolicy"`
+	WorkspaceCreationQuota int                       `json:"workspaceCreationQuota"`
+	PublicURL              string                    `json:"publicURL"`
+	Certificate            PlatformCertificate       `json:"certificate"`
+	CertificateStatus      PlatformCertificateStatus `json:"certificateStatus"`
+	HTTPSServers           bool                      `json:"httpsServers"`
+	Branding               PlatformBrandingSettings  `json:"branding"`
+	BrandingLicensed       bool                      `json:"brandingLicensed"`
+}
+
+// PlatformSiteInput 定义站点设置的修改值；上传证书的 Certificate 与 PrivateKey 为空时保留已存值；未授权时忽略 Branding。
+type PlatformSiteInput struct {
+	Name                   string                   `json:"name"`
+	TimeZone               string                   `json:"timeZone"`
+	RegistrationPolicy     RegistrationPolicy       `json:"registrationPolicy" validate:"oneof=open invitation_only" msg:"field.registration_policy_invalid"`
+	WorkspaceCreationQuota int                      `json:"workspaceCreationQuota" validate:"gte=0"`
+	PublicURL              string                   `json:"publicURL"`
+	Certificate            PlatformCertificate      `json:"certificate"`
+	Branding               PlatformBrandingSettings `json:"branding"`
+}
+
+// PlatformDeployment 定义对象存储与邮件发送配置，供系统设置中的存储与邮件页面使用。
 type PlatformDeployment struct {
-	Name              string                    `json:"name"`
-	PublicURL         string                    `json:"publicURL"`
-	Certificate       PlatformCertificate       `json:"certificate"`
-	CertificateStatus PlatformCertificateStatus `json:"certificateStatus"`
-	HTTPSServers      bool                      `json:"httpsServers"`
-	TimeZone          string                    `json:"timeZone"`
-	TelemetryEnabled  bool                      `json:"telemetryEnabled"`
-	Storage           PlatformStorageSettings   `json:"storage"`
-	Email             PlatformEmailSettings     `json:"email"`
-	Branding          PlatformBrandingSettings  `json:"branding"`
-	Home              PlatformHomeSettings      `json:"home"`
-	BrandingLicensed  bool                      `json:"brandingLicensed"`
-	HomePricing       bool                      `json:"homePricing"`
-}
-
-// PlatformDeploymentBasicsInput 定义部署名称、平台时区与上报开关的修改值。
-type PlatformDeploymentBasicsInput struct {
-	Name             string `json:"name"`
-	TimeZone         string `json:"timeZone"`
-	TelemetryEnabled bool   `json:"telemetryEnabled"`
+	Storage PlatformStorageSettings `json:"storage"`
+	Email   PlatformEmailSettings   `json:"email"`
 }
 
 // PlatformCertificateSource 表示部署地址的证书来源。
@@ -312,15 +294,8 @@ type PlatformCertificateStatus struct {
 	RenewalFailedAt *time.Time `json:"renewalFailedAt"`
 }
 
-// PlatformAddressInput 定义部署地址与证书设置的修改值。
-type PlatformAddressInput struct {
-	PublicURL   string              `json:"publicURL"`
-	Certificate PlatformCertificate `json:"certificate"`
-}
-
-// PlatformStorageSettings 定义对象存储配置：Enabled 为假时新文件写入各服务器的本地文件目录，已有文件按各自的存储位置读取。
+// PlatformStorageSettings 定义整个部署共用的 S3 上传接口、文件访问地址与凭据。
 type PlatformStorageSettings struct {
-	Enabled         bool   `json:"enabled"`
 	Endpoint        string `json:"endpoint"`
 	PublicBaseURL   string `json:"publicBaseURL"`
 	Region          string `json:"region"`
@@ -330,14 +305,106 @@ type PlatformStorageSettings struct {
 	ForcePathStyle  bool   `json:"forcePathStyle"`
 }
 
-// PlatformEmailSettings 定义 SMTP 邮件发送配置，Host 为空时关闭邮件发送；Security 为 starttls、tls 或 none。
+// EmailProvider 表示系统邮件的接入方式。
+type EmailProvider = domain.EmailProvider
+
+// PlatformEmailSettings 定义邮件配置读取结果，密钥只返回是否已设置。
 type PlatformEmailSettings struct {
+	Enabled     bool                           `json:"enabled"`
+	Provider    EmailProvider                  `json:"provider"`
+	FromAddress string                         `json:"fromAddress"`
+	FromName    string                         `json:"fromName"`
+	SMTP        *PlatformEmailSMTPSettings     `json:"smtp"`
+	SES         *PlatformEmailSESSettings      `json:"ses"`
+	Mailgun     *PlatformEmailMailgunSettings  `json:"mailgun"`
+	Postmark    *PlatformEmailPostmarkSettings `json:"postmark"`
+	Resend      *PlatformEmailResendSettings   `json:"resend"`
+}
+
+// PlatformEmailSMTPSettings 定义 SMTP 的配置读取结果。
+type PlatformEmailSMTPSettings struct {
 	Host        string `json:"host"`
 	Port        int    `json:"port"`
-	Username    string `json:"username"`
-	Password    string `json:"password"`
 	Security    string `json:"security"`
-	FromAddress string `json:"fromAddress"`
+	Username    string `json:"username"`
+	PasswordSet bool   `json:"passwordSet"`
+}
+
+// PlatformEmailSESSettings 定义 SES 的配置读取结果。
+type PlatformEmailSESSettings struct {
+	Region             string `json:"region"`
+	AccessKeyID        string `json:"accessKeyID"`
+	SecretAccessKeySet bool   `json:"secretAccessKeySet"`
+}
+
+// PlatformEmailMailgunSettings 定义 Mailgun 的配置读取结果。
+type PlatformEmailMailgunSettings struct {
+	Domain    string `json:"domain"`
+	Region    string `json:"region"`
+	APIKeySet bool   `json:"apiKeySet"`
+}
+
+// PlatformEmailPostmarkSettings 定义 Postmark 的配置读取结果。
+type PlatformEmailPostmarkSettings struct {
+	MessageStream  string `json:"messageStream"`
+	ServerTokenSet bool   `json:"serverTokenSet"`
+}
+
+// PlatformEmailResendSettings 定义 Resend 的配置读取结果。
+type PlatformEmailResendSettings struct {
+	APIKeySet bool `json:"apiKeySet"`
+}
+
+// PlatformEmailInput 定义邮件配置保存参数，空密钥保留同服务商且身份未变的已存值。
+type PlatformEmailInput struct {
+	Enabled     bool                        `json:"enabled"`
+	Provider    EmailProvider               `json:"provider"`
+	FromAddress string                      `json:"fromAddress"`
+	FromName    string                      `json:"fromName"`
+	SMTP        *PlatformEmailSMTPInput     `json:"smtp"`
+	SES         *PlatformEmailSESInput      `json:"ses"`
+	Mailgun     *PlatformEmailMailgunInput  `json:"mailgun"`
+	Postmark    *PlatformEmailPostmarkInput `json:"postmark"`
+	Resend      *PlatformEmailResendInput   `json:"resend"`
+}
+
+// PlatformEmailSMTPInput 定义 SMTP 的配置保存参数。
+type PlatformEmailSMTPInput struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	Security string `json:"security"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+// PlatformEmailSESInput 定义 SES 的配置保存参数。
+type PlatformEmailSESInput struct {
+	Region          string `json:"region"`
+	AccessKeyID     string `json:"accessKeyID"`
+	SecretAccessKey string `json:"secretAccessKey"`
+}
+
+// PlatformEmailMailgunInput 定义 Mailgun 的配置保存参数。
+type PlatformEmailMailgunInput struct {
+	Domain string `json:"domain"`
+	Region string `json:"region"`
+	APIKey string `json:"apiKey"`
+}
+
+// PlatformEmailPostmarkInput 定义 Postmark 的配置保存参数。
+type PlatformEmailPostmarkInput struct {
+	MessageStream string `json:"messageStream"`
+	ServerToken   string `json:"serverToken"`
+}
+
+// PlatformEmailResendInput 定义 Resend 的配置保存参数。
+type PlatformEmailResendInput struct {
+	APIKey string `json:"apiKey"`
+}
+
+// PlatformEmailTestInput 定义测试邮件的收件邮箱。
+type PlatformEmailTestInput struct {
+	To string `json:"to" validate:"required,email" msg:"field.email_invalid"`
 }
 
 // PlatformBrandingSettings 定义部署品牌：Names 按界面语言覆盖产品名称，SDKName 为网站嵌入脚本对象名，Icon 为替换网站图标的 PNG 图片，均为空时沿用构建品牌。
@@ -345,11 +412,6 @@ type PlatformBrandingSettings struct {
 	Names   map[string]string `json:"names"`
 	SDKName string            `json:"sdkName"`
 	Icon    []byte            `json:"icon"`
-}
-
-// PlatformHomeSettings 定义产品首页配置：SelfHost 表示首页提供价格区块时展示自部署介绍，不提供价格区块时首页始终展示。
-type PlatformHomeSettings struct {
-	SelfHost bool `json:"selfHost"`
 }
 
 // PlatformDeploymentSummary 定义诊断信息中的部署配置，不含密码与密钥；HasIcon 表示配置了网站图标。
@@ -361,12 +423,10 @@ type PlatformDeploymentSummary struct {
 	Storage           PlatformStorageSummary    `json:"storage"`
 	Email             PlatformEmailSummary      `json:"email"`
 	Branding          PlatformBrandingSummary   `json:"branding"`
-	Home              PlatformHomeSettings      `json:"home"`
 }
 
 // PlatformStorageSummary 定义诊断信息中不含密钥的对象存储配置。
 type PlatformStorageSummary struct {
-	Enabled        bool   `json:"enabled"`
 	Endpoint       string `json:"endpoint"`
 	PublicBaseURL  string `json:"publicBaseURL"`
 	Region         string `json:"region"`
@@ -374,13 +434,12 @@ type PlatformStorageSummary struct {
 	ForcePathStyle bool   `json:"forcePathStyle"`
 }
 
-// PlatformEmailSummary 定义诊断信息中不含账号密码的邮件发送配置，Enabled 为假表示未配置 SMTP 主机。
+// PlatformEmailSummary 定义诊断中的邮件配置摘要。
 type PlatformEmailSummary struct {
-	Enabled     bool   `json:"enabled"`
-	Host        string `json:"host"`
-	Port        int    `json:"port"`
-	Security    string `json:"security"`
-	FromAddress string `json:"fromAddress"`
+	Enabled     bool          `json:"enabled"`
+	Provider    EmailProvider `json:"provider"`
+	FromAddress string        `json:"fromAddress"`
+	FromName    string        `json:"fromName"`
 }
 
 // PlatformBrandingSummary 定义诊断信息中的部署品牌，HasIcon 表示配置了网站图标。
@@ -394,13 +453,6 @@ type PlatformBrandingSummary struct {
 type PlatformObjectStorageStatus struct {
 	Enabled bool   `json:"enabled"`
 	Error   string `json:"error"`
-}
-
-// PlatformControlStatus 定义与 control 同步的结果：SyncedAt 为最近一次成功的时间，从未成功时为空；FailedAt 与 Error 为此后最近一次失败的时间与原因。
-type PlatformControlStatus struct {
-	SyncedAt *time.Time `json:"syncedAt"`
-	FailedAt *time.Time `json:"failedAt"`
-	Error    string     `json:"error"`
 }
 
 // PlatformTaskQueue 定义一个后台任务队列的运行概况：Waiting 为尚未开始执行的任务数，Running 为执行中的任务数，Failed 为近 7 天最终失败的任务数。
@@ -466,51 +518,19 @@ type PlatformFailedTaskList struct {
 	Page  PageInfo             `json:"page"`
 }
 
-// ServerLogLevel 表示服务端日志级别。
-type ServerLogLevel string
-
-const (
-	ServerLogLevelDebug ServerLogLevel = "debug"
-	ServerLogLevelInfo  ServerLogLevel = "info"
-	ServerLogLevelWarn  ServerLogLevel = "warn"
-	ServerLogLevelError ServerLogLevel = "error"
-)
-
-// PlatformServerLogListInput 定义服务端日志列表的游标、页大小与筛选条件：Cursor 为上一页返回的 NextCursor，为空时从最新的日志读起；MinLevel 为空表示全部级别；Entry 匹配业务入口方法或后台任务名称；其余条件为空时不筛选。
-type PlatformServerLogListInput struct {
-	Cursor      string         `json:"cursor" query:"cursor"`
-	PageSize    int            `json:"pageSize" query:"pageSize,default=50"`
-	MinLevel    ServerLogLevel `json:"minLevel" query:"minLevel" validate:"omitempty,oneof=debug info warn error" msg:"field.platform_query_invalid"`
-	InstanceID  string         `json:"instanceId" query:"instanceId"`
-	WorkspaceID string         `json:"workspaceId" query:"workspaceId"`
-	Entry       string         `json:"entry" query:"entry"`
-	TraceID     string         `json:"traceId" query:"traceId"`
+// DiagnosticBundle 是可下载的 ZIP 诊断包。
+type DiagnosticBundle struct {
+	Name    string `json:"name"`
+	Content []byte `json:"content"`
 }
 
-// PlatformServerLog 定义一条服务端日志：InstanceID 为写入日志的服务端进程实例编号；TraceID、Operation、TaskRunID、Action、Queue、WorkspaceID 与 AccountID 取自日志作用域，WorkspaceName 为所属工作区名称；EventID 为上报 control 的错误事件编号；Attributes 为日志的其他属性。
-type PlatformServerLog struct {
-	ID            string            `json:"id"`
-	OccurredAt    time.Time         `json:"occurredAt"`
-	Level         ServerLogLevel    `json:"level"`
-	InstanceID    string            `json:"instanceId"`
-	Hostname      string            `json:"hostname"`
-	Version       string            `json:"version"`
-	Message       string            `json:"message"`
-	TraceID       *string           `json:"traceId"`
-	Operation     *string           `json:"operation"`
-	TaskRunID     *string           `json:"taskRunId"`
-	Action        *string           `json:"action"`
-	Queue         *string           `json:"queue"`
-	WorkspaceID   *string           `json:"workspaceId"`
-	WorkspaceName *string           `json:"workspaceName"`
-	AccountID     *string           `json:"accountId"`
-	Error         *string           `json:"error"`
-	EventID       *string           `json:"eventId"`
-	Attributes    map[string]string `json:"attributes"`
-}
+// DiagnosticUploadInput 主动上传诊断包的请求体（当前无附加字段）。
+type DiagnosticUploadInput struct{}
 
-// PlatformServerLogList 定义一页服务端日志；NextCursor 为空表示没有更早的日志。
-type PlatformServerLogList struct {
-	Logs       []PlatformServerLog `json:"logs"`
-	NextCursor string              `json:"nextCursor"`
+// StorageOriginAccess 与领域中的源站访问检测结果保持一致。
+type StorageOriginAccess = domain.StorageOriginAccess
+
+// PlatformStorageCheck 返回保存时的实际源站匿名读取结果。
+type PlatformStorageCheck struct {
+	OriginAccess StorageOriginAccess `json:"originAccess"`
 }

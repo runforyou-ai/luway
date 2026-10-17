@@ -12,11 +12,11 @@ import (
 	agentevaluationaction "github.com/runforyou-ai/luway/internal/actions/agentevaluation"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
@@ -37,7 +37,7 @@ func TestKnowledgeGaps(t *testing.T) {
 	tasks := newKnowledgeTasks(t, db)
 	f := handoffFixture{db: db, identity: identity, tasks: tasks, providerID: providerID, modelID: modelID}
 	disableAutoAssignment(t, db, identity.Workspace.ID)
-	coordinator := newGroupAgentCoordinator(db)
+	coordinator := newGroupAgentCanceller(db)
 	claim := servicesessionaction.NewClaimServiceSessionAction(db, coordinator, tasks)
 	closeSession := servicesessionaction.NewCloseServiceSessionAction(db, coordinator, tasks)
 	reopen := servicesessionaction.NewReopenServiceSessionAction(db, testEnqueuer)
@@ -49,15 +49,15 @@ func TestKnowledgeGaps(t *testing.T) {
 
 	// 小结与判断模型在本测试内启用，结束后恢复为不使用。
 	summaryProviderID := seedSummaryModels(t, db, identity)
-	settings := customerservice.NewUpdateServiceSummarySettingsAction(db)
-	_, err := settings.Execute(ctx, identity, domain.ServiceSummarySettings{
+	settings := servicepolicy.NewUpdateServiceSummarySettingsAction(db)
+	_, err := settings.Execute(ctx, identity, domain.ServiceAudienceCustomer, domain.ServiceSummarySettings{
 		DecisionModelID: new(aiModelID(t, db, summaryProviderID, "decision-model")),
 		SummaryModelID:  new(aiModelID(t, db, summaryProviderID, "chat-model")),
 		Locale:          domain.LocaleChineseSimplified,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, err := settings.Execute(context.Background(), identity, domain.ServiceSummarySettings{Locale: domain.LocaleChineseSimplified})
+		_, err := settings.Execute(context.Background(), identity, domain.ServiceAudienceCustomer, domain.ServiceSummarySettings{Locale: domain.LocaleChineseSimplified})
 		assert.NoError(t, err)
 	})
 

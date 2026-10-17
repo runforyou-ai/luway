@@ -1,6 +1,6 @@
 //go:build server
 
-// Package members 认证账号、访客与电脑连接并通过 jetcast 发布实时通知。
+// Package members 认证账号、访客与电脑连接并通过应用实时网关 发布实时通知。
 package members
 
 import (
@@ -8,14 +8,14 @@ import (
 	"encoding/json"
 	"errors"
 	"strings"
-	"time"
 
-	"github.com/runforyou-ai/jetcast"
+	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
 	"github.com/runforyou-ai/luway/internal/actions/realtimeauth"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	"github.com/runforyou-ai/luway/internal/messaging"
 	"github.com/runforyou-ai/luway/internal/realtime"
-	"github.com/runforyou-ai/luway/internal/realtime/broker"
+	"github.com/runforyou-ai/luway/internal/realtime/gateway"
 	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -23,100 +23,67 @@ import (
 
 // Backend 复用业务入口的账号会话和有效成员解析。
 type Backend interface {
-	AuthenticateAccountMembers(context.Context, appservice.RequestMeta) (direct.AccountMembersSession, error)
 	AuthorizeRunChannel(context.Context, string, string, string, string) (bool, error)
 }
 
 // Service 持有实时身份认证、频道授权和强制撤销所需的服务依赖。
 type Service struct {
-	Server *jetcast.Server
+	Server *gateway.Server
 	db     *bun.DB
 }
 
 // New 创建实时服务，连接身份与授权频道来自同一次业务认证。
-func New(connection *broker.Connection, backend Backend, db *bun.DB, prefix string, replicas int) (*Service, error) {
-	srv, err := jetcast.NewServer(connection.Conn, jetcast.ServerOptions{
-		Account: broker.ClientAccount, CalloutSigner: connection.Signer, Admin: connection.Admin, ManageStreams: true,
-		Config:  jetcast.Config{Prefix: prefix, Stream: prefix + "_events", Ephemeral: []string{"w.*.u.*.typing", "w.*.inbox.typing", "w.*.v.*.typing"}},
-		History: jetcast.History{Replicas: replicas}, MaxConnectionTTL: broker.MaxConnectionTTL,
-	})
-	if err != nil {
-		return nil, err
-	}
-	srv.Authenticate(func(ctx context.Context, request jetcast.AuthRequest) (jetcast.User, error) {
-		started := time.Now() //clock:local
-		if strings.HasPrefix(request.Token, "rt_") {
-			kind, identity, err := realtimeauth.Authenticate(ctx, db, request.Token)
+func New(connection *messaging.Connection, backend Backend, db *bun.DB) (*Service, error) {
+	srv := gateway.New(connection)
+	srv.Authenticate = func(ctx context.Context, ticket string) (gateway.User, error) {
+		if strings.HasPrefix(ticket, "rt_v.") || strings.HasPrefix(ticket, "rt_c.") {
+			kind, identity, err := realtimeauth.Authenticate(ctx, db, ticket)
 			if err != nil {
-				return jetcast.User{}, err
+				return gateway.User{}, err
 			}
-			channel := realtime.VisitorChannel(identity.WorkspaceID, identity.ID)
-			info := appservice.RealtimePeerConnection{UserID: kind + "_" + identity.ID, Prefix: prefix, Path: "/nats"}
+			info := appservice.RealtimePeerConnection{UserID: kind + "_" + identity.ID, Path: "/realtime"}
+			info.Channel = realtime.VisitorChannel(identity.WorkspaceID, identity.ID)
 			if kind == "c" {
-				channel = realtime.ComputerChannel(identity.WorkspaceID, identity.ID)
+				info.Channel = realtime.ComputerChannel(identity.WorkspaceID, identity.ID)
 			} else {
-				info.TypingChannel = channel + ".typing"
+				info.TypingChannel = info.Channel + ".typing"
 				info.ReceptionChannel = "w." + identity.WorkspaceID + ".visitors"
 			}
-			info.Channel = channel
-			return jetcast.User{ID: info.UserID, ExpiresAt: identity.ExpiresAt, Info: info}, nil
-		}
-		session, err := backend.AuthenticateAccountMembers(ctx, appservice.RequestMeta{Token: request.Token})
-		if err != nil {
-			return jetcast.User{}, err
-		}
-		info := appservice.RealtimeConnection{UserID: "a_" + session.AccountID, SessionID: session.SessionID, Prefix: prefix, Path: "/nats", Members: make([]appservice.RealtimeMember, 0, len(session.Members))}
-		for _, member := range session.Members {
-			info.Members = append(info.Members, direct.RealtimeMemberChannels(member.WorkspaceID, member.UserID))
-		}
-		return jetcast.User{ID: info.UserID, Session: session.SessionID, ExpiresAt: started.Add(session.Remaining), Info: info}, nil
-	})
-	srv.Grants(func(_ context.Context, user jetcast.User) ([]string, error) {
-		if strings.HasPrefix(user.ID, "v_") || strings.HasPrefix(user.ID, "c_") {
-			var info appservice.RealtimePeerConnection
-			data, err := json.Marshal(user.Info)
-			if err != nil {
-				return nil, err
-			}
-			if err = json.Unmarshal(data, &info); err != nil {
-				return nil, err
-			}
 			channels := []string{info.Channel}
-			if info.TypingChannel != "" {
-				channels = append(channels, info.TypingChannel)
+			if kind == "v" {
+				channels = append(channels, info.TypingChannel, info.ReceptionChannel)
 			}
-			if info.ReceptionChannel != "" {
-				channels = append(channels, info.ReceptionChannel)
-			}
-			return channels, nil
+			return gateway.User{ID: info.UserID, Info: info, Channels: channels}, nil
 		}
-		var info appservice.RealtimeConnection
-		data, err := json.Marshal(user.Info)
+		account, err := realtimeauth.AuthenticateMember(ctx, db, ticket)
 		if err != nil {
-			return nil, err
+			return gateway.User{}, err
 		}
-		if json.Unmarshal(data, &info) != nil {
-			return nil, errors.New("missing member authorization")
+		members, err := authaction.ListMemberships(ctx, db, account)
+		if err != nil {
+			return gateway.User{}, err
 		}
-		channels := make([]string, 0, len(info.Members)*4)
-		for _, member := range info.Members {
-			channels = append(channels, member.Channel, member.InboxChannel, member.TypingChannel, member.InboxTypingChannel)
+		info := appservice.RealtimeConnection{UserID: "a_" + account.Account.ID, SessionID: account.Session.ID, Path: "/realtime", Members: make([]appservice.RealtimeMember, 0, len(members))}
+		var channels []string
+		for _, member := range members {
+			ch := direct.RealtimeMemberChannels(member.WorkspaceID, member.UserID)
+			info.Members = append(info.Members, ch)
+			channels = append(channels, ch.Channel, ch.InboxChannel, ch.TypingChannel, ch.InboxTypingChannel)
 		}
-		return channels, nil
-	})
-	if err := srv.Channel("w.{workspace}.runs.{run}", func(ctx context.Context, user jetcast.User, params jetcast.Params) (bool, error) {
-		accountID, ok := strings.CutPrefix(user.ID, "a_")
-		if !ok {
+		return gateway.User{ID: info.UserID, Session: info.SessionID, Info: info, Channels: channels}, nil
+	}
+	srv.Authorize = func(ctx context.Context, user gateway.User, channel string) (bool, error) {
+		parts := strings.Split(channel, ".")
+		account, ok := strings.CutPrefix(user.ID, "a_")
+		if !ok || len(parts) != 4 || parts[0] != "w" || parts[2] != "runs" {
 			return false, nil
 		}
-		return backend.AuthorizeRunChannel(ctx, accountID, user.Session, params["workspace"], params["run"])
-	}); err != nil {
-		return nil, err
+		return backend.AuthorizeRunChannel(ctx, account, user.Session, parts[1], parts[3])
 	}
 	return &Service{Server: srv, db: db}, nil
 }
 
-// Start 创建实时历史与连接登记并开始认证客户端。
+// Start 订阅撤销控制并开始认证客户端。
 func (s *Service) Start(ctx context.Context) error {
 	if err := s.Server.Start(ctx); err != nil {
 		return errors.Join(err, s.Server.Close())
@@ -150,12 +117,7 @@ func (s *Service) Publish(ctx context.Context, notification realtime.Notificatio
 	if notification.Kind == realtime.KindConversationTyping {
 		channel += ".typing"
 	}
-	data, err := protocol.Encode(frame)
-	if err != nil {
-		return err
-	}
-	_, err = s.Server.Broadcast(ctx, jetcast.Event{Name: string(frame.FrameType()), Channels: []jetcast.Channel{jetcast.Private(channel)}, Data: json.RawMessage(data)})
-	return errors.Join(revocationErr, err)
+	return errors.Join(revocationErr, s.broadcast(ctx, frame, notification.ID, channel))
 }
 
 // reauthorize 按数据库中的账号归属强制关闭连接，客户端复核会话并获取当前成员授权。
@@ -166,15 +128,12 @@ func (s *Service) reauthorize(ctx context.Context, notification realtime.Notific
 			return err
 		}
 	}
-	target := jetcast.ByUser("a_" + accountID)
+	target := gateway.Target{User: "a_" + accountID, ID: notification.ID}
 	if notification.TokenSessionID != "" {
-		target = jetcast.BySession(target.User, notification.TokenSessionID)
+		target.Session = notification.TokenSessionID
 	}
-	result, err := s.Server.Disconnect(ctx, target)
-	if err == nil && (!result.Enforced || result.Failed != 0) {
-		err = errors.New("member revocation was not enforced")
-	}
-	return errors.Join(err, s.revokeInvalidComputers(ctx, accountID))
+	err := s.Server.Disconnect(ctx, target)
+	return errors.Join(err, s.revokeInvalidComputers(ctx, accountID, notification.ID))
 }
 
 // PublishRun 将运行状态投影为留存事件，大事件明确要求重新读取快照。
@@ -194,20 +153,25 @@ func (s *Service) PublishRun(ctx context.Context, workspaceID string, event real
 			return err
 		}
 	}
-	channel := []jetcast.Channel{jetcast.Private(realtime.RunChannel(workspaceID, event.RunID))}
+	channel := []string{realtime.RunChannel(workspaceID, event.RunID)}
 	// 结束批次没有增量也无需重读快照时只发送结束帧。
 	if event.Delta != nil || event.Invalidated || !event.Ended {
-		_, err = s.Server.Broadcast(ctx, jetcast.Event{Name: string(frame.FrameType()), Channels: channel, Data: json.RawMessage(data)})
+		err = s.Server.Broadcast(ctx, gateway.Event{Name: string(frame.FrameType()), Channels: channel, Data: json.RawMessage(data)})
 	}
 	if !event.Ended {
 		return err
 	}
 	// 结束帧独立发送，增量帧失败时仍然通知客户端结束。
-	frame = protocol.RunStreamEnded{RunID: event.RunID}
-	data, encodeErr := protocol.Encode(frame)
-	if encodeErr != nil {
-		return errors.Join(err, encodeErr)
-	}
-	_, endErr := s.Server.Broadcast(ctx, jetcast.Event{Name: string(frame.FrameType()), Channels: channel, Data: json.RawMessage(data)})
+	endErr := s.broadcast(ctx, protocol.RunStreamEnded{RunID: event.RunID}, "", channel...)
 	return errors.Join(err, endErr)
+}
+
+// broadcast 编码业务事件并向指定私有频道发布。
+func (s *Service) broadcast(ctx context.Context, frame protocol.Frame, id string, channels ...string) error {
+	data, err := protocol.Encode(frame)
+	if err != nil {
+		return err
+	}
+	err = s.Server.Broadcast(ctx, gateway.Event{ID: id, Name: string(frame.FrameType()), Channels: channels, Data: data})
+	return err
 }

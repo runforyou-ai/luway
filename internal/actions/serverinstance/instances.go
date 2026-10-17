@@ -143,19 +143,3 @@ func HTTPSServersOnline(ctx context.Context, db bun.IDB) (bool, error) {
 	}
 	return online, nil
 }
-
-// EmbeddedNATSConflict 判断本进程的任务队列 NATS 模式是否与部署中其他主机上在线的服务端进程冲突：内嵌 NATS 只用于单台服务器，
-// embedded 为真时存在其他主机的在线进程即冲突，为假时存在其他主机上使用内嵌 NATS 的在线进程即冲突；同一主机上的记录是重启前的本机进程，不计入。
-func EmbeddedNATSConflict(ctx context.Context, db bun.IDB, id, hostname string, embedded bool) (bool, error) {
-	query := db.NewSelect().Model((*servermodels.ServerInstance)(nil)).
-		Where("si.id <> ? AND si.hostname <> ?", id, hostname).
-		Where("si.heartbeat_at >= now() - make_interval(secs => ?)", InstanceOnlineWindow.Seconds())
-	if !embedded {
-		query = query.Where("coalesce(si.config->'nats'->>'url', '') = ''")
-	}
-	conflict, err := query.Exists(ctx)
-	if err != nil {
-		return false, fmt.Errorf("check embedded NATS conflict: %w", err)
-	}
-	return conflict, nil
-}

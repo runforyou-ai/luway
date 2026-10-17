@@ -18,8 +18,8 @@ import (
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
+	broker "github.com/runforyou-ai/luway/internal/messaging"
 	"github.com/runforyou-ai/luway/internal/realtime"
-	"github.com/runforyou-ai/luway/internal/realtime/broker"
 	"github.com/runforyou-ai/luway/internal/realtime/members"
 	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 	"github.com/runforyou-ai/luway/internal/servertest"
@@ -37,36 +37,32 @@ type visitorRealtimeHarness struct {
 	broker    *broker.Connection
 }
 
-// startVisitorRealtime 启动发布器、正式 Jetcast、公开 HTTP 路由并配置连接管理依赖。
+// startVisitorRealtime 启动发布器、正式 应用网关、公开 HTTP 路由并配置连接管理依赖。
 func startVisitorRealtime(t *testing.T, f customerReadFixture, configure ...func(*broker.Connection)) *visitorRealtimeHarness {
 	t.Helper()
 	// 通知发布器使用本测试独立的内部总线命名空间。
-	channel := servertest.BusChannel()
-	publisher := startTestPublisherOn(t, f.db, channel)
+	publisher := newTestPublisherOn(t, f.db, servertest.BusNamespace())
 
 	scheduler := agentrunaction.NewScheduler(testEnqueuer)
-	visitorBackend := direct.NewWebsiteVisitorBackend(f.db, scheduler, testEnqueuer, nil, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
-	memberBackend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	visitorBackend := direct.NewWebsiteVisitorBackend(f.db, scheduler, testEnqueuer, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
+	memberBackend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	connection := servertest.StartRealtimeBroker(t)
 	for _, configureBroker := range configure {
 		configureBroker(connection)
 	}
-	service, err := members.New(connection, memberBackend, f.db, "app_realtime", 1)
+	service, err := members.New(connection, memberBackend, f.db)
 	require.NoError(t, err)
 	require.NoError(t, service.Start(t.Context()))
 	t.Cleanup(func() { _ = service.Stop() })
 	publisher.SetMembers(service)
-	proxy, err := connection.Proxy()
-	require.NoError(t, err)
-
-	httpAPI := api.NewService(memberBackend,
-		api.WithWebsiteVisitor(visitorBackend, func() bool { return false }),
-	)
+	startPublisher(t, publisher)
+	waitRealtimeOutbox(t, f.db, f.owner.Workspace.ID)
+	httpAPI := api.NewService(memberBackend, api.WithWebsiteVisitor(visitorBackend, func() bool { return false }))
 	mux := http.NewServeMux()
-	mux.Handle("/nats", proxy)
+	mux.Handle("/realtime", service.Server)
 	mux.Handle("/", httpAPI)
 	server := httptest.NewUnstartedServer(mux)
-	// HTTP 读写超时独立于已升级的 NATS WebSocket 生命周期。
+	// HTTP 读写超时独立于已升级的 应用 WebSocket 生命周期。
 	server.Config.ReadTimeout = time.Second
 	server.Config.WriteTimeout = time.Second
 	server.Start()
@@ -147,7 +143,19 @@ func TestVisitorRealtimeStream(t *testing.T) {
 	frame, ok := client.next().(protocol.ConversationChanged)
 	require.True(t, ok, "访客事件 = %#v, want conversation_changed", frame)
 	require.Equal(t, f.conversationID, frame.ConversationID)
-	other.expectQuiet()
+	// outbox 可能在连接就绪后交付该访客自己的创建通知，跨身份线程始终不可见。
+	quiet := time.NewTimer(500 * time.Millisecond)
+checkOther:
+	for {
+		select {
+		case event := <-other.frames:
+			if changed, ok := event.(protocol.ConversationChanged); ok {
+				require.NotEqual(t, f.conversationID, changed.ConversationID)
+			}
+		case <-quiet.C:
+			break checkOther
+		}
+	}
 
 	// 停用渠道结束该渠道全部访客事件流，重新请求被拒绝；请求中的渠道 ID 大小写不同也发往同一个规范受众。
 	_, err = newTestChannelStatusAction(f.db).Execute(ctx, f.owner, strings.ToUpper(f.channelID), false)

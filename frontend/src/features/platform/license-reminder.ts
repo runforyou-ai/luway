@@ -1,12 +1,12 @@
-/** 授权续期提醒：计算授权剩余天数，平台管理员在工作台中按授权状态每天提醒一次，直到当天关闭提醒。 */
+/** 授权续期提醒：计算授权剩余天数，平台后台按授权状态每天提醒一次，直到当天关闭提醒。 */
 import { useEffect, useRef } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
-import { getLicense, LicenseStatus, loadAccount, type License } from "@/api"
+import { getLicense, LicenseStatus, type License } from "@/api"
 import { currentSessionGeneration } from "@/api/session-scope"
-import { platformLicensePath } from "@/features/platform/platform-paths"
+import { adminLicensePath } from "@/features/admin/admin-paths"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource } from "@/hooks/use-resource"
 import { readLocalPreference, writeLocalPreference } from "@/lib/local-preference"
@@ -28,19 +28,17 @@ export function licenseRemainingDays(license: License) {
   return Math.max(1, Math.ceil((new Date(license.expiresAt ?? 0).getTime() - Date.now()) / 86_400_000))
 }
 
-/** 平台管理员在工作台中时，control 中查不到本服务器授权、授权已到期或临近到期时提醒并提供授权页入口；用户关闭或查看后当天同一原因不再提醒。 */
+/** 平台后台中，授权已到期或临近到期时提醒并提供授权页入口；用户关闭或查看后当天同一原因不再提醒。 */
 export function useLicenseReminder() {
   const { t } = useTranslation("platform")
   const navigate = useNavigate()
-  const account = useResource(resourceKeys.account(), (signal) => loadAccount(signal))
-  const platformAdmin = account.data?.isPlatformAdmin === true
   const license = useResource(resourceKeys.license(), (signal) => getLicense(signal), {
-    enabled: platformAdmin,
     staleTime: 0,
     refetchInterval: reminderRefreshInterval,
     refetchOnWindowFocus: true,
+    recoverSession: false,
   })
-  const current = platformAdmin ? license.data : undefined
+  const current = license.data
   const checkedAt = license.dataUpdatedAt
   const refreshing = license.refreshing
   // visible 记录提醒是否正在显示，closingByApp 标记由程序关闭的提醒，这类关闭不计为用户关闭。
@@ -49,14 +47,13 @@ export function useLicenseReminder() {
 
   useEffect(() => {
     if (!current || refreshing) return
-    let reason: "controlMissing" | "expired" | "expiring" | null = null
+    let reason: "expired" | "expiring" | null = null
     if (current.status === LicenseStatus.None) reason = null
-    else if (current.controlMissingAt) reason = "controlMissing"
     else if (current.status === LicenseStatus.Expired) reason = "expired"
     else if (licenseRemainingDays(current) <= renewalReminderDays) reason = "expiring"
     // 按服务器、提醒原因和本地日期记录当天已关闭的提醒。
     const now = new Date()
-    const marker = `${current.serverId}:${reason}:${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
+    const marker = `${current.deploymentId}:${reason}:${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`
     if (!reason || readLocalPreference(reminderStorageKey) === marker) {
       if (visible.current) {
         closingByApp.current = true
@@ -65,7 +62,6 @@ export function useLicenseReminder() {
       return
     }
     const messages = {
-      controlMissing: t("license.controlMissing"),
       expired: t("license.statusHelp.expired"),
       expiring: t("license.statusHelp.expiring", { count: licenseRemainingDays(current) }),
     }
@@ -88,7 +84,7 @@ export function useLicenseReminder() {
         onClick: () => {
           visible.current = false
           writeLocalPreference(reminderStorageKey, marker)
-          navigate(platformLicensePath)
+          navigate(adminLicensePath)
         },
       },
     })

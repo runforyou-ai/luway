@@ -15,6 +15,8 @@ This page is being written.
 
 ## Chat with AI employees
 
+When chatting with an AI employee that serves employees, you can ask it to recall previous service conversations. By default, it retrieves the latest 30 historical messages and can also filter by keywords. Results include your messages, replies from AI employees and colleagues handling the request, and attachment names. History covers closed service sessions; internal notes remain visible only to the colleagues handling requests.
+
 ## Multiple AI employees working together
 
 ## Shared conversation files

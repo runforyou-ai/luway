@@ -14,9 +14,9 @@ import (
 	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
 	useraction "github.com/runforyou-ai/luway/internal/actions/user"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
-	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/stretchr/testify/require"
 )
@@ -106,7 +106,7 @@ func (s *serverActionsFixture) testTeamsAndMembers(t *testing.T) {
 // testFilesAndProfile 覆盖头像文件上传激活、个人资料更新、头像替换与过期清理流程。
 func (s *serverActionsFixture) testFilesAndProfile(t *testing.T) {
 	db, resolveIdentity, loggedIn, profileEmail, updateProfile := s.db, s.resolveIdentity, s.loggedIn, s.profileEmail, s.updateProfile
-	avatar, err := fileaction.NewCreateUploadAction(db).Execute(context.Background(), loggedIn.Identity, domain.FileStorageBackendLocal, fileaction.UploadInput{
+	avatar, err := fileaction.NewCreateUploadAction(db).Execute(context.Background(), loggedIn.Identity, fileaction.UploadInput{
 		Purpose: domain.FilePurposeUserAvatar, FileName: "avatar.png", ContentType: "image/png", ByteSize: 1024,
 	})
 	require.NoError(t, err)
@@ -135,7 +135,7 @@ func (s *serverActionsFixture) testFilesAndProfile(t *testing.T) {
 	require.NotNil(t, s.resolvedAfterUpdate)
 	require.Equal(t, profileEmail, s.resolvedAfterUpdate.Account.Email)
 	require.Equal(t, "新姓名", s.resolvedAfterUpdate.WorkspaceIdentity.DisplayName)
-	replacement, err := fileaction.NewCreateUploadAction(db).Execute(context.Background(), s.resolvedAfterUpdate, domain.FileStorageBackendLocal, fileaction.UploadInput{
+	replacement, err := fileaction.NewCreateUploadAction(db).Execute(context.Background(), s.resolvedAfterUpdate, fileaction.UploadInput{
 		Purpose: domain.FilePurposeUserAvatar, FileName: "replacement.webp", ContentType: "image/webp", ByteSize: 2048,
 	})
 	require.NoError(t, err)
@@ -154,9 +154,8 @@ func (s *serverActionsFixture) testFilesAndProfile(t *testing.T) {
 		Where("id = ?", avatar.ID).
 		Exec(context.Background())
 	require.NoError(t, err)
-	localFiles, err := serverfilecontent.NewLocalStore(t.TempDir())
-	require.NoError(t, err)
-	cleanup := filemaintenance.NewDeleteExpiredAction(db, serverfilecontent.NewDeleter(localFiles, func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} }))
+	files := servertest.NewFiles(t)
+	cleanup := filemaintenance.NewDeleteExpiredAction(db, files.Store)
 	require.NoError(t, cleanup.Execute(context.Background(), filemaintenance.DeleteExpiredInput{FileID: avatar.ID}))
 	s.resolvedAfterUpdate, err = resolveIdentity.Execute(context.Background(), loggedIn.Identity.Workspace.ID, loggedIn.Token)
 	require.NoError(t, err)
@@ -196,7 +195,7 @@ func (s *serverActionsFixture) testEmailConflictAndAvatarRetry(t *testing.T) {
 		Column("identity_id", "workspace_id", "account_id", "role_id", "status").
 		Exec(context.Background())
 	require.NoError(t, err)
-	retryAvatar, err := fileaction.NewCreateUploadAction(db).Execute(context.Background(), s.resolvedAfterUpdate, domain.FileStorageBackendLocal, fileaction.UploadInput{
+	retryAvatar, err := fileaction.NewCreateUploadAction(db).Execute(context.Background(), s.resolvedAfterUpdate, fileaction.UploadInput{
 		Purpose: domain.FilePurposeUserAvatar, FileName: "retry.png", ContentType: "image/png", ByteSize: 4096,
 	})
 	require.NoError(t, err)
@@ -207,7 +206,7 @@ func (s *serverActionsFixture) testEmailConflictAndAvatarRetry(t *testing.T) {
 		Email:        strings.ToUpper(otherEmail),
 		AvatarFileID: retryAvatar.ID,
 	})
-	var profileValidation *useraction.ValidationError
+	var profileValidation *common.FieldError
 	require.ErrorAs(t, err, &profileValidation)
 	require.Equal(t, useraction.ValidationEmailDuplicate, profileValidation.Fields["email"])
 	require.NoError(t, db.NewSelect().Model(retryAvatar).Where("f.id = ?", retryAvatar.ID).Scan(context.Background()))

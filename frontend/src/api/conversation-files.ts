@@ -1,7 +1,7 @@
 /** 会话共享文件区：列出、上传、保存附件、删除与下载成员和 AI 员工共用的会话文件。 */
 import { FilePurpose } from "@/api/generated/contract"
 import * as ops from "@/api/generated/operations"
-import { completeFileUpload, createFileUpload, FileTransfer } from "@/api/uploads"
+import { completeFileUpload, createFileUpload, FileUploadTask } from "@/api/uploads"
 
 /** 读取会话共享文件区中的文件。 */
 export const listConversationFiles = ops.listConversationFiles
@@ -25,7 +25,7 @@ export function uploadConversationFile(
   signal: AbortSignal,
   onProgress: (bytes: number) => void,
 ) {
-  const transfer = new FileTransfer(file, () =>
+  const transfer = new FileUploadTask(file, () =>
     createFileUpload({
       purpose: FilePurpose.ConversationFile,
       fileName: file.name,
@@ -33,8 +33,14 @@ export function uploadConversationFile(
       byteSize: file.size,
     }),
   )
-  return transfer.run(signal, onProgress, async (fileID) => {
-    await completeFileUpload(fileID)
-    return addConversationFile(conversationID, { fileId: fileID })
-  })
+  return transfer
+    .run(signal, onProgress, async (fileID) => {
+      await completeFileUpload(fileID)
+      return addConversationFile(conversationID, { fileId: fileID })
+    })
+    .catch(async (error: unknown) => {
+      await transfer.cancel()
+      throw error
+    })
+    .finally(() => transfer.dispose())
 }

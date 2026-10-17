@@ -10,7 +10,7 @@ Configure the WeChat third-party platform used by this deployment, check its cre
 
 ## Enter the platform credentials
 
-Under **Settings → Platform → Deployment → WeChat Open Platform → Platform credentials**, enter the following values from the development settings of your third-party platform, then save:
+Under **Platform admin → System settings → WeChat Open Platform → Platform credentials**, enter the following values from the development settings of your third-party platform, then save:
 
 | Field | Description |
 | --- | --- |
@@ -25,7 +25,7 @@ The message token and message encryption key must match what you entered on the 
 
 After you save the platform credentials, the page shows **Access settings**. Copy the authorization page domain, authorization event URL, and message and event URL into the development settings of the third-party platform. Save on this page before configuring WeChat, so the verify ticket WeChat pushes when you save its development settings can be received.
 
-**IP whitelist** lists each server's egress IP. Add all of them to the third-party platform's whitelist. Each server's egress IP comes from [`server.egressIP`](/docs/en/deployment/configure/configuration/) in its configuration. If a server shows **Egress IP not set**, add it to that server's configuration and restart it.
+Look up each server’s public egress IP and add it to the third-party platform’s IP whitelist.
 
 ## Check the platform status
 

@@ -17,9 +17,9 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/channeladapter"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
-	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
+	"github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/support"
@@ -51,12 +51,12 @@ type RetrieveMediaInput struct {
 type RetrieveMediaAction struct {
 	db             *bun.DB
 	adapters       *channeladapter.Registry
-	writer         fileaction.ContentWriter
+	writer         filecontent.Writer
 	agentScheduler conversationaction.CustomerAgentMessageScheduler
 }
 
 // NewRetrieveMediaAction 创建渠道媒体取回任务。
-func NewRetrieveMediaAction(db *bun.DB, adapters *channeladapter.Registry, writer fileaction.ContentWriter, agentScheduler conversationaction.CustomerAgentMessageScheduler) *RetrieveMediaAction {
+func NewRetrieveMediaAction(db *bun.DB, adapters *channeladapter.Registry, writer filecontent.Writer, agentScheduler conversationaction.CustomerAgentMessageScheduler) *RetrieveMediaAction {
 	return &RetrieveMediaAction{db: db, adapters: adapters, writer: writer, agentScheduler: agentScheduler}
 }
 

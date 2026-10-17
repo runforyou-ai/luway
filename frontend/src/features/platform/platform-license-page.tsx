@@ -1,6 +1,5 @@
-/** 平台设置的授权页：展示服务器标识、授权状态、与授权服务的同步结果、期限与授予的能力；未激活时在线输入激活码或离线粘贴授权码激活，已有授权时向授权服务同步或经弹窗离线更换授权码。 */
+/** 平台设置的授权页：展示部署标识、授权状态、期限与授予的能力，支持在线激活与离线更换授权码。 */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { useMutation } from "@tanstack/react-query"
 import { LoaderCircleIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
@@ -12,11 +11,9 @@ import {
   getLicense,
   LicenseStatus,
   loadInstallationStatus,
-  syncLicense,
   type License,
 } from "@/api"
 import { PageContent } from "@/components/page-content"
-import { PageHeader } from "@/components/page-header"
 import { ResourceContent } from "@/components/resource-content"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -24,6 +21,7 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { AdminPage } from "@/features/admin/admin-page"
 import { licenseRemainingDays, renewalReminderDays } from "@/features/platform/license-reminder"
 import {
   licenseActivationSchema,
@@ -46,32 +44,38 @@ const maxTimerDelay = 2_147_483_647
 /** 每次进入页面读取最新授权状态后渲染授权信息，并按授权同步当前品牌。 */
 export function PlatformLicensePage() {
   const { t } = useTranslation("platform")
-  const license = useResource(resourceKeys.license(), (signal) => getLicense(signal), { staleTime: 0 })
+  const license = useResource(resourceKeys.license(), (signal) => getLicense(signal), {
+    staleTime: 0,
+    recoverSession: false,
+  })
   const status = license.data?.status
   const expiresAt = license.data?.expiresAt
-  const customBranding = license.data?.capabilities.customBranding
+  const licensed = license.data?.licensed
   const refreshLicense = license.refresh
 
-  // 授权决定部署品牌是否生效，读到的授权状态、期限或品牌能力变化时同步当前品牌。
+  // 授权决定部署品牌是否生效，读到的授权状态或期限变化时同步当前品牌。
   useEffect(() => {
     if (!status) return
     void loadInstallationStatus().then(
       (installation) => applyBrand(installation.brand),
       (error: unknown) => console.warn("同步品牌失败", error),
     )
-  }, [status, expiresAt, customBranding])
+  }, [status, expiresAt, licensed])
 
   useRefreshAtLicenseExpiry(license.data, refreshLicense)
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <PageHeader title={t("license.title")} description={t("license.description")} />
+    <AdminPage
+      title={t("license.title")}
+      description={t("license.description")}
+      actions={license.data?.status === LicenseStatus.None ? <LicenseActivationDialog deploymentId={license.data.deploymentId} /> : null}
+    >
       <PageContent variant="form">
         <ResourceContent resources={license} errorMessage={t("license.loadError")}>
           {license.data ? <LicenseDetails license={license.data} /> : null}
         </ResourceContent>
       </PageContent>
-    </div>
+    </AdminPage>
   )
 }
 
@@ -92,11 +96,11 @@ function useRefreshAtLicenseExpiry(license: License | undefined, refresh: () => 
   }, [status, expiresAt, refresh])
 }
 
-/** 返回授权状态下方的说明：未激活时说明免费范围，临近到期或已到期时提醒续期。 */
+/** 返回授权状态下方的说明：未激活时说明单工作区范围，临近到期或已到期时提醒续期。 */
 function useLicenseStatusHelp(license: License) {
   const { t } = useTranslation("platform")
   if (license.status === LicenseStatus.None) {
-    return t("license.statusHelp.none", { count: license.capabilities.workspaceLimit })
+    return t("license.statusHelp.none")
   }
   if (license.status === LicenseStatus.Expired) return t("license.statusHelp.expired")
   const remainingDays = licenseRemainingDays(license)
@@ -112,29 +116,15 @@ function useLicenseChanged() {
   }, [invalidate])
 }
 
-/** 只读展示当前授权，有效期内展示授予的能力；已有授权时可同步或经弹窗离线更换授权码，未激活时选择在线激活或离线授权。 */
+/** 只读展示当前授权，有效期内展示授予的能力；已有授权时可经弹窗离线更换授权码，未激活时选择在线激活或离线授权。 */
 function LicenseDetails({ license }: { license: License }) {
   const { t } = useTranslation("platform")
   const { formatDateTime } = useDateTime()
-  const reportError = useRequestErrorReporter()
-  const licenseChanged = useLicenseChanged()
   const [replacing, setReplacing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  // 向授权服务同步授权：查不到本服务器授权时提示联系服务商，其余按发起时的签发时间是否变化提示已更新或已是最新。
-  const syncRequest = useMutation({
-    mutationFn: (_issuedAt: License["issuedAt"]) => syncLicense(),
-    onSuccess: (synced, issuedAt) => {
-      if (synced.controlMissingAt) toast.warning(t("license.controlMissing"))
-      else toast.success(synced.issuedAt === issuedAt ? t("license.syncUnchanged") : t("license.syncUpdated"))
-      licenseChanged()
-    },
-    onError: (error) => reportError(error, { log: "同步授权", fallback: t("license.syncError") }),
-  })
-  const syncing = syncRequest.isPending
   const replaceButtonRef = useRef<HTMLButtonElement>(null)
   const statusHelp = useLicenseStatusHelp(license)
-  const licensed = license.status !== LicenseStatus.None
-  const active = license.status === LicenseStatus.Active
+  const hasLicense = license.status !== LicenseStatus.None
   const statusLabels: Record<string, string> = {
     [LicenseStatus.None]: t("license.statuses.none"),
     [LicenseStatus.Active]: t("license.statuses.active"),
@@ -143,46 +133,19 @@ function LicenseDetails({ license }: { license: License }) {
 
   // 平台没有授权时关闭更换弹窗。
   useEffect(() => {
-    if (!licensed) setReplacing(false)
-  }, [licensed])
+    if (!hasLicense) setReplacing(false)
+  }, [hasLicense])
 
   return (
     <div className="w-full space-y-9">
       <FieldGroup>
-        <ServerIDField serverId={license.serverId} />
+        <DeploymentIDField deploymentId={license.deploymentId} />
         <Field>
           <FieldLabel htmlFor="license-status">{t("license.status")}</FieldLabel>
           <Input id="license-status" value={statusLabels[license.status] ?? ""} readOnly className="text-muted-foreground" />
           {statusHelp ? <FieldDescription>{statusHelp}</FieldDescription> : null}
-          {licensed && license.controlMissingAt ? (
-            <FieldDescription className="text-destructive">{t("license.controlMissing")}</FieldDescription>
-          ) : null}
         </Field>
-        <Field>
-          <FieldLabel htmlFor="license-sync">{t("license.syncStatus")}</FieldLabel>
-          <Input
-            id="license-sync"
-            value={
-              license.sync.failedAt
-                ? t("license.syncStatuses.failed", { time: formatDateTime(license.sync.failedAt) })
-                : license.sync.syncedAt
-                  ? t("license.syncStatuses.succeeded", { time: formatDateTime(license.sync.syncedAt) })
-                  : t("license.syncStatuses.never")
-            }
-            readOnly
-            className="text-muted-foreground"
-          />
-          {license.sync.failedAt ? (
-            <FieldDescription className="text-destructive break-all">
-              {license.sync.syncedAt
-                ? t("license.syncFailedHelp", { error: license.sync.error, time: formatDateTime(license.sync.syncedAt) })
-                : license.sync.error}
-            </FieldDescription>
-          ) : (
-            <FieldDescription>{t("license.syncHelp")}</FieldDescription>
-          )}
-        </Field>
-        {licensed ? (
+        {hasLicense ? (
           <>
             <div className="grid gap-6 sm:grid-cols-2">
               <Field>
@@ -199,37 +162,6 @@ function LicenseDetails({ license }: { license: License }) {
                 />
               </Field>
             </div>
-            {active ? (
-              <div className="grid gap-6 sm:grid-cols-2">
-                <Field>
-                  <FieldLabel htmlFor="license-workspace-limit">{t("license.workspaceLimit")}</FieldLabel>
-                  <Input
-                    id="license-workspace-limit"
-                    value={license.capabilities.workspaceLimit === 0 ? t("license.unlimited") : license.capabilities.workspaceLimit}
-                    readOnly
-                    className="text-muted-foreground tabular-nums"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="license-custom-branding">{t("license.customBranding")}</FieldLabel>
-                  <Input
-                    id="license-custom-branding"
-                    value={license.capabilities.customBranding ? t("license.allowed") : t("license.notAllowed")}
-                    readOnly
-                    className="text-muted-foreground"
-                  />
-                </Field>
-                <Field>
-                  <FieldLabel htmlFor="license-push-relay">{t("license.pushRelay")}</FieldLabel>
-                  <Input
-                    id="license-push-relay"
-                    value={license.capabilities.pushRelay ? t("license.allowed") : t("license.notAllowed")}
-                    readOnly
-                    className="text-muted-foreground"
-                  />
-                </Field>
-              </div>
-            ) : null}
             <Field>
               <FieldLabel htmlFor="license-id">{t("license.licenseId")}</FieldLabel>
               <Input id="license-id" value={license.licenseId} readOnly className="font-mono text-muted-foreground" />
@@ -237,7 +169,7 @@ function LicenseDetails({ license }: { license: License }) {
           </>
         ) : null}
       </FieldGroup>
-      {licensed ? (
+      {hasLicense ? (
         <>
           <div className="flex justify-end gap-2">
             <Button
@@ -245,14 +177,9 @@ function LicenseDetails({ license }: { license: License }) {
               type="button"
               variant="outline"
               className="touch:min-h-11 touch:flex-1"
-              disabled={syncing}
               onClick={() => setReplacing(true)}
             >
               {t("license.replace")}
-            </Button>
-            <Button type="button" className="touch:min-h-11 touch:flex-1" disabled={syncing} onClick={() => syncRequest.mutate(license.issuedAt)}>
-              {syncing ? <LoaderCircleIcon className="animate-spin" /> : null}
-              {syncing ? t("license.syncing") : t("license.sync")}
             </Button>
           </div>
           <Dialog open={replacing} onOpenChange={(open) => !submitting && setReplacing(open)}>
@@ -278,50 +205,101 @@ function LicenseDetails({ license }: { license: License }) {
             </DialogContent>
           </Dialog>
         </>
-      ) : (
-        <Tabs defaultValue="online">
-          <TabsList>
-            <TabsTrigger value="online">{t("license.methods.online")}</TabsTrigger>
-            <TabsTrigger value="offline">{t("license.methods.offline")}</TabsTrigger>
-          </TabsList>
-          <TabsContent value="online" className="mt-6">
-            <OnlineActivationForm />
-          </TabsContent>
-          <TabsContent value="offline" className="mt-6">
-            <LicenseCodeForm />
-          </TabsContent>
-        </Tabs>
-      )}
+      ) : null}
     </div>
   )
 }
 
-/** 只读展示服务器标识并提供复制，申请授权码与联系服务商时使用。 */
-function ServerIDField({ serverId }: { serverId: string }) {
-  const { t } = useTranslation(["platform", "common"])
-  const { copied, copy } = useCopyFeedback<"serverId">()
+/** 通过模态框选择在线或离线激活，提交期间保持弹窗与当前方式。 */
+function LicenseActivationDialog({ deploymentId }: { deploymentId: string }) {
+  const { t } = useTranslation("platform")
+  const [open, setOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const trigger = useRef<HTMLButtonElement>(null)
+  return (
+    <>
+      <div className="flex justify-end">
+        <Button ref={trigger} size="sm" onClick={() => setOpen(true)}>
+          {t("license.activate")}
+        </Button>
+      </div>
+      <Dialog open={open} onOpenChange={(next) => !submitting && setOpen(next)}>
+        <DialogContent
+          closeDisabled={submitting}
+          aria-describedby={undefined}
+          onCloseAutoFocus={(event) => {
+            event.preventDefault()
+            trigger.current?.focus()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{t("license.activate")}</DialogTitle>
+          </DialogHeader>
+          {open ? (
+            <div className="space-y-6">
+              <DeploymentIDField deploymentId={deploymentId} id="license-activation-deployment-id" />
+              <Tabs defaultValue="online">
+                <TabsList>
+                  <TabsTrigger value="online" disabled={submitting}>{t("license.methods.online")}</TabsTrigger>
+                  <TabsTrigger value="offline" disabled={submitting}>{t("license.methods.offline")}</TabsTrigger>
+                </TabsList>
+                <TabsContent value="online" className="mt-6">
+                  <OnlineActivationForm
+                    onCancel={() => setOpen(false)}
+                    onActivated={() => setOpen(false)}
+                    onSubmittingChange={setSubmitting}
+                  />
+                </TabsContent>
+                <TabsContent value="offline" className="mt-6">
+                  <LicenseCodeForm
+                    onCancel={() => setOpen(false)}
+                    onActivated={() => setOpen(false)}
+                    onSubmittingChange={setSubmitting}
+                  />
+                </TabsContent>
+              </Tabs>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
 
-  /** 复制服务器标识，失败时提示手动复制。 */
-  async function copyServerID() {
-    if (!(await copy(serverId, "serverId"))) toast.error(t("license.copyError"))
+/** 只读展示部署标识并提供复制，申请授权码与联系服务商时使用。 */
+function DeploymentIDField({ deploymentId, id = "license-deployment-id" }: { deploymentId: string; id?: string }) {
+  const { t } = useTranslation(["platform", "common"])
+  const { copied, copy } = useCopyFeedback<"deploymentId">()
+
+  /** 复制部署标识，失败时提示手动复制。 */
+  async function copyDeploymentID() {
+    if (!(await copy(deploymentId, "deploymentId"))) toast.error(t("license.copyError"))
   }
 
   return (
     <Field>
-      <FieldLabel htmlFor="license-server-id">{t("license.serverId")}</FieldLabel>
+      <FieldLabel htmlFor={id}>{t("license.deploymentId")}</FieldLabel>
       <div className="flex items-center gap-2">
-        <Input id="license-server-id" value={serverId} readOnly className="font-mono text-muted-foreground" />
-        <Button type="button" variant="outline" className="h-11 shrink-0" onClick={() => void copyServerID()}>
-          {copied === "serverId" ? t("common:actions.copied") : t("common:actions.copy")}
+        <Input id={id} value={deploymentId} readOnly className="font-mono text-muted-foreground" />
+        <Button type="button" variant="outline" className="h-11 shrink-0" onClick={() => void copyDeploymentID()}>
+          {copied === "deploymentId" ? t("common:actions.copied") : t("common:actions.copy")}
         </Button>
       </div>
-      <FieldDescription>{t("license.serverIdHelp")}</FieldDescription>
+      <FieldDescription>{t("license.deploymentIdHelp")}</FieldDescription>
     </Field>
   )
 }
 
 /** 输入激活码经授权服务在线激活；激活成功后刷新授权、工作区列表。 */
-function OnlineActivationForm() {
+function OnlineActivationForm({
+  onCancel,
+  onActivated,
+  onSubmittingChange,
+}: {
+  onCancel: () => void
+  onActivated: () => void
+  onSubmittingChange: (submitting: boolean) => void
+}) {
   const { t } = useTranslation(["platform", "common"])
   const reportError = useRequestErrorReporter()
   const licenseChanged = useLicenseChanged()
@@ -339,12 +317,18 @@ function OnlineActivationForm() {
       form.reset()
       toast.success(t("license.activateSuccess"))
       licenseChanged()
+      onActivated()
     } catch (error) {
       reportError(error, { log: "在线激活授权", fallback: t("license.activateError"), fields: ["activationCode"] })
     }
   }
 
   const { isSubmitting } = form.formState
+  // 向弹窗同步提交状态，卸载后恢复关闭入口。
+  useEffect(() => {
+    onSubmittingChange(isSubmitting)
+    return () => onSubmittingChange(false)
+  }, [isSubmitting, onSubmittingChange])
 
   return (
     <form className="w-full space-y-9" aria-label={t("license.methods.online")} onSubmit={form.handleSubmit(activate)} noValidate>
@@ -371,7 +355,8 @@ function OnlineActivationForm() {
           )}
         />
       </FieldGroup>
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" disabled={isSubmitting} onClick={onCancel}>{t("common:actions.cancel")}</Button>
         <Button type="submit" className="touch:min-h-11 touch:flex-1" disabled={isSubmitting}>
           {isSubmitting ? <LoaderCircleIcon className="animate-spin" /> : null}
           {isSubmitting ? t("license.activating") : t("license.activate")}

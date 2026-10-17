@@ -2,7 +2,6 @@ package release
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -27,13 +26,11 @@ type Source struct {
 	client     *http.Client
 }
 
-// Fetched 是从来源取得并通过签名校验的发布清单及其原文。
+// Fetched 是从来源取得并通过校验的发布清单及其原文。
 type Fetched struct {
 	Manifest
 	// Data 是清单原文。
 	Data []byte
-	// Signature 是清单签名文件的内容。
-	Signature []byte
 }
 
 // DirSource 返回读取本地目录 directory 的来源。
@@ -56,34 +53,26 @@ func (s Source) String() string {
 	return s.versionURL
 }
 
-// Fetch 取得 version 版本的发布清单并用 key 校验签名。
-func (s Source) Fetch(ctx context.Context, version string, key ed25519.PublicKey) (Fetched, error) {
-	var data, signature []byte
+// Fetch 取得 version 版本的发布清单。
+func (s Source) Fetch(ctx context.Context, version string) (Fetched, error) {
+	var data []byte
 	var err error
-	switch {
-	case s.directory != "":
+	if s.directory != "" {
 		data, err = os.ReadFile(filepath.Join(s.directory, ManifestName))
-		if err == nil {
-			signature, err = os.ReadFile(filepath.Join(s.directory, SignatureName))
-		}
-	default:
-		base := s.versionBase(version)
-		data, err = s.get(ctx, base, ManifestName)
-		if err == nil {
-			signature, err = s.get(ctx, base, SignatureName)
-		}
+	} else {
+		data, err = s.get(ctx, s.versionBase(version), ManifestName)
 	}
 	if err != nil {
 		return Fetched{}, fmt.Errorf("读取发布清单: %w", err)
 	}
-	manifest, err := Parse(data, signature, key)
+	manifest, err := Parse(data)
 	if err != nil {
 		return Fetched{}, err
 	}
 	if manifest.Version != version {
 		return Fetched{}, fmt.Errorf("发布清单版本 %s 与要求的版本 %s 不同", manifest.Version, version)
 	}
-	return Fetched{Manifest: manifest, Data: data, Signature: signature}, nil
+	return Fetched{Manifest: manifest, Data: data}, nil
 }
 
 // Download 把 version 版本的发布文件 file 写入 target，并校验大小与 SHA-256 摘要；从发布地址下载失败时重试。
@@ -119,7 +108,7 @@ func (s Source) get(ctx context.Context, base, name string) ([]byte, error) {
 		return nil, err
 	}
 	defer response.Body.Close()
-	// 清单与签名不超过 4 MiB。
+	// 清单不超过 4 MiB。
 	return io.ReadAll(io.LimitReader(response.Body, 4<<20))
 }
 

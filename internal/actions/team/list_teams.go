@@ -39,7 +39,7 @@ func (q *ListTeamsQuery) Execute(ctx context.Context, identity *servermodels.Ide
 	if err != nil {
 		return ListOutput{}, fmt.Errorf("count teams: %w", err)
 	}
-	teams := make([]TeamRecord, 0)
+	teams := make([]Record, 0)
 	query := apply(q.db.NewSelect().TableExpr("teams AS t")).
 		ColumnExpr("t.id::text AS id").
 		Column("name", "description", "created_at", "updated_at")

@@ -63,7 +63,7 @@ func TestPlatformServerInstances(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.NewRaw("UPDATE server_instances SET heartbeat_at = now() - interval '2 hours' WHERE id = ?", expired).Exec(ctx)
 	require.NoError(t, err)
-	report := serverinstanceaction.InstanceReport{ID: first, Hostname: "host-a", Version: "v1.0.0", BusDriver: clusterbus.DriverPostgres, BusConnected: true}
+	report := serverinstanceaction.InstanceReport{ID: first, Hostname: "host-a", Version: "v1.0.0", BusDriver: clusterbus.DriverNATS, BusConnected: true}
 	require.NoError(t, serverinstanceaction.ReportInstance(ctx, db, report))
 	// 再次心跳只刷新连接状态、消息总线负载与心跳时间，保留启动时间。
 	report.BusConnected, report.BusMessageRate, report.BusFailures = false, 12.5, 3
@@ -79,7 +79,7 @@ func TestPlatformServerInstances(t *testing.T) {
 		Rate                      float64
 		Failures                  int
 	}
-	require.Equal(t, serverState{ID: first, Online: true, Hostname: "host-a", Version: "v1.0.0", Driver: "postgres", Rate: 12.5, Failures: 3},
+	require.Equal(t, serverState{ID: first, Online: true, Hostname: "host-a", Version: "v1.0.0", Driver: "nats", Rate: 12.5, Failures: 3},
 		serverState{online.ID, online.Online, online.BusConnected, online.Hostname, online.Version, online.BusDriver, online.BusMessageRate, online.BusFailures})
 	require.False(t, online.HeartbeatAt.Before(online.StartedAt))
 	require.Equal(t, lost, offline.ID)
@@ -132,7 +132,7 @@ func TestFenceLostInstances(t *testing.T) {
 	ctx := context.Background()
 	self, live, recent, lost := uuid.NewV7().String(), uuid.NewV7().String(), uuid.NewV7().String(), uuid.NewV7().String()
 	for _, id := range []string{self, live, recent, lost} {
-		require.NoError(t, serverinstanceaction.ReportInstance(ctx, db, serverinstanceaction.InstanceReport{ID: id, Hostname: "host", Version: "v1.0.0", BusDriver: clusterbus.DriverPostgres}))
+		require.NoError(t, serverinstanceaction.ReportInstance(ctx, db, serverinstanceaction.InstanceReport{ID: id, Hostname: "host", Version: "v1.0.0", BusDriver: clusterbus.DriverNATS}))
 	}
 	_, err := db.NewRaw("UPDATE server_instances SET heartbeat_at = now() - interval '3 minutes' WHERE id IN (?, ?)", self, lost).Exec(ctx)
 	require.NoError(t, err)
@@ -152,7 +152,7 @@ func TestFenceLostInstances(t *testing.T) {
 	// 失联超过保留时长但仍有连接的记录不在心跳时删除，留待隔离。
 	_, err = db.NewRaw("UPDATE server_instances SET heartbeat_at = now() - interval '2 hours' WHERE id = ?", lost).Exec(ctx)
 	require.NoError(t, err)
-	require.NoError(t, serverinstanceaction.ReportInstance(ctx, db, serverinstanceaction.InstanceReport{ID: live, Hostname: "host", Version: "v1.0.0", BusDriver: clusterbus.DriverPostgres}))
+	require.NoError(t, serverinstanceaction.ReportInstance(ctx, db, serverinstanceaction.InstanceReport{ID: live, Hostname: "host", Version: "v1.0.0", BusDriver: clusterbus.DriverNATS}))
 	terminated, err := serverinstanceaction.FenceLostInstances(ctx, db, self)
 	require.NoError(t, err)
 	require.Equal(t, 1, terminated)
@@ -164,7 +164,7 @@ func TestFenceLostInstances(t *testing.T) {
 	}
 	// 连接终止后，下一次心跳删除该过期记录。
 	require.Eventually(t, func() bool {
-		if err := serverinstanceaction.ReportInstance(ctx, db, serverinstanceaction.InstanceReport{ID: live, Hostname: "host", Version: "v1.0.0", BusDriver: clusterbus.DriverPostgres}); !assert.NoError(t, err) {
+		if err := serverinstanceaction.ReportInstance(ctx, db, serverinstanceaction.InstanceReport{ID: live, Hostname: "host", Version: "v1.0.0", BusDriver: clusterbus.DriverNATS}); !assert.NoError(t, err) {
 			return false
 		}
 		exists, err := db.NewSelect().Table("server_instances").Where("id = ?", lost).Exists(ctx)

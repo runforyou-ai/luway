@@ -13,7 +13,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Switch } from "@/components/ui/switch"
-import { useCustomerLanguage } from "@/features/inbox/service/customer-language-menu"
+import { useCustomerLanguage } from "@/features/inbox/public"
 import { focusDialogContainer } from "@/lib/dialog-focus"
 
 /** 展示联系人名称和副标题；正在输入优先于客户语言，客户语言存在时整个标题区打开显示原文与回复语言设置，修改立即生效；正在输入期间为读屏保留客户语言说明。 */

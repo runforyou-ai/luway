@@ -13,7 +13,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/businesssystem"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
-	"github.com/runforyou-ai/luway/internal/actions/servicecategory"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -80,7 +80,7 @@ func (a *ExecuteAction) Replay(ctx context.Context, input ReplayInput) (agentrun
 	} else if input.Member != nil {
 		input.Member.addValues(mount.Values)
 	}
-	categories, err := servicecategory.Active(ctx, a.db, input.WorkspaceID)
+	categories, err := servicepolicy.Active(ctx, a.db, input.WorkspaceID, input.Audience)
 	if err != nil {
 		return agentruntime.RunResult{}, err
 	}
@@ -110,8 +110,10 @@ func (a *ExecuteAction) Replay(ctx context.Context, input ReplayInput) (agentrun
 	if err != nil {
 		return agentruntime.RunResult{}, fmt.Errorf("resolve replay model: %w", err)
 	}
+	mediaURL, adaptMedia := a.mediaHandlers(runCtx, &execution.Run, loaded.Dependencies.SharedFiles)
 	result, err := a.runtime.Run(runCtx, agentruntime.RunRequest{
 		RunID: input.ReplayID, Assignment: assignment, Models: a.invoker.ChatModels(scope, model), Dependencies: loaded.Dependencies,
+		MediaURL: mediaURL, AdaptMedia: adaptMedia,
 	}, &replayFeed{messages: input.Messages})
 	if err != nil && errors.Is(runCtx.Err(), context.DeadlineExceeded) && !errors.Is(err, context.DeadlineExceeded) {
 		err = fmt.Errorf("%w: %w", err, context.DeadlineExceeded)

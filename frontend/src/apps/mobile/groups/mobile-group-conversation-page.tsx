@@ -20,15 +20,15 @@ import {
 } from "@/apps/mobile/shared/mobile-navigation"
 import { MobileCoveredPage, MobilePageHeader, MobilePageState } from "@/apps/mobile/shared/mobile-page"
 import { LoadingIndicator } from "@/components/loading-indicator"
-import { useAttachmentQueue } from "@/features/inbox/state/attachment-queue-context"
-import { clearConversationResources } from "@/features/inbox/shared/conversation-resources"
-import { useOutgoingMessageStore } from "@/features/inbox/state/outgoing-message-context"
+import { useAttachmentQueue } from "@/features/inbox/public"
+import { clearConversationResources } from "@/features/inbox/public"
+import { useOutgoingMessageStore } from "@/features/inbox/public"
 import { useGroupDisplayName } from "@/hooks/use-conversation-name"
 import { Button } from "@/components/ui/button"
 import {
   groupTypingSenderName,
   useConversationTypingLabel,
-} from "@/features/inbox/shared/use-conversation-typing"
+} from "@/features/inbox/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { usePersonalAgentDisplayName } from "@/hooks/use-personal-agent-display-name"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"

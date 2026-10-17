@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#131416">
+{{if eq .Page "notFound"}}<title>{{.Text.notFoundTitle}} · {{.Product}}</title>
+<meta name="robots" content="noindex">
+{{else if eq .Page "download"}}<title>{{.Text.downloadTitle}} · {{.Product}}</title>
+{{else if eq .Page "pricing"}}<title>{{.Text.pricingTitle}} · {{.Product}}</title>
+{{else if eq .Page "contact"}}<title>{{.Text.contactTitle}} · {{.Product}}</title>
+{{else if eq .Page "changelog"}}<title>{{.Text.releaseNotes}} · {{.Product}}</title>
+{{else if eq .Page "license-manager"}}<title>{{.Text.licenseManager}} · {{.Product}}</title>
+{{else if eq .Page "privacy"}}<title>{{.Text.privacy}} · {{.Product}}</title>
+{{else if eq .Page "license-agreement"}}<title>{{.Text.licenseAgreement}} · {{.Product}}</title>
+{{else if eq .Page "terms"}}<title>{{.Text.terms}} · {{.Product}}</title>
+{{else}}<title>{{.Product}}</title>
+<meta name="description" content="{{.Text.description}}">
+{{end}}<link rel="icon" href="/favicon.png">
+<style>{{.ThemeStyle}}</style>
+</head>
+<body class="lp-body lp-page-{{.Page}}">
+{{define "icon"}}<svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{{.}}</svg>{{end}}
+
+<nav id="lp-nav" class="lp-nav" aria-label="{{.Product}}">
+  <div class="lp-container lp-nav-inner">
+    <a class="lp-brand" href="{{.HomePath}}"><img src="/favicon.png" width="46" height="46" alt="">{{.Product}}</a>
+    <div class="lp-nav-actions">
+      {{if .Pricing}}<a class="lp-nav-quiet" href="{{.HomePath}}pricing/">{{.Text.pricing}}</a>{{end}}
+      <a class="lp-nav-quiet" href="{{.DocsPath}}">{{.Text.docs}}</a>
+      {{if .Caps.Contact}}<a class="lp-nav-quiet" href="{{.HomePath}}contact/">{{.Text.contact}}</a>{{end}}
+      {{range .Languages}}{{if not .Current}}<a class="lp-nav-quiet lp-nav-lang" href="{{.Path}}" hreflang="{{.Lang}}" lang="{{.Lang}}">{{template "icon" index $.Icons "web"}}{{.Label}}</a>{{end}}{{end}}
+      <a class="lp-button lp-button-dark lp-nav-button" href="{{.AppPath}}">{{.Text.openApp}}</a>
+    </div>
+    <button type="button" class="lp-nav-toggle" id="lp-nav-toggle" aria-label="{{.Text.menu}}" aria-expanded="false" aria-controls="lp-nav-menu">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h14M3 13h14"/></svg>
+    </button>
+    <div class="lp-nav-menu" id="lp-nav-menu" hidden>
+      {{if .Pricing}}<a href="{{.HomePath}}pricing/">{{.Text.pricing}}</a>{{end}}
+      <a href="{{.DocsPath}}">{{.Text.docs}}</a>
+      {{if .Caps.Contact}}<a href="{{.HomePath}}contact/">{{.Text.contact}}</a>{{end}}
+      <a href="{{.DownloadPath}}">{{.Text.download}}</a>
+      {{range .Languages}}{{if not .Current}}<a class="lp-nav-menu-lang" href="{{.Path}}" hreflang="{{.Lang}}" lang="{{.Lang}}">{{.Label}}</a>{{end}}{{end}}
+      <a href="{{.AppPath}}">{{.Text.openApp}}</a>
+    </div>
+  </div>
+</nav>
+
+{{if eq .Page "notFound"}}
+<main class="lp-page lp-not-found">
+  <div class="lp-container lp-page-header">
+    <h1 class="lp-title lp-title-page">{{.Text.notFoundTitle}}</h1>
+    <p class="lp-lede">{{.Text.notFoundBody}}</p>
+    <div class="lp-buttons"><a class="lp-button" href="{{.HomePath}}">{{.Text.backHome}}</a></div>
+  </div>
+</main>
+
+{{else if eq .Page "download"}}
+<main class="lp-page">
+  <header class="lp-container lp-page-header">
+    <h1 class="lp-title lp-title-page">{{.Text.downloadTitle}}</h1>
+    <p class="lp-lede">{{.Text.downloadBody}}</p>
+    {{with .ClientVersion}}<p class="lp-platforms"><span>{{.}}</span></p>{{end}}
+  </header>
+  <div class="lp-container lp-downloads">
+    {{range .Platforms}}
+    <section class="lp-card lp-download" data-platform="{{.ID}}"{{if .Status}} aria-disabled="true"{{end}}>
+      <header>
+        <span class="lp-feature-icon">{{template "icon" index $.Icons .Icon}}</span>
+        <h2>{{.Name}}</h2>
+        <span class="lp-download-current">{{$.Text.downloadCurrent}}</span>
+      </header>
+      {{if .Status}}<p class="lp-download-status">{{.Status}}</p>
+      {{else}}<ul class="lp-download-files">
+        {{range .Downloads}}<li><a href="{{.URL}}" download>{{template "icon" index $.Icons "download"}}<span>{{.Label}}</span><span class="lp-download-size">{{.Size}}</span></a></li>{{end}}
+      </ul>{{end}}
+    </section>
+    {{end}}
+  </div>
+  <p class="lp-container lp-download-note">{{.Text.downloadWeb}} <a href="{{.AppPath}}">{{.Text.openApp}}</a></p>
+  <section id="executor" class="lp-container lp-executor">
+    <h2 class="lp-title lp-title-small">{{.Text.executorTitle}}</h2>
+    <p class="lp-download-note">{{.Text.executorBody}} <a href="{{.ComputersPath}}">{{.Text.executorDocs}}</a></p>
+    <div class="lp-downloads">
+      {{range .Executors}}
+      <section class="lp-card lp-download"{{if .Status}} aria-disabled="true"{{end}}>
+        <header>
+          <span class="lp-feature-icon">{{template "icon" index $.Icons "server"}}</span>
+          <h3>{{.Name}}</h3>
+        </header>
+        {{if .Status}}<p class="lp-download-status">{{.Status}}</p>
+        {{else}}<ul class="lp-download-files">
+          {{range .Downloads}}<li><a href="{{.URL}}" download>{{template "icon" index $.Icons "download"}}<span>{{.Label}}</span><span class="lp-download-size">{{.Size}}</span></a></li>{{end}}
+        </ul>{{end}}
+      </section>
+      {{end}}
+    </div>
+  </section>
+</main>
+
+{{else if eq .Page "pricing"}}
+<main class="lp-page">
+  <header class="lp-container lp-page-header">
+    <p class="lp-eyebrow"><span class="lp-dot lp-dot-amber" aria-hidden="true"></span>{{.Text.pricing}}</p>
+    <h1 class="lp-title lp-title-page">{{.Text.pricingTitle}}</h1>
+    <p class="lp-lede">{{.Text.pricingBody}}</p>
+  </header>
+  <div class="lp-container lp-pricing">
+    {{if .Plans}}
+    <div class="lp-plans">
+      {{range .Plans}}
+      <article class="lp-card lp-plan">
+        <h3>{{.Name}}</h3>
+        <p>{{.Seats}}</p>
+        <ul class="lp-plan-prices">
+          {{range .Prices}}<li>{{.}}</li>{{end}}
+        </ul>
+        <a class="lp-button" href="{{$.SignUpPath}}">{{$.Text.pricingSignUp}}</a>
+      </article>
+      {{end}}
+    </div>
+    {{end}}
+    {{if .Pricing}}
+    <div class="lp-card lp-price-items">
+      <h3>{{.ItemsTitle}}</h3>
+      <p>{{.ItemsBody}}</p>
+      {{if .Text.pricingCreditsNote}}
+      <aside class="lp-price-note" role="note">
+        <strong>{{.Text.pricingCreditsNote}}</strong>
+        <span>{{.Text.pricingCreditsNoteBody}}</span>
+      </aside>
+      {{end}}
+      {{if .Items}}
+      <ul class="lp-price-item-packs">
+        {{range .Items}}<li><span>{{.Label}}</span><span class="lp-price-item-price">{{.Price}}</span></li>{{end}}
+      </ul>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+  {{if .Text.faqTitle}}
+  <section class="lp-container lp-faq-section" aria-labelledby="lp-faq">
+    <h2 id="lp-faq" class="lp-title lp-title-small">{{.Text.faqTitle}}</h2>
+    <div class="lp-faq">
+      <details>
+        <summary><span>{{.Text.faq1Question}}</span></summary>
+        <p>{{.Text.faq1Answer}}</p>
+      </details>
+      <details>
+        <summary><span>{{.Text.faq2Question}}</span></summary>
+        <p>{{.Text.faq2Answer}}</p>
+      </details>
+      <details>
+        <summary><span>{{.Text.faq3Question}}</span></summary>
+        <p>{{.Text.faq3Answer}}</p>
+      </details>
+      <details>
+        <summary><span>{{.Text.faq4Question}}</span></summary>
+        <p>{{.Text.faq4Answer}}</p>
+      </details>
+    </div>
+  </section>
+  {{end}}
+</main>
+
+{{else if eq .Page "contact"}}
+<main class="lp-page">
+  <header class="lp-container lp-page-header">
+    <p class="lp-eyebrow"><span class="lp-dot lp-dot-blue" aria-hidden="true"></span>{{.Text.contact}}</p>
+    <h1 class="lp-title lp-title-page">{{.Text.contactTitle}}</h1>
+    <p class="lp-lede">{{.Text.contactBody}}</p>
+  </header>
+  <div class="lp-narrow">
+    <div class="lp-panel">
+      <dl class="lp-contact-list">
+        <div><dt>{{.Text.contactSupport}}</dt><dd><a href="mailto:{{.Text.contactSupportValue}}">{{.Text.contactSupportValue}}</a></dd></div>
+        <div><dt>{{.Text.contactGithub}}</dt><dd><a href="https://github.com/runforyou-ai/luway/issues" target="_blank" rel="noopener">{{.Text.contactGithubValue}}</a></dd></div>
+        <div><dt>{{.Text.contactFacebook}}</dt><dd>{{.Text.contactFacebookValue}}</dd></div>
+        <div><dt>{{.Text.contactX}}</dt><dd>{{.Text.contactXValue}}</dd></div>
+        <div><dt>{{.Text.contactAddress}}</dt><dd>{{.Text.contactAddressValue}}</dd></div>
+      </dl>
+    </div>
+  </div>
+</main>
+
+
+{{else if eq .Page "changelog"}}
+<main class="lp-page">
+  <header class="lp-container lp-page-header">
+    <p class="lp-eyebrow"><span class="lp-dot lp-dot-blue" aria-hidden="true"></span>{{.Text.releaseNotes}}</p>
+    <h1 class="lp-title lp-title-page">{{.Text.changelogTitle}}</h1>
+    <p class="lp-lede">{{.Text.changelogBody}}</p>
+  </header>
+  <ol class="lp-container lp-changelog">
+    <li class="lp-release" id="v0-2-0">
+      <div class="lp-release-meta">
+        <h2>{{.Text.changelog1Version}}</h2>
+        <p>{{.Text.changelog1Build}}</p>
+        <time datetime="2026-10-12">{{.Text.changelog1Date}}</time>
+        <a class="lp-release-download" href="{{.DownloadPath}}">{{template "icon" index .Icons "download"}}{{.Text.download}}</a>
+      </div>
+      <div class="lp-release-body"><ul><li>{{.Text.changelog1Item1}}</li><li>{{.Text.changelog1Item2}}</li></ul></div>
+    </li>
+    <li class="lp-release" id="v0-1-0">
+      <div class="lp-release-meta">
+        <h2>{{.Text.changelog2Version}}</h2>
+        <p>{{.Text.changelog2Build}}</p>
+        <time datetime="2026-09-01">{{.Text.changelog2Date}}</time>
+        <a class="lp-release-download" href="{{.DownloadPath}}">{{template "icon" index .Icons "download"}}{{.Text.download}}</a>
+      </div>
+      <div class="lp-release-body"><ul><li>{{.Text.changelog2Item1}}</li><li>{{.Text.changelog2Item2}}</li></ul></div>
+    </li>
+  </ol>
+</main>
+
+{{else if eq .Page "license-manager"}}
+<main class="lp-page">
+  <div class="lp-narrow">
+    <header class="lp-page-header">
+      <p class="lp-eyebrow"><span class="lp-dot lp-dot-green" aria-hidden="true"></span>{{.Text.licenseManager}}</p>
+      <h1 class="lp-title lp-title-page">{{.Text.licenseManagerTitle}}</h1>
+      <p class="lp-lede">{{.Text.licenseManagerBody}}</p>
+    </header>
+    <div class="lp-panel lp-panel-spaced">
+      <form id="lp-license-form" class="lp-form" novalidate>
+        <div class="lp-field">
+          <label class="lp-label" for="lp-license-email">{{.Text.licenseManagerEmail}}</label>
+          <input type="email" class="lp-input" name="email" id="lp-license-email" placeholder="{{.Text.licenseManagerEmailPlaceholder}}" required minlength="6" autocomplete="email">
+        </div>
+        <div class="lp-form-actions">
+          <button class="lp-button" type="submit">{{.Text.licenseManagerAction}}</button>
+        </div>
+        <p class="lp-form-help"><a href="{{.HomePath}}contact/">{{.Text.licenseManagerHelp}}</a></p>
+        <p id="lp-license-status" class="lp-form-status" role="status" aria-live="polite" hidden data-placeholder="{{.Text.licenseManagerPlaceholder}}"></p>
+      </form>
+    </div>
+  </div>
+</main>
+
+{{else if eq .Page "privacy"}}
+<main class="lp-page">
+  <header class="lp-container lp-page-header">
+    <p class="lp-eyebrow"><span class="lp-dot lp-dot-amber" aria-hidden="true"></span>{{.Text.legal}}</p>
+    <h1 class="lp-title lp-title-page">{{.Text.privacyTitle}}</h1>
+    <p class="lp-lede">{{.Text.privacyBody}}</p>
+  </header>
+  <div class="lp-container lp-legal">
+    {{if eq .Lang "zh-CN"}}
+    <h2>适用范围</h2>
+    <p>本政策适用于武汉润予科技有限公司（下称「我们」）运营的{{.Product}}托管服务与官方网站。开源自托管部署由部署方自行作为数据处理者，不适用本托管服务政策，除非另有约定。</p>
+    <h2>我们收集的信息</h2>
+    <p>可能包括账号资料、工作区与成员信息、客户会话与消息、知识库内容、用量与账单、设备与日志信息，以及你主动提交的反馈。</p>
+    <h2>我们如何使用信息</h2>
+    <p>用于提供与维护服务、运行 AI 员工与客服能力、保障安全、处理订阅与账单、改进产品，以及在法律要求时配合合规。</p>
+    <h2>共享与存储</h2>
+    <p>我们可能向必要的基础设施与支付等处理方共享信息，并按业务与法律需要保留。我们不会出售你的个人信息。</p>
+    <h2>你的权利与联系</h2>
+    <p>你可按适用法律请求查阅、更正或删除相关信息。请联系 <a href="mailto:hi@runforyou.app">hi@runforyou.app</a>。</p>
+    {{else}}
+    <h2>Scope</h2>
+    <p>This policy covers the {{.Product}} hosted service and official website operated by Wuhan Runforyou Technology Co., Ltd. (“we”). Self-hosted deployments are controlled by the deployer as the data controller, unless we agree otherwise.</p>
+    <h2>Information we collect</h2>
+    <p>This may include account details, workspace and member data, customer conversations and messages, knowledge-base content, usage and billing data, device and log data, and feedback you send us.</p>
+    <h2>How we use information</h2>
+    <p>We use it to provide and maintain the service, run AI employees and support features, keep the service secure, process subscriptions and billing, improve the product, and meet legal obligations.</p>
+    <h2>Sharing and retention</h2>
+    <p>We may share information with processors needed for infrastructure and payments, and retain it as needed for the service and the law. We do not sell personal information.</p>
+    <h2>Your rights and contact</h2>
+    <p>You may request access, correction, or deletion where applicable law allows. Contact <a href="mailto:hi@runforyou.app">hi@runforyou.app</a>.</p>
+    {{end}}
+  </div>
+</main>
+
+{{else if eq .Page "license-agreement"}}
+<main class="lp-page">
+  <header class="lp-container lp-page-header">
+    <p class="lp-eyebrow"><span class="lp-dot lp-dot-amber" aria-hidden="true"></span>{{.Text.legal}}</p>
+    <h1 class="lp-title lp-title-page">{{.Text.licenseAgreementTitle}}</h1>
+    <p class="lp-lede">{{.Text.licenseAgreementBody}}</p>
+  </header>
+  <div class="lp-container lp-legal">
+    {{if eq .Lang "zh-CN"}}
+    <h2>开源软件</h2>
+    <p>{{.Product}} 的开源代码以 <a href="https://github.com/runforyou-ai/luway/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a> 提供。自托管使用开源发行版时，适用该许可及其 NOTICE 文件。</p>
+    <h2>托管服务</h2>
+    <p>你通过我们的托管环境使用{{.Product}}时，还需遵守本协议与服务条款。付费套餐、席位与积分等商业权益以订单、价格页及账户中的有效约定为准。</p>
+    <h2>使用限制</h2>
+    <p>不得对托管服务进行未经授权的访问、干扰或逆向工程，不得将服务用于违法、侵权或危害他人安全的用途。</p>
+    <h2>联系</h2>
+    <p>许可相关问题请联系 <a href="mailto:hi@runforyou.app">hi@runforyou.app</a>。</p>
+    {{else}}
+    <h2>Open-source software</h2>
+    <p>The open-source {{.Product}} code is provided under the <a href="https://github.com/runforyou-ai/luway/blob/main/LICENSE" target="_blank" rel="noopener">Apache License 2.0</a>. Self-hosting an open-source release is governed by that license and its NOTICE file.</p>
+    <h2>Hosted service</h2>
+    <p>When you use {{.Product}} in our hosted environment, this agreement and the terms and conditions also apply. Paid plans, seats, and credits follow your order, the pricing page, and the then-current account settings.</p>
+    <h2>Restrictions</h2>
+    <p>You must not access, disrupt, or reverse engineer the hosted service without authorization, or use it for unlawful, infringing, or harmful purposes.</p>
+    <h2>Contact</h2>
+    <p>For licensing questions, contact <a href="mailto:hi@runforyou.app">hi@runforyou.app</a>.</p>
+    {{end}}
+  </div>
+</main>
+
+{{else if eq .Page "terms"}}
+<main class="lp-page">
+  <header class="lp-container lp-page-header">
+    <p class="lp-eyebrow"><span class="lp-dot lp-dot-amber" aria-hidden="true"></span>{{.Text.legal}}</p>
+    <h1 class="lp-title lp-title-page">{{.Text.termsTitle}}</h1>
+    <p class="lp-lede">{{.Text.termsBody}}</p>
+  </header>
+  <div class="lp-container lp-legal">
+    {{if eq .Lang "zh-CN"}}
+    <h2>接受条款</h2>
+    <p>访问本网站或使用{{.Product}}托管服务，即表示你同意本条款。若代表组织使用，你确认已获授权。</p>
+    <h2>账号与内容</h2>
+    <p>你负责保管账号凭证，并对工作区内提交的内容合法合规。客户会话、知识库与业务数据由你的组织负责其业务用途与授权。</p>
+    <h2>AI 功能</h2>
+    <p>AI 员工可能生成建议或执行操作；结果可能不准确或不完整，重要决策与敏感操作仍需人工确认。</p>
+    <h2>付费、免责与管辖</h2>
+    <p>付费、退款与服务变更以价格页及账户约定为准。在法律允许范围内，服务按“现状”提供。争议适用中华人民共和国法律，由武汉市有管辖权的法院管辖。</p>
+    {{else}}
+    <h2>Acceptance</h2>
+    <p>By visiting this website or using the {{.Product}} hosted service, you agree to these terms. If you use the service for an organization, you confirm you are authorized to do so.</p>
+    <h2>Accounts and content</h2>
+    <p>You are responsible for account credentials and for the lawfulness of content submitted in your workspaces. Your organization is responsible for how customer conversations, knowledge bases, and business data are used.</p>
+    <h2>AI features</h2>
+    <p>AI employees may suggest answers or take actions. Results can be incomplete or incorrect, and sensitive or important actions still need human confirmation.</p>
+    <h2>Billing, disclaimers, and law</h2>
+    <p>Billing, refunds, and service changes follow the pricing page and your account settings. To the extent allowed by law, the service is provided “as is.” These terms are governed by the laws of the People’s Republic of China, and disputes are submitted to the courts in Wuhan with jurisdiction.</p>
+    {{end}}
+  </div>
+</main>
+
+{{else}}
+<main>
+  <section class="lp-hero">
+    <div class="lp-container lp-hero-copy">
+      {{if .SelfHost}}<p class="lp-eyebrow">{{.Text.heroEyebrow}}</p>{{end}}
+      <h1 class="lp-title lp-title-hero">{{.Text.heroTitle}}</h1>
+      <p class="lp-lede">{{.Text.heroBody}}</p>
+      <div class="lp-buttons">
+        <a class="lp-button" href="{{.DownloadPath}}">{{.Text.download}}</a>
+        {{if .SelfHost}}
+        <a class="lp-button lp-button-dark" href="{{if .Caps.Social.Github}}{{.Caps.Social.Github}}{{else}}https://github.com/runforyou-ai/luway{{end}}" target="_blank" rel="noopener">GitHub</a>
+        <a class="lp-button lp-button-dark" href="{{.DeploymentPath}}">{{.Text.selfHostAction}}</a>
+        {{else}}<a class="lp-button lp-button-dark" href="#systems">{{.Text.learnMore}}</a>{{end}}
+      </div>
+      <p class="lp-platforms"><span>{{.Text.platformWeb}}</span><span>{{.Text.platformDesktop}}</span><span>{{.Text.platformMobile}}</span></p>
+    </div>
+    <div class="lp-container">
+      <div class="lp-window" aria-hidden="true">
+        <div class="lp-window-bar"><i></i><i></i><i></i></div>
+        <div class="lp-window-body">
+          <div class="lp-message lp-message-customer"><p>{{.Text.demoCustomer}}</p></div>
+          <div class="lp-message lp-message-reply">
+            <span class="lp-message-name">{{template "icon" index .Icons "agents"}}{{.Text.demoAgentName}}</span>
+            <p>{{.Text.demoAgentReply}}</p>
+          </div>
+          <div class="lp-event">{{template "icon" index .Icons "handoff"}}{{.Text.demoHandoff}}</div>
+          <div class="lp-message lp-message-reply">
+            <span class="lp-message-name">{{.Text.demoMemberName}}</span>
+            <p>{{.Text.demoMemberReply}}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="systems" class="lp-section" aria-labelledby="lp-features">
+    <header class="lp-container lp-heading" data-reveal>
+      <h2 id="lp-features" class="lp-title">{{.Text.featuresTitle}}<em>{{.Text.featuresBody}}</em></h2>
+    </header>
+    <div class="lp-container lp-stack-grid">
+      <div class="lp-stack" data-progress aria-hidden="true">
+        <figure class="lp-layer" style="--i: 0"><div class="lp-mini"><div class="lp-mini-bar"><i></i><i></i><i></i><span>{{.Text.scene3Title}}</span></div><div class="lp-mini-body"><i></i><i></i><i></i><i></i></div></div></figure>
+        <figure class="lp-layer" style="--i: 1"><div class="lp-mini"><div class="lp-mini-bar"><i></i><i></i><i></i><span>{{.Text.scene2Title}}</span></div><div class="lp-mini-body"><i></i><i></i><i></i><i></i></div></div></figure>
+        <figure class="lp-layer" style="--i: 2"><div class="lp-mini"><div class="lp-mini-bar"><i></i><i></i><i></i><span>{{.Text.scene1Title}}</span></div><div class="lp-mini-body"><i></i><i></i><i></i><i></i></div></div></figure>
+      </div>
+      <ul class="lp-os-list">
+        <li data-reveal>
+          <span class="lp-feature-icon">{{template "icon" index $.Icons "channels"}}</span>
+          <div><b>{{.Text.scene1Title}}</b><span>{{.Text.scene1Body}}</span></div>
+        </li>
+        <li data-reveal>
+          <span class="lp-feature-icon">{{template "icon" index $.Icons "collaboration"}}</span>
+          <div><b>{{.Text.scene2Title}}</b><span>{{.Text.scene2Body}}</span></div>
+        </li>
+        <li data-reveal>
+          <span class="lp-feature-icon">{{template "icon" index $.Icons "agents"}}</span>
+          <div><b>{{.Text.scene3Title}}</b><span>{{.Text.scene3Body}}</span></div>
+        </li>
+      </ul>
+    </div>
+    <ul id="features" class="lp-container lp-features">
+      <li data-reveal>
+        <span class="lp-feature-icon"><svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span>
+        <b>{{.Text.feat1Title}}</b>
+        <span>{{.Text.feat1Body}}</span>
+      </li>
+      <li data-reveal>
+        <span class="lp-feature-icon"><svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg></span>
+        <b>{{.Text.feat2Title}}</b>
+        <span>{{.Text.feat2Body}}</span>
+      </li>
+      <li data-reveal>
+        <span class="lp-feature-icon"><svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/></svg></span>
+        <b>{{.Text.feat3Title}}</b>
+        <span>{{.Text.feat3Body}}</span>
+      </li>
+      <li data-reveal>
+        <span class="lp-feature-icon"><svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg></span>
+        <b>{{.Text.feat4Title}}</b>
+        <span>{{.Text.feat4Body}}</span>
+      </li>
+      <li data-reveal>
+        <span class="lp-feature-icon"><svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
+        <b>{{.Text.feat5Title}}</b>
+        <span>{{.Text.feat5Body}}</span>
+      </li>
+      <li data-reveal>
+        <span class="lp-feature-icon"><svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+        <b>{{.Text.feat6Title}}</b>
+        <span>{{.Text.feat6Body}}</span>
+      </li>
+      <li data-reveal>
+        <span class="lp-feature-icon"><svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span>
+        <b>{{.Text.feat7Title}}</b>
+        <span>{{.Text.feat7Body}}</span>
+      </li>
+      <li data-reveal>
+        <span class="lp-feature-icon"><svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+        <b>{{.Text.feat8Title}}</b>
+        <span>{{.Text.feat8Body}}</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="lp-section lp-orbit-section" aria-labelledby="lp-orbit-title">
+    <canvas class="lp-stars" aria-hidden="true"></canvas>
+    <header class="lp-container lp-heading" data-reveal>
+      <h2 id="lp-orbit-title" class="lp-title">{{.Text.orbitTitle}}</h2>
+    </header>
+    <div class="lp-orbit" aria-hidden="true" data-reveal>
+      <div class="lp-ring lp-ring-1"><span class="lp-orbiter">{{template "icon" index .Icons "agents"}}</span></div>
+      <div class="lp-ring lp-ring-2"><span class="lp-orbiter">{{template "icon" index .Icons "knowledge"}}</span></div>
+      <div class="lp-ring lp-ring-3"><span class="lp-orbiter">{{template "icon" index .Icons "channels"}}</span></div>
+      <img class="lp-orbit-core" src="/favicon.png" width="112" height="112" alt="">
+    </div>
+    <div class="lp-container lp-pair">
+      <div data-reveal>
+        <h3 class="lp-card-title">{{.Text.orbit1Title}} <em>{{.Text.orbit1Em}}</em></h3>
+        <p>{{.Text.orbit1Body}}</p>
+      </div>
+      <div data-reveal>
+        <h3 class="lp-card-title">{{.Text.orbit2Title}} <em>{{.Text.orbit2Em}}</em></h3>
+        <p>{{.Text.orbit2Body}}</p>
+      </div>
+      <div data-reveal>
+        <h3 class="lp-card-title">{{.Text.orbit3Title}} <em>{{.Text.orbit3Em}}</em></h3>
+        <p>{{.Text.orbit3Body}}</p>
+      </div>
+      <div data-reveal>
+        <h3 class="lp-card-title">{{.Text.orbit4Title}} <em>{{.Text.orbit4Em}}</em></h3>
+        <p>{{.Text.orbit4Body}}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="lp-final" aria-labelledby="lp-closing">
+    <div class="lp-container lp-final-inner" data-reveal>
+      <div>
+        <h2 id="lp-closing" class="lp-title">{{.Text.finalTitle}}<em>{{.Text.finalEm}}</em></h2>
+        <p class="lp-platforms lp-platforms-start"><span>{{.Text.platformWeb}}</span><span>{{.Text.platformDesktop}}</span><span>{{.Text.platformMobile}}</span></p>
+      </div>
+      <div class="lp-buttons">
+        <a class="lp-button" href="{{.DownloadPath}}">{{.Text.download}}</a>
+        {{if .Pricing}}<a class="lp-button lp-button-dark" href="{{.HomePath}}pricing/">{{.Text.pricing}}</a>
+        {{else}}<a class="lp-button lp-button-dark" href="{{.DocsPath}}">{{.Text.docs}}</a>{{end}}
+      </div>
+    </div>
+  </section>
+</main>
+{{end}}
+
+<footer class="lp-footer">
+  <div class="lp-container">
+    <div class="lp-footer-grid">
+      <div class="lp-footer-brand">
+        <a class="lp-brand" href="{{.HomePath}}"><img src="/favicon.png" width="28" height="28" alt="">{{.Product}}</a>
+        <p>{{.Text.description}}</p>
+      </div>
+      <div>
+        <h4>{{.Product}}</h4>
+        <ul>
+          <li><a href="{{.DownloadPath}}">{{.Text.download}}</a></li>
+          {{if .Caps.Changelog}}<li><a href="{{.HomePath}}changelog/">{{.Text.releaseNotes}}</a></li>{{end}}
+          <li><a href="{{.DocsPath}}">{{.Text.docs}}</a></li>
+          {{if .SelfHost}}<li><a href="{{.DeploymentPath}}">{{.Text.selfHostAction}}</a></li>{{end}}
+        </ul>
+      </div>
+      {{if or .Caps.License .Caps.Contact}}
+      <div>
+        <h4>{{.Text.support}}</h4>
+        <ul>
+          {{if .Caps.License}}<li><a href="{{.HomePath}}license-manager/">{{.Text.licenseManager}}</a></li>{{end}}
+          {{if .Caps.Contact}}<li><a href="{{.HomePath}}contact/">{{.Text.contact}}</a></li>{{end}}
+        </ul>
+      </div>
+      {{end}}
+      {{if .Caps.Legal}}
+      <div>
+        <h4>{{.Text.legal}}</h4>
+        <ul>
+          <li><a href="{{.HomePath}}privacy/">{{.Text.privacy}}</a></li>
+          <li><a href="{{.HomePath}}license-agreement/">{{.Text.licenseAgreement}}</a></li>
+          <li><a href="{{.HomePath}}terms/">{{.Text.terms}}</a></li>
+        </ul>
+      </div>
+      {{end}}
+      {{if .Caps.Newsletter}}
+      <div class="lp-newsletter">
+        <h4>{{.Text.newsletter}}</h4>
+        <p>{{.Text.newsletterBody}}</p>
+        <form id="lp-newsletter" class="lp-newsletter-form" novalidate>
+          <label class="lp-visually-hidden" for="lp-newsletter-email">{{.Text.newsletterPlaceholder}}</label>
+          <input id="lp-newsletter-email" name="Email" type="email" class="lp-input" placeholder="{{.Text.newsletterPlaceholder}}" required>
+          <button class="lp-button lp-button-dark" type="submit">{{.Text.newsletterAction}}</button>
+        </form>
+        <p id="lp-newsletter-status" class="lp-newsletter-status" role="status" aria-live="polite"
+          data-subscribing="{{.Text.newsletterSubscribing}}" data-subscribed="{{.Text.newsletterSubscribed}}"
+          data-failed="{{.Text.newsletterFailed}}"></p>
+      </div>
+      {{end}}
+    </div>
+    <div class="lp-footer-bottom">
+      {{if .Text.footerBottom}}<span>{{.Text.footerBottom}}</span>{{else}}{{with .Copyright}}<span>{{.}}</span>{{end}}{{end}}
+      {{if or .Caps.Social.Github .Caps.Social.Email .Text.socialFacebook}}
+      <div class="lp-social">
+        {{if .Text.socialFacebook}}
+        <span class="lp-social-muted" title="{{.Text.socialFacebook}}" aria-label="{{.Text.socialFacebook}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3.2h-3.1V8.8c0-.9.3-1.6 1.6-1.6h1.7V4.4c-.3 0-1.3-.1-2.5-.1-2.5 0-4.1 1.5-4.1 4.2v2.3H7.5V14h2.7v8h3.3z"/></svg>
+        </span>
+        <span class="lp-social-muted" title="{{.Text.socialX}}" aria-label="{{.Text.socialX}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8L17.8 3zm-1.1 16.2h1.7L7.4 4.7H5.6l11.1 14.5z"/></svg>
+        </span>
+        {{end}}
+        {{if .Caps.Social.Github}}
+        <a href="{{.Caps.Social.Github}}" target="_blank" rel="noopener" aria-label="{{.Text.socialGithub}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.2c0 4.5 2.9 8.3 6.8 9.7.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 2.9.9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5 4-1.4 6.8-5.2 6.8-9.7C22 6.6 17.5 2 12 2z"/></svg>
+        </a>
+        {{end}}
+        {{if .Caps.Social.Email}}
+        <a href="mailto:{{.Caps.Social.Email}}" aria-label="{{.Text.socialEmail}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v.4l8 5.1 8-5.1V7H4zm16 2.8-7.5 4.8a1 1 0 0 1-1 0L4 9.8V17h16V9.8z"/></svg>
+        </a>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+</footer>
+<script>{{.ThemeScript}}</script>
+</body>
+</html>

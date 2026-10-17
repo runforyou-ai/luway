@@ -50,6 +50,8 @@ export function permissionLabel(code: PermissionCode, t: TFunction<"settings">) 
       return t("roles.permissions.items.workspace.label")
     case PermissionCode.PermissionAIEmployeesManage:
       return t("roles.permissions.items.aiEmployees.label")
+    case PermissionCode.PermissionEmployeeServiceManage:
+      return t("roles.permissions.items.employeeService.label")
     case PermissionCode.PermissionCustomerServiceManage:
       return t("roles.permissions.items.customerService.label")
     case PermissionCode.PermissionExternalContactsManage:
@@ -69,6 +71,8 @@ export function permissionDescription(code: PermissionCode, t: TFunction<"settin
       return t("roles.permissions.items.workspace.description")
     case PermissionCode.PermissionAIEmployeesManage:
       return t("roles.permissions.items.aiEmployees.description")
+    case PermissionCode.PermissionEmployeeServiceManage:
+      return t("roles.permissions.items.employeeService.description")
     case PermissionCode.PermissionCustomerServiceManage:
       return t("roles.permissions.items.customerService.description")
     case PermissionCode.PermissionExternalContactsManage:

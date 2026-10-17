@@ -1,6 +1,8 @@
 /** AI 表现报表的滚动加载列表：按渠道或咨询分类拆分、待补知识清单与 AI 表现问题会话。 */
+import type { ServiceAudience, ServiceSource } from "@/api"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router"
+import type { ComponentType } from "react"
 
 import {
   type ServiceReportDimension,
@@ -14,7 +16,6 @@ import {
 } from "@/api"
 import { ResourceListLayout } from "@/components/resource-list"
 import { ResourceTable } from "@/components/resource-table"
-import { AIKnowledgeGapSheet } from "@/features/knowledge-gaps/ai-knowledge-gap-sheet"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useReportFormat } from "@/hooks/use-report-format"
@@ -25,8 +26,17 @@ import { inboxPath } from "@/lib/workspace-paths"
 import { aiIssueTypes } from "./ai-performance-format"
 import { ServiceIssueTable } from "./service-issue-list"
 
+/** 待补知识侧栏由宿主注入，避免 reports 依赖 knowledge-gaps。 */
+export type KnowledgeGapSheetProps = {
+  gapId: string
+  onClose: () => void
+  onHandled: () => void
+}
+
 /** 报表与待补知识共用的筛选范围：agentId 限定单个 AI 员工，mine 限定为本人负责的 AI 员工。 */
 export type ReportFilter = {
+ audience?: ServiceAudience
+ serviceSource?: ServiceSource
   channelId: string
   agentId: string
   mine: boolean
@@ -99,17 +109,19 @@ export function AIPerformanceBreakdownList({
   )
 }
 
-/** 列出指定处理状态的待补知识，点击行在侧栏中处理，处理完一条自动打开清单中的下一条。 */
+/** 列出指定处理状态的待补知识，点击行在侧栏中处理，处理完一条自动打开清单中的下一条；KnowledgeGapSheet 由宿主注入。 */
 export function AIKnowledgeGapList({
   filter,
   status,
   gapId,
   onGapChange,
+  KnowledgeGapSheet,
 }: {
   filter: ReportFilter
   status: KnowledgeGapStatus
   gapId: string
   onGapChange: (gapId: string) => void
+  KnowledgeGapSheet?: ComponentType<KnowledgeGapSheetProps>
 }) {
   const { t } = useTranslation("agents")
   const navigate = useNavigate()
@@ -209,15 +221,17 @@ export function AIKnowledgeGapList({
           ]}
         />
       </ResourceListLayout>
-      <AIKnowledgeGapSheet
-        gapId={gapId}
-        onClose={() => onGapChange("")}
-        onHandled={() => {
-          // 待处理清单打开当前条目之后的下一条，其余清单处理后关闭侧栏。
-          const index = rows.findIndex((gap) => gap.id === gapId)
-          onGapChange(pending && index >= 0 ? (rows[index + 1]?.id ?? "") : "")
-        }}
-      />
+      {KnowledgeGapSheet ? (
+        <KnowledgeGapSheet
+          gapId={gapId}
+          onClose={() => onGapChange("")}
+          onHandled={() => {
+            // 待处理清单打开当前条目之后的下一条，其余清单处理后关闭侧栏。
+            const index = rows.findIndex((gap) => gap.id === gapId)
+            onGapChange(pending && index >= 0 ? (rows[index + 1]?.id ?? "") : "")
+          }}
+        />
+      ) : null}
     </>
   )
 }

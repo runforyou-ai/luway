@@ -14,8 +14,9 @@ import (
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
-	"github.com/runforyou-ai/luway/internal/actions/servicecategory"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/actions/servicestate"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -30,19 +31,20 @@ const serviceSummaryListLimit = 50
 
 // 周期小结的字段校验码。
 const (
-	ValidationCategoryIDInvalid conversationaction.ValidationCode = "category_id_invalid"
+	ValidationCategoryIDInvalid common.FieldCode = "category_id_invalid"
 )
 
 // ConflictReasonServiceSessionNotClosed 表示服务周期尚未关闭，不能修改小结。
 const ConflictReasonServiceSessionNotClosed = "service_session_not_closed"
 
-// ErrServiceSessionNotFound 表示服务周期不存在或当前身份无权访问。
-var ErrServiceSessionNotFound = errors.New("service session not found")
+// ErrServiceSessionNotFound 表示服务周期不存在或当前身份无权访问；与 servicestate 同值以便 errors.Is。
+var ErrServiceSessionNotFound = servicestate.ErrServiceSessionNotFound
 
 // ServiceSessionSummary 表示一个已关闭服务周期的结束方式与小结。
 type ServiceSessionSummary struct {
 	ServiceSessionID string                              `bun:"id"`
 	ConversationID   string                              `bun:"conversation_id"`
+	Audience         domain.ServiceAudience              `bun:"audience"`
 	Source           domain.ServiceSource                `bun:"source"`
 	ChannelType      *domain.ChannelType                 `bun:"channel_type"`
 	ChannelName      *string                             `bun:"channel_name"`
@@ -68,7 +70,7 @@ type ServiceSummaries struct {
 func serviceSessionSummaryQuery(db bun.IDB, workspaceID string) *bun.SelectQuery {
 	return db.NewSelect().
 		TableExpr("service_sessions AS ss").
-		ColumnExpr("ss.id, ss.conversation_id, svc.source, ch.type AS channel_type, ch.name AS channel_name, ss.closed_at, ss.close_reason").
+		ColumnExpr("ss.id, ss.conversation_id, svc.audience, svc.source, ch.type AS channel_type, ch.name AS channel_name, ss.closed_at, ss.close_reason").
 		ColumnExpr("ss.summary_status, ss.summary, ss.resolved, ss.category_id, sc.name AS category_name, ss.summary_edited_at, editor.display_name AS edited_by_name").
 		Join("JOIN service_conversations AS svc ON svc.id = ss.service_conversation_id AND svc.workspace_id = ss.workspace_id").
 		Join("LEFT JOIN channel_conversations AS cc ON cc.conversation_id = svc.conversation_id AND cc.workspace_id = svc.workspace_id").
@@ -174,12 +176,12 @@ func (a *UpdateServiceSessionSummaryAction) Execute(ctx context.Context, identit
 		}
 		// 保留周期当前的咨询分类时不要求分类未归档。
 		if input.CategoryID != nil && (session.CategoryID == nil || *session.CategoryID != *input.CategoryID) {
-			category, err := servicecategory.FindActive(ctx, tx, identity.Workspace.ID, *input.CategoryID)
+			category, err := servicepolicy.FindActive(ctx, tx, identity.Workspace.ID, domain.ServiceAudience(locked.Service.Audience), *input.CategoryID)
 			if err != nil {
 				return err
 			}
 			if category == nil {
-				return &conversationaction.ValidationError{Fields: map[string]conversationaction.ValidationCode{"categoryId": ValidationCategoryIDInvalid}}
+				return &common.FieldError{Fields: map[string]common.FieldCode{"categoryId": ValidationCategoryIDInvalid}}
 			}
 		}
 		// 空白小结按未填写保存；无实质诉求的周期保存时未填写任何内容则保持该标记。

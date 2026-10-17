@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -37,6 +38,9 @@ func (q *GetMessageChannelQuery) Execute(ctx context.Context, identity *servermo
 	}
 	if err != nil {
 		return nil, fmt.Errorf("get message channel: %w", err)
+	}
+	if err := servicepolicy.RequireManage(identity, domain.ChannelCapabilitiesOf(domain.ChannelType(channel.Type)).Audience); err != nil {
+		return nil, err
 	}
 	return NewMessageChannelRecord(channel), nil
 }

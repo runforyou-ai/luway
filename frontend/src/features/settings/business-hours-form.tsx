@@ -1,4 +1,5 @@
 /** 企业客服工作时间设置表单。 */
+import { useServicePolicyAudience } from "./service-policy-context"
 import { useEffect, useId, useMemo, useRef } from "react"
 import { PlusIcon, XIcon } from "lucide-react"
 import {
@@ -69,7 +70,8 @@ function mapPeriods(
 /** 读取客服工作时间并显示设置表单。 */
 export function BusinessHoursSettings() {
   const { t } = useTranslation("settings")
-  const hours = useResource(resourceKeys.businessHours(), () => getBusinessHours())
+  const audience = useServicePolicyAudience()
+  const hours = useResource(resourceKeys.businessHours(audience), () => getBusinessHours(audience))
   return (
     <ResourceContent resources={hours} errorMessage={t("customerService.loadError")}>
       {hours.data ? <BusinessHoursForm hours={hours.data} /> : null}
@@ -80,6 +82,7 @@ export function BusinessHoursSettings() {
 /** 维护启用开关、时区、每周时段和特殊日期，修改后自动保存。 */
 function BusinessHoursForm({ hours }: { hours: BusinessHours }) {
   const { t } = useTranslation("settings")
+  const audience = useServicePolicyAudience()
   const invalidate = useResourceInvalidator()
   const schema = useMemo(
     () =>
@@ -110,13 +113,13 @@ function BusinessHoursForm({ hours }: { hours: BusinessHours }) {
     schema,
     autoSave: true,
     save: async (values) => {
-      await updateBusinessHours({
+      await updateBusinessHours(audience, {
         enabled: values.enabled,
         timeZone: values.timeZone,
         weekly: values.weekly.map((day) => mapPeriods(day.periods, periodEndValue)),
         overrides: values.overrides.map((override) => ({ date: override.date, periods: mapPeriods(override.periods, periodEndValue) })),
       })
-      void invalidate(resourceKeys.businessHours())
+      void invalidate(resourceKeys.businessHours(audience))
     },
     errorMessage: t("customerService.saveError"),
     errorFields: ["timeZone", "weekly", "overrides"],

@@ -25,6 +25,10 @@ CREATE UNIQUE INDEX channel_identities_channel_user_unique
 CREATE INDEX channel_identities_contact_idx
     ON channel_identities (workspace_id, contact_id) WHERE (contact_id IS NOT NULL);
 
+CREATE INDEX channel_identities_contact_named_idx
+    ON channel_identities (workspace_id, contact_id, updated_at DESC, id DESC)
+    WHERE btrim(display_name) <> '';
+
 CREATE INDEX channel_identities_external_idx
     ON channel_identities (workspace_id, external_id);
 

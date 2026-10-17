@@ -30,3 +30,6 @@ export const startAgentEvaluationRun = ops.startAgentEvaluationRun
 
 /** 在最近一次运行中重新运行一条用例。 */
 export const rerunAgentEvaluationCase = ops.rerunAgentEvaluationCase
+
+export const getAgentEvaluationSettings = ops.getAgentEvaluationSettings
+export const updateAgentEvaluationSettings = ops.updateAgentEvaluationSettings

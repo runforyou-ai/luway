@@ -8,8 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/support/str"
@@ -36,7 +35,7 @@ func NewVerifyWebsiteCustomerQuery(db *bun.DB) *VerifyWebsiteCustomerQuery {
 // Execute 按接待客户的网站渠道所属企业校验签名身份；渠道停用、所属工作区已暂停或渠道不存在返回 ErrChannelNotFound，签名无效返回 ErrCustomerIdentityInvalid。
 func (q *VerifyWebsiteCustomerQuery) Execute(ctx context.Context, channelID, token string) (VerifiedWebsiteCustomer, error) {
 	if !str.IsUUID(channelID) {
-		return VerifiedWebsiteCustomer{}, &conversationaction.ValidationError{Fields: map[string]conversationaction.ValidationCode{"channelId": ValidationChannelIDInvalid}}
+		return VerifiedWebsiteCustomer{}, &common.FieldError{Fields: map[string]common.FieldCode{"channelId": ValidationChannelIDInvalid}}
 	}
 	channel, err := loadWebsiteChannel(ctx, q.db, channelID)
 	if err != nil {
@@ -56,7 +55,7 @@ func (q *VerifyWebsiteCustomerQuery) ExecuteForWorkspace(ctx context.Context, wo
 
 // VerifyCustomerToken 按企业客户身份密钥校验签名身份并返回签名客户与过期时间；企业尚未生成密钥或签名无效时返回 ErrCustomerIdentityInvalid。
 func VerifyCustomerToken(ctx context.Context, db bun.IDB, workspaceID, token string) (SignedCustomer, time.Time, error) {
-	secret, err := customerserviceaction.LoadCustomerIdentitySecret(ctx, db, workspaceID)
+	secret, err := LoadCustomerIdentitySecret(ctx, db, workspaceID)
 	if err != nil {
 		return SignedCustomer{}, time.Time{}, err
 	}

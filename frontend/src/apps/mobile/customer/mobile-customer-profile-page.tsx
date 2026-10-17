@@ -11,9 +11,9 @@ import {
   MobileScrollArea,
 } from "@/apps/mobile/shared/mobile-page"
 import { useMobilePermission } from "@/apps/mobile/shared/mobile-workspace-layout"
-import { ConversationAvatar } from "@/features/inbox/shared/conversation-avatar"
-import { CustomerProfileDetails } from "@/features/inbox/service/customer-profile-details"
-import { CustomerServiceHistory } from "@/features/inbox/service/customer-service-history"
+import { ConversationAvatar } from "@/features/inbox/public"
+import { CustomerProfileDetails } from "@/features/inbox/public"
+import { CustomerServiceHistory } from "@/features/inbox/public"
 import { useConversationName } from "@/hooks/use-conversation-name"
 
 /** 全屏展示客户资料，返回时回到客户会话。 */

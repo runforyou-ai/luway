@@ -9,9 +9,9 @@ import (
 
 	aiperformanceaction "github.com/runforyou-ai/luway/internal/actions/aiperformance"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
-	"github.com/runforyou-ai/luway/internal/actions/serviceissue"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
@@ -31,7 +31,7 @@ func TestServiceSessionReviews(t *testing.T) {
 	tasks := newKnowledgeTasks(t, db)
 	f := handoffFixture{db: db, identity: identity, tasks: tasks, providerID: providerID, modelID: modelID}
 	disableAutoAssignment(t, db, identity.Workspace.ID)
-	coordinator := newGroupAgentCoordinator(db)
+	coordinator := newGroupAgentCanceller(db)
 	claim := servicesessionaction.NewClaimServiceSessionAction(db, coordinator, tasks)
 	closeSession := servicesessionaction.NewCloseServiceSessionAction(db, coordinator, tasks)
 	reopen := servicesessionaction.NewReopenServiceSessionAction(db, testEnqueuer)
@@ -41,14 +41,14 @@ func TestServiceSessionReviews(t *testing.T) {
 
 	// 判断模型在本测试内启用，结束后恢复为不使用。
 	summaryProviderID := seedSummaryModels(t, db, identity)
-	settings := customerservice.NewUpdateServiceSummarySettingsAction(db)
-	_, err := settings.Execute(ctx, identity, domain.ServiceSummarySettings{
+	settings := servicepolicy.NewUpdateServiceSummarySettingsAction(db)
+	_, err := settings.Execute(ctx, identity, domain.ServiceAudienceCustomer, domain.ServiceSummarySettings{
 		DecisionModelID: new(aiModelID(t, db, summaryProviderID, "decision-model")),
 		Locale:          domain.LocaleChineseSimplified,
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		_, err := settings.Execute(context.Background(), identity, domain.ServiceSummarySettings{Locale: domain.LocaleChineseSimplified})
+		_, err := settings.Execute(context.Background(), identity, domain.ServiceAudienceCustomer, domain.ServiceSummarySettings{Locale: domain.LocaleChineseSimplified})
 		assert.NoError(t, err)
 	})
 
@@ -201,7 +201,7 @@ WHERE m.conversation_id = ? AND m.service_session_id = ? AND m.id = ?`,
 	require.Equal(t, "退货运费谁承担", all.Issues[0].Preview)
 	_, err = issues.Execute(ctx, identity, aiperformanceaction.IssueListInput{Input: scope, Issue: "unknown"})
 	require.Same(t, aiperformanceaction.ErrIssueInvalid, err, "未知问题类型")
-	detail, err := serviceissue.NewQuery(db).Execute(ctx, identity, takenRun.ScopeID)
+	detail, err := knowledgegap.NewIssueQuery(db).Execute(ctx, identity, takenRun.ScopeID)
 	require.NoError(t, err)
 	require.Equal(t, new(true), detail.AIIncorrect)
 	require.Equal(t, new(true), detail.HumanPoorAttitude)
@@ -210,8 +210,8 @@ WHERE m.conversation_id = ? AND m.service_session_id = ? AND m.id = ?`,
 	require.Equal(t, "customer", detail.Messages[0].Sender)
 	require.Equal(t, "ai", detail.Messages[1].Sender)
 	require.Equal(t, "staff", detail.Messages[2].Sender)
-	_, err = serviceissue.NewQuery(db).Execute(ctx, identity, humanSessionID)
-	require.Same(t, serviceissue.ErrNotFound, err, "未质检周期的详情")
+	_, err = knowledgegap.NewIssueQuery(db).Execute(ctx, identity, humanSessionID)
+	require.Same(t, knowledgegap.ErrIssueNotFound, err, "未质检周期的详情")
 }
 
 // loadReviewInput 返回登记器中周期最近一次投递的质检任务输入。

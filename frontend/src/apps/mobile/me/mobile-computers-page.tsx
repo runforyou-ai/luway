@@ -12,7 +12,7 @@ import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
-import { useComputerPresence, useComputers } from "@/features/settings/use-computers"
+import { useComputerPresence, useComputers } from "@/features/settings/public"
 import { useDateTime } from "@/hooks/use-date-time"
 
 /** 展示当前成员已注册的电脑及其在线状态，行尾撤销按钮经二次确认后撤销。 */

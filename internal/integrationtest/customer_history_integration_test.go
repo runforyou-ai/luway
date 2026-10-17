@@ -4,10 +4,13 @@ package integrationtest
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 
 	"uuid"
+
+	"github.com/google/go-cmp/cmp"
 
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
@@ -24,7 +27,7 @@ func TestSearchCustomerHistory(t *testing.T) {
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
 	tasks := servertest.NewTasks()
-	coordinator := newGroupAgentCoordinator(f.db)
+	coordinator := newGroupAgentCanceller(f.db)
 	closeSession := servicesessionaction.NewCloseServiceSessionAction(f.db, coordinator, tasks)
 	send := servicesessionaction.NewSendServiceTextMessageAction(f.db, testEnqueuer)
 	// closeWith 在客户会话中依次发送客户消息、对客回复与内部备注后关闭当前周期，首次回复隐式领取周期。
@@ -82,6 +85,16 @@ func TestSearchCustomerHistory(t *testing.T) {
 	}
 	require.Equal(t, []string{"客户首条消息", "请查收", "订单 A1001 什么时候发货", "订单 A1001 已经发货"}, bodies)
 	require.Equal(t, []string{"customer", "member", "customer", "member"}, senders)
+	// 空关键词列出历史双方消息，空白输入等同默认查询。
+	for _, keyword := range []string{"", "  \t\n"} {
+		listed, err := servicesummary.SearchHistory(ctx, f.db, f.owner.Workspace.ID, current.ID, nil, keyword)
+		require.NoError(t, err)
+		require.Empty(t, cmp.Diff(result.Sessions, listed.Sessions))
+	}
+	invalid, err := servicesummary.SearchHistory(ctx, f.db, f.owner.Workspace.ID, current.ID, nil, "!!!")
+	require.NoError(t, err)
+	require.Empty(t, invalid.Sessions)
+	require.NotEmpty(t, invalid.Message)
 	// 只命中回复时，前文按对客消息计数带出，领取等系统事件和内部备注不占条数。
 	single, err := servicesummary.SearchHistory(ctx, f.db, f.owner.Workspace.ID, current.ID, nil, "已经发货")
 	require.NoError(t, err)
@@ -103,4 +116,26 @@ func TestSearchCustomerHistory(t *testing.T) {
 	limited, err := servicesummary.SearchHistory(ctx, f.db, f.owner.Workspace.ID, current.ID, &closedBefore, "A1001 发货")
 	require.NoError(t, err)
 	require.Empty(t, limited.Sessions)
+	// 默认列表截取最近 30 条消息，按周期内顺序同时返回提问与回复。
+	var expected []string
+	for index := range 35 {
+		body := fmt.Sprintf("历史列表 %02d", index)
+		_, err := f.visitorMessage(ctx, body)
+		require.NoError(t, err)
+		expected = append(expected, body)
+	}
+	closeWith(f.conversationID, externalID, "本轮最后提问", "本轮最后回复", "本轮内部备注")
+	expected = append(expected, "本轮最后提问", "本轮最后回复")
+	_, err = f.visitorMessage(ctx, "下一轮")
+	require.NoError(t, err)
+	latest := loadSummarySession(t, f.db, f.conversationID)
+	listed, err := servicesummary.SearchHistory(ctx, f.db, f.owner.Workspace.ID, latest.ID, nil, "")
+	require.NoError(t, err)
+	require.Len(t, listed.Sessions, 1)
+	var listedBodies []string
+	for _, message := range listed.Sessions[0].Messages {
+		listedBodies = append(listedBodies, message.Body)
+	}
+	require.Equal(t, expected[len(expected)-30:], listedBodies)
+
 }

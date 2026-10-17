@@ -8,10 +8,12 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess/processquery"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
 	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -103,10 +105,10 @@ func newConversationOps(db *bun.DB, agentScheduler conversationaction.AgentMessa
 		leaveGroupConversation:          groupchataction.NewLeaveGroupConversationAction(db, taskEnqueuer, runCancellation),
 		dissolveGroupConversation:       groupchataction.NewDissolveGroupConversationAction(db, runCancellation),
 		sendGroupTextMessage:            groupchataction.NewSendGroupTextMessageAction(db, taskEnqueuer, agentScheduler),
-		getAgentRunProcess:              processquery.NewGetRunProcessQuery(db),
-		toolCallProcess:                 processquery.NewToolCallProcessQuery(db),
+		getAgentRunProcess:              processquery.NewGetRunProcessQuery(db, conversationaccess.Guard{}),
+		toolCallProcess:                 processquery.NewToolCallProcessQuery(db, conversationaccess.Guard{}),
 		stopLocalAgent:                  conversationaction.NewStopLocalAgentAction(db),
-		authorizeAgentRunStream:         processquery.NewAuthorizeRunStreamQuery(db),
+		authorizeAgentRunStream:         processquery.NewAuthorizeRunStreamQuery(db, conversationaccess.Guard{}),
 		translator:                      translator,
 		runCancellation:                 runCancellation,
 		files:                           files,
@@ -121,7 +123,7 @@ var personalAgentConflictKeys = map[string]i18n.Key{
 }
 
 // conversationMessageValidationKeys 把消息输入校验错误码映射为本地化文案键。
-var conversationMessageValidationKeys = map[conversationaction.ValidationCode]i18n.Key{
+var conversationMessageValidationKeys = map[common.FieldCode]i18n.Key{
 	conversationaction.ValidationConversationIDInvalid:       i18n.FieldConversationIDInvalid,
 	conversationaction.ValidationClientMessageIDInvalid:      i18n.FieldClientMessageIDInvalid,
 	conversationaction.ValidationReplyToMessageIDInvalid:     i18n.FieldReplyToMessageIDInvalid,

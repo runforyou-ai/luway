@@ -34,7 +34,14 @@ CREATE TABLE agent_tool_calls (
     decided_by_subject_id   uuid,
     bound_arguments         jsonb,
     local_agent_session_id  uuid,
-    trace_id                text
+    trace_id                text,
+    rev                     bigint NOT NULL DEFAULT 0,
+    handover                text,
+    payload                 jsonb,
+    notes                   jsonb,
+    media                   jsonb,
+    completion              jsonb,
+    decision                jsonb
 );
 
 CREATE INDEX agent_tool_calls_computer_queue_idx
@@ -86,6 +93,13 @@ COMMENT ON COLUMN agent_tool_calls.decided_by_subject_id IS '作出确认、审�
 COMMENT ON COLUMN agent_tool_calls.bound_arguments IS '服务端按可信上下文填入的参数，执行时覆盖同名的模型参数；没有绑定参数时为空';
 COMMENT ON COLUMN agent_tool_calls.local_agent_session_id IS '委派给本机 Agent 的一轮或其权限请求所属的本机 Agent 会话编号，非空时调用由会话推进，不随运行结束';
 COMMENT ON COLUMN agent_tool_calls.trace_id IS '派发到电脑时日志作用域中的串联编号，执行器执行该操作时沿用；未派发到电脑的调用为空';
+COMMENT ON COLUMN agent_tool_calls.rev IS '运行时对调用记录的修订号，写入时只保留修订号更大的快照';
+COMMENT ON COLUMN agent_tool_calls.handover IS '调用交给运行外推进的方式：await 等待外部结果、detached 交出后运行继续、submitted 提交确认或审批，由运行时推进的调用为空';
+COMMENT ON COLUMN agent_tool_calls.payload IS '调用交出或提交时运行时给出的载荷';
+COMMENT ON COLUMN agent_tool_calls.notes IS '工具规格、依据检查与扩展写入的调用注解';
+COMMENT ON COLUMN agent_tool_calls.media IS '调用结果附带的媒体引用，按顺序排列';
+COMMENT ON COLUMN agent_tool_calls.completion IS '结束运行的调用给出的完成载荷';
+COMMENT ON COLUMN agent_tool_calls.decision IS '暂停运行等待确认的调用的决定：是否批准、拒绝理由与改用的参数，运行恢复后据此在运行内执行或拒绝；提交给处理人的调用为空';
 
 -- +goose Down
 DROP TABLE agent_tool_calls;

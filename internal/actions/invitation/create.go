@@ -11,6 +11,7 @@ import (
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
 	"github.com/runforyou-ai/luway/internal/actions/seat"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -45,7 +46,7 @@ func NewCreateAction(db *bun.DB, enqueuer servertask.TxEnqueuer, seats seat.Seat
 func (a *CreateAction) Execute(ctx context.Context, identity *servermodels.Identity, input Input) (Created, error) {
 	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
-	fields := make(map[string]ValidationCode)
+	fields := make(map[string]common.FieldCode)
 	if !str.IsEmail(input.Email) {
 		fields["email"] = ValidationEmailInvalid
 	}
@@ -53,7 +54,7 @@ func (a *CreateAction) Execute(ctx context.Context, identity *servermodels.Ident
 		fields["displayName"] = ValidationDisplayNameInvalid
 	}
 	if len(fields) > 0 {
-		return Created{}, &ValidationError{Fields: fields}
+		return Created{}, &common.FieldError{Fields: fields}
 	}
 	var invitationID, value string
 	emailQueued := a.emailEnabled()
@@ -62,7 +63,7 @@ func (a *CreateAction) Execute(ctx context.Context, identity *servermodels.Ident
 			return err
 		}
 		if _, err := roleaction.ValidateAssignment(ctx, tx, identity.Workspace.ID, input.RoleID); errors.Is(err, roleaction.ErrAssignmentInvalid) {
-			return &ValidationError{Fields: map[string]ValidationCode{"roleId": ValidationRoleInvalid}}
+			return &common.FieldError{Fields: map[string]common.FieldCode{"roleId": ValidationRoleInvalid}}
 		} else if err != nil {
 			return err
 		}
@@ -78,7 +79,7 @@ func (a *CreateAction) Execute(ctx context.Context, identity *servermodels.Ident
 			return err
 		}
 		if member {
-			return &ValidationError{Fields: map[string]ValidationCode{"email": ValidationEmailMember}}
+			return &common.FieldError{Fields: map[string]common.FieldCode{"email": ValidationEmailMember}}
 		}
 		if err := a.seats.Check(ctx, tx, identity.Workspace.ID); err != nil {
 			return err
@@ -88,7 +89,7 @@ func (a *CreateAction) Execute(ctx context.Context, identity *servermodels.Ident
 		}
 		invitationID, value, err = insertInvitation(ctx, tx, identity, input.Email, input.DisplayName, input.RoleID)
 		if pgerr.UniqueViolationOn(err, "workspace_invitations_pending_email_unique") {
-			return &ValidationError{Fields: map[string]ValidationCode{"email": ValidationEmailPending}}
+			return &common.FieldError{Fields: map[string]common.FieldCode{"email": ValidationEmailPending}}
 		}
 		if err != nil || !emailQueued {
 			return err

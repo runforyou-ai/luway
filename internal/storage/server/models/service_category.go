@@ -5,6 +5,7 @@ package models
 import (
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/uptrace/bun"
 )
 
@@ -12,12 +13,13 @@ import (
 type ServiceCategory struct {
 	bun.BaseModel `bun:"table:service_categories,alias:sc"`
 
-	ID          string     `bun:"id,pk"`
-	WorkspaceID string     `bun:"workspace_id"`
-	Name        string     `bun:"name"`
-	Description string     `bun:"description"`
-	TeamID      *string    `bun:"team_id"`
-	ArchivedAt  *time.Time `bun:"archived_at"`
-	CreatedAt   time.Time  `bun:"created_at"`
-	UpdatedAt   time.Time  `bun:"updated_at"`
+	ID          string                 `bun:"id,pk"`
+	WorkspaceID string                 `bun:"workspace_id"`
+	Audience    domain.ServiceAudience `bun:"audience"`
+	Name        string                 `bun:"name"`
+	Description string                 `bun:"description"`
+	TeamID      *string                `bun:"team_id"`
+	ArchivedAt  *time.Time             `bun:"archived_at"`
+	CreatedAt   time.Time              `bun:"created_at"`
+	UpdatedAt   time.Time              `bun:"updated_at"`
 }

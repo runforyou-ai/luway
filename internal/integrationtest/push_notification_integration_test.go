@@ -24,7 +24,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/usernotification"
 	"github.com/runforyou-ai/luway/internal/common/license"
 	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/luway/internal/integration/control"
+	"github.com/runforyou-ai/luway/internal/integration/supportplane"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -93,20 +93,20 @@ func TestSetPushDevice(t *testing.T) {
 	require.Equal(t, deviceID, sessionPushDevice(t, db, member.Session.ID))
 }
 
-// fakePushRelay 模拟 control 的推送接口，记录收到的推送并按平台返回预设的错误码。
+// fakePushRelay 模拟支持面的推送接口，记录收到的推送并按平台返回预设的错误码。
 type fakePushRelay struct {
 	mu       sync.Mutex
-	requests []control.PushRequest
+	requests []supportplane.PushRequest
 	failures map[string]string
 }
 
 // ServeHTTP 记录推送请求，平台有预设错误码时返回对应的错误，否则受理推送。
 func (f *fakePushRelay) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodPost || request.URL.Path != "/api/v1/push" || request.Header.Get("Signature") == "" {
+	if request.Method != http.MethodPost || request.URL.Path != "/api/support/v1/push" || request.Header.Get("Signature") == "" {
 		writeProblem(writer, http.StatusNotFound, "not_found")
 		return
 	}
-	var input control.PushRequest
+	var input supportplane.PushRequest
 	if err := json.NewDecoder(request.Body).Decode(&input); err != nil {
 		writeProblem(writer, http.StatusUnprocessableEntity, "validation_failed")
 		return
@@ -130,7 +130,7 @@ func (f *fakePushRelay) ServeHTTP(writer http.ResponseWriter, request *http.Requ
 }
 
 // take 返回并清空已收到的推送，failures 是之后各平台返回的错误码。
-func (f *fakePushRelay) take(failures map[string]string) []control.PushRequest {
+func (f *fakePushRelay) take(failures map[string]string) []supportplane.PushRequest {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	got := f.requests
@@ -153,7 +153,7 @@ func pendingPushes(t *testing.T, tasks *servertest.Tasks) ([]notificationtask.Pu
 	return inputs, keys
 }
 
-// TestPushNotification 验证用户通知只在授权含推送中继时按接收账号的应用与平台登记离线推送；推送任务只在成员仍可接收通知、仍能阅读会话时发往仍登记在未过期会话上的设备，无法送达时结束，control 暂时不可用时返回错误重试。
+// TestPushNotification 验证用户通知只在授权含推送中继时按接收账号的应用与平台登记离线推送；推送任务只在成员仍可接收通知、仍能阅读会话时发往仍登记在未过期会话上的设备，无法送达时结束，支持面暂时不可用时返回错误重试。
 func TestPushNotification(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
@@ -190,7 +190,7 @@ func TestPushNotification(t *testing.T) {
 	require.NoError(t, err)
 	identity, err := licenseaction.ControlIdentity(ctx, db)
 	require.NoError(t, err)
-	code := servertest.SignLicense(t, privateKey, identity.ServerID, time.Now().Add(-time.Minute), time.Now().Add(time.Hour), map[string]any{license.CapabilityPushRelay: true})
+	code := servertest.SignLicense(t, privateKey, identity.DeploymentID, time.Now().Add(-time.Minute), time.Now().Add(time.Hour))
 	_, err = licenseaction.NewActivateLicenseAction(db, license.Keys{servertest.LicenseKID: publicKey}, servertest.NewDeployment(t, db)).Execute(ctx, nil, code)
 	require.NoError(t, err)
 
@@ -219,25 +219,25 @@ func TestPushNotification(t *testing.T) {
 	relay := &fakePushRelay{}
 	server := httptest.NewServer(relay)
 	defer server.Close()
-	pusher := usernotification.NewPusher(db, control.New(server.URL, "test", func(ctx context.Context) (control.Identity, error) {
+	pusher := usernotification.NewPusher(db, supportplane.New(server.URL, "test", func(ctx context.Context) (supportplane.Identity, error) {
 		return licenseaction.ControlIdentity(ctx, db)
 	}))
-	// push 执行一个推送任务并返回 control 收到的推送，failures 是之后各平台返回的错误码。
-	push := func(input notificationtask.PushInput, failures map[string]string) ([]control.PushRequest, error) {
+	// push 执行一个推送任务并返回支持面收到的推送，failures 是之后各平台返回的错误码。
+	push := func(input notificationtask.PushInput, failures map[string]string) ([]supportplane.PushRequest, error) {
 		err := pusher.Push(ctx, input)
 		return relay.take(failures), err
 	}
 	data := map[string]string{"workspaceId": owner.Workspace.ID, "conversationId": conversationID, "view": "direct"}
-	request := func(input notificationtask.PushInput, deviceIDs ...string) control.PushRequest {
-		return control.PushRequest{NotificationID: input.NotificationID, App: testPushApp, Platform: string(input.Platform), DeviceIDs: deviceIDs, Title: "成员", Body: "授权后", Data: data}
+	request := func(input notificationtask.PushInput, deviceIDs ...string) supportplane.PushRequest {
+		return supportplane.PushRequest{NotificationID: input.NotificationID, App: testPushApp, Platform: string(input.Platform), DeviceIDs: deviceIDs, Title: "成员", Body: "授权后", Data: data}
 	}
 	got, err := push(android, map[string]string{"ios": "service_unavailable"})
 	require.NoError(t, err)
-	require.Equal(t, []control.PushRequest{request(android, "android-1", "android-2")}, got)
-	// control 暂时不可用时只有该组返回错误由任务重试，已送达的组不受影响。
+	require.Equal(t, []supportplane.PushRequest{request(android, "android-1", "android-2")}, got)
+	// 支持面暂时不可用时只有该组返回错误由任务重试，已送达的组不受影响。
 	got, err = push(ios, map[string]string{"ios": "push_rejected"})
-	require.ErrorIs(t, err, control.ErrUnavailable)
-	require.Equal(t, []control.PushRequest{request(ios, "ios-1")}, got)
+	require.ErrorIs(t, err, supportplane.ErrUnavailable)
+	require.Equal(t, []supportplane.PushRequest{request(ios, "ios-1")}, got)
 	// 推送被拒绝或授权不含推送中继时记录警告，任务结束。
 	got, err = push(ios, map[string]string{"ios": "license_required"})
 	require.NoError(t, err)
@@ -249,7 +249,7 @@ func TestPushNotification(t *testing.T) {
 	require.NoError(t, authaction.NewLogoutAction(db).Execute(ctx, &servermodels.AccountIdentity{Account: owner.Account, Session: owner.Session}))
 	got, err = push(android, nil)
 	require.NoError(t, err)
-	require.Equal(t, []control.PushRequest{request(android, "android-2")}, got)
+	require.Equal(t, []supportplane.PushRequest{request(android, "android-2")}, got)
 	// 已退出的会话登记设备时返回会话失效。
 	require.ErrorIs(t, authaction.NewSetPushDeviceAction(db).Execute(ctx, &servermodels.AccountIdentity{Account: owner.Account, Session: owner.Session}, authaction.PushDeviceInput{
 		App: testPushApp, Platform: domain.PushPlatformAndroid, DeviceID: "android-2",
@@ -259,7 +259,7 @@ func TestPushNotification(t *testing.T) {
 		Title: "推送群", MemberIdentityIDs: []string{owner.WorkspaceIdentity.ID},
 	})
 	require.NoError(t, err)
-	_, err = groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCoordinator(db)).Execute(ctx, member, groupchataction.GroupConversationMemberInput{
+	_, err = groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCanceller(db)).Execute(ctx, member, groupchataction.GroupConversationMemberInput{
 		ConversationID: group.ID, MemberIdentityID: owner.WorkspaceIdentity.ID,
 	})
 	require.NoError(t, err)
@@ -273,4 +273,11 @@ func TestPushNotification(t *testing.T) {
 	got, err = push(ios, nil)
 	require.NoError(t, err)
 	require.Empty(t, got)
+}
+
+// writeProblem 返回测试中继的协议错误。
+func writeProblem(writer http.ResponseWriter, status int, code string) {
+	writer.Header().Set("Content-Type", "application/problem+json")
+	writer.WriteHeader(status)
+	_ = json.NewEncoder(writer).Encode(map[string]any{"status": status, "code": code})
 }

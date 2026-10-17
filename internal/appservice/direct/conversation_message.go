@@ -15,6 +15,7 @@ import (
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -166,7 +167,7 @@ func encodeConversationMessageCursor(conversationID string, point *conversationa
 // decodeMessageCursors 解码非空的向前与向后消息游标：两者同时给出时返回 cursor 字段错误，游标不合法时返回以字段名标记的消息校验错误。
 func decodeMessageCursors(conversationID, before, after string) (*conversationaction.MessageCursorPoint, *conversationaction.MessageCursorPoint, error) {
 	if before != "" && after != "" {
-		return nil, nil, &conversationaction.ValidationError{Fields: map[string]conversationaction.ValidationCode{"cursor": conversationaction.ValidationCursorInvalid}}
+		return nil, nil, &common.FieldError{Fields: map[string]common.FieldCode{"cursor": conversationaction.ValidationCursorInvalid}}
 	}
 	points := [2]*conversationaction.MessageCursorPoint{}
 	for index, cursor := range [2]struct{ field, value string }{{"before", before}, {"after", after}} {
@@ -175,7 +176,7 @@ func decodeMessageCursors(conversationID, before, after string) (*conversationac
 		}
 		point, valid := decodeConversationMessageCursor(cursor.value, conversationID)
 		if !valid {
-			return nil, nil, &conversationaction.ValidationError{Fields: map[string]conversationaction.ValidationCode{cursor.field: conversationaction.ValidationCursorInvalid}}
+			return nil, nil, &common.FieldError{Fields: map[string]common.FieldCode{cursor.field: conversationaction.ValidationCursorInvalid}}
 		}
 		points[index] = &point
 	}

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 import { useParams } from "react-router"
 
 import { MobilePageHeader } from "@/apps/mobile/shared/mobile-page"
-import { ConversationFilesPanel } from "@/features/inbox/shared/conversation-files-panel"
+import { ConversationFilesPanel } from "@/features/inbox/public"
 
 /** 全屏展示会话共享文件区，backTo 给出返回的上级页面。 */
 export function MobileConversationFilesPage({ backTo }: { backTo: (conversationID: string) => string }) {

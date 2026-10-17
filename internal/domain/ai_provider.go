@@ -70,7 +70,7 @@ const (
 	AIModelTypeDecision  AIModelType = "decision"
 )
 
-// AIModelScope 定义模型范围：平台模型由平台提供并对全部工作区可用，工作区模型只属于所在工作区。
+// AIModelScope 定义模型范围：平台 Auto 由平台能力池提供，工作区模型只属于所在工作区。
 type AIModelScope string
 
 const (
@@ -78,22 +78,28 @@ const (
 	AIModelScopeWorkspace AIModelScope = "workspace"
 )
 
+// AIModelRefAuto 是业务配置引用平台 Auto 时使用的模型引用值；用户侧统一展示为 Auto，具体上游由能力池选型。
+const AIModelRefAuto = "auto"
+
 // AIModelUsage 定义业务使用模型的用途，每种用途对应确定的模型类型与输入能力要求。
 type AIModelUsage string
 
 const (
-	AIModelUsageAgent       AIModelUsage = "agent"
-	AIModelUsageSummary     AIModelUsage = "summary"
-	AIModelUsageTranslation AIModelUsage = "translation"
-	AIModelUsageDecision    AIModelUsage = "decision"
-	AIModelUsageEmbedding   AIModelUsage = "embedding"
-	AIModelUsageRerank      AIModelUsage = "rerank"
+	AIModelUsageAgent          AIModelUsage = "agent"
+	AIModelUsageSummary        AIModelUsage = "summary"
+	AIModelUsageTranslation    AIModelUsage = "translation"
+	AIModelUsageDecision       AIModelUsage = "decision"
+	AIModelUsageEmbedding      AIModelUsage = "embedding"
+	AIModelUsageRerank         AIModelUsage = "rerank"
+	AIModelUsageOCR            AIModelUsage = "ocr"
+	AIModelUsageTranscription  AIModelUsage = "transcription"
 )
 
-// AIModelRequirement 定义用途对模型类型与文本输入能力的要求。
+// AIModelRequirement 定义用途对模型类型与输入能力的要求。
 type AIModelRequirement struct {
-	Type         AIModelType
-	RequiresText bool
+	Type               AIModelType
+	RequiresText       bool
+	RequiredModalities []AIModelInputModality
 }
 
 // Requirement 返回用途要求的模型类型与输入能力；未知用途返回 false。
@@ -101,6 +107,10 @@ func (u AIModelUsage) Requirement() (AIModelRequirement, bool) {
 	switch u {
 	case AIModelUsageAgent, AIModelUsageSummary, AIModelUsageTranslation:
 		return AIModelRequirement{Type: AIModelTypeChat, RequiresText: true}, true
+	case AIModelUsageOCR:
+		return AIModelRequirement{Type: AIModelTypeChat, RequiresText: true, RequiredModalities: []AIModelInputModality{AIModelInputModalityImage}}, true
+	case AIModelUsageTranscription:
+		return AIModelRequirement{Type: AIModelTypeChat, RequiresText: true, RequiredModalities: []AIModelInputModality{AIModelInputModalityAudio}}, true
 	case AIModelUsageDecision:
 		return AIModelRequirement{Type: AIModelTypeDecision}, true
 	case AIModelUsageEmbedding:
@@ -120,4 +130,5 @@ const (
 	AIModelInputModalityImage AIModelInputModality = "image"
 	AIModelInputModalityAudio AIModelInputModality = "audio"
 	AIModelInputModalityVideo AIModelInputModality = "video"
+	AIModelInputModalityFile  AIModelInputModality = "file"
 )

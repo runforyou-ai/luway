@@ -8,7 +8,7 @@ import (
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
-	"github.com/runforyou-ai/luway/internal/actions/servicecategory"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
 	"github.com/runforyou-ai/luway/internal/actions/servicestate"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -51,7 +51,7 @@ func (a *DeleteTeamAction) Execute(ctx context.Context, identity *servermodels.I
 		if err := serviceroute.ResetChannelRoutingTarget(ctx, tx, identity.Workspace.ID, domain.ChannelRoutingTargetTypeTeam, teamID); err != nil {
 			return err
 		}
-		if err := servicecategory.ClearTeam(ctx, tx, identity.Workspace.ID, teamID); err != nil {
+		if err := servicepolicy.ClearTeam(ctx, tx, identity.Workspace.ID, teamID); err != nil {
 			return err
 		}
 		// 清空 AI 员工指向该团队的转人工团队，转人工进入公共队列。

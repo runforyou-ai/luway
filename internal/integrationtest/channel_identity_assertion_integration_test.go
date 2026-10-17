@@ -11,9 +11,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
-	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,7 +24,7 @@ func TestChannelIdentityAssertion(t *testing.T) {
 	ctx := context.Background()
 	f := newTelegramGatewayFixture(t)
 	f.connect(t, domain.TelegramConnectionDirect)
-	secret, err := customerserviceaction.NewRegenerateCustomerIdentitySecretAction(f.db).Execute(ctx, f.identity)
+	secret, err := customerchataction.RegenerateCustomerIdentitySecret(ctx, f.db, f.identity)
 	require.NoError(t, err)
 	assertion := customerchataction.NewAssertChannelIdentityAction(f.db, testEnqueuer)
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 36)
@@ -109,6 +108,6 @@ func TestChannelIdentityAssertion(t *testing.T) {
 	// 业务系统转发接入时入站消息自带核验结论，不接受断言。
 	f.connect(t, domain.TelegramConnectionGateway)
 	require.ErrorIs(t, assertion.Verify(ctx, f.channelID, external, sign(user, f.channelID, external)), channelaction.ErrNotFound, "转发接入断言")
-	var validation *conversationaction.ValidationError
+	var validation *common.FieldError
 	require.ErrorAs(t, assertion.Verify(ctx, f.channelID, " ", sign(user, f.channelID, " ")), &validation, "空白外部编号")
 }

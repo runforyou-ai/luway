@@ -81,9 +81,9 @@ func sharedArguments(arguments string) bool {
 // 文件工具在提供会话共享文件区时补充的说明。
 const (
 	sharedFileToolNote   = "\n- 以 shared/ 开头的路径指向本会话的共享文件区，成员与其他 AI 员工都能看到；用 list_shared_files 查看其中的文件。"
-	sharedImageReadNote  = "模型能识别图片时，读取共享文件区中的图片后，图片随结果附给模型。"
+	sharedImageReadNote  = "读取共享文件区中的图片、音频、视频或 PDF 后，媒体随结果附给运行时：模型能直传则直传，否则按工作区媒体理解设置转成文字。"
 	sharedOnlyToolNote   = "\n- 只能读写以 shared/ 开头的路径，即本会话的共享文件区，成员与其他 AI 员工都能看到；用 list_shared_files 查看其中的文件。"
-	sharedReadToolDesc   = "读取文本文件，结果以 cat -n 格式带行号返回，行号从 1 开始，默认最多读取 2000 行。\n- 已知需要的范围时用 offset 与 limit 只读取该部分。\n- PDF、Word 等文档转换为文本后返回，只能读取；模型能识别图片时，图片随结果附给模型；其他二进制文件与超过 10 MB 的文件无法读取。"
+	sharedReadToolDesc   = "读取文本文件，结果以 cat -n 格式带行号返回，行号从 1 开始，默认最多读取 2000 行。\n- 已知需要的范围时用 offset 与 limit 只读取该部分。\n- PDF、Word 等文档转换为文本后返回，只能读取；图片、音频、视频与 PDF 会附给运行时（能直传则直传，否则按设置转文字）；其他二进制文件与超过 10 MB 的文件无法读取。"
 	sharedWriteToolDesc  = "以完整内容创建或覆盖文件。\n- 覆盖已有文件前必须先用 read_file 读取；读取后文件被改动过时写入失败，重新读取后再写。局部修改使用 edit_file。\n- 只写入文本。"
 	sharedEditToolDesc   = editFileToolDesc
 	listSharedFilesDesc  = "列出本会话共享文件区中的全部文件，给出路径、大小、最后修改人与修改时间。"
@@ -91,8 +91,14 @@ const (
 	sharedNoComputerNote = "这个工具只能读写以 shared/ 开头的路径，即本会话的共享文件区。"
 )
 
-// inlineImageTypes 是能附给模型查看的图片格式。
-var inlineImageTypes = map[string]bool{"image/png": true, "image/jpeg": true, "image/webp": true, "image/gif": true}
+// inlineMediaTypes 是可经 AttachMedia 交给运行时处理的媒体格式（含渠道常见语音，投影侧覆盖比 einorun 直传更宽）。
+var inlineMediaTypes = map[string]bool{
+	"image/png": true, "image/jpeg": true, "image/webp": true, "image/gif": true,
+	"audio/wav": true, "audio/wave": true, "audio/vnd.wav": true, "audio/vnd.wave": true, "audio/x-pn-wav": true,
+	"audio/mpeg": true, "audio/mp3": true, "audio/mp4": true, "audio/x-m4a": true, "audio/ogg": true, "audio/amr": true,
+	"video/mp4": true, "video/webm": true, "video/quicktime": true,
+	"application/pdf": true,
+}
 
 // listSharedFilesArgs 是列出共享文件工具的参数。
 type listSharedFilesArgs struct{}
@@ -260,8 +266,8 @@ func (t *sharedFileTool) read(ctx context.Context, key, relative string, offset,
 		return fmt.Sprintf("（%s 已转换为文本，只能读取，不能用 write_file 或 edit_file 修改）\n%s", name, textfile.Numbered([]byte(content.Text), offset, limit)), nil
 	case domain.BinaryDocument(content.Path):
 		return "", fmt.Errorf("文档没有可读取的文本，或无法解析：%s", name)
-	case inlineImageTypes[content.ContentType]:
-		return t.attachImage(ctx, content)
+	case inlineMediaTypes[content.ContentType]:
+		return t.attachMedia(ctx, content)
 	case filex.IsBinary(content.Data):
 		return "", fmt.Errorf("二进制文件（%s）无法按文本读取：%s", content.ContentType, name)
 	}
@@ -269,19 +275,16 @@ func (t *sharedFileTool) read(ctx context.Context, key, relative string, offset,
 	return textfile.Numbered(content.Data, offset, limit), nil
 }
 
-// attachImage 把读到的图片附给模型，模型不能识别图片或图片过大时返回原因。
-func (t *sharedFileTool) attachImage(ctx context.Context, content SharedFileContent) (string, error) {
+// attachMedia 把读到的媒体附给模型，由运行时按模型能力直传或投影；过大时返回原因。
+func (t *sharedFileTool) attachMedia(ctx context.Context, content SharedFileContent) (string, error) {
 	name := SharedFilePrefix + content.Path
-	if !t.images {
-		return "", fmt.Errorf("当前模型不能识别图片，无法读取：%s", name)
-	}
 	if content.ByteSize > domain.AgentMediaMaxBytes {
-		return "", fmt.Errorf("图片过大，无法读取：%s", name)
+		return "", fmt.Errorf("文件过大，无法读取：%s", name)
 	}
 	if err := einorun.AttachMedia(ctx, einorun.MediaRef{Key: agentcontract.MediaKeyShared + content.Path, MIME: content.ContentType, SHA256: content.Hash, Size: content.ByteSize}); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("已读取图片 %s（%s，%d 字节），图片随结果附给模型。", name, content.ContentType, content.ByteSize), nil
+	return fmt.Sprintf("已读取媒体 %s（%s，%d 字节），内容随结果附给模型。", name, content.ContentType, content.ByteSize), nil
 }
 
 // edit 把共享文件中的一段原文替换为新内容：要求按 key 登记的读取摘要与当前内容一致，以读取到的摘要作为写入条件。

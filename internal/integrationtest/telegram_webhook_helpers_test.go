@@ -42,7 +42,7 @@ func newTelegramWebhook(db *bun.DB, scheduler conversationaction.CustomerAgentMe
 // newTelegramWebhookWith 创建使用指定适配器注册表与媒体取回操作的测试回调。
 func newTelegramWebhookWith(db *bun.DB, adapters *channeladapter.Registry, scheduler conversationaction.CustomerAgentMessageScheduler, tasks servertask.TxEnqueuer, retrieve *channelinboundaction.RetrieveMediaAction) *telegramWebhook {
 	webhook := &telegramWebhook{
-		events: channelinboundaction.NewReceiveEventAction(db, adapters, scheduler, localStorage, tasks, retrieve, func() string { return servertest.PublicURL }),
+		events: channelinboundaction.NewReceiveEventAction(db, adapters, scheduler, tasks, retrieve, func() string { return servertest.PublicURL }),
 	}
 	webhook.receive = telegramaction.NewReceiveUpdateAction(db, webhook)
 	return webhook

@@ -1,4 +1,5 @@
 /** 企业会话小结设置：判断模型、小结模型与小结语言，修改后自动保存。 */
+import { useServicePolicyAudience } from "./service-policy-context"
 import { Controller, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router"
@@ -32,7 +33,8 @@ type ServiceSummaryFormValues = z.infer<typeof serviceSummarySchema>
 /** 读取会话小结设置与可选模型并显示设置表单。 */
 export function ServiceSummarySettings() {
   const { t } = useTranslation("settings")
-  const settings = useResource(resourceKeys.serviceSummarySettings(), () => getServiceSummarySettings())
+  const audience = useServicePolicyAudience()
+  const settings = useResource(resourceKeys.serviceSummarySettings(audience), () => getServiceSummarySettings(audience))
   const decisionModels = useAIModelOptions(AIModelUsage.Decision)
   const summaryModels = useAIModelOptions(AIModelUsage.Summary)
   return (
@@ -60,6 +62,7 @@ function ServiceSummaryForm({
   values: ServiceSummaryFormValues
 }) {
   const { t } = useTranslation(["settings", "common"])
+  const audience = useServicePolicyAudience()
   const invalidate = useResourceInvalidator()
   const form = useForm<ServiceSummaryFormValues>({
     resolver: zodResolver(serviceSummarySchema),
@@ -72,12 +75,12 @@ function ServiceSummaryForm({
     schema: serviceSummarySchema,
     autoSave: true,
     save: async (values) => {
-      await updateServiceSummarySettings({
+      await updateServiceSummarySettings(audience, {
         decisionModelId: values.decisionModelId || null,
         summaryModelId: values.summaryModelId || null,
         locale: values.locale,
       })
-      void invalidate(resourceKeys.serviceSummarySettings())
+      void invalidate(resourceKeys.serviceSummarySettings(audience))
     },
     errorMessage: t("customerService.summary.saveError"),
     errorFields: ["decisionModelId", "summaryModelId", "locale"],

@@ -9,17 +9,16 @@ import (
 	"github.com/runforyou-ai/luway/internal/i18n"
 )
 
-// PlatformAIModelFieldCodes 是平台模型与平台模型调用记录校验错误码对应的文案键。
+// PlatformAIModelFieldCodes 是 Auto 池成员与平台模型调用记录校验错误码对应的文案键。
 var PlatformAIModelFieldCodes = map[common.FieldCode]i18n.Key{
-	aimodel.ValidationPlatformNameInvalid:            i18n.FieldPlatformAIModelNameInvalid,
-	aimodel.ValidationPlatformNameDuplicate:          i18n.FieldPlatformAIModelNameDuplicate,
-	aimodel.ValidationPlatformTypeInvalid:            i18n.FieldPlatformAIModelTypeInvalid,
-	aimodel.ValidationPlatformInputModalitiesInvalid: i18n.FieldPlatformAIModelInputModalitiesInvalid,
-	aimodel.ValidationPlatformContextWindowInvalid:   i18n.FieldPlatformAIModelContextWindowInvalid,
-	aimodel.ValidationPlatformMaxOutputTokensInvalid: i18n.FieldPlatformAIModelMaxOutputTokensInvalid,
-	aimodel.ValidationPlatformRoutesInvalid:          i18n.FieldPlatformAIModelRoutesInvalid,
-	aimodel.ValidationPlatformRouteDuplicate:         i18n.FieldPlatformAIModelRouteDuplicate,
-	aimodel.ValidationPlatformRouteWeightInvalid:     i18n.FieldPlatformAIModelRouteWeightInvalid,
-	aimodel.ValidationPlatformUsageConflict:          i18n.FieldPlatformAIModelUsageConflict,
-	platformaction.ValidationModelCallQueryInvalid:   i18n.FieldPlatformAIModelCallQueryInvalid,
+	aimodel.ValidationPoolIdentifierInvalid:        i18n.FieldPlatformAIModelNameInvalid,
+	aimodel.ValidationPoolIdentifierDuplicate:      i18n.FieldPlatformAIModelRouteDuplicate,
+	aimodel.ValidationPoolTypeInvalid:              i18n.FieldPlatformAIModelTypeInvalid,
+	aimodel.ValidationPoolInputModalitiesInvalid:   i18n.FieldPlatformAIModelInputModalitiesInvalid,
+	aimodel.ValidationPoolContextWindowInvalid:     i18n.FieldPlatformAIModelContextWindowInvalid,
+	aimodel.ValidationPoolMaxOutputTokensInvalid:   i18n.FieldPlatformAIModelMaxOutputTokensInvalid,
+	aimodel.ValidationPoolProviderInvalid:          i18n.FieldPlatformAIModelRoutesInvalid,
+	aimodel.ValidationPoolWeightInvalid:            i18n.FieldPlatformAIModelRouteWeightInvalid,
+	aimodel.ValidationPlatformUsageConflict:        i18n.FieldPlatformAIModelUsageConflict,
+	platformaction.ValidationModelCallQueryInvalid: i18n.FieldPlatformAIModelCallQueryInvalid,
 }

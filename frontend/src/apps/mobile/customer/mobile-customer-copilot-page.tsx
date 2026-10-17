@@ -23,7 +23,7 @@ import {
   useCopilotThreadMeta,
   useServiceCopilot,
   type ServiceCopilot,
-} from "@/features/inbox/service/customer-copilot-panel"
+} from "@/features/inbox/public"
 import { focusDialogContainer } from "@/lib/dialog-focus"
 import { cn } from "@/lib/utils"
 

@@ -13,7 +13,7 @@ import {
   KnowledgeGapContent,
   useKnowledgeGapResources,
   useKnowledgeGapSummary,
-} from "@/features/knowledge-gaps/knowledge-gap-detail"
+} from "@/features/knowledge-gaps/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 

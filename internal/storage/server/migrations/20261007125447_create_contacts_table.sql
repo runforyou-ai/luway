@@ -1,19 +1,20 @@
 -- +goose Up
 -- 创建外部联系人表。
 CREATE TABLE contacts (
-    id                  uuid PRIMARY KEY DEFAULT uuidv7(),
-    created_at          timestamptz NOT NULL DEFAULT now(),
-    updated_at          timestamptz NOT NULL DEFAULT now(),
-    workspace_id        uuid NOT NULL,
-    created_by_user_id  uuid,
-    source_channel_id   uuid NOT NULL,
-    display_name        text,
-    stage               text NOT NULL DEFAULT 'visitor',
-    notes               text,
-    deleted_at          timestamptz,
-    external_user_id    text,
-    number              bigint NOT NULL,
-    primary_email       text
+    id                     uuid PRIMARY KEY DEFAULT uuidv7(),
+    created_at             timestamptz NOT NULL DEFAULT now(),
+    updated_at             timestamptz NOT NULL DEFAULT now(),
+    workspace_id           uuid NOT NULL,
+    created_by_user_id     uuid,
+    source_channel_id      uuid NOT NULL,
+    display_name           text,
+    stage                  text NOT NULL DEFAULT 'visitor',
+    notes                  text,
+    deleted_at             timestamptz,
+    external_user_id       text,
+    number                 bigint NOT NULL,
+    primary_email          text,
+    resolved_display_name  text
 );
 
 CREATE INDEX contacts_created_idx
@@ -44,6 +45,7 @@ COMMENT ON COLUMN contacts.deleted_at IS '移入回收站时间';
 COMMENT ON COLUMN contacts.external_user_id IS '企业用户编号，取自验签通过的签名身份 sub；未验证身份的联系人为空';
 COMMENT ON COLUMN contacts.number IS '工作区内联系人编号，从 1 开始按创建顺序递增';
 COMMENT ON COLUMN contacts.primary_email IS '首选邮箱：主要邮箱优先，其次最早添加的邮箱；没有邮箱时为空，由联系方式写入路径在同一事务中维护';
+COMMENT ON COLUMN contacts.resolved_display_name IS '成员界面解析后的联系人名称（档案名、最近渠道身份名、首选邮箱）';
 
 -- +goose Down
 DROP TABLE contacts;

@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"time"
 
-	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
@@ -42,7 +42,7 @@ func NewListWebsiteConversationsQuery(db *bun.DB) *ListWebsiteConversationsQuery
 
 // Execute 返回当前网站渠道身份最近的客户会话，以及渠道新会话与各会话当前的接待状态。
 func (q *ListWebsiteConversationsQuery) Execute(ctx context.Context, channelID, externalID string) (WebsiteConversationDirectory, error) {
-	fields := map[string]conversationaction.ValidationCode{}
+	fields := map[string]common.FieldCode{}
 	if !str.IsUUID(channelID) {
 		fields["channelId"] = ValidationChannelIDInvalid
 	}
@@ -50,13 +50,13 @@ func (q *ListWebsiteConversationsQuery) Execute(ctx context.Context, channelID, 
 		fields["visitorToken"] = ValidationExternalIDInvalid
 	}
 	if len(fields) > 0 {
-		return WebsiteConversationDirectory{}, &conversationaction.ValidationError{Fields: fields}
+		return WebsiteConversationDirectory{}, &common.FieldError{Fields: fields}
 	}
 	channel, err := loadWebsiteChannel(ctx, q.db, channelID)
 	if err != nil {
 		return WebsiteConversationDirectory{}, err
 	}
-	resolver := serviceroute.NewReceptionResolver(q.db, channel.WorkspaceID)
+	resolver := serviceroute.NewReceptionResolver(q.db, channel.WorkspaceID, domain.ServiceAudienceCustomer)
 	directory := WebsiteConversationDirectory{Conversations: []ConversationSummary{}}
 	if directory.NewSessionReception, err = resolver.ForNewSession(ctx, channel); err != nil {
 		return WebsiteConversationDirectory{}, fmt.Errorf("resolve website new session reception: %w", err)

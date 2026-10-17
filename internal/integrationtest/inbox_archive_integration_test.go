@@ -110,7 +110,7 @@ func TestConversationArchive(t *testing.T) {
 
 	// 解散事件不让已归档的群回到列表。
 	f.archive(t, f.owner, f.groupA, true)
-	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, f.groupA)
+	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, f.groupA)
 	require.NoError(t, err)
 	require.Equal(t, []string{f.groupA}, f.archived(t, f.owner, inboxaction.ArchivedInput{}), "解散后的已归档聊天")
 }

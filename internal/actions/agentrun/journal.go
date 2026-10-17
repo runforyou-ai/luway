@@ -11,6 +11,7 @@ import (
 	"slices"
 
 	"github.com/runforyou-ai/einorun"
+	"github.com/runforyou-ai/einorun/stream"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/tooldecision"
@@ -19,6 +20,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
+	"github.com/runforyou-ai/support/arr"
 	"github.com/uptrace/bun"
 )
 
@@ -49,11 +51,16 @@ func LoadResume(ctx context.Context, db bun.IDB, run *servermodels.AgentRun) (*e
 
 // SaveStep 在一个事务中写入自上次成功保存以来的过程变化，并更新运行的用量、任务清单、当前完成与恢复状态；调用首次转为待核对时通知负责人。
 func (j *runJournal) SaveStep(ctx context.Context, step einorun.Step) error {
-	usage, err := json.Marshal(agentcontract.UsageFrom(step.Usage))
+	usage, err := json.Marshal(agentcontract.NewUsage(step.Usage.Input, step.Usage.Output))
 	if err != nil {
 		return fmt.Errorf("encode agent run usage: %w", err)
 	}
-	plan, err := encodeRunPlan(step.Plan)
+	plan, err := encodeRunPlan(arr.Map(step.Plan, func(task stream.PlanTask) agentcontract.PlanTask {
+		return agentcontract.PlanTask{
+			ID: task.ID, Subject: task.Subject, ActiveForm: task.ActiveForm,
+			Status: domain.AgentPlanTaskStatus(task.Status),
+		}
+	}))
 	if err != nil {
 		return err
 	}
@@ -94,7 +101,7 @@ func (j *runJournal) SaveToolCall(ctx context.Context, call einorun.ToolCall) er
 	}
 	return realtime.RunInTx(ctx, j.db, func(ctx context.Context, tx bun.Tx) error {
 		var policyContext agentRunPolicyContext
-		submitting := call.Handover == einorun.HandoverSubmitted || agentprocess.Paused(call)
+		submitting := call.Handover == einorun.Handover(agentcontract.HandoverSubmitted) || agentprocess.Paused(call)
 		if submitting {
 			var err error
 			if policyContext, err = j.policy.lockContext(ctx, tx, j.run); err != nil {
@@ -113,7 +120,7 @@ func (j *runJournal) SaveToolCall(ctx context.Context, call einorun.ToolCall) er
 		}
 		change := changes[0]
 		newlyPaused := agentprocess.Paused(change.After) && (change.Before == nil || !agentprocess.Paused(*change.Before))
-		if !submitting || !(change.NewlyHandedOver(einorun.HandoverSubmitted) || newlyPaused) {
+		if !submitting || !(change.NewlyHandedOver(agentcontract.HandoverSubmitted) || newlyPaused) {
 			return nil
 		}
 		// 只为本项目工具策略给出的提交与暂停建立待处理项，载荷记下需要的人工介入。
@@ -238,7 +245,7 @@ func ResumeWaitingRun(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnq
 		Where("workspace_id = ? AND agent_run_id = ? AND parent_id IS NULL", workspaceID, runID).
 		WhereGroup(" AND ", func(query *bun.SelectQuery) *bun.SelectQuery {
 			return query.
-				Where("handover = ? AND status IN (?)", einorun.HandoverAwait,
+				Where("handover = ? AND status IN (?)", agentcontract.HandoverAwait,
 					bun.List([]domain.AgentToolCallStatus{domain.AgentToolCallQueued, domain.AgentToolCallRunning, domain.AgentToolCallWaiting})).
 				WhereOr("handover IS NULL AND status = ? AND decision IS NULL AND source <> ?", domain.AgentToolCallAwaitingDecision, domain.AgentToolSourceLocalAgent)
 		}).

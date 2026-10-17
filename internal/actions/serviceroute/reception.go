@@ -9,7 +9,8 @@ import (
 	"fmt"
 	"time"
 
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/reportpage"
+	servicepolicyaction "github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -29,8 +30,7 @@ type Reception struct {
 
 // ReceptionAvatar 定义接待方头像文件的存储位置。
 type ReceptionAvatar struct {
-	StorageBackend domain.FileStorageBackend
-	StorageKey     string
+	StorageKey string
 }
 
 const (
@@ -44,6 +44,7 @@ const (
 type ReceptionResolver struct {
 	db          bun.IDB
 	workspaceID string
+	audience    domain.ServiceAudience
 	now         time.Time
 	hours       *domain.BusinessHours
 	queueOnline map[string]bool
@@ -53,17 +54,16 @@ type ReceptionResolver struct {
 
 // receptionIdentityRow 定义接待身份及其头像文件。
 type receptionIdentityRow struct {
-	Type          domain.WorkspaceIdentityType `bun:"type"`
-	DisplayName   string                       `bun:"display_name"`
-	WorkStatus    domain.WorkStatus            `bun:"work_status"`
-	AvatarBackend *domain.FileStorageBackend   `bun:"avatar_storage_backend"`
-	AvatarKey     *string                      `bun:"avatar_storage_key"`
+	Type        domain.WorkspaceIdentityType `bun:"type"`
+	DisplayName string                       `bun:"display_name"`
+	WorkStatus  domain.WorkStatus            `bun:"work_status"`
+	AvatarKey   *string                      `bun:"avatar_storage_key"`
 }
 
 // NewReceptionResolver 创建指定企业的接待状态解析器。
-func NewReceptionResolver(db bun.IDB, workspaceID string) *ReceptionResolver {
+func NewReceptionResolver(db bun.IDB, workspaceID string, audience domain.ServiceAudience) *ReceptionResolver {
 	return &ReceptionResolver{
-		db: db, workspaceID: workspaceID,
+		db: db, workspaceID: workspaceID, audience: audience,
 		queueOnline: map[string]bool{}, queueReply: map[string]domain.CustomerReceptionReply{}, identities: map[string]*receptionIdentityRow{},
 	}
 }
@@ -83,7 +83,7 @@ func (r *ReceptionResolver) RefreshAt(ctx context.Context) (*time.Time, error) {
 // businessHours 返回企业客服工作时间并记下判断工作时间所用的数据库时刻，同一解析器只读取一次。
 func (r *ReceptionResolver) businessHours(ctx context.Context) (domain.BusinessHours, error) {
 	if r.hours == nil {
-		hours, err := customerserviceaction.LoadBusinessHours(ctx, r.db, r.workspaceID)
+		hours, err := servicepolicyaction.LoadBusinessHours(ctx, r.db, r.workspaceID, r.audience)
 		if err != nil {
 			return domain.BusinessHours{}, err
 		}
@@ -149,8 +149,8 @@ func (r *ReceptionResolver) identityReception(ctx context.Context, identityID st
 		return Reception{}, false, nil
 	}
 	reception := Reception{HandlerType: &row.Type, HandlerName: row.DisplayName, Reply: domain.CustomerReceptionReplyNone}
-	if row.AvatarBackend != nil && row.AvatarKey != nil {
-		reception.HandlerAvatar = &ReceptionAvatar{StorageBackend: *row.AvatarBackend, StorageKey: *row.AvatarKey}
+	if row.AvatarKey != nil {
+		reception.HandlerAvatar = &ReceptionAvatar{StorageKey: *row.AvatarKey}
 	}
 	if row.Type == domain.WorkspaceIdentityTypeAgent {
 		reception.Online, reception.Reply = true, domain.CustomerReceptionReplyImmediate
@@ -166,7 +166,6 @@ func (r *ReceptionResolver) loadIdentity(ctx context.Context, identityID string)
 	err := r.db.NewSelect().
 		TableExpr("workspace_identities AS oi").
 		ColumnExpr("oi.type, oi.display_name, oi.work_status").
-		ColumnExpr("av.storage_backend AS avatar_storage_backend").
 		ColumnExpr("av.storage_key AS avatar_storage_key").
 		Join("LEFT JOIN files AS av ON av.id = oi.avatar_file_id AND av.workspace_id = oi.workspace_id AND av.status = ?", domain.FileStatusActive).
 		Where("oi.workspace_id = ? AND oi.id = ?", r.workspaceID, identityID).
@@ -217,12 +216,14 @@ func (r *ReceptionResolver) queueReception(ctx context.Context, teamID *string) 
 	if !cached {
 		// 取该队列统计窗口内需要真人且有真人回复的周期，样本足够时按工作时间计的首响中位数取档位。
 		var estimate struct {
-			Samples int      `bun:"samples"`
-			Median  *float64 `bun:"median"`
+			Samples int  `bun:"samples"`
+			Median  *int `bun:"median"`
 		}
 		if err := r.db.NewSelect().TableExpr("service_sessions AS ss").
 			ColumnExpr("count(*) AS samples").
-			ColumnExpr("percentile_cont(0.5) WITHIN GROUP (ORDER BY ss.human_first_response_seconds) AS median").
+			ColumnExpr(reportpage.MedianExpr("ss.human_first_response_seconds")+" AS median").
+			Join("JOIN service_conversations AS svc ON svc.workspace_id = ss.workspace_id AND svc.id = ss.service_conversation_id").
+			Where("svc.audience = ?", r.audience).
 			Where("ss.workspace_id = ? AND ss.team_id IS NOT DISTINCT FROM ?", r.workspaceID, teamID).
 			Where("ss.human_first_response_seconds IS NOT NULL AND ss.human_requested_at >= now() - make_interval(secs => ?)", replyEstimateWindow.Seconds()).
 			Scan(ctx, &estimate); err != nil {
@@ -230,7 +231,7 @@ func (r *ReceptionResolver) queueReception(ctx context.Context, teamID *string) 
 		}
 		reply = domain.CustomerReceptionReplySoon
 		if estimate.Samples >= replyEstimateMinSamples && estimate.Median != nil {
-			reply = domain.CustomerReceptionReplyWithin(time.Duration(*estimate.Median * float64(time.Second)))
+			reply = domain.CustomerReceptionReplyWithin(time.Duration(*estimate.Median) * time.Second)
 		}
 		r.queueReply[key] = reply
 	}

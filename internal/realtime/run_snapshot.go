@@ -41,7 +41,7 @@ type runSnapshotPart struct {
 
 // SetRunTransport 在接收请求前注入 Core NATS 与适配层事件发布器。
 func (p *Publisher) SetRunTransport(nc *nats.Conn, prefix string, publish func(context.Context, string, RunStreamEvent) error) {
-	p.nc, p.runPrefix, p.publishRun = nc, prefix+"_runs", publish
+	p.nc, p.runPrefix, p.publishRun = nc, prefix, publish
 }
 
 // ReadRunSnapshot 向持久记录指向的实例读取完整快照，同实例使用相同分块协议。

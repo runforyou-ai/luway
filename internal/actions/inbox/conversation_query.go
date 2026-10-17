@@ -4,28 +4,25 @@ package inbox
 
 import (
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/channeldelivery"
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
 
-// serviceConversationDetailsQuery 读取企业内服务会话摘要，不按处理队列限制阅读；预览取当前成员可见的最后一条消息。
+// serviceConversationDetailsQuery 读取企业内服务会话摘要，不按处理队列限制阅读；预览取当前成员可见的最后一条消息。未读与未回应提醒由页内或全量汇总的批量查询另行填充。
 func (q *LoadInboxQuery) serviceConversationDetailsQuery(workspaceID, currentIdentityID, userID sqlArg) *bun.SelectQuery {
 	return q.serviceConversationAccessQuery(workspaceID, currentIdentityID).
-		ColumnExpr("unread.unread_count AS unread_count").
-		ColumnExpr("unread.mentioned_unread_count AS mentioned_unread_count").
-		ColumnExpr("unanswered.unanswered_mention_count AS unanswered_mention_count").
 		ColumnExpr("state.last_read_message_id::text AS last_read_message_id").
 		ColumnExpr("state.pin_rank IS NOT NULL AS pinned").
 		ColumnExpr("cv.type AS type").
 		ColumnExpr("cv.title AS title").
 		ColumnExpr("svc.source, svc.audience").
 		// 发起人是成员时取成员名称与头像，是联系人时取联系人在成员界面的名称与渠道头像。
-		ColumnExpr("COALESCE(requester_oi.display_name, "+contactname.Expr("c", "ci.display_name")+") AS requester_name").
+		ColumnExpr(contactprofile.RequesterNameExpr("c", "ci.display_name", "requester_oi")+" AS requester_name").
 		ColumnExpr("c.number AS requester_contact_number").
-		ColumnExpr("COALESCE(requester_oi.avatar_file_id, ci.avatar_file_id)::text AS requester_avatar_file_id").
+		ColumnExpr(contactprofile.RequesterAvatarExpr("ci", "requester_oi")+" AS requester_avatar_file_id").
 		ColumnExpr("svc.requester_subject_id::text AS requester_chat_subject_id").
 		ColumnExpr("ch.type AS channel_type").
 		ColumnExpr("ch.name AS channel_name").
@@ -46,6 +43,7 @@ func (q *LoadInboxQuery) serviceConversationDetailsQuery(workspaceID, currentIde
 		ColumnExpr("assignee.avatar_file_id::text AS assignee_avatar_file_id").
 		ColumnExpr("current.team_id::text AS team_id").
 		ColumnExpr("team.name AS team_name").
+		Join("LEFT JOIN LATERAL (?) AS last_visible ON TRUE", lastVisibleMessageQuery(q.db, currentIdentityID)).
 		Join("LEFT JOIN messages AS preview_msg ON preview_msg.workspace_id = cv.workspace_id AND preview_msg.conversation_id = cv.id AND preview_msg.id = last_visible.id AND preview_msg.deleted_at IS NULL").
 		Join("LEFT JOIN conversation_participants AS preview_cp ON preview_cp.id = preview_msg.sender_participant_id AND preview_cp.workspace_id = preview_msg.workspace_id AND preview_cp.conversation_id = preview_msg.conversation_id").
 		Join("LEFT JOIN chat_subjects AS preview_cs ON preview_cs.id = preview_cp.subject_id AND preview_cs.workspace_id = preview_cp.workspace_id").
@@ -61,28 +59,14 @@ func (q *LoadInboxQuery) serviceConversationDetailsQuery(workspaceID, currentIde
 			WHERE crw.workspace_id = ci.workspace_id AND crw.channel_identity_id = ci.id AND ?
 			ORDER BY crw.expires_at DESC LIMIT 1
 		) AS reply_window ON TRUE`, deliveryaction.UsableReplyWindowCondition("crw", 1)).
-		Join("LEFT JOIN conversation_user_states AS state ON state.workspace_id = cv.workspace_id AND state.conversation_id = cv.id AND state.user_id = ?", userID).
-		Join("JOIN LATERAL (?) AS unread ON TRUE", unreadCountsQuery(q.db, currentIdentityID)).
-		// 统计当前周期内被提醒成员之后尚未在会话中发言的提醒。
-		Join(`JOIN LATERAL (
-			SELECT count(*) AS unanswered_mention_count
-			FROM message_mentions AS note_mention
-			JOIN messages AS note ON note.workspace_id = note_mention.workspace_id AND note.id = note_mention.message_id
-			WHERE note.workspace_id = cv.workspace_id AND note.conversation_id = cv.id AND note.service_session_id = current.id AND note.deleted_at IS NULL
-				AND NOT EXISTS (
-					SELECT 1 FROM messages AS answer
-					JOIN conversation_participants AS answer_cp ON answer_cp.workspace_id = answer.workspace_id AND answer_cp.conversation_id = answer.conversation_id AND answer_cp.id = answer.sender_participant_id
-					WHERE answer.workspace_id = note.workspace_id AND answer.conversation_id = note.conversation_id
-						AND answer.message_seq > note.message_seq AND answer.deleted_at IS NULL AND answer_cp.subject_id = note_mention.subject_id
-				)
-		) AS unanswered ON TRUE`)
+		Join("LEFT JOIN conversation_user_states AS state ON state.workspace_id = cv.workspace_id AND state.conversation_id = cv.id AND state.user_id = ?", userID)
 }
 
 // filterServiceInbox 为服务会话追加来源与服务对象筛选；全部范围另按服务状态和负责人筛选。
 func filterServiceInbox(query *bun.SelectQuery, input LoadInput) *bun.SelectQuery {
 	query = query.Where("msg.id IS NOT NULL")
 	if input.ChannelID != "" {
-		query = query.Where("ci.channel_id = ?", input.ChannelID)
+		query = query.Where("current.channel_id = ?", input.ChannelID)
 	}
 	if input.Source != "" {
 		query = query.Where("svc.source = ?", input.Source)
@@ -103,7 +87,7 @@ func filterServiceInbox(query *bun.SelectQuery, input LoadInput) *bun.SelectQuer
 	return query
 }
 
-// withIndividualConversationDetails 为单聊阅读基线追加消息预览和个人未读状态；预览取会话末条消息，服务会话的末条消息只含发起人可见的消息。
+// withIndividualConversationDetails 为单聊阅读基线追加消息预览和个人状态；预览取会话末条消息，服务会话的末条消息只含发起人可见的消息。未读由页内批量查询或 withLateralUnreadCount 另行追加。
 func withIndividualConversationDetails(query *bun.SelectQuery, identityID, userID sqlArg) *bun.SelectQuery {
 	return query.
 		ColumnExpr("? AS preview", messagequery.Summary("msg")).
@@ -111,7 +95,6 @@ func withIndividualConversationDetails(query *bun.SelectQuery, identityID, userI
 		ColumnExpr("preview_oi.type AS preview_sender_identity_type").
 		ColumnExpr("cv.last_message_at AS last_message_at").
 		ColumnExpr("cv.last_message_id::text AS last_message_id").
-		ColumnExpr("unread.unread_count AS unread_count").
 		ColumnExpr("state.last_read_message_id::text AS last_read_message_id").
 		ColumnExpr("COALESCE(state.muted, false) AS muted").
 		ColumnExpr("COALESCE(state.marked_unread, false) AS marked_unread").
@@ -121,8 +104,7 @@ func withIndividualConversationDetails(query *bun.SelectQuery, identityID, userI
 		Join("LEFT JOIN conversation_participants AS preview_cp ON preview_cp.id = msg.sender_participant_id AND preview_cp.workspace_id = msg.workspace_id AND preview_cp.conversation_id = msg.conversation_id").
 		Join("LEFT JOIN chat_subjects AS preview_cs ON preview_cs.id = preview_cp.subject_id AND preview_cs.workspace_id = preview_cp.workspace_id").
 		Join("LEFT JOIN workspace_identities AS preview_oi ON preview_oi.id = preview_cs.source_id AND preview_oi.workspace_id = preview_cs.workspace_id AND preview_cs.kind = ?", domain.ChatSubjectKindWorkspaceIdentity).
-		Join("LEFT JOIN conversation_user_states AS state ON state.workspace_id = cv.workspace_id AND state.conversation_id = cv.id AND state.user_id = ?", userID).
-		Join("JOIN LATERAL (?) AS unread ON TRUE", unreadCountsQuery(query.DB(), identityID))
+		Join("LEFT JOIN conversation_user_states AS state ON state.workspace_id = cv.workspace_id AND state.conversation_id = cv.id AND state.user_id = ?", userID)
 }
 
 // lastVisibleMessageQuery 构造会话 cv 中指定成员可见的最后一条消息，服务周期的系统事件只取发给发起人的服务进度。
@@ -162,7 +144,7 @@ func withAgentConversationDetails(query *bun.SelectQuery, identityID, userID sql
 		Join("LEFT JOIN LATERAL (SELECT agr.status FROM agent_runs AS agr WHERE agr.workspace_id = cv.workspace_id AND agr.conversation_id = cv.id AND agr.agent_identity_id = ac.agent_identity_id ORDER BY agr.created_at DESC, agr.id DESC LIMIT 1) AS latest_agent_run ON TRUE")
 }
 
-// groupConversationsQuery 共用群聊成员范围、个人状态和未读统计。
+// groupConversationsQuery 共用群聊成员范围和个人状态；未读由页内批量查询或 withLateralUnreadCounts 另行追加。
 func (q *LoadInboxQuery) groupConversationsQuery(workspaceID, identityID, userID sqlArg) *bun.SelectQuery {
 	return q.groupConversationAccessQuery(workspaceID, identityID).
 		ColumnExpr("COALESCE(cv.title, '') AS title").
@@ -175,8 +157,6 @@ func (q *LoadInboxQuery) groupConversationsQuery(workspaceID, identityID, userID
 		ColumnExpr("cv.last_message_at AS last_message_at").
 		ColumnExpr("cv.last_message_id::text AS last_message_id").
 		ColumnExpr("members.member_count AS member_count").
-		ColumnExpr("unread.unread_count AS unread_count").
-		ColumnExpr("unread.mentioned_unread_count AS mentioned_unread_count").
 		ColumnExpr("state.last_read_message_id::text AS last_read_message_id").
 		ColumnExpr("COALESCE(state.muted, false) AS muted").
 		ColumnExpr("COALESCE(state.marked_unread, false) AS marked_unread").
@@ -187,6 +167,5 @@ func (q *LoadInboxQuery) groupConversationsQuery(workspaceID, identityID, userID
 		Join("LEFT JOIN conversation_participants AS preview_cp ON preview_cp.id = msg.sender_participant_id AND preview_cp.workspace_id = msg.workspace_id AND preview_cp.conversation_id = msg.conversation_id").
 		Join("LEFT JOIN chat_subjects AS preview_cs ON preview_cs.id = preview_cp.subject_id AND preview_cs.workspace_id = preview_cp.workspace_id").
 		Join("LEFT JOIN workspace_identities AS preview_oi ON preview_oi.id = preview_cs.source_id AND preview_oi.workspace_id = preview_cs.workspace_id AND preview_cs.kind = ?", domain.ChatSubjectKindWorkspaceIdentity).
-		Join("LEFT JOIN conversation_user_states AS state ON state.workspace_id = cv.workspace_id AND state.conversation_id = cv.id AND state.user_id = ?", userID).
-		Join("JOIN LATERAL (?) AS unread ON TRUE", unreadCountsQuery(q.db, identityID))
+		Join("LEFT JOIN conversation_user_states AS state ON state.workspace_id = cv.workspace_id AND state.conversation_id = cv.id AND state.user_id = ?", userID)
 }

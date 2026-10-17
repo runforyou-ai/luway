@@ -21,7 +21,6 @@ import (
 
 // TestAgentRunShutdownResume 验证最后一次执行尝试在停机时中断后，按原尝试序号重新投递的任务由新实例接手并完成运行。
 func TestAgentRunShutdownResume(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	db, identity, _, modelID := newAIWorkspace(t)
 	agent, err := agentaction.NewCreateAgentAction(db).Execute(ctx, identity, agentaction.CreateInput{DisplayName: "停机恢复", Execution: agentaction.ExecutionInput{
@@ -34,8 +33,7 @@ func TestAgentRunShutdownResume(t *testing.T) {
 	require.NoError(t, err)
 
 	broker := servertest.StartRealtimeBroker(t)
-	options := servertask.Options{Namespace: "resume-" + uuid.NewV7().String(), Replicas: 1}
-	first, err := servertask.New(ctx, broker.JS, options, db, db, uuid.NewV7().String())
+	first, err := servertask.New(ctx, broker.JS, db, db, uuid.NewV7().String())
 	require.NoError(t, err)
 	entered := make(chan struct{})
 	blocking := testAgentRuntime{run: func(ctx context.Context, _ agentruntime.RunRequest, _ einorun.Feed) (agentruntime.RunResult, error) {
@@ -65,7 +63,7 @@ func TestAgentRunShutdownResume(t *testing.T) {
 	}
 	first.Stop()
 
-	second, err := servertask.New(ctx, broker.JS, options, db, db, uuid.NewV7().String())
+	second, err := servertask.New(ctx, broker.JS, db, db, uuid.NewV7().String())
 	require.NoError(t, err)
 	success := testAgentRuntime{run: func(ctx context.Context, _ agentruntime.RunRequest, feed einorun.Feed) (agentruntime.RunResult, error) {
 		claimed, err := feed.Claim(ctx, 1)

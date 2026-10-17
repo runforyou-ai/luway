@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 
 import { ConversationStatus, ConversationType, type GroupConversation } from "@/api"
 import { MobileIndividualThread } from "@/apps/mobile/chats/mobile-individual-thread"
-import type { ConversationLocateTarget } from "@/features/inbox/timeline/conversation-timeline"
+import type { ConversationLocateTarget } from "@/features/inbox/public"
 
 /** 复用消息窗口、已读与提及导航，按需定位原消息，群聊解散后保留历史并关闭发送区。 */
 export function MobileGroupThread({

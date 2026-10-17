@@ -15,17 +15,20 @@ import (
 func (s *Service) registerGeneratedRoutes(handle func(string, http.HandlerFunc)) {
 	handle("GET /realtime/connection", s.getRealtimeConnection)
 	handle("GET /installation/status", s.installationStatus)
-	handle("POST /install", s.installWorkspace)
 	handle("POST /auth/login", s.login)
 	handle("POST /auth/register", s.register)
 	handle("POST /auth/logout", s.logout)
 	handle("GET /account", s.loadAccount)
+	handle("GET /admin/account", s.loadAdminAccount)
+	handle("PATCH /admin/password", s.changeAdminPassword)
 	handle("GET /workspaces", s.listWorkspaces)
 	handle("GET /workspace-attention", s.listWorkspaceAttention)
 	handle("POST /workspaces", s.createWorkspace)
 	handle("GET /auth/identity", s.loadIdentity)
 	handle("PATCH /password", s.changePassword)
 	handle("PUT /push-device", s.setPushDevice)
+	handle("POST /platform/workspaces/{workspaceID}/support-access", s.createSupportAccess)
+	handle("DELETE /auth/support-access", s.revokeSupportAccess)
 	handle("GET /product-docs/page", s.getProductDocPage)
 	handle("PATCH /profile", s.updateProfile)
 	handle("PATCH /preferences", s.updateUserPreferences)
@@ -56,7 +59,7 @@ func (s *Service) registerGeneratedRoutes(handle func(string, http.HandlerFunc))
 	handle("PUT /settings/workspace", s.updateWorkspace)
 	handle("POST /files/uploads", s.createFileUpload)
 	handle("POST /files/{fileID}/complete", s.completeFileUpload)
-	handle("POST /files/{fileID}/parts", s.createFilePartUpload)
+	handle("POST /files/{fileID}/upload/sign", s.signFileUpload)
 	handle("DELETE /files/{fileID}/upload", s.cancelFileUpload)
 	handle("GET /conversations/{conversationID}/files", s.listConversationFiles)
 	handle("POST /conversations/{conversationID}/files", s.addConversationFile)
@@ -123,16 +126,16 @@ func (s *Service) registerGeneratedRoutes(handle func(string, http.HandlerFunc))
 	handle("PUT /service-sessions/{serviceSessionID}/summary", s.updateServiceSessionSummary)
 	handle("GET /settings/customer-service/identity-secret", s.getCustomerIdentitySecret)
 	handle("POST /settings/customer-service/identity-secret", s.regenerateCustomerIdentitySecret)
-	handle("GET /settings/customer-service/business-hours", s.getBusinessHours)
-	handle("PUT /settings/customer-service/business-hours", s.updateBusinessHours)
-	handle("GET /settings/customer-service/timeouts", s.getServiceTimeouts)
-	handle("PUT /settings/customer-service/timeouts", s.updateServiceTimeouts)
-	handle("GET /settings/customer-service/summary", s.getServiceSummarySettings)
-	handle("PUT /settings/customer-service/summary", s.updateServiceSummarySettings)
-	handle("GET /settings/customer-service/categories", s.listServiceCategories)
-	handle("POST /settings/customer-service/categories", s.createServiceCategory)
-	handle("PUT /settings/customer-service/categories/{categoryID}", s.updateServiceCategory)
-	handle("DELETE /settings/customer-service/categories/{categoryID}", s.deleteServiceCategory)
+	handle("GET /settings/service-policies/{audience}/business-hours", s.getBusinessHours)
+	handle("PUT /settings/service-policies/{audience}/business-hours", s.updateBusinessHours)
+	handle("GET /settings/service-policies/{audience}/timeouts", s.getServiceTimeouts)
+	handle("PUT /settings/service-policies/{audience}/timeouts", s.updateServiceTimeouts)
+	handle("GET /settings/service-policies/{audience}/summary", s.getServiceSummarySettings)
+	handle("PUT /settings/service-policies/{audience}/summary", s.updateServiceSummarySettings)
+	handle("GET /settings/service-policies/{audience}/categories", s.listServiceCategories)
+	handle("POST /settings/service-policies/{audience}/categories", s.createServiceCategory)
+	handle("PUT /settings/service-policies/{audience}/categories/{categoryID}", s.updateServiceCategory)
+	handle("DELETE /settings/service-policies/{audience}/categories/{categoryID}", s.deleteServiceCategory)
 	handle("GET /conversations/{conversationID}/translation", s.getConversationTranslation)
 	handle("POST /conversations/{conversationID}/translations", s.translateConversationMessages)
 	handle("PUT /conversations/{conversationID}/reply-language", s.updateCustomerReplyLanguage)
@@ -189,6 +192,8 @@ func (s *Service) registerGeneratedRoutes(handle func(string, http.HandlerFunc))
 	handle("GET /platform/wechat", s.getWechatPlatform)
 	handle("PUT /platform/wechat", s.saveWechatPlatform)
 	handle("POST /platform/wechat/check", s.checkWechatPlatform)
+	handle("GET /settings/ai-evaluation", s.getAgentEvaluationSettings)
+	handle("PUT /settings/ai-evaluation", s.updateAgentEvaluationSettings)
 	handle("GET /agents/{agentID}/evaluation", s.getAgentEvaluation)
 	handle("POST /agents/{agentID}/evaluation/runs", s.startAgentEvaluationRun)
 	handle("POST /agents/{agentID}/evaluation/cases", s.createAgentEvaluationCase)
@@ -216,16 +221,15 @@ func (s *Service) registerGeneratedRoutes(handle func(string, http.HandlerFunc))
 	handle("DELETE /invitations/{invitationID}", s.revokeInvitation)
 	handle("POST /invitation-previews", s.previewInvitation)
 	handle("POST /invitation-acceptances", s.acceptInvitation)
+	handle("POST /platform/diagnostic-bundles", s.exportDiagnosticBundle)
+	handle("POST /platform/diagnostic-bundles/upload", s.uploadDiagnosticBundle)
 	handle("GET /platform/overview", s.getPlatformOverview)
-	handle("GET /platform/settings", s.getPlatformSettings)
-	handle("PUT /platform/settings", s.updatePlatformSettings)
+	handle("GET /platform/site", s.getPlatformSite)
+	handle("PUT /platform/site", s.updatePlatformSite)
 	handle("GET /platform/deployment", s.getPlatformDeployment)
-	handle("PUT /platform/deployment/basics", s.updatePlatformDeploymentBasics)
-	handle("PUT /platform/deployment/address", s.updatePlatformAddress)
 	handle("PUT /platform/deployment/storage", s.updatePlatformStorage)
 	handle("PUT /platform/deployment/email", s.updatePlatformEmail)
-	handle("PUT /platform/deployment/branding", s.updatePlatformBranding)
-	handle("PUT /platform/deployment/home", s.updatePlatformHome)
+	handle("POST /platform/deployment/email/test", s.testPlatformEmail)
 	handle("GET /platform/accounts", s.listPlatformAccounts)
 	handle("POST /platform/accounts/{accountID}/deactivate", s.deactivatePlatformAccount)
 	handle("POST /platform/accounts/{accountID}/reactivate", s.reactivatePlatformAccount)
@@ -235,14 +239,12 @@ func (s *Service) registerGeneratedRoutes(handle func(string, http.HandlerFunc))
 	handle("GET /platform/license", s.getLicense)
 	handle("PUT /platform/license", s.activateLicense)
 	handle("POST /platform/license/activations", s.activateLicenseOnline)
-	handle("POST /platform/license/sync", s.syncLicense)
 	handle("POST /platform/workspaces/{workspaceID}/suspend", s.suspendPlatformWorkspace)
 	handle("POST /platform/workspaces/{workspaceID}/resume", s.resumePlatformWorkspace)
 	handle("GET /platform/usage", s.getPlatformUsage)
 	handle("GET /platform/usage/workspaces", s.listPlatformWorkspaceUsage)
 	handle("GET /platform/runtime", s.getPlatformRuntimeStatus)
 	handle("GET /platform/runtime/failed-tasks", s.listPlatformFailedTasks)
-	handle("GET /platform/runtime/server-logs", s.listPlatformServerLogs)
 	handle("GET /platform/diagnostics", s.getPlatformDiagnostics)
 	handle("GET /seats", s.getWorkspaceSeats)
 	handle("POST /knowledge-bases/{knowledgeBaseID}/documents/{documentID}/retry", s.retryKnowledgeDocument)
@@ -309,6 +311,11 @@ func (s *Service) registerGeneratedRoutes(handle func(string, http.HandlerFunc))
 	handle("GET /settings/web-search", s.getWebSearchSettings)
 	handle("PUT /settings/web-search", s.updateWebSearchSettings)
 	handle("POST /settings/web-search/test", s.testWebSearchService)
+	handle("GET /settings/web-fetch", s.getWebFetchSettings)
+	handle("PUT /settings/web-fetch", s.updateWebFetchSettings)
+	handle("POST /settings/web-fetch/test", s.testWebFetchService)
+	handle("GET /settings/media-understanding", s.getMediaUnderstandingSettings)
+	handle("PUT /settings/media-understanding", s.updateMediaUnderstandingSettings)
 	handle("GET /reports/ai-performance", s.getAIPerformanceReport)
 	handle("GET /reports/ai-performance/breakdowns", s.listAIPerformanceBreakdowns)
 	handle("GET /reports/ai-performance/issues", s.listAIPerformanceIssues)
@@ -330,7 +337,7 @@ func (s *Service) registerGeneratedRoutes(handle func(string, http.HandlerFunc))
 	handle("POST /workspace-computers/{computerID}/credential", s.resetComputerCredential)
 }
 
-// getRealtimeConnection 返回当前账号的成员实时连接配置。
+// getRealtimeConnection 返回当前账号的成员实时连接配置；用户端与支援会话均可调用。
 func (s *Service) getRealtimeConnection(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.GetRealtimeConnection(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
@@ -342,17 +349,7 @@ func (s *Service) installationStatus(writer http.ResponseWriter, request *http.R
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// installWorkspace 在平台尚无账号时创建平台管理员和第一个工作区，返回工作区和平台管理员登录会话。
-func (s *Service) installWorkspace(writer http.ResponseWriter, request *http.Request) {
-	var input appservice.InstallWorkspaceInput
-	if !httpcodec.BindJSON(writer, request, &input) {
-		return
-	}
-	output, err := s.backend.InstallWorkspace(request.Context(), httpcodec.RequestMeta(request), input)
-	httpcodec.WriteResult(writer, request, http.StatusCreated, output, err)
-}
-
-// login 校验账号密码并建立登录会话。
+// login 校验账号密码并建立用户端登录会话。
 func (s *Service) login(writer http.ResponseWriter, request *http.Request) {
 	var input appservice.LoginInput
 	if !httpcodec.BindJSON(writer, request, &input) {
@@ -372,24 +369,39 @@ func (s *Service) register(writer http.ResponseWriter, request *http.Request) {
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// logout 退出当前登录会话。
+// logout 退出当前用户端登录会话。
 func (s *Service) logout(writer http.ResponseWriter, request *http.Request) {
 	httpcodec.WriteEmpty(writer, request, s.backend.Logout(request.Context(), httpcodec.RequestMeta(request)))
 }
 
-// loadAccount 返回当前登录账号。
+// loadAccount 返回当前用户端登录账号。
 func (s *Service) loadAccount(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.LoadAccount(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// listWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
+// loadAdminAccount 返回当前平台后台登录账号。
+func (s *Service) loadAdminAccount(writer http.ResponseWriter, request *http.Request) {
+	output, err := s.backend.LoadAdminAccount(request.Context(), httpcodec.RequestMeta(request))
+	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
+}
+
+// changeAdminPassword 核验当前平台管理员的密码并保存新密码。
+func (s *Service) changeAdminPassword(writer http.ResponseWriter, request *http.Request) {
+	var input appservice.ChangePasswordInput
+	if !httpcodec.BindJSON(writer, request, &input) {
+		return
+	}
+	httpcodec.WriteEmpty(writer, request, s.backend.ChangeAdminPassword(request.Context(), httpcodec.RequestMeta(request), input))
+}
+
+// listWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区；支援会话只返回绑定工作区。
 func (s *Service) listWorkspaces(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.ListWorkspaces(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// listWorkspaceAttention 返回当前账号在各工作区的提醒数量，工作区切换器与应用角标据此提示其他工作区的未读。
+// listWorkspaceAttention 返回当前账号在各工作区的提醒数量，工作区切换器与应用角标据此提示其他工作区的未读；支援会话只返回绑定工作区。
 func (s *Service) listWorkspaceAttention(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.ListWorkspaceAttention(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
@@ -427,6 +439,17 @@ func (s *Service) setPushDevice(writer http.ResponseWriter, request *http.Reques
 		return
 	}
 	httpcodec.WriteEmpty(writer, request, s.backend.SetPushDevice(request.Context(), httpcodec.RequestMeta(request), input))
+}
+
+// createSupportAccess 为平台管理员签发进入指定工作区的短期支援凭证。
+func (s *Service) createSupportAccess(writer http.ResponseWriter, request *http.Request) {
+	output, err := s.backend.CreateSupportAccess(request.Context(), httpcodec.RequestMeta(request), request.PathValue("workspaceID"))
+	httpcodec.WriteResult(writer, request, http.StatusCreated, output, err)
+}
+
+// revokeSupportAccess 撤销当前支援会话。
+func (s *Service) revokeSupportAccess(writer http.ResponseWriter, request *http.Request) {
+	httpcodec.WriteEmpty(writer, request, s.backend.RevokeSupportAccess(request.Context(), httpcodec.RequestMeta(request)))
 }
 
 // getProductDocPage 返回当前平台可见的产品文档页面正文，供应用内帮助显示。
@@ -686,13 +709,13 @@ func (s *Service) completeFileUpload(writer http.ResponseWriter, request *http.R
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// createFilePartUpload 创建一个分片的直传请求。
-func (s *Service) createFilePartUpload(writer http.ResponseWriter, request *http.Request) {
-	var input appservice.FilePartUploadInput
+// signFileUpload 为当前上传签发 S3 请求。
+func (s *Service) signFileUpload(writer http.ResponseWriter, request *http.Request) {
+	var input appservice.FileUploadSignInput
 	if !httpcodec.BindJSON(writer, request, &input) {
 		return
 	}
-	output, err := s.backend.CreateFilePartUpload(request.Context(), httpcodec.RequestMeta(request), request.PathValue("fileID"), input)
+	output, err := s.backend.SignFileUpload(request.Context(), httpcodec.RequestMeta(request), request.PathValue("fileID"), input)
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
@@ -1226,7 +1249,7 @@ func (s *Service) regenerateCustomerIdentitySecret(writer http.ResponseWriter, r
 
 // getBusinessHours 读取当前企业的客服工作时间。
 func (s *Service) getBusinessHours(writer http.ResponseWriter, request *http.Request) {
-	output, err := s.backend.GetBusinessHours(request.Context(), httpcodec.RequestMeta(request))
+	output, err := s.backend.GetBusinessHours(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
@@ -1236,13 +1259,13 @@ func (s *Service) updateBusinessHours(writer http.ResponseWriter, request *http.
 	if !httpcodec.BindJSON(writer, request, &input) {
 		return
 	}
-	output, err := s.backend.UpdateBusinessHours(request.Context(), httpcodec.RequestMeta(request), input)
+	output, err := s.backend.UpdateBusinessHours(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"), input)
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
 // getServiceTimeouts 读取当前企业的客服超时时长。
 func (s *Service) getServiceTimeouts(writer http.ResponseWriter, request *http.Request) {
-	output, err := s.backend.GetServiceTimeouts(request.Context(), httpcodec.RequestMeta(request))
+	output, err := s.backend.GetServiceTimeouts(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
@@ -1252,13 +1275,13 @@ func (s *Service) updateServiceTimeouts(writer http.ResponseWriter, request *htt
 	if !httpcodec.BindJSON(writer, request, &input) {
 		return
 	}
-	output, err := s.backend.UpdateServiceTimeouts(request.Context(), httpcodec.RequestMeta(request), input)
+	output, err := s.backend.UpdateServiceTimeouts(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"), input)
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
 // getServiceSummarySettings 读取当前企业的周期小结设置。
 func (s *Service) getServiceSummarySettings(writer http.ResponseWriter, request *http.Request) {
-	output, err := s.backend.GetServiceSummarySettings(request.Context(), httpcodec.RequestMeta(request))
+	output, err := s.backend.GetServiceSummarySettings(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
@@ -1268,13 +1291,13 @@ func (s *Service) updateServiceSummarySettings(writer http.ResponseWriter, reque
 	if !httpcodec.BindJSON(writer, request, &input) {
 		return
 	}
-	output, err := s.backend.UpdateServiceSummarySettings(request.Context(), httpcodec.RequestMeta(request), input)
+	output, err := s.backend.UpdateServiceSummarySettings(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"), input)
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
 // listServiceCategories 返回当前企业的咨询分类目录。
 func (s *Service) listServiceCategories(writer http.ResponseWriter, request *http.Request) {
-	output, err := s.backend.ListServiceCategories(request.Context(), httpcodec.RequestMeta(request))
+	output, err := s.backend.ListServiceCategories(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
@@ -1284,7 +1307,7 @@ func (s *Service) createServiceCategory(writer http.ResponseWriter, request *htt
 	if !httpcodec.BindJSON(writer, request, &input) {
 		return
 	}
-	output, err := s.backend.CreateServiceCategory(request.Context(), httpcodec.RequestMeta(request), input)
+	output, err := s.backend.CreateServiceCategory(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"), input)
 	httpcodec.WriteResult(writer, request, http.StatusCreated, output, err)
 }
 
@@ -1294,13 +1317,13 @@ func (s *Service) updateServiceCategory(writer http.ResponseWriter, request *htt
 	if !httpcodec.BindJSON(writer, request, &input) {
 		return
 	}
-	output, err := s.backend.UpdateServiceCategory(request.Context(), httpcodec.RequestMeta(request), request.PathValue("categoryID"), input)
+	output, err := s.backend.UpdateServiceCategory(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"), request.PathValue("categoryID"), input)
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
 // deleteServiceCategory 删除咨询分类，历史记录保留分类名称。
 func (s *Service) deleteServiceCategory(writer http.ResponseWriter, request *http.Request) {
-	httpcodec.WriteEmpty(writer, request, s.backend.DeleteServiceCategory(request.Context(), httpcodec.RequestMeta(request), request.PathValue("categoryID")))
+	httpcodec.WriteEmpty(writer, request, s.backend.DeleteServiceCategory(request.Context(), httpcodec.RequestMeta(request), request.PathValue("audience"), request.PathValue("categoryID")))
 }
 
 // getConversationTranslation 返回当前成员在客户会话中的翻译状态。
@@ -1712,7 +1735,7 @@ func (s *Service) checkWechatAuthorizationChannelConnection(writer http.Response
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// getWechatPlatform 返回微信第三方平台配置、可用状态、接入地址、各服务器出口 IP 与平台凭据状态。
+// getWechatPlatform 返回微信第三方平台配置、可用状态、接入地址与平台凭据状态。
 func (s *Service) getWechatPlatform(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.GetWechatPlatform(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
@@ -1731,6 +1754,22 @@ func (s *Service) saveWechatPlatform(writer http.ResponseWriter, request *http.R
 // checkWechatPlatform 立即重新获取微信平台凭据并返回结果。
 func (s *Service) checkWechatPlatform(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.CheckWechatPlatform(request.Context(), httpcodec.RequestMeta(request))
+	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
+}
+
+// getAgentEvaluationSettings 读取工作区 AI 评测设置。
+func (s *Service) getAgentEvaluationSettings(writer http.ResponseWriter, request *http.Request) {
+	output, err := s.backend.GetAgentEvaluationSettings(request.Context(), httpcodec.RequestMeta(request))
+	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
+}
+
+// updateAgentEvaluationSettings 修改工作区 AI 评测设置。
+func (s *Service) updateAgentEvaluationSettings(writer http.ResponseWriter, request *http.Request) {
+	var input appservice.AgentEvaluationSettings
+	if !httpcodec.BindJSON(writer, request, &input) {
+		return
+	}
+	output, err := s.backend.UpdateAgentEvaluationSettings(request.Context(), httpcodec.RequestMeta(request), input)
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
@@ -1931,51 +1970,46 @@ func (s *Service) acceptInvitation(writer http.ResponseWriter, request *http.Req
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
+// exportDiagnosticBundle 生成当前服务端的诊断包。
+func (s *Service) exportDiagnosticBundle(writer http.ResponseWriter, request *http.Request) {
+	output, err := s.backend.ExportDiagnosticBundle(request.Context(), httpcodec.RequestMeta(request))
+	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
+}
+
+// uploadDiagnosticBundle 生成并主动上传诊断包。
+func (s *Service) uploadDiagnosticBundle(writer http.ResponseWriter, request *http.Request) {
+	var input appservice.DiagnosticUploadInput
+	if !httpcodec.BindJSON(writer, request, &input) {
+		return
+	}
+	httpcodec.WriteEmpty(writer, request, s.backend.UploadDiagnosticBundle(request.Context(), httpcodec.RequestMeta(request), input))
+}
+
 // getPlatformOverview 返回平台规模与活跃趋势。
 func (s *Service) getPlatformOverview(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.GetPlatformOverview(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// getPlatformSettings 返回平台注册策略与工作区创建策略。
-func (s *Service) getPlatformSettings(writer http.ResponseWriter, request *http.Request) {
-	output, err := s.backend.GetPlatformSettings(request.Context(), httpcodec.RequestMeta(request))
+// getPlatformSite 返回站点设置：部署名称与时区、注册与创建、访问地址与证书、部署品牌与产品首页。
+func (s *Service) getPlatformSite(writer http.ResponseWriter, request *http.Request) {
+	output, err := s.backend.GetPlatformSite(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// updatePlatformSettings 修改平台注册策略和工作区创建策略。
-func (s *Service) updatePlatformSettings(writer http.ResponseWriter, request *http.Request) {
-	var input appservice.PlatformPoliciesInput
+// updatePlatformSite 一次保存站点设置；上传证书的空证书或私钥保留已存值；未授权时不改写品牌；时区变化时在后台按新时区重建运营数据；HTTPS 需自动签发时先签发再保存。
+func (s *Service) updatePlatformSite(writer http.ResponseWriter, request *http.Request) {
+	var input appservice.PlatformSiteInput
 	if !httpcodec.BindJSON(writer, request, &input) {
 		return
 	}
-	output, err := s.backend.UpdatePlatformSettings(request.Context(), httpcodec.RequestMeta(request), input)
+	output, err := s.backend.UpdatePlatformSite(request.Context(), httpcodec.RequestMeta(request), input)
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// getPlatformDeployment 返回部署名称、部署地址、平台时区、上报开关、对象存储、邮件发送、部署品牌与产品首页配置。
+// getPlatformDeployment 返回对象存储与邮件发送配置。
 func (s *Service) getPlatformDeployment(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.GetPlatformDeployment(request.Context(), httpcodec.RequestMeta(request))
-	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
-}
-
-// updatePlatformDeploymentBasics 修改部署名称、平台时区与上报开关，时区变化时在后台按新时区重建运营数据。
-func (s *Service) updatePlatformDeploymentBasics(writer http.ResponseWriter, request *http.Request) {
-	var input appservice.PlatformDeploymentBasicsInput
-	if !httpcodec.BindJSON(writer, request, &input) {
-		return
-	}
-	output, err := s.backend.UpdatePlatformDeploymentBasics(request.Context(), httpcodec.RequestMeta(request), input)
-	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
-}
-
-// updatePlatformAddress 修改部署地址与证书：上传的证书须与私钥匹配、未到期且包含 HTTPS 部署地址的域名；自动签发时，部署中有直接提供 HTTPS 的服务器而 HTTPS 部署地址没有有效证书时先签发证书，成功后一起保存。
-func (s *Service) updatePlatformAddress(writer http.ResponseWriter, request *http.Request) {
-	var input appservice.PlatformAddressInput
-	if !httpcodec.BindJSON(writer, request, &input) {
-		return
-	}
-	output, err := s.backend.UpdatePlatformAddress(request.Context(), httpcodec.RequestMeta(request), input)
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
@@ -1989,9 +2023,9 @@ func (s *Service) updatePlatformStorage(writer http.ResponseWriter, request *htt
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// updatePlatformEmail 修改 SMTP 邮件发送配置，主机为空时关闭邮件发送。
+// updatePlatformEmail 修改当前邮件接入方式与发件人配置。
 func (s *Service) updatePlatformEmail(writer http.ResponseWriter, request *http.Request) {
-	var input appservice.PlatformEmailSettings
+	var input appservice.PlatformEmailInput
 	if !httpcodec.BindJSON(writer, request, &input) {
 		return
 	}
@@ -1999,24 +2033,13 @@ func (s *Service) updatePlatformEmail(writer http.ResponseWriter, request *http.
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// updatePlatformBranding 修改部署品牌，授权授予自定义品牌期间生效。
-func (s *Service) updatePlatformBranding(writer http.ResponseWriter, request *http.Request) {
-	var input appservice.PlatformBrandingSettings
+// testPlatformEmail 使用已保存的配置发送测试邮件。
+func (s *Service) testPlatformEmail(writer http.ResponseWriter, request *http.Request) {
+	var input appservice.PlatformEmailTestInput
 	if !httpcodec.BindJSON(writer, request, &input) {
 		return
 	}
-	output, err := s.backend.UpdatePlatformBranding(request.Context(), httpcodec.RequestMeta(request), input)
-	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
-}
-
-// updatePlatformHome 修改产品首页配置，首页提供价格区块时生效。
-func (s *Service) updatePlatformHome(writer http.ResponseWriter, request *http.Request) {
-	var input appservice.PlatformHomeSettings
-	if !httpcodec.BindJSON(writer, request, &input) {
-		return
-	}
-	output, err := s.backend.UpdatePlatformHome(request.Context(), httpcodec.RequestMeta(request), input)
-	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
+	httpcodec.WriteEmpty(writer, request, s.backend.TestPlatformEmail(request.Context(), httpcodec.RequestMeta(request), input))
 }
 
 // listPlatformAccounts 返回平台内的账号。
@@ -2063,7 +2086,7 @@ func (s *Service) listPlatformWorkspaces(writer http.ResponseWriter, request *ht
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// getLicense 返回服务器标识、授权状态与 control 同步结果。
+// getLicense 返回部署标识、授权状态。
 func (s *Service) getLicense(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.GetLicense(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
@@ -2086,12 +2109,6 @@ func (s *Service) activateLicenseOnline(writer http.ResponseWriter, request *htt
 		return
 	}
 	output, err := s.backend.ActivateLicenseOnline(request.Context(), httpcodec.RequestMeta(request), input)
-	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
-}
-
-// syncLicense 立即向 control 登记服务器并拉取最新授权。
-func (s *Service) syncLicense(writer http.ResponseWriter, request *http.Request) {
-	output, err := s.backend.SyncLicense(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
@@ -2143,17 +2160,7 @@ func (s *Service) listPlatformFailedTasks(writer http.ResponseWriter, request *h
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
 }
 
-// listPlatformServerLogs 按筛选条件以时间倒序返回近 30 天的服务端日志，按游标逐页读取。
-func (s *Service) listPlatformServerLogs(writer http.ResponseWriter, request *http.Request) {
-	input, ok := bindPlatformServerLogListInputQuery(writer, request)
-	if !ok {
-		return
-	}
-	output, err := s.backend.ListPlatformServerLogs(request.Context(), httpcodec.RequestMeta(request), input)
-	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
-}
-
-// getPlatformDiagnostics 返回平台概览、授权与 control 同步结果、部署配置与对象存储检查结果、各服务端进程的状态与配置、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+// getPlatformDiagnostics 返回平台概览、授权、部署配置与对象存储检查结果、各服务端进程的状态与配置、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
 func (s *Service) getPlatformDiagnostics(writer http.ResponseWriter, request *http.Request) {
 	output, err := s.backend.GetPlatformDiagnostics(request.Context(), httpcodec.RequestMeta(request))
 	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
@@ -2658,6 +2665,47 @@ func (s *Service) testWebSearchService(writer http.ResponseWriter, request *http
 	httpcodec.WriteEmpty(writer, request, s.backend.TestWebSearchService(request.Context(), httpcodec.RequestMeta(request), input))
 }
 
+// getWebFetchSettings 读取当前企业的网页读取设置。
+func (s *Service) getWebFetchSettings(writer http.ResponseWriter, request *http.Request) {
+	output, err := s.backend.GetWebFetchSettings(request.Context(), httpcodec.RequestMeta(request))
+	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
+}
+
+// updateWebFetchSettings 修改当前企业的网页读取设置。
+func (s *Service) updateWebFetchSettings(writer http.ResponseWriter, request *http.Request) {
+	var input appservice.WebFetchSettings
+	if !httpcodec.BindJSON(writer, request, &input) {
+		return
+	}
+	output, err := s.backend.UpdateWebFetchSettings(request.Context(), httpcodec.RequestMeta(request), input)
+	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
+}
+
+// testWebFetchService 用草稿配置读取一次固定页面，验证读取服务可用。
+func (s *Service) testWebFetchService(writer http.ResponseWriter, request *http.Request) {
+	var input appservice.WebFetchSettings
+	if !httpcodec.BindJSON(writer, request, &input) {
+		return
+	}
+	httpcodec.WriteEmpty(writer, request, s.backend.TestWebFetchService(request.Context(), httpcodec.RequestMeta(request), input))
+}
+
+// getMediaUnderstandingSettings 读取当前企业的媒体理解设置。
+func (s *Service) getMediaUnderstandingSettings(writer http.ResponseWriter, request *http.Request) {
+	output, err := s.backend.GetMediaUnderstandingSettings(request.Context(), httpcodec.RequestMeta(request))
+	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
+}
+
+// updateMediaUnderstandingSettings 修改当前企业的媒体理解设置。
+func (s *Service) updateMediaUnderstandingSettings(writer http.ResponseWriter, request *http.Request) {
+	var input appservice.MediaUnderstandingSettings
+	if !httpcodec.BindJSON(writer, request, &input) {
+		return
+	}
+	output, err := s.backend.UpdateMediaUnderstandingSettings(request.Context(), httpcodec.RequestMeta(request), input)
+	httpcodec.WriteResult(writer, request, http.StatusOK, output, err)
+}
+
 // getAIPerformanceReport 返回当前企业指定范围内的 AI 客服表现概览。
 func (s *Service) getAIPerformanceReport(writer http.ResponseWriter, request *http.Request) {
 	input, ok := bindAIPerformanceReportInputQuery(writer, request)
@@ -3067,10 +3115,11 @@ func bindPlatformAccountListInputQuery(writer http.ResponseWriter, request *http
 		return appservice.PlatformAccountListInput{}, false
 	}
 	return appservice.PlatformAccountListInput{
-		Query:    query.Get("query"),
-		Status:   appservice.AccountStatus(httpcodec.QueryOrDefault(query, "status", "active")),
-		Page:     page,
-		PageSize: pageSize,
+		WorkspaceID: query.Get("workspaceId"),
+		Query:       query.Get("query"),
+		Status:      appservice.AccountStatus(httpcodec.QueryOrDefault(query, "status", "active")),
+		Page:        page,
+		PageSize:    pageSize,
 	}, true
 }
 
@@ -3143,24 +3192,6 @@ func bindPlatformFailedTaskListInputQuery(writer http.ResponseWriter, request *h
 	return appservice.PlatformFailedTaskListInput{
 		Page:     page,
 		PageSize: pageSize,
-	}, true
-}
-
-// bindPlatformServerLogListInputQuery 从查询参数解析 appservice.PlatformServerLogListInput，非法时写入校验错误响应。
-func bindPlatformServerLogListInputQuery(writer http.ResponseWriter, request *http.Request) (appservice.PlatformServerLogListInput, bool) {
-	query := request.URL.Query()
-	pageSize, ok := httpcodec.PositiveQueryInteger(writer, request, query, "pageSize", 50)
-	if !ok {
-		return appservice.PlatformServerLogListInput{}, false
-	}
-	return appservice.PlatformServerLogListInput{
-		Cursor:      query.Get("cursor"),
-		PageSize:    pageSize,
-		MinLevel:    appservice.ServerLogLevel(query.Get("minLevel")),
-		InstanceID:  query.Get("instanceId"),
-		WorkspaceID: query.Get("workspaceId"),
-		Entry:       query.Get("entry"),
-		TraceID:     query.Get("traceId"),
 	}, true
 }
 
@@ -3251,10 +3282,12 @@ func bindAIPerformanceReportInputQuery(writer http.ResponseWriter, request *http
 		return appservice.AIPerformanceReportInput{}, false
 	}
 	return appservice.AIPerformanceReportInput{
-		Days:      days,
-		ChannelID: query.Get("channelId"),
-		AgentID:   query.Get("agentId"),
-		Mine:      query.Get("mine") == "true",
+		Audience:      appservice.ServiceAudience(query.Get("audience")),
+		ServiceSource: appservice.ServiceSource(query.Get("serviceSource")),
+		Days:          days,
+		ChannelID:     query.Get("channelId"),
+		AgentID:       query.Get("agentId"),
+		Mine:          query.Get("mine") == "true",
 	}, true
 }
 
@@ -3274,13 +3307,15 @@ func bindAIPerformanceBreakdownInputQuery(writer http.ResponseWriter, request *h
 		return appservice.AIPerformanceBreakdownInput{}, false
 	}
 	return appservice.AIPerformanceBreakdownInput{
-		Days:      days,
-		ChannelID: query.Get("channelId"),
-		AgentID:   query.Get("agentId"),
-		Mine:      query.Get("mine") == "true",
-		Dimension: appservice.ServiceReportDimension(query.Get("dimension")),
-		Page:      page,
-		PageSize:  pageSize,
+		Audience:      appservice.ServiceAudience(query.Get("audience")),
+		ServiceSource: appservice.ServiceSource(query.Get("serviceSource")),
+		Days:          days,
+		ChannelID:     query.Get("channelId"),
+		AgentID:       query.Get("agentId"),
+		Mine:          query.Get("mine") == "true",
+		Dimension:     appservice.ServiceReportDimension(query.Get("dimension")),
+		Page:          page,
+		PageSize:      pageSize,
 	}, true
 }
 
@@ -3300,13 +3335,15 @@ func bindAIPerformanceIssueListInputQuery(writer http.ResponseWriter, request *h
 		return appservice.AIPerformanceIssueListInput{}, false
 	}
 	return appservice.AIPerformanceIssueListInput{
-		Days:      days,
-		ChannelID: query.Get("channelId"),
-		AgentID:   query.Get("agentId"),
-		Mine:      query.Get("mine") == "true",
-		Issue:     appservice.ServiceIssueType(httpcodec.QueryOrDefault(query, "issue", "all")),
-		Page:      page,
-		PageSize:  pageSize,
+		Audience:      appservice.ServiceAudience(query.Get("audience")),
+		ServiceSource: appservice.ServiceSource(query.Get("serviceSource")),
+		Days:          days,
+		ChannelID:     query.Get("channelId"),
+		AgentID:       query.Get("agentId"),
+		Mine:          query.Get("mine") == "true",
+		Issue:         appservice.ServiceIssueType(httpcodec.QueryOrDefault(query, "issue", "all")),
+		Page:          page,
+		PageSize:      pageSize,
 	}, true
 }
 
@@ -3335,10 +3372,12 @@ func bindTeamPerformanceReportInputQuery(writer http.ResponseWriter, request *ht
 		return appservice.TeamPerformanceReportInput{}, false
 	}
 	return appservice.TeamPerformanceReportInput{
-		Days:        days,
-		ChannelID:   query.Get("channelId"),
-		TeamID:      query.Get("teamId"),
-		PublicQueue: query.Get("publicQueue") == "true",
+		Audience:      appservice.ServiceAudience(query.Get("audience")),
+		ServiceSource: appservice.ServiceSource(query.Get("serviceSource")),
+		Days:          days,
+		ChannelID:     query.Get("channelId"),
+		TeamID:        query.Get("teamId"),
+		PublicQueue:   query.Get("publicQueue") == "true",
 	}, true
 }
 
@@ -3358,12 +3397,14 @@ func bindTeamPerformanceMemberListInputQuery(writer http.ResponseWriter, request
 		return appservice.TeamPerformanceMemberListInput{}, false
 	}
 	return appservice.TeamPerformanceMemberListInput{
-		Days:        days,
-		ChannelID:   query.Get("channelId"),
-		TeamID:      query.Get("teamId"),
-		PublicQueue: query.Get("publicQueue") == "true",
-		Page:        page,
-		PageSize:    pageSize,
+		Audience:      appservice.ServiceAudience(query.Get("audience")),
+		ServiceSource: appservice.ServiceSource(query.Get("serviceSource")),
+		Days:          days,
+		ChannelID:     query.Get("channelId"),
+		TeamID:        query.Get("teamId"),
+		PublicQueue:   query.Get("publicQueue") == "true",
+		Page:          page,
+		PageSize:      pageSize,
 	}, true
 }
 
@@ -3383,13 +3424,15 @@ func bindTeamPerformanceBreakdownInputQuery(writer http.ResponseWriter, request 
 		return appservice.TeamPerformanceBreakdownInput{}, false
 	}
 	return appservice.TeamPerformanceBreakdownInput{
-		Days:        days,
-		ChannelID:   query.Get("channelId"),
-		TeamID:      query.Get("teamId"),
-		PublicQueue: query.Get("publicQueue") == "true",
-		Dimension:   appservice.ServiceReportDimension(query.Get("dimension")),
-		Page:        page,
-		PageSize:    pageSize,
+		Audience:      appservice.ServiceAudience(query.Get("audience")),
+		ServiceSource: appservice.ServiceSource(query.Get("serviceSource")),
+		Days:          days,
+		ChannelID:     query.Get("channelId"),
+		TeamID:        query.Get("teamId"),
+		PublicQueue:   query.Get("publicQueue") == "true",
+		Dimension:     appservice.ServiceReportDimension(query.Get("dimension")),
+		Page:          page,
+		PageSize:      pageSize,
 	}, true
 }
 
@@ -3409,13 +3452,15 @@ func bindTeamPerformanceIssueListInputQuery(writer http.ResponseWriter, request 
 		return appservice.TeamPerformanceIssueListInput{}, false
 	}
 	return appservice.TeamPerformanceIssueListInput{
-		Days:        days,
-		ChannelID:   query.Get("channelId"),
-		TeamID:      query.Get("teamId"),
-		PublicQueue: query.Get("publicQueue") == "true",
-		Issue:       appservice.ServiceIssueType(httpcodec.QueryOrDefault(query, "issue", "all")),
-		Page:        page,
-		PageSize:    pageSize,
+		Audience:      appservice.ServiceAudience(query.Get("audience")),
+		ServiceSource: appservice.ServiceSource(query.Get("serviceSource")),
+		Days:          days,
+		ChannelID:     query.Get("channelId"),
+		TeamID:        query.Get("teamId"),
+		PublicQueue:   query.Get("publicQueue") == "true",
+		Issue:         appservice.ServiceIssueType(httpcodec.QueryOrDefault(query, "issue", "all")),
+		Page:          page,
+		PageSize:      pageSize,
 	}, true
 }
 
@@ -3431,11 +3476,13 @@ func bindKnowledgeGapListInputQuery(writer http.ResponseWriter, request *http.Re
 		return appservice.KnowledgeGapListInput{}, false
 	}
 	return appservice.KnowledgeGapListInput{
-		ChannelID: query.Get("channelId"),
-		AgentID:   query.Get("agentId"),
-		Mine:      query.Get("mine") == "true",
-		Status:    appservice.KnowledgeGapStatus(httpcodec.QueryOrDefault(query, "status", "pending")),
-		Page:      page,
-		PageSize:  pageSize,
+		Audience:      appservice.ServiceAudience(query.Get("audience")),
+		ServiceSource: appservice.ServiceSource(query.Get("serviceSource")),
+		ChannelID:     query.Get("channelId"),
+		AgentID:       query.Get("agentId"),
+		Mine:          query.Get("mine") == "true",
+		Status:        appservice.KnowledgeGapStatus(httpcodec.QueryOrDefault(query, "status", "pending")),
+		Page:          page,
+		PageSize:      pageSize,
 	}, true
 }

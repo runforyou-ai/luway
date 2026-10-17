@@ -21,25 +21,43 @@ import (
 // ErrAttachmentUnavailable 表示附件不属于本次运行会话、已删除或尚未上传完成。
 var ErrAttachmentUnavailable = errors.New("agent attachment is unavailable")
 
-// FileOpener 按原件记录流式读取文件内容。
-type FileOpener interface {
-	Open(context.Context, *servermodels.File) (io.ReadCloser, error)
-}
-
 // AttachmentReader 读取 Agent 运行所属会话中已上传完成的附件，并生成上下文中的附件链接。
 type AttachmentReader struct {
 	db    *bun.DB
-	files FileOpener
+	files serverfilecontent.Opener
 	links serverfilecontent.Links
 }
 
 // NewAttachmentReader 创建 Agent 运行附件读取器，links 生成上下文中的附件链接。
-func NewAttachmentReader(db *bun.DB, files FileOpener, links serverfilecontent.Links) *AttachmentReader {
+func NewAttachmentReader(db *bun.DB, files serverfilecontent.Opener, links serverfilecontent.Links) *AttachmentReader {
 	return &AttachmentReader{db: db, files: files, links: links}
 }
 
 // Content 读取本次运行会话中指定附件消息的文件内容。
 func (r *AttachmentReader) Content(ctx context.Context, run *servermodels.AgentRun, messageID string) ([]byte, error) {
+	file, err := r.file(ctx, run, messageID)
+	if err != nil {
+		return nil, err
+	}
+	content, err := r.files.Open(ctx, file)
+	if err != nil {
+		return nil, fmt.Errorf("open agent attachment file: %w", err)
+	}
+	defer content.Close()
+	return io.ReadAll(content)
+}
+
+// PublicURL 返回附件的稳定公开访问地址。
+func (r *AttachmentReader) PublicURL(ctx context.Context, run *servermodels.AgentRun, messageID string) (string, error) {
+	file, err := r.file(ctx, run, messageID)
+	if err != nil {
+		return "", err
+	}
+	return r.links.URL(file.StorageKey)
+}
+
+// file 读取本次运行会话中指定附件消息对应的原件记录。
+func (r *AttachmentReader) file(ctx context.Context, run *servermodels.AgentRun, messageID string) (*servermodels.File, error) {
 	if !str.IsUUID(messageID) {
 		return nil, ErrAttachmentUnavailable
 	}
@@ -56,22 +74,17 @@ func (r *AttachmentReader) Content(ctx context.Context, run *servermodels.AgentR
 	if err != nil {
 		return nil, fmt.Errorf("load agent attachment file: %w", err)
 	}
-	content, err := r.files.Open(ctx, file)
-	if err != nil {
-		return nil, fmt.Errorf("open agent attachment file: %w", err)
-	}
-	defer content.Close()
-	return io.ReadAll(content)
+	return file, nil
 }
 
-// attachmentURL 按附件实际存储位置生成稳定公开地址，无法生成时返回空链接。
-func attachmentURL(ctx context.Context, links serverfilecontent.Links, backend, key *string) string {
-	if backend == nil || key == nil {
+// attachmentURL 按附件对象键生成稳定公开地址，无法生成时返回空链接。
+func attachmentURL(ctx context.Context, links serverfilecontent.Links, key *string) string {
+	if key == nil {
 		return ""
 	}
-	link, err := links.URL(domain.FileStorageBackend(*backend), *key)
+	link, err := links.URL(*key)
 	if err != nil {
-		slog.WarnContext(ctx, "生成 Agent 上下文附件链接失败", "storage_backend", *backend, "error", err)
+		slog.WarnContext(ctx, "生成 Agent 上下文附件链接失败", "error", err)
 		return ""
 	}
 	return link
@@ -79,17 +92,15 @@ func attachmentURL(ctx context.Context, links serverfilecontent.Links, backend, 
 
 // contextAttachmentRow 定义上下文消息及其引用消息的附件列，非附件消息为空。
 type contextAttachmentRow struct {
-	AttachmentName                *string `bun:"attachment_name"`
-	AttachmentTransfer            string  `bun:"attachment_transfer_status"`
-	AttachmentContentType         string  `bun:"attachment_content_type"`
-	AttachmentByteSize            int64   `bun:"attachment_byte_size"`
-	AttachmentStorageBackend      *string `bun:"attachment_storage_backend"`
-	AttachmentStorageKey          *string `bun:"attachment_storage_key"`
-	ReplyAttachmentName           *string `bun:"reply_attachment_name"`
-	ReplyAttachmentContentType    string  `bun:"reply_attachment_content_type"`
-	ReplyAttachmentByteSize       int64   `bun:"reply_attachment_byte_size"`
-	ReplyAttachmentStorageBackend *string `bun:"reply_attachment_storage_backend"`
-	ReplyAttachmentStorageKey     *string `bun:"reply_attachment_storage_key"`
+	AttachmentName             *string `bun:"attachment_name"`
+	AttachmentTransfer         string  `bun:"attachment_transfer_status"`
+	AttachmentContentType      string  `bun:"attachment_content_type"`
+	AttachmentByteSize         int64   `bun:"attachment_byte_size"`
+	AttachmentStorageKey       *string `bun:"attachment_storage_key"`
+	ReplyAttachmentName        *string `bun:"reply_attachment_name"`
+	ReplyAttachmentContentType string  `bun:"reply_attachment_content_type"`
+	ReplyAttachmentByteSize    int64   `bun:"reply_attachment_byte_size"`
+	ReplyAttachmentStorageKey  *string `bun:"reply_attachment_storage_key"`
 }
 
 // contextAttachment 定义模型上下文中的附件描述和稳定公开地址。
@@ -105,9 +116,9 @@ type contextAttachment struct {
 func withContextAttachments(query *bun.SelectQuery) *bun.SelectQuery {
 	return query.
 		ColumnExpr("ma.name AS attachment_name, COALESCE(ma.transfer_status, '') AS attachment_transfer_status, COALESCE(ma.content_type, '') AS attachment_content_type, COALESCE(ma.byte_size, 0) AS attachment_byte_size").
-		ColumnExpr("af.storage_backend AS attachment_storage_backend, af.storage_key AS attachment_storage_key").
+		ColumnExpr("af.storage_key AS attachment_storage_key").
 		ColumnExpr("reply_ma.name AS reply_attachment_name, COALESCE(reply_ma.content_type, '') AS reply_attachment_content_type, COALESCE(reply_ma.byte_size, 0) AS reply_attachment_byte_size").
-		ColumnExpr("reply_af.storage_backend AS reply_attachment_storage_backend, reply_af.storage_key AS reply_attachment_storage_key").
+		ColumnExpr("reply_af.storage_key AS reply_attachment_storage_key").
 		Join("LEFT JOIN message_attachments AS ma ON ma.message_id = msg.id AND ma.workspace_id = msg.workspace_id").
 		Join("LEFT JOIN files AS af ON af.id = ma.file_id AND af.workspace_id = ma.workspace_id AND ma.transfer_status = ?", domain.MessageAttachmentTransferReady).
 		Join("LEFT JOIN message_attachments AS reply_ma ON reply_ma.message_id = reply.id AND reply_ma.workspace_id = reply.workspace_id").
@@ -122,7 +133,7 @@ func (r contextAttachmentRow) attachment(ctx context.Context, messageID string, 
 	}
 	return &contextAttachment{
 		MessageID: messageID, Name: *r.AttachmentName, ContentType: r.AttachmentContentType, ByteSize: r.AttachmentByteSize,
-		URL: attachmentURL(ctx, links, r.AttachmentStorageBackend, r.AttachmentStorageKey),
+		URL: attachmentURL(ctx, links, r.AttachmentStorageKey),
 	}
 }
 
@@ -133,7 +144,7 @@ func (r contextAttachmentRow) replyAttachment(ctx context.Context, links serverf
 	}
 	return &contextAttachment{
 		Name: *r.ReplyAttachmentName, ContentType: r.ReplyAttachmentContentType, ByteSize: r.ReplyAttachmentByteSize,
-		URL: attachmentURL(ctx, links, r.ReplyAttachmentStorageBackend, r.ReplyAttachmentStorageKey),
+		URL: attachmentURL(ctx, links, r.ReplyAttachmentStorageKey),
 	}
 }
 

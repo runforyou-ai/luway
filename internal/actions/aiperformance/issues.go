@@ -5,7 +5,8 @@ package aiperformance
 import (
 	"context"
 
-	"github.com/runforyou-ai/luway/internal/actions/serviceissue"
+	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
+	"github.com/runforyou-ai/luway/internal/actions/reportpage"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -36,15 +37,18 @@ type IssueListQuery struct{ db *bun.DB }
 func NewIssueListQuery(db *bun.DB) *IssueListQuery { return &IssueListQuery{db: db} }
 
 // Execute 按关闭时间倒序返回统计范围内一页指定类型的问题会话。
-func (q *IssueListQuery) Execute(ctx context.Context, identity *servermodels.Identity, input IssueListInput) (*serviceissue.List, error) {
+func (q *IssueListQuery) Execute(ctx context.Context, identity *servermodels.Identity, input IssueListInput) (*knowledgegap.IssueList, error) {
+	if err := reportpage.ValidateServiceScope(ctx, q.db, identity.Workspace.ID, input.Audience, input.ServiceSource, input.ChannelID); err != nil {
+		return nil, err
+	}
 	page, pageSize, valid := common.NormalizePagination(input.Page, input.PageSize)
 	if !valid {
-		return nil, ErrPageSizeInvalid
+		return nil, common.ErrPageSizeInvalid
 	}
 	condition, ok := issueConditions[input.Issue]
 	if !ok {
 		return nil, ErrIssueInvalid
 	}
 	scope, args := reportScope(identity, input.Input)
-	return serviceissue.ListIssues(ctx, q.db, scope, args, input.Issue, condition, page, pageSize)
+	return knowledgegap.ListIssues(ctx, q.db, scope, args, input.Issue, condition, page, pageSize)
 }

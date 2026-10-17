@@ -9,7 +9,6 @@ const agents = {
     agents: "AI employees",
     channels: "Channels",
     knowledgeBases: "Knowledge bases",
-    businessSystems: "Business systems",
     computers: "Workspace computers",
   },
   search: "Search AI employees",
@@ -41,7 +40,7 @@ const agents = {
     summaryErrors: "{{count}} errors",
     summaryPrevious: "Last {{passed}} / {{total}}",
     configurationChanged: "Configuration changed. Run the evaluation again.",
-    decisionModelRequired: "Set a decision model under conversation summary in customer service settings first",
+    decisionModelRequired: "Set a decision model in workspace AI evaluation settings first",
     createCase: "New case",
     noCases: "No evaluation cases yet",
     loadError: "Could not load the evaluation.",
@@ -73,7 +72,7 @@ const agents = {
     senders: {
       customer: "Customer",
       ai: "AI employee",
-      staff: "Human agent",
+      staff: "Handler",
     },
     errors: {
       runtime_failed: "AI run failed",
@@ -171,7 +170,7 @@ const agents = {
   },
   validation: {
     nameInvalid: "AI employee names can only contain letters, numbers, spaces, and · - _ . characters.",
-    instructionTooLong: "Workspace instructions cannot exceed 20,000 characters.",
+    instructionTooLong: "The prompt cannot exceed 20,000 characters.",
   },
   businessSystems: {
     label: "Business systems",
@@ -180,7 +179,9 @@ const agents = {
     selected: "Authorized business systems: {{count}}",
     selectedOne: "Authorized: {{names}}",
     selectedNames: "Authorized: {{names}} and more ({{count}} business systems)",
-    empty: "No business systems",
+    empty: "No business systems. Ask a workspace administrator to connect one.",
+    emptyManage: "No business systems. Add one under Settings → Integrations → Business systems.",
+    manage: "Manage business systems",
     loadError: "Could not load business systems. Try again.",
     tools: "Tools: {{count}}",
     maxLevel: "Highest level for {{name}}",
@@ -199,9 +200,9 @@ const agents = {
     knowledgeLoadError: "Could not load knowledge bases. Try again.",
 
     model: "Chat model",
-    instruction: "Workspace instructions",
+    instruction: "Prompt",
     instructionHelp:
-      "The built-in work rules already cover general requirements. Add only workspace-specific background, tone, policies, and restrictions here.",
+      "The built-in work rules already cover general requirements. Add only specific business background, tone, policies, and restrictions here.",
     behavior: "Built-in work rules",
     saveError: "Could not save execution settings. Try again.",
     modelSelect: "Select a chat model",
@@ -304,8 +305,17 @@ const agents = {
     },
   },
   performance: {
+    audience: "Service audience",
+    allServices: "All services",
+    customerService: "Customer service",
+    employeeService: "Employee service",
+    serviceSource: "Service source",
+    allSources: "All sources",
+    channelSource: "Channels",
+    directSource: "Employee direct chats",
+
     title: "AI performance",
-    description: "See how much AI resolves, whether customers are satisfied, why it hands off, and which knowledge is missing",
+    description: "See how much AI resolves, service satisfaction, why it hands off, and which knowledge is missing",
     loadError: "Could not load the AI performance report.",
     tabs: {
       overview: "Overview",
@@ -314,7 +324,7 @@ const agents = {
       channels: "Channels",
       categories: "Inquiry categories",
     },
-    gapQuestion: "Customer question",
+    gapQuestion: "Requester question",
     gapTime: "Time",
     gapStatus: "Status",
     gapStatuses: {
@@ -359,7 +369,7 @@ const agents = {
     undetermined: "Not determined",
     closeReasons: "How conversations ended",
     closeAIResolved: "Resolved by AI",
-    closeCustomerUnresponsive: "Customer unresponsive",
+    closeCustomerUnresponsive: "Requester unresponsive",
     closeManual: "Closed by a teammate",
     satisfaction: "Satisfaction",
     satisfactionLevels: {
@@ -383,7 +393,7 @@ const agents = {
     noIssues: "No flagged conversations in this period",
     issueSheet: {
       addToEvaluation: "Add to evaluation",
-      evaluationDescription: "Choose the customer message where the AI should have handed off. Earlier messages are kept as context.",
+      evaluationDescription: "Choose the requester message where the AI should have handed off. Earlier messages are kept as context.",
       evaluationQuestion: "Customer message that needed a handoff",
       evaluationAdded: "Added to evaluation",
       evaluationError: "Could not add to evaluation. Try again.",
@@ -440,7 +450,7 @@ const agents = {
   },
   teamPerformance: {
     title: "Team performance",
-    description: "See how fast teammates reply after a handoff, how long they take, and whether customers are satisfied",
+    description: "See how fast teammates reply after a handoff, how long they take, and service satisfaction",
     loadError: "Could not load the team performance report.",
     tabs: {
       overview: "Overview",

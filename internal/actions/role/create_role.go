@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -27,7 +28,7 @@ func NewCreateRoleAction(db *bun.DB) *CreateRoleAction {
 func (a *CreateRoleAction) Execute(ctx context.Context, identity *servermodels.Identity, input Input) (*Record, error) {
 	input, fields := normalizeInput(input, true)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	var role servermodels.Role
 	err := serverstorage.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
@@ -66,7 +67,7 @@ func (a *CreateRoleAction) Execute(ctx context.Context, identity *servermodels.I
 		return replacePermissions(ctx, tx, identity.Workspace.ID, role.ID, input.Permissions)
 	})
 	if isRoleNameConflict(err) {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"name": ValidationNameDuplicate}}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create role: %w", err)

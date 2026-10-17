@@ -7,6 +7,7 @@ on:
       - main
   # Keep the required check available if a merge queue is enabled later.
   merge_group:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,52 +25,47 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: windows-2025
+          - runner: [self-hosted, Windows, ARM64, vmpal-ci]
             platform: windows
-          - runner: macos-15
+          - runner: [self-hosted, macOS, ARM64, vmpal-ci]
             platform: darwin
+          - runner: [self-hosted, Linux, ARM64, vmpal-ci]
+            platform: linux
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Setup toolchain
-        uses: ./.github/actions/setup-toolchain
-        with:
-          go-cache: native-build
-      - name: Build native desktop
-        run: wails3 task ${{ matrix.platform }}:build
-
-  server:
-    name: Server
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      # 依赖容器在后台运行，健康检查与工具链准备和前端构建并行。
-      - name: Start integration test dependencies
+          clean: ${{ runner.os != 'Windows' }}
+      # 只保留当前工作区的一份依赖；其他未跟踪文件和生成物照常清理。
+      - name: Clean Windows workspace except frontend dependencies
+        if: runner.os == 'Windows'
         shell: bash
         run: |
-          cp .env.example .env
-          docker run --detach --name luway-postgres \
-            --env POSTGRES_DB=main \
-            --env POSTGRES_USER=luway \
-            --env POSTGRES_PASSWORD=luway \
-            --publish 5432:5432 \
-            --health-cmd='pg_isready -U luway -d main' \
-            --health-interval=2s --health-timeout=5s --health-retries=15 \
-            ghcr.io/runforyou-ai/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0
+          git reset --hard HEAD
+          git clean -ffdx -e frontend/node_modules/
+      - name: Setup toolchain
+        uses: ./.github/actions/setup-toolchain
+      - name: Reuse or install Windows frontend dependencies
+        if: runner.os == 'Windows'
+        run: |
+          node build/scripts/ci-frontend-deps.mjs frontend
+          "CI_FRONTEND_DEPS_READY=true" >> $env:GITHUB_ENV
+      - name: Build native desktop
+        run: wails3 task ${{ matrix.platform }}:build ARCH=arm64
+
+  server-check:
+    name: Server checks
+    runs-on: [self-hosted, Linux, ARM64, vmpal-ci]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup toolchain
-        id: toolchain
         uses: ./.github/actions/setup-toolchain
-        with:
-          go-cache: server
 
       - name: Install frontend dependencies
         working-directory: frontend
@@ -82,162 +78,221 @@ jobs:
           echo '<!doctype html><title>App</title>' > frontend/dist/index.html
           wails3 task common:build:messenger
 
-      - name: Vet Go server build
-        env:
-          CGO_ENABLED: "0"
-        run: go vet -tags=server ./...
+      - name: Verify release manifest and shared artifacts
+        run: wails3 task check:ci:release
+
+      - name: Check Go server build and architecture
+        run: wails3 task check:server
 
       - name: Lint Go server build
         run: wails3 task check:lint:server
 
-      - name: Wait for integration test dependencies
-        shell: bash
-        run: |
-          for attempt in {1..30}; do
-            status="$(docker inspect --format '{{.State.Health.Status}}' luway-postgres)"
-            if [[ "$status" == healthy || "$status" == unhealthy ]]; then break; fi
-            sleep 2
-          done
-          if [[ "$status" != healthy ]]; then
-            docker logs luway-postgres
-            echo "Integration test dependency luway-postgres is $status"
-            exit 1
-          fi
-          # 新建的测试库从 template1 继承数据库扩展。
-          for database in main template1; do
-            docker exec luway-postgres psql -v ON_ERROR_STOP=1 -U luway -d "$database" \
-              -c 'CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;'
-          done
-
-      - name: Run server integration tests
-        run: wails3 task test:server
-
-      - name: Stop integration test dependencies
-        if: always()
-        run: |
-          docker logs luway-postgres || true
-          docker rm --force luway-postgres || true
-
-      - name: Save Go cache
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.toolchain.outputs.go-cache-paths }}
-          key: ${{ steps.toolchain.outputs.go-cache-key }}
-
-      # 共用模块下载缓存由服务端任务在检查完成后保存。
-      - name: Save Go module downloads
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.toolchain.outputs.go-module-cache-hit != 'true'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.toolchain.outputs.go-module-cache-path }}
-          key: ${{ steps.toolchain.outputs.go-module-cache-key }}
-
-  desktop:
-    name: Desktop
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-
+  server-test:
+    name: Server tests ${{ matrix.shard }}
+    runs-on: [self-hosted, Linux, ARM64, vmpal-ci]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [A, B]
+    env:
+      CI_POSTGRES_CONTAINER: local-ci-${{ github.run_id }}-${{ github.run_attempt }}-server-${{ matrix.shard }}
+      CI_S3_CONTAINER: local-ci-${{ github.run_id }}-${{ github.run_attempt }}-s3-${{ matrix.shard }}
+      SERVER_TEST_SHARD: ${{ matrix.shard }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # 依赖容器在后台运行，健康检查与工具链准备和前端构建并行。
+      - name: Start integration test dependencies
+        shell: bash
+        run: |
+          cp .env.example .env
+          docker run --detach --name "$CI_POSTGRES_CONTAINER" \
+            --env POSTGRES_DB=main \
+            --env POSTGRES_USER=luway \
+            --env POSTGRES_PASSWORD=luway \
+            --publish 127.0.0.1::5432 \
+            --health-cmd='pg_isready -U luway -d main' \
+            --health-interval=2s --health-timeout=5s --health-retries=15 \
+            ghcr.io/runforyou-ai/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0
+          port="$(docker port "$CI_POSTGRES_CONTAINER" 5432/tcp | awk -F: '{print $NF}')"
+          sed -i "s/^POSTGRES_PORT=.*/POSTGRES_PORT=$port/" .env
+          docker run --detach --name "$CI_S3_CONTAINER" \
+            --env RUSTFS_ACCESS_KEY=luway-test --env RUSTFS_SECRET_KEY=luway-test-secret \
+            --env RUSTFS_CONSOLE_ENABLE=false --tmpfs /data:mode=0777 \
+            --publish 127.0.0.1::9000 \
+            --health-cmd='curl -fsS http://127.0.0.1:9000/health' \
+            --health-interval=2s --health-timeout=5s --health-retries=30 \
+            rustfs/rustfs@sha256:1803faef57627e2d9c2e7d89d655d712ddded5389040054987163043fecb6a3c
+          s3_port="$(docker port "$CI_S3_CONTAINER" 9000/tcp | awk -F: '{print $NF}')"
+          sed -i "s|^TEST_S3_ENDPOINT=.*|TEST_S3_ENDPOINT=http://127.0.0.1:$s3_port|" .env
+
       - name: Setup toolchain
-        id: toolchain
         uses: ./.github/actions/setup-toolchain
-        with:
-          go-cache: desktop
-
-      - name: Install Linux desktop dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            build-essential \
-            pkg-config \
-            libgtk-4-dev \
-            libwebkitgtk-6.0-dev
-
-      - name: Check Wails version alignment
-        shell: bash
-        run: |
-          go_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
-          go_version="${go_version#v}"
-          runtime_version="$(node -p "require('./frontend/package.json').dependencies['@wailsio/runtime']")"
-          if [[ "$runtime_version" != "$go_version" ]]; then
-            echo "Wails version mismatch: Go=$go_version, frontend=$runtime_version"
-            exit 1
-          fi
-
-      - name: Check generated application contract
-        shell: bash
-        run: |
-          go generate ./internal/appservice ./internal/i18n
-          generated=(
-            internal/appservice/direct/backend_gen.go
-            internal/appservice/direct/computer_backend_gen.go
-            internal/api/service_gen.go
-            internal/api/computer_service_gen.go
-            internal/executor/client_gen.go
-            internal/i18n/keys_gen.go
-            frontend/src/api/generated
-          )
-          generated_changes="$(git status --short --untracked-files=all -- "${generated[@]}")"
-          if [[ -n "$generated_changes" ]]; then
-            echo "Generated application contract is out of date:"
-            printf '%s\n' "$generated_changes"
-            git diff -- "${generated[@]}"
-            exit 1
-          fi
-
-      - name: Check generated Wails bindings
-        shell: bash
-        run: |
-          wails3 generate bindings -clean=true -ts -i
-          git diff --exit-code -- go.mod go.sum frontend/bindings
 
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Build Linux desktop and package with custom paths
+      # 服务端 go:embed 只需要 Messenger 产物和非空的 frontend/dist；前端生产构建由 Desktop 任务检查。
+      - name: Prepare embedded frontend assets
         run: |
-          wails3 task linux:build 'BIN_DIR=bin/custom output' 'OUTPUT=bin/custom output/desktop'
-          wails3 task linux:generate:deb 'BIN_DIR=bin/custom output' 'OUTPUT=bin/custom output/desktop'
+          mkdir -p frontend/dist
+          echo '<!doctype html><title>App</title>' > frontend/dist/index.html
+          wails3 task common:build:messenger
 
-      - name: Check Go formatting
+      - name: Wait for integration test dependencies
         shell: bash
         run: |
-          mapfile -d '' files < <(git ls-files -z -- '*.go')
-          unformatted="$(gofmt -l "${files[@]}")"
-          if [[ -n "$unformatted" ]]; then
-            echo "These Go files need gofmt:"
-            echo "$unformatted"
+          for attempt in {1..30}; do
+            status="$(docker inspect --format '{{.State.Health.Status}}' "$CI_POSTGRES_CONTAINER")"
+            if [[ "$status" == healthy || "$status" == unhealthy ]]; then break; fi
+            sleep 2
+          done
+          if [[ "$status" != healthy ]]; then
+            docker logs "$CI_POSTGRES_CONTAINER"
+            echo "Integration test dependency "$CI_POSTGRES_CONTAINER" is $status"
             exit 1
           fi
+          for attempt in {1..30}; do
+            status="$(docker inspect --format '{{.State.Health.Status}}' "$CI_S3_CONTAINER")"
+            if [[ "$status" == healthy || "$status" == unhealthy ]]; then break; fi
+            sleep 2
+          done
+          if [[ "$status" != healthy ]]; then
+            docker logs "$CI_S3_CONTAINER"
+            exit 1
+          fi
+          # 新建的测试库从 template1 继承数据库扩展。
+          for database in main template1; do
+            docker exec "$CI_POSTGRES_CONTAINER" psql -v ON_ERROR_STOP=1 -U luway -d "$database" \
+              -c 'CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;'
+          done
 
-      - name: Verify Go modules
+      - name: Run server integration tests
+        run: wails3 task test:server:run
+
+      - name: Stop integration test dependencies
+        if: always()
         run: |
-          go mod verify
-          go mod tidy -diff
+          docker rm --force --volumes "$CI_S3_CONTAINER" || true
+          docker logs "$CI_POSTGRES_CONTAINER" || true
+          docker rm --force --volumes "$CI_POSTGRES_CONTAINER" || true
 
-      - name: Check Go Linux desktop build
-        run: wails3 task check:desktop
+  server:
+    name: Server
+    if: ${{ always() }}
+    needs: [server-check, server-test]
+    runs-on: [self-hosted, Linux, ARM64, vmpal-ci]
+    timeout-minutes: 5
+    steps:
+      - name: Require all Server checks and test shards
+        env:
+          CHECK_RESULT: ${{ needs.server-check.result }}
+          TEST_RESULT: ${{ needs.server-test.result }}
+        run: |
+          [[ "$CHECK_RESULT" == success && "$TEST_RESULT" == success ]]
 
-      - name: Lint Go Linux desktop build
-        run: wails3 task check:lint:desktop
-
-      - name: Save Go cache
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.toolchain.outputs.go-cache-paths }}
-          key: ${{ steps.toolchain.outputs.go-cache-key }}
+  # 暂停此平台；恢复时同时恢复依赖它的 needs。
+  # desktop:
+  #   name: Desktop
+  #   runs-on: ubuntu-24.04
+  #   timeout-minutes: 20
+  #
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+  #       with:
+  #         persist-credentials: false
+  #
+  #     - name: Setup toolchain
+  #       uses: ./.github/actions/setup-toolchain
+  #
+  #     - name: Install Linux desktop dependencies
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install --yes --no-install-recommends \
+  #           build-essential \
+  #           pkg-config \
+  #           libgtk-4-dev \
+  #           libwebkitgtk-6.0-dev
+  #
+  #     - name: Check Wails version alignment
+  #       shell: bash
+  #       run: |
+  #         go_version="$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)"
+  #         go_version="${go_version#v}"
+  #         runtime_version="$(node -p "require('./frontend/package.json').dependencies['@wailsio/runtime']")"
+  #         if [[ "$runtime_version" != "$go_version" ]]; then
+  #           echo "Wails version mismatch: Go=$go_version, frontend=$runtime_version"
+  #           exit 1
+  #         fi
+  #
+  #     - name: Check generated application contract
+  #       shell: bash
+  #       run: |
+  #         go generate ./internal/appservice ./internal/i18n
+  #         generated=(
+  #           internal/appservice/direct/backend_gen.go
+  #           internal/appservice/direct/computer_backend_gen.go
+  #           internal/api/service_gen.go
+  #           internal/api/computer_service_gen.go
+  #           internal/executor/client_gen.go
+  #           internal/i18n/keys_gen.go
+  #           frontend/src/api/generated
+  #         )
+  #         generated_changes="$(git status --short --untracked-files=all -- "${generated[@]}")"
+  #         if [[ -n "$generated_changes" ]]; then
+  #           echo "Generated application contract is out of date:"
+  #           printf '%s\n' "$generated_changes"
+  #           git diff -- "${generated[@]}"
+  #           exit 1
+  #         fi
+  #
+  #     - name: Check generated Wails bindings
+  #       shell: bash
+  #       run: |
+  #         wails3 generate bindings -clean=true -ts -i
+  #         git diff --exit-code -- go.mod go.sum frontend/bindings
+  #
+  #     - name: Install frontend dependencies
+  #       working-directory: frontend
+  #       run: npm ci
+  #
+  #     - name: Build Linux desktop and package with custom paths
+  #       run: |
+  #         wails3 task linux:build 'BIN_DIR=bin/custom output' 'OUTPUT=bin/custom output/desktop'
+  #         wails3 task linux:generate:deb 'BIN_DIR=bin/custom output' 'OUTPUT=bin/custom output/desktop'
+  #
+  #     - name: Check Go formatting
+  #       shell: bash
+  #       run: |
+  #         mapfile -d '' files < <(git ls-files -z -- '*.go')
+  #         unformatted="$(gofmt -l "${files[@]}")"
+  #         if [[ -n "$unformatted" ]]; then
+  #           echo "These Go files need gofmt:"
+  #           echo "$unformatted"
+  #           exit 1
+  #         fi
+  #
+  #     - name: Verify Go modules
+  #       run: |
+  #         go mod verify
+  #         go mod tidy -diff
+  #
+  #     - name: Check Go Linux desktop build
+  #       run: wails3 task check:desktop
+  #
+  #     - name: Lint Go Linux desktop build
+  #       run: wails3 task check:lint:desktop
+  #
 
   container:
     name: Container
-    runs-on: ubuntu-24.04
+    runs-on: [self-hosted, Linux, ARM64, vmpal-ci]
     timeout-minutes: 20
 
     steps:
@@ -247,10 +302,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup toolchain
-        id: toolchain
         uses: ./.github/actions/setup-toolchain
-        with:
-          go-cache: container-host
 
       - name: Build frontend
         working-directory: frontend
@@ -260,10 +312,14 @@ jobs:
           npm run build
 
       - name: Build server binary
-        run: wails3 task common:build:server:container-binary ARCH=amd64
+        run: wails3 task common:build:server:container-binary ARCH=arm64
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          name: local-${{ github.repository_id }}-${{ runner.name }}
+          keep-state: true
+          cache-binary: false
 
       # 运行镜像的构建上下文只包含当前服务端程序。
       - name: Build server image
@@ -271,13 +327,7 @@ jobs:
         with:
           context: bin/server-image
           file: build/docker/Dockerfile.server-runtime
-          platforms: linux/amd64
+          platforms: linux/arm64
           push: false
           tags: app:ci
 
-      - name: Save Go cache
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ steps.toolchain.outputs.go-cache-paths }}
-          key: ${{ steps.toolchain.outputs.go-cache-key }}

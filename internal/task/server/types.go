@@ -21,7 +21,7 @@ const (
 	QueueEvaluation = "evaluation"
 	// QueueFiles 执行渠道媒体取回与过期文件删除。
 	QueueFiles = "files"
-	// QueueMaintenance 执行定时维护、授权同步与平台接口凭据刷新。
+	// QueueMaintenance 执行定时维护、部署登记与平台接口凭据刷新。
 	QueueMaintenance = "maintenance"
 )
 
@@ -34,6 +34,7 @@ type EnqueueOptions struct {
 	MaxAttempts    int
 	IdempotencyKey string
 	Delay          time.Duration
+	At             time.Time
 }
 
 // Enqueuer 立即投递一个 Action 输入，用于不随业务事务提交的任务。

@@ -17,7 +17,7 @@ import {
   AgentMemoryForm,
   useAgentMemories,
   useAgentMemoryDeletion,
-} from "@/features/agents/personal/agent-memory-panel"
+} from "@/features/agents/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useResourceInvalidator } from "@/hooks/use-resource"

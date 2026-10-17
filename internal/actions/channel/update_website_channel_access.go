@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -27,7 +28,7 @@ func NewUpdateWebsiteChannelAccessAction(db *bun.DB) *UpdateWebsiteChannelAccess
 func (a *UpdateWebsiteChannelAccessAction) Execute(ctx context.Context, identity *servermodels.Identity, channelID string, input WebsiteChannelAccessInput) (*WebsiteChannelSettingRecord, error) {
 	input, fields := normalizeWebsiteChannelAccessInput(input)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 
 	setting := &servermodels.WebsiteChannelSetting{}

@@ -2,13 +2,14 @@
 const connection = {
   title: "连接服务器",
   serverUrlLabel: "服务器地址",
+  serverProtocolLabel: "协议",
   serverUrlInvalid: "请输入完整有效的服务器地址。",
   detect: "检测",
   detecting: "正在检测…",
   connect: "连接",
   connecting: "正在连接…",
   connectionError: "无法连接到该服务器，请检查地址后重试。",
-  savedServerUnreachable: "暂时无法连接到 {{host}}，请检查网络后重试。",
+  savedServerUnreachable: "暂时无法连接到 {{serverUrl}}，请检查网络后重试。",
   serverNotInstalled: "{{host}} 尚未完成初始化，请先在浏览器中打开该地址完成安装。",
   serverOutdated: "{{host}} 的服务器版本过旧，请联系管理员升级服务器。",
   upgrade: {

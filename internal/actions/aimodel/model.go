@@ -1,6 +1,6 @@
 //go:build server
 
-// Package aimodel 按模型编号解析、锁定、列出和检查业务引用的 AI 模型及其调用来源，并在事务内校验、创建、修改、删除与读取平台模型及其来源。
+// Package aimodel 按模型引用解析、锁定、列出和检查业务引用的 AI 模型及其调用来源；平台侧为 Auto 能力池，工作区侧为自有模型。
 package aimodel
 
 import (
@@ -11,7 +11,6 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
-	"github.com/runforyou-ai/support/arr"
 	"github.com/runforyou-ai/support/str"
 	"github.com/uptrace/bun"
 )
@@ -33,6 +32,7 @@ type Model struct {
 }
 
 // Route 定义模型的一个可用来源：供应商连接参数、该来源的上游模型标识与被选为先尝试来源的权重，权重为 0 只作备用。
+// Auto 池成员的 ID 为池成员编号；工作区模型的 ID 为 ai_model_routes 编号。
 type Route struct {
 	ID           string                 `bun:"id"`
 	Identifier   string                 `bun:"identifier"`
@@ -44,7 +44,7 @@ type Route struct {
 	APIURL       string                 `bun:"api_url"`
 }
 
-// Option 定义模型选择器展示的模型；工作区模型带首选来源的供应商，平台模型不展示来源，供应商字段为空。
+// Option 定义模型选择器展示的模型；工作区模型带首选来源的供应商，Auto 不展示来源。
 type Option struct {
 	ID              string                        `bun:"id"`
 	Scope           domain.AIModelScope           `bun:"scope"`
@@ -56,35 +56,98 @@ type Option struct {
 	Brand           domain.AIProviderBrand        `bun:"brand"`
 }
 
-// scopeColumn 是按 ai_models AS aim 的所属工作区计算模型范围的列表达式。
-const scopeColumn = "CASE WHEN aim.workspace_id IS NULL THEN 'platform' ELSE 'workspace' END AS scope"
-
-// availableIn 返回模型对指定工作区可用的条件；工作区表达式使用两次，绑定参数须用编号占位符 ?0。
-func availableIn(workspaceIDExpr string) string {
-	return "(aim.workspace_id = " + workspaceIDExpr + " OR (aim.workspace_id IS NULL AND " + serverstorage.SharedModelAllowedFunction + "(" + workspaceIDExpr + ", aim.id)))"
-}
-
-// Join 为查询关联 ai_models AS aim：模型编号取 modelIDExpr，模型须对 workspaceIDExpr 指定的工作区可用、满足用途要求且至少有一个已启用来源，不满足时 aim 列为空。
+// Join 为查询关联可用模型 AS aim：modelIDExpr 为 auto 或工作区模型编号；不满足用途或不可用时 aim 列为空。
 func Join(query *bun.SelectQuery, modelIDExpr, workspaceIDExpr string, usage domain.AIModelUsage) *bun.SelectQuery {
 	requirement := mustRequirement(usage)
-	return query.Join("LEFT JOIN ai_models AS aim ON aim.id = "+modelIDExpr+" AND "+availableIn(workspaceIDExpr)+
-		" AND aim.model_type = ? AND (? OR aim.input_modalities @> ?::jsonb)"+
-		" AND EXISTS (SELECT 1 FROM ai_model_routes AS amr WHERE amr.model_id = aim.id AND amr.enabled)",
-		requirement.Type, !requirement.RequiresText, `["text"]`)
+	allowed := serverstorage.AutoPoolMemberAllowedFunction + "(" + workspaceIDExpr + ", apm.id)"
+	poolFilter := "apm.enabled AND apm.model_type = ? AND " + allowed + " AND (? OR apm.input_modalities @> ?::jsonb)"
+	args := []any{requirement.Type, !requirement.RequiresText, `["text"]`}
+	for _, modality := range requirement.RequiredModalities {
+		poolFilter += " AND apm.input_modalities @> ?::jsonb"
+		args = append(args, modalityJSON(modality))
+	}
+	sql := `LEFT JOIN LATERAL (
+	SELECT * FROM (
+		SELECT 'auto'::text AS id, 'Auto'::text AS name, ?::text AS model_type,
+			COALESCE((SELECT apm.input_modalities FROM auto_pool_members AS apm WHERE ` + poolFilter + ` ORDER BY apm.weight DESC, apm.priority ASC, apm.id ASC LIMIT 1), '[]'::jsonb) AS input_modalities,
+			COALESCE((SELECT MIN(apm.context_window) FROM auto_pool_members AS apm WHERE ` + poolFilter + `), 0) AS context_window,
+			COALESCE((SELECT MIN(apm.max_output_tokens) FROM auto_pool_members AS apm WHERE ` + poolFilter + `), 0) AS max_output_tokens,
+			'platform'::text AS scope
+		WHERE (` + modelIDExpr + `) = 'auto'
+			AND EXISTS (SELECT 1 FROM auto_pool_members AS apm WHERE ` + poolFilter + `)
+		UNION ALL
+		SELECT aim.id::text, aim.name, aim.model_type::text, aim.input_modalities, aim.context_window, aim.max_output_tokens, 'workspace'::text
+		FROM ai_models AS aim
+		WHERE aim.id::text = (` + modelIDExpr + `)
+			AND aim.workspace_id = ` + workspaceIDExpr + `
+			AND aim.model_type = ?
+			AND (? OR aim.input_modalities @> ?::jsonb)`
+	// Auto 分支：model_type 一次 + poolFilter 四次（modalities / context / max_output / exists）
+	joinArgs := []any{requirement.Type}
+	joinArgs = append(joinArgs, args...)
+	joinArgs = append(joinArgs, args...)
+	joinArgs = append(joinArgs, args...)
+	joinArgs = append(joinArgs, args...)
+	joinArgs = append(joinArgs, requirement.Type, !requirement.RequiresText, `["text"]`)
+	for _, modality := range requirement.RequiredModalities {
+		sql += ` AND aim.input_modalities @> ?::jsonb`
+		joinArgs = append(joinArgs, modalityJSON(modality))
+	}
+	sql += ` AND EXISTS (SELECT 1 FROM ai_model_routes AS amr WHERE amr.model_id = aim.id AND amr.enabled)
+	) AS resolved
+) AS aim ON true`
+	return query.Join(sql, joinArgs...)
 }
 
 // Resolve 读取对工作区可用且满足用途要求的模型及其可用来源，不可用时返回 ErrUnavailable。
 func Resolve(ctx context.Context, db bun.IDB, workspaceID, modelID string, usage domain.AIModelUsage) (*Model, error) {
-	return load(ctx, db, workspaceID, modelID, usage, false)
+	return load(ctx, db, workspaceID, modelID, usage, "", false)
+}
+
+// ResolveAutoSticky 解析模型引用：已钉住的成员必须仍可用，否则返回 ErrUnavailable（不静默换成员，以免破坏向量空间）；
+// 首次选型时从池中取权重最高者（相同则取靠前），并把 Routes 收窄为该成员，保证本次调用与写入的 sticky 一致。
+func ResolveAutoSticky(ctx context.Context, db bun.IDB, workspaceID, modelID, stickyMemberID string, usage domain.AIModelUsage) (*Model, string, error) {
+	if !IsAuto(modelID) {
+		model, err := load(ctx, db, workspaceID, modelID, usage, "", false)
+		return model, "", err
+	}
+	if stickyMemberID != "" {
+		model, err := loadAuto(ctx, db, workspaceID, usage, stickyMemberID, false)
+		if err != nil {
+			return nil, "", err
+		}
+		return model, stickyMemberID, nil
+	}
+	model, err := loadAuto(ctx, db, workspaceID, usage, "", false)
+	if err != nil {
+		return nil, "", err
+	}
+	primary := pickStickyMember(model.Routes)
+	model.Routes = []Route{primary}
+	return model, primary.ID, nil
+}
+
+// pickStickyMember 选出首次钉住的池成员：权重大于 0 时取权重最高者，否则取当前顺序的第一个（已按 priority、id 排好）。
+func pickStickyMember(routes []Route) Route {
+	primary := routes[0]
+	for _, route := range routes[1:] {
+		if route.Weight > primary.Weight {
+			primary = route
+		}
+	}
+	return primary
 }
 
 // Lock 在事务中校验模型满足用途要求，并以 KEY SHARE 锁定模型、可用来源与来源供应商直至事务结束，不可用时返回 ErrUnavailable。
 func Lock(ctx context.Context, tx bun.Tx, workspaceID, modelID string, usage domain.AIModelUsage) (*Model, error) {
-	return load(ctx, tx, workspaceID, modelID, usage, true)
+	return load(ctx, tx, workspaceID, modelID, usage, "", true)
 }
 
 // load 读取并按需锁定单个可用模型及其来源。
-func load(ctx context.Context, db bun.IDB, workspaceID, modelID string, usage domain.AIModelUsage, lock bool) (*Model, error) {
+func load(ctx context.Context, db bun.IDB, workspaceID, modelID string, usage domain.AIModelUsage, stickyMemberID string, lock bool) (*Model, error) {
+	if IsAuto(modelID) {
+		return loadAuto(ctx, db, workspaceID, usage, stickyMemberID, lock)
+	}
 	if !str.IsUUID(modelID) {
 		return nil, ErrUnavailable
 	}
@@ -92,11 +155,10 @@ func load(ctx context.Context, db bun.IDB, workspaceID, modelID string, usage do
 	model := &Model{Usage: usage}
 	query := db.NewSelect().TableExpr("ai_models AS aim").
 		ColumnExpr("aim.id::text AS id, aim.name, aim.model_type, aim.input_modalities, aim.context_window, aim.max_output_tokens").
-		ColumnExpr(scopeColumn).
+		ColumnExpr("'workspace'::text AS scope").
 		Where("aim.id = ?", modelID).
-		Where(availableIn("?0"), workspaceID).
-		Where("aim.model_type = ?", requirement.Type).
-		Where("? OR aim.input_modalities @> ?::jsonb", !requirement.RequiresText, `["text"]`)
+		Where("aim.workspace_id = ?", workspaceID)
+	query = whereRequirement(query, requirement)
 	if lock {
 		query = query.For("KEY SHARE")
 	}
@@ -124,33 +186,66 @@ func load(ctx context.Context, db bun.IDB, workspaceID, modelID string, usage do
 	return model, nil
 }
 
-// LoadOptions 批量读取已保存配置引用的模型展示信息，含暂时没有已启用来源的模型；结果按模型编号索引，缺失项表示模型不存在、对工作区不可用或不满足用途。
+// LoadOptions 批量读取已保存配置引用的模型展示信息；结果按模型引用索引，缺失项表示不可用。
 func LoadOptions(ctx context.Context, db bun.IDB, workspaceID string, modelIDs []string, usage domain.AIModelUsage) (map[string]Option, error) {
-	options := make([]Option, 0, len(modelIDs))
-	if len(modelIDs) > 0 {
-		if err := optionQuery(db, workspaceID, usage).Where("aim.id IN (?)", bun.List(modelIDs)).Scan(ctx, &options); err != nil {
-			return nil, fmt.Errorf("load AI model options: %w", err)
+	result := make(map[string]Option, len(modelIDs))
+	workspaceIDs := make([]string, 0, len(modelIDs))
+	wantAuto := false
+	for _, id := range modelIDs {
+		if IsAuto(id) {
+			wantAuto = true
+			continue
+		}
+		workspaceIDs = append(workspaceIDs, id)
+	}
+	if wantAuto {
+		requirement := mustRequirement(usage)
+		// 已保存的 Auto 引用始终可展示，与当前池是否可调用无关；选项列表另行用 autoOption 过滤。
+		result[domain.AIModelRefAuto] = Option{
+			ID: domain.AIModelRefAuto, Scope: domain.AIModelScopePlatform, Name: AutoName, Type: requirement.Type,
 		}
 	}
-	return arr.KeyBy(options, func(option Option) string { return option.ID }), nil
+	if len(workspaceIDs) > 0 {
+		options := make([]Option, 0, len(workspaceIDs))
+		if err := optionQuery(db, workspaceID, usage).Where("aim.id IN (?)", bun.List(workspaceIDs)).Scan(ctx, &options); err != nil {
+			return nil, fmt.Errorf("load AI model options: %w", err)
+		}
+		for _, option := range options {
+			result[option.ID] = option
+		}
+	}
+	return result, nil
 }
 
-// optionQuery 构造对工作区可用且满足用途要求的模型展示查询；工作区模型输出首选来源的供应商 aip，平台模型不输出来源。
+// optionQuery 构造对工作区可用且满足用途要求的工作区模型展示查询。
 func optionQuery(db bun.IDB, workspaceID string, usage domain.AIModelUsage) *bun.SelectQuery {
 	requirement := mustRequirement(usage)
-	return db.NewSelect().TableExpr("ai_models AS aim").
+	return whereRequirement(db.NewSelect().TableExpr("ai_models AS aim").
 		ColumnExpr("aim.id::text AS id, aim.name, aim.model_type, aim.input_modalities").
-		ColumnExpr(scopeColumn).
+		ColumnExpr("'workspace'::text AS scope").
 		ColumnExpr("COALESCE(aip.id::text, '') AS provider_id, COALESCE(aip.name, '') AS provider_name, COALESCE(aip.brand, '') AS brand").
 		Join(`LEFT JOIN LATERAL (
 	SELECT provider.id, provider.name, provider.brand FROM ai_model_routes AS amr
 	JOIN ai_providers AS provider ON provider.id = amr.provider_id
-	WHERE amr.model_id = aim.id AND aim.workspace_id IS NOT NULL
+	WHERE amr.model_id = aim.id
 	ORDER BY amr.enabled DESC, amr.priority ASC, amr.id ASC LIMIT 1
 ) AS aip ON true`).
-		Where(availableIn("?0"), workspaceID).
-		Where("aim.model_type = ?", requirement.Type).
+		Where("aim.workspace_id = ?", workspaceID), requirement)
+}
+
+// whereRequirement 追加用途对模型类型与输入模态的过滤条件。
+func whereRequirement(query *bun.SelectQuery, requirement domain.AIModelRequirement) *bun.SelectQuery {
+	query = query.Where("aim.model_type = ?", requirement.Type).
 		Where("? OR aim.input_modalities @> ?::jsonb", !requirement.RequiresText, `["text"]`)
+	for _, modality := range requirement.RequiredModalities {
+		query = query.Where("aim.input_modalities @> ?::jsonb", modalityJSON(modality))
+	}
+	return query
+}
+
+// modalityJSON 返回用于 jsonb 包含判断的单模态数组字面量。
+func modalityJSON(modality domain.AIModelInputModality) string {
+	return `["` + string(modality) + `"]`
 }
 
 // mustRequirement 返回用途的模型要求，未知用途属于调用方编程错误。

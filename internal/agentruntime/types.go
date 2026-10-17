@@ -13,6 +13,21 @@ import (
 	"github.com/runforyou-ai/support/arr"
 )
 
+// usageFrom 把 einorun/llm 用量转换为业务运行用量。
+func usageFrom(used llm.Usage) agentcontract.Usage {
+	return agentcontract.NewUsage(used.Input, used.Output)
+}
+
+// planTasksFrom 把引擎任务清单转换为业务契约任务清单。
+func planTasksFrom(plan []stream.PlanTask) []agentcontract.PlanTask {
+	return arr.Map(plan, func(task stream.PlanTask) agentcontract.PlanTask {
+		return agentcontract.PlanTask{
+			ID: task.ID, Subject: task.Subject, ActiveForm: task.ActiveForm,
+			Status: domain.AgentPlanTaskStatus(task.Status),
+		}
+	})
+}
+
 // ModelConfig 定义运行使用的模型参数与模型组件工厂。
 type ModelConfig struct {
 	MaxOutputTokens int
@@ -28,7 +43,7 @@ type AttachmentContent func(context.Context, string) ([]byte, error)
 // KnowledgeSearch 检索本次 Agent Run 获准使用的知识库。
 type KnowledgeSearch func(context.Context, knowledgeretrieval.Request) (knowledgeretrieval.Result, error)
 
-// CustomerHistorySearch 按检索词查询同一客户已关闭的其他客服周期。
+// CustomerHistorySearch 查询同一发起人已关闭的其他服务周期，关键词为空时列出最近消息。
 type CustomerHistorySearch func(context.Context, string) (agentcontract.CustomerHistoryResult, error)
 
 // Scene 表示一次运行所属的业务场景。
@@ -90,8 +105,10 @@ type RunRequest struct {
 	Models     llm.ModelFactory // 创建本次运行的对话模型组件，由执行侧注入。
 	Dependencies
 	ReadAttachment AttachmentContent // 为空时附件只以正文中的链接提供给模型。
-	MaxIterations  int               // 单轮模型与工具迭代上限，零值使用默认值。
-	MaxTurns       int               // 吸收新输入的轮次上限，零值不限制，由运行 context 控制生命周期。
+	MediaURL       einorun.MediaURLFunc
+	AdaptMedia     einorun.MediaAdapter
+	MaxIterations  int            // 单轮模型与工具迭代上限，零值使用默认值。
+	MaxTurns       int            // 吸收新输入的轮次上限，零值不限制，由运行 context 控制生命周期。
 	StreamID       string
 	OnStream       func(stream.Delta) // 串行接收合并后的运行流增量，实现不得阻塞。
 	Journal        einorun.Journal    // 在安全点持久化过程与恢复状态，为空时运行只在结束时交回结果。
@@ -115,9 +132,9 @@ type RunResult struct {
 	EndSeq    int64
 	Usage     agentcontract.Usage
 	Blocks    []einorun.Block
-	Calls     []einorun.ToolCall // 子 Agent 发起的工具调用，主 Agent 的调用在 Blocks 中。
-	Plan      []stream.PlanTask  // 运行结束时的任务清单，没有建立清单时为空。
-	Suspended bool               // 运行已保存恢复状态并挂起，等待外部结果后继续。
+	Calls     []einorun.ToolCall       // 子 Agent 发起的工具调用，主 Agent 的调用在 Blocks 中。
+	Plan      []agentcontract.PlanTask // 运行结束时的任务清单，没有建立清单时为空。
+	Suspended bool                     // 运行已保存恢复状态并挂起，等待外部结果后继续。
 }
 
 // Runtime 执行一次可吸收后续输入的 Agent Run；返回错误时一并给出已产生的用量和内容块。

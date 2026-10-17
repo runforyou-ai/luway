@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
@@ -55,8 +56,10 @@ type Brand struct {
 const WorkspaceHeader = "X-Workspace"
 
 // RequestMeta 携带一次应用服务调用的认证、目标工作区和本地化信息；WorkspaceID 经 WorkspaceHeader 传输。
+// Token 是用户端或支援 Bearer；AdminToken 是平台后台 Cookie 令牌，二者互不替代。
 type RequestMeta struct {
 	Token       string `json:"token"`
+	AdminToken  string `json:"-"`
 	WorkspaceID string `json:"workspaceId"`
 	Locale      Locale `json:"locale"`
 	// ExecutorVersion 是执行器请求声明的操作原语版本，其他请求为空。
@@ -86,8 +89,8 @@ type ProductDocPage struct {
 	Path  string `json:"path"`
 }
 
-// InstallWorkspaceInput 定义首次安装输入：部署地址、平台管理员账号和第一个工作区。
-type InstallWorkspaceInput struct {
+// InstallPlatformInput 定义首次安装输入：部署地址、默认工作区名称与平台管理员账号。
+type InstallPlatformInput struct {
 	PublicURL     string `json:"publicURL"`
 	WorkspaceName string `json:"workspaceName"`
 	DisplayName   string `json:"displayName"`
@@ -97,9 +100,17 @@ type InstallWorkspaceInput struct {
 	TimeZone      string `json:"timeZone"`
 }
 
-// InstallWorkspaceResult 包含首次安装创建的工作区和平台管理员登录会话。
-type InstallWorkspaceResult struct {
-	Auth      Auth      `json:"auth"`
+// AdminAuth 包含平台管理员账号与后台会话；Token 仅供 HTTP 层写入 Cookie，不出现在 JSON 响应中。
+type AdminAuth struct {
+	Account   Account   `json:"account"`
+	Token     string    `json:"-"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
+// SupportAccess 是平台管理员支援进入工作区后签发的短期用户端凭证。
+type SupportAccess struct {
+	Token     string    `json:"token"`
+	ExpiresAt time.Time `json:"expiresAt"`
 	Workspace Workspace `json:"workspace"`
 }
 
@@ -180,14 +191,12 @@ type WorkspaceInput struct {
 type Identity struct {
 	Workspace CurrentWorkspace `json:"workspace"`
 	User      CurrentUser      `json:"user"`
+	// SupportMode 表示当前请求使用平台支援会话进入工作区。
+	SupportMode bool `json:"supportMode"`
 }
 
 // PageInfo 定义分页信息。
-type PageInfo struct {
-	Number int `json:"number"`
-	Size   int `json:"size"`
-	Total  int `json:"total"`
-}
+type PageInfo = apptypes.PageInfo
 
 // WorkspaceURL 返回部署地址下进入工作区的 Web 地址。
 func WorkspaceURL(publicURL, slug string) string {

@@ -106,18 +106,16 @@ func TestWechatPlatform(t *testing.T) {
 	t.Cleanup(server.Close)
 	client := wechat.NewClient(server.Client(), wechat.WithBaseURL(server.URL))
 	tasks := servertest.NewTasks()
-	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db), Wechat: client},
-		nil, nil, nil, tasks, nil, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db), Wechat: client}, nil, nil, tasks, nil, nil, nil)
 	service := backend
 	httpAPI := api.NewService(service, api.WithWechatPlatformEvents(wechataction.NewReceivePlatformEventAction(db, tasks)))
 	refresh := wechataction.NewRefreshPlatformTokenAction(db, client)
 	ctx := context.Background()
-	installed, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
-		PublicURL: servertest.PublicURL, WorkspaceName: "微信平台", DisplayName: "管理员", Email: "admin@example.test",
+	admin := servertest.InstallPlatform(t, service, appservice.InstallPlatformInput{
+		PublicURL: servertest.PublicURL, DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: domain.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
-	require.NoError(t, err)
-	adminMeta := appservice.RequestMeta{Token: installed.Auth.Token, Locale: domain.LocaleChineseSimplified}
+	adminMeta := servertest.AdminMeta(admin.AdminToken)
 
 	// 未配置时只返回接入地址，通知返回 404。
 	platform, err := service.GetWechatPlatform(ctx, adminMeta)

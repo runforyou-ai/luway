@@ -9,6 +9,8 @@ This page is being written.
 
 ## Download and install
 
+Desktop releases are available for Linux amd64, Linux arm64, macOS arm64 (Apple silicon), and Windows amd64. Choose the matching platform and architecture on your server’s download page.
+
 ## Connect to a server
 
 The desktop and mobile apps connect using the full server address, including the `https://` or `http://` prefix. After detection succeeds, the confirmation area shows the target server's product name. Click **Connect** to open the login page. The bottom of the login page shows the current server's product name. Click **Change server** to return to the connection page. On desktop, hover over the product name in the connection confirmation area or login page to see the full address.

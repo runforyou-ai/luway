@@ -1,5 +1,4 @@
 /** 平台概览的业务使用页签：按统计周期查看平台整体与各工作区关闭的服务周期、AI 独立解决率、转人工率、真人首响、待补知识和平台模型用量。 */
-import { LayoutGridIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import {
@@ -9,16 +8,17 @@ import {
   listPlatformWorkspaceUsage,
   type PlatformWorkspaceUsage,
 } from "@/api"
-import { ListToolbar, ListToolbarFilter, ListToolbarTotal } from "@/components/list-toolbar"
-import { ReportPeriodFilter, StatTile } from "@/components/report-parts"
-import { ResourceListLayout } from "@/components/resource-list"
-import { ResourceRowIdentity } from "@/components/resource-row-identity"
+import { ListToolbar, ListToolbarFilter } from "@/components/list-toolbar"
+// 报表共用 UI 归属 reports；platform 经 public 跨 feature 引用。
+import { ReportPeriodFilter, StatTile } from "@/components/metrics"
 import { ResourceTable } from "@/components/resource-table"
 import { StatusBadge } from "@/components/status-badge"
+import { AdminListLayout, AdminTableFrame } from "@/features/admin/admin-list-layout"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { useAdminPageQuery } from "@/hooks/use-admin-page-query"
 import { useListSearchParams } from "@/hooks/use-list-search-params"
 import { periodOptions, useReportFormat } from "@/hooks/use-report-format"
-import { usePagedResource, useResource, useResourceInvalidator } from "@/hooks/use-resource"
+import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 import { parseEnum } from "@/lib/enum"
 
 /** 排序方式与对应的选项词条，第一个为默认排序。 */
@@ -43,10 +43,10 @@ export function PlatformUsageTab() {
     staleTime: 0,
     keepPreviousData: true,
   })
-  const list = usePagedResource(
-    resourceKeys.platformWorkspaceUsage({ days, sort, pageSize: 50 }),
-    (page, signal) => listPlatformWorkspaceUsage({ days, sort, page, pageSize: 50 }, signal),
-    { select: (data) => ({ items: data.workspaces, page: data.page }), itemKey: (item) => item.id, staleTime: 0, keepPreviousData: true },
+  const list = useAdminPageQuery(
+    resourceKeys.platformWorkspaceUsage({ days, sort }),
+    ({ page, pageSize }, signal) => listPlatformWorkspaceUsage({ days, sort, page, pageSize }, signal),
+    { staleTime: 0 },
   )
   const total = summary.data
 
@@ -55,7 +55,7 @@ export function PlatformUsageTab() {
       <ListToolbar>
         <ReportPeriodFilter
           value={days}
-          onValueChange={(next) => setParameters({ days: next === String(periodOptions[0]) ? null : next })}
+          onValueChange={(next) => setParameters({ days: next === String(periodOptions[0]) ? null : next, page: null })}
         />
         <ListToolbarFilter
           label={t("usage.sortLabel")}
@@ -64,15 +64,23 @@ export function PlatformUsageTab() {
           onValueChange={(next) => {
             // 切换排序时同时重读合计，合计与列表取自同一时刻。
             void invalidate(resourceKeys.platformUsage({ days }))
-            setParameters({ sort: next === PlatformUsageSort.ServiceSessions ? null : next })
+            setParameters({ sort: next === PlatformUsageSort.ServiceSessions ? null : next, page: null })
           }}
         />
-        <ListToolbarTotal count={list.data?.total} />
       </ListToolbar>
 
-      <ResourceListLayout resources={[summary, list]} errorMessage={t("usage.loadError")} more={list.more}>
+      <AdminListLayout
+        resources={[summary, list]}
+        errorMessage={t("usage.loadError")}
+        pagination={{
+          page: list.data?.page,
+          onPageChange: list.setPage,
+          onPageSizeChange: list.setPageSize,
+          busy: list.isPlaceholderData,
+        }}
+      >
         {total ? (
-          <div className="mx-3 mb-6 grid grid-cols-2 gap-3 lg:grid-cols-3">
+          <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-3">
             <StatTile
               label={t("usage.serviceSessions")}
               value={count(total.serviceSessions)}
@@ -121,56 +129,75 @@ export function PlatformUsageTab() {
             />
           </div>
         ) : null}
+        <AdminTableFrame>
         <ResourceTable<PlatformWorkspaceUsage>
           columns={[
             {
               key: "workspace",
               header: t("usage.workspaceColumn"),
-              cellClassName: "min-w-0",
+              cellClassName: "min-w-[8rem] whitespace-nowrap font-medium",
+              cell: (item) => item.name,
+            },
+            {
+              key: "status",
+              header: t("usage.statusColumn"),
+              cellClassName: "w-px whitespace-nowrap",
               cell: (item) => (
-                <ResourceRowIdentity
-                  icon={LayoutGridIcon}
-                  name={item.name}
-                  secondary={t("usage.workspaceVolume", {
-                    sessions: count(item.metrics.serviceSessions),
-                    conversations: count(item.metrics.conversations),
-                  })}
-                  badge={
-                    item.status === WorkspaceStatus.Suspended ? (
-                      <StatusBadge variant="muted">{t("workspaces.statuses.suspended")}</StatusBadge>
-                    ) : undefined
-                  }
-                  description={t("usage.workspaceRates", {
-                    resolved: rate(item.metrics.aiResolved, item.metrics.aiClosed),
-                    handoff: rate(item.metrics.handedOff, item.metrics.aiClosed),
-                  })}
-                />
+                <StatusBadge variant={item.status === WorkspaceStatus.Suspended ? "muted" : "success"}>
+                  {t(`workspaces.statuses.${item.status}`)}
+                </StatusBadge>
               ),
+            },
+            {
+              key: "serviceSessions",
+              header: t("usage.serviceSessions"),
+              cellClassName: "w-px whitespace-nowrap text-right tabular-nums text-muted-foreground",
+              cell: (item) => count(item.metrics.serviceSessions),
+            },
+            {
+              key: "conversations",
+              header: t("usage.conversationsColumn"),
+              cellClassName: "w-px whitespace-nowrap text-right tabular-nums text-muted-foreground",
+              cell: (item) => count(item.metrics.conversations),
+            },
+            {
+              key: "aiResolved",
+              header: t("usage.aiResolvedColumn"),
+              cellClassName: "w-px whitespace-nowrap text-right tabular-nums text-muted-foreground",
+              cell: (item) => rate(item.metrics.aiResolved, item.metrics.aiClosed),
+            },
+            {
+              key: "handoff",
+              header: t("usage.handoffColumn"),
+              cellClassName: "w-px whitespace-nowrap text-right tabular-nums text-muted-foreground",
+              cell: (item) => rate(item.metrics.handedOff, item.metrics.aiClosed),
             },
             {
               key: "firstResponse",
               header: t("usage.firstResponse"),
-              cellClassName: "hidden w-px whitespace-nowrap text-right text-muted-foreground tabular-nums sm:table-cell",
-              cell: (item) => t("usage.firstResponseCell", { duration: duration(item.metrics.firstResponseMedian) }),
+              cellClassName: "w-px whitespace-nowrap text-right tabular-nums text-muted-foreground",
+              cell: (item) => duration(item.metrics.firstResponseMedian),
             },
             {
               key: "modelTokens",
               header: t("usage.modelTokens"),
-              cellClassName: "hidden w-px whitespace-nowrap text-right text-muted-foreground tabular-nums sm:table-cell",
-              cell: (item) => t("usage.modelTokensCell", { formatted: compact(item.metrics.inputTokens + item.metrics.outputTokens) }),
+              cellClassName: "w-px whitespace-nowrap text-right tabular-nums text-muted-foreground",
+              cell: (item) => compact(item.metrics.inputTokens + item.metrics.outputTokens),
             },
             {
               key: "knowledgeGaps",
               header: t("usage.knowledgeGaps"),
-              cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground tabular-nums",
-              cell: (item) => t("usage.knowledgeGapsCell", { count: item.metrics.knowledgeGaps }),
+              cellClassName: "w-px whitespace-nowrap text-right tabular-nums text-muted-foreground",
+              cell: (item) => count(item.metrics.knowledgeGaps),
             },
           ]}
-          rows={list.data?.items ?? []}
+          rows={list.data?.workspaces ?? []}
           rowKey={(item) => item.id}
           empty={t("usage.empty")}
+          showHeader
         />
-      </ResourceListLayout>
+        </AdminTableFrame>
+      </AdminListLayout>
     </>
   )
 }

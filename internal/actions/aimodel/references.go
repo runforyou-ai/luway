@@ -40,14 +40,18 @@ SELECT DISTINCT reference.workspace_id::text AS workspace_id, reference.model_id
 	JOIN agent_revisions AS ar ON ar.id = a.active_revision_id AND ar.workspace_id = a.workspace_id
 	UNION ALL SELECT workspace_id, embedding_model_id, ? FROM knowledge_bases
 	UNION ALL SELECT workspace_id, rerank_model_id, ? FROM knowledge_bases
-	UNION ALL SELECT workspace_id, decision_model_id, ? FROM customer_service_settings
-	UNION ALL SELECT workspace_id, summary_model_id, ? FROM customer_service_settings
+	UNION ALL SELECT workspace_id, decision_model_id, ? FROM service_policies
+	UNION ALL SELECT workspace_id, summary_model_id, ? FROM service_policies
 	UNION ALL SELECT workspace_id, translation_model_id, ? FROM customer_service_settings
+	UNION ALL SELECT workspace_id, decision_model_id, ? FROM workspace_evaluation_settings
+	UNION ALL SELECT workspace_id, ocr_model_id, ? FROM workspace_media_settings
+	UNION ALL SELECT workspace_id, transcription_model_id, ? FROM workspace_media_settings
 ) AS reference
 WHERE reference.model_id IN (?) AND (?::uuid IS NULL OR reference.workspace_id = ?::uuid)
 ORDER BY workspace_id, model_id, usage`,
 		domain.AIModelUsageAgent, domain.AIModelUsageEmbedding, domain.AIModelUsageRerank,
-		domain.AIModelUsageDecision, domain.AIModelUsageSummary, domain.AIModelUsageTranslation,
+		domain.AIModelUsageDecision, domain.AIModelUsageSummary, domain.AIModelUsageTranslation, domain.AIModelUsageDecision,
+		domain.AIModelUsageOCR, domain.AIModelUsageTranscription,
 		bun.List(modelIDs), workspaceID, workspaceID,
 	).Scan(ctx, &result); err != nil {
 		return nil, fmt.Errorf("list AI model references: %w", err)
@@ -61,5 +65,13 @@ func Satisfies(usage domain.AIModelUsage, modelType domain.AIModelType, inputMod
 	if !ok || modelType != requirement.Type {
 		return false
 	}
-	return !requirement.RequiresText || slices.Contains(inputModalities, domain.AIModelInputModalityText)
+	if requirement.RequiresText && !slices.Contains(inputModalities, domain.AIModelInputModalityText) {
+		return false
+	}
+	for _, modality := range requirement.RequiredModalities {
+		if !slices.Contains(inputModalities, modality) {
+			return false
+		}
+	}
+	return true
 }

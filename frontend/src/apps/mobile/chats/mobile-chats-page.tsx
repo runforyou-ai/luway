@@ -24,9 +24,9 @@ import {
   inboxQueryFromSearch,
   toggleChatKinds,
   type NormalizedInboxQuery,
-} from "@/features/inbox/list/inbox-query"
-import { usePartitionedInboxList } from "@/features/inbox/list/use-inbox-list"
-import { useInboxListViewport } from "@/features/inbox/list/use-inbox-list-viewport"
+} from "@/features/inbox/public"
+import { usePartitionedInboxList } from "@/features/inbox/public"
+import { useInboxListViewport } from "@/features/inbox/public"
 
 /** 从地址读取会话类型筛选，按筛选挂载独立列表窗口。 */
 export function MobileChatsPage() {

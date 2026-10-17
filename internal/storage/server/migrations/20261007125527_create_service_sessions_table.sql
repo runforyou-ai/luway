@@ -41,7 +41,9 @@ CREATE TABLE service_sessions (
     human_requested_at             timestamptz,
     human_assigned_at              timestamptz,
     human_first_response_at        timestamptz,
-    human_first_response_seconds   integer
+    human_first_response_seconds   integer,
+    ai_only                        boolean,
+    channel_id                     uuid
 );
 
 CREATE INDEX service_sessions_closed_idx
@@ -61,6 +63,9 @@ CREATE UNIQUE INDEX service_sessions_workspace_opening_message_unique
 
 CREATE UNIQUE INDEX service_sessions_workspace_service_conversation_open_unique
     ON service_sessions (workspace_id, service_conversation_id) WHERE (status = 'open'::text);
+
+CREATE INDEX service_sessions_workspace_channel_id_idx
+    ON service_sessions (workspace_id, channel_id) WHERE (channel_id IS NOT NULL);
 
 CREATE TRIGGER service_sessions_set_updated_at BEFORE UPDATE ON service_sessions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -106,6 +111,8 @@ COMMENT ON COLUMN service_sessions.human_requested_at IS '周期首次需要真�
 COMMENT ON COLUMN service_sessions.human_assigned_at IS '真人首次负责该周期的时间；从未由真人负责时为空';
 COMMENT ON COLUMN service_sessions.human_first_response_at IS '真人首次对客回复的时间；没有真人对客回复时为空';
 COMMENT ON COLUMN service_sessions.human_first_response_seconds IS '真人首响用时（秒）：首次需要真人到真人首次对客回复之间落在客服工作时间内的时长，按回复时的工作时间设置计算；没有真人对客回复或其间没有经过工作时间时为空';
+COMMENT ON COLUMN service_sessions.ai_only IS '周期是否由 AI 独立处理：由 AI 员工关闭且周期内无转人工、退回、领取、接管、转交或真人对客回复；未关闭时为空';
+COMMENT ON COLUMN service_sessions.channel_id IS '渠道会话所属渠道编号；非渠道来源或未绑定渠道时为空';
 COMMENT ON INDEX service_sessions_conversation_sequence_unique IS '工作区服务会话周期序号唯一索引';
 COMMENT ON INDEX service_sessions_workspace_opening_message_unique IS '工作区客服处理周期首条消息唯一索引';
 COMMENT ON INDEX service_sessions_workspace_service_conversation_open_unique IS '工作区服务会话未结束周期唯一索引';

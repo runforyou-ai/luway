@@ -20,8 +20,7 @@ var ErrIdentityUnbound = errors.New("channel identity is not bound to a member")
 // Attachment 定义入站附件的元数据与内容存储位置。
 type Attachment struct {
 	conversationaction.MessageAttachment
-	StorageBackend domain.FileStorageBackend `bun:"storage_backend"`
-	StorageKey     string                    `bun:"storage_key"`
+	StorageKey string `bun:"storage_key"`
 }
 
 // LoadBoundIdentity 读取并锁定服务员工渠道中已绑定在职成员的渠道身份，渠道身份不存在、未绑定或成员已停用时返回 ErrIdentityUnbound。

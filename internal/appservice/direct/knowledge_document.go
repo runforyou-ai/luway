@@ -120,24 +120,17 @@ func (o *knowledgeOps) RefetchKnowledgeDocument(ctx context.Context, meta appser
 	return nil
 }
 
-// GetKnowledgeDocumentPreview 按原件实际存储类型返回受控读取请求。
+// GetKnowledgeDocumentPreview 返回原件的稳定公开访问地址。
 func (o *knowledgeOps) GetKnowledgeDocumentPreview(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, baseID, documentID string) (appservice.KnowledgeDocumentPreviewRequest, error) {
 	record, err := o.documentQuery.File(ctx, identity, baseID, documentID)
 	if err != nil {
 		return appservice.KnowledgeDocumentPreviewRequest{}, knowledgeBaseError(ctx, meta, err, i18n.ErrorKnowledgeDocumentReadFailed, identity.Workspace.ID, baseID)
 	}
-	if record.StorageBackend == string(domain.FileStorageBackendLocal) {
-		url, err := o.files.links.URL(domain.FileStorageBackendLocal, record.StorageKey)
-		if err != nil {
-			return appservice.KnowledgeDocumentPreviewRequest{}, fileOperationError(meta, err, i18n.ErrorKnowledgeDocumentReadFailed)
-		}
-		return appservice.KnowledgeDocumentPreviewRequest{URL: url, Headers: map[string]string{"Authorization": "Bearer " + meta.Token}}, nil
-	}
-	request, err := filecontent.PresignDownload(ctx, o.files.s3(), record.StorageKey, "inline")
+	contentURL, err := filecontent.NewLinks(o.files.s3).URL(record.StorageKey)
 	if err != nil {
 		return appservice.KnowledgeDocumentPreviewRequest{}, fileOperationError(meta, err, i18n.ErrorKnowledgeDocumentReadFailed)
 	}
-	return appservice.KnowledgeDocumentPreviewRequest{URL: request.URL, Headers: map[string]string{}}, nil
+	return appservice.KnowledgeDocumentPreviewRequest{URL: contentURL, Headers: map[string]string{}}, nil
 }
 
 // knowledgeDocumentFromAction 转换本地文档元数据。

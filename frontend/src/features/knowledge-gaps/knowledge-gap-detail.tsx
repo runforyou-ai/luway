@@ -22,7 +22,7 @@ import { resolveAppPlatform } from "@/platform/app-platform"
 
 import { useKnowledgeGapDismiss } from "./use-knowledge-gap-actions"
 import { KnowledgeGapForm } from "./knowledge-gap-form"
-import { ServiceTranscript } from "@/components/service-transcript"
+import { ServiceTranscript } from "@/features/inbox/transcript"
 
 /** 起草期间轮询详情的间隔。 */
 const draftPollInterval = 2000
@@ -71,6 +71,7 @@ export function useKnowledgeGapSummary(gap: KnowledgeGap | undefined) {
   if (!gap) return ""
   return [
     t(`performance.gapSources.${gap.source}`),
+    t(gap.audience === "employee" ? "performance.employeeService" : "performance.customerService"),
     gap.categoryName || t("performance.uncategorized"),
     t(`performance.gapTimes.${gap.source}`, { time: formatDateTime(gap.occurredAt) }),
   ].join(" · ")

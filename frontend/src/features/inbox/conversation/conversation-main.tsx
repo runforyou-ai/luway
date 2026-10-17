@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next"
 
 import {
   ConversationStatus,
+  ServiceAudience,
   getGroupConversation,
   isAgentInboxConversation,
   isServiceInboxConversation,
@@ -148,7 +149,7 @@ export function ConversationMain({
         validConversation?.id)
 
   return (
-    <CustomerTranslationProvider key={customerConversation?.id ?? ""} conversationID={customerConversation?.service.channel ? customerConversation.id : null}>
+    <CustomerTranslationProvider key={customerConversation?.id ?? ""} conversationID={customerConversation?.service.audience === ServiceAudience.Customer ? customerConversation.id : null}>
     <div className="flex h-full min-h-0 bg-background">
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {validConversation ? (

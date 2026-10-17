@@ -65,7 +65,7 @@ func newWechatOutboundFixture(t *testing.T) *wechatOutboundFixture {
 	return &wechatOutboundFixture{
 		customerReadFixture: base, fake: fake, channelID: channel.ID,
 		receive: wechataction.NewReceiveMessageAction(base.db, tasks),
-		events:  channelinboundaction.NewReceiveEventAction(base.db, adapters, &countingAgentScheduler{}, localStorage, tasks, nil, func() string { return servertest.PublicURL }),
+		events:  channelinboundaction.NewReceiveEventAction(base.db, adapters, &countingAgentScheduler{}, tasks, nil, func() string { return servertest.PublicURL }),
 		worker:  deliveryaction.NewWorker(base.db, adapters, files, testEnqueuer), files: files, tasks: tasks,
 	}
 }

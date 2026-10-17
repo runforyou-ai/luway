@@ -6,13 +6,12 @@ import (
 	"context"
 	"testing"
 	"time"
-
 	"uuid"
 
 	aiperformanceaction "github.com/runforyou-ai/luway/internal/actions/aiperformance"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
-	"github.com/runforyou-ai/luway/internal/actions/serviceissue"
+	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
+	servicepolicyaction "github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	teamperformanceaction "github.com/runforyou-ai/luway/internal/actions/teamperformance"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
@@ -132,7 +131,7 @@ func TestTeamPerformanceReport(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, 0, aiIssues.Total, "ai issues")
-	detail, err := serviceissue.NewQuery(db).Execute(ctx, identity, handled.ID)
+	detail, err := knowledgegap.NewIssueQuery(db).Execute(ctx, identity, handled.ID)
 	require.NoError(t, err)
 	require.NotNil(t, detail.HumanIncorrect, "issue detail")
 	require.True(t, *detail.HumanIncorrect, "issue detail")
@@ -140,7 +139,7 @@ func TestTeamPerformanceReport(t *testing.T) {
 
 	// 真人首接待的周期开启即需要真人并由真人负责；其间没有经过工作时间的回复不记首响用时。
 	closedAllWeek := domain.BusinessHours{Enabled: true, TimeZone: "UTC"}
-	_, err = customerserviceaction.NewUpdateBusinessHoursAction(db).Execute(ctx, identity, closedAllWeek)
+	_, err = servicepolicyaction.NewUpdateBusinessHoursAction(db).Execute(ctx, identity, domain.ServiceAudienceCustomer, closedAllWeek)
 	require.NoError(t, err)
 	memberChannelID := f.newChannel(t, identity.WorkspaceIdentity.ID, channelaction.RoutingTarget{Type: domain.ChannelRoutingTargetTypePublicQueue})
 	memberInput := visitorInput(memberChannelID, "")

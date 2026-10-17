@@ -276,6 +276,7 @@ const integrations = {
         image: "Image",
         audio: "Audio",
         video: "Video",
+        file: "File",
       },
       columns: {
         type: "Model type",
@@ -302,6 +303,14 @@ const integrations = {
         "Maximum output tokens must be positive, such as 8192, 64K, or 1M.",
       modelIdentifierDuplicate: "Model IDs must be unique.",
       modelsRequired: "Add at least one model.",
+    },
+  },
+  web: {
+    title: "Web",
+    description: "Choose services for AI web search and reading page content",
+    tabs: {
+      search: "Web search",
+      fetch: "Web fetch",
     },
   },
   webSearch: {
@@ -340,6 +349,27 @@ const integrations = {
     },
     validation: {
       baseUrlRequired: "Enter a service URL.",
+      baseUrlInvalid: "Enter a complete HTTP or HTTPS service URL.",
+    },
+  },
+  webFetch: {
+    title: "Web fetch",
+    description: "Choose how knowledge bases and AI read web pages, including JavaScript-rendered sites",
+    formLabel: "Web fetch settings form",
+    loadError: "Could not load web fetch settings.",
+    saveError: "Could not save web fetch settings. Try again.",
+    provider: "Fetch service",
+    providerDescription: "Used when importing web pages into knowledge bases and when AI reads page content",
+    baseUrl: "Service URL",
+    baseUrlDescription: "Optional. Self-hosted Jina Reader or Firecrawl URL; leave blank for the official service",
+    testSuccess: "The web fetch service is available.",
+    testError: "Could not test the web fetch service. Try again.",
+    providers: {
+      direct: "Built-in direct",
+      jina: "Jina Reader",
+      firecrawl: "Firecrawl",
+    },
+    validation: {
       baseUrlInvalid: "Enter a complete HTTP or HTTPS service URL.",
     },
   },

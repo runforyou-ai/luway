@@ -11,6 +11,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/channeldelivery"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -47,6 +48,9 @@ func (a *UpdateMessageChannelStatusAction) Execute(ctx context.Context, identity
 	}
 	if err != nil {
 		return nil, fmt.Errorf("load message channel type: %w", err)
+	}
+	if err := servicepolicy.RequireManage(identity, domain.ChannelCapabilitiesOf(channelType).Audience); err != nil {
+		return nil, err
 	}
 	if updater, ok := a.updaters[channelType]; ok {
 		return updater.Execute(ctx, identity, channelID, enabled)

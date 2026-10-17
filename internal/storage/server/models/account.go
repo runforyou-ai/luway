@@ -29,11 +29,15 @@ type Account struct {
 type AccountSession struct {
 	bun.BaseModel `bun:"table:account_sessions,alias:acs"`
 
-	ID        string    `bun:"id,pk"`
-	AccountID string    `bun:"account_id"`
-	TokenHash string    `bun:"token_hash"`
-	ExpiresAt time.Time `bun:"expires_at"`
-	// PushApp、PushPlatform 与 PushDeviceID 是本设备的离线推送目标，未注册时为空。
+	ID        string `bun:"id,pk"`
+	AccountID string `bun:"account_id"`
+	// Kind 是会话种类：user、admin、support。
+	Kind string `bun:"kind"`
+	// WorkspaceID 是支援会话绑定的工作区编号，其他种类为空。
+	WorkspaceID *string   `bun:"workspace_id"`
+	TokenHash   string    `bun:"token_hash"`
+	ExpiresAt   time.Time `bun:"expires_at"`
+	// PushApp、PushPlatform 与 PushDeviceID 是本设备的离线推送目标，未注册时为空；仅用户端会话使用。
 	PushApp      *string   `bun:"push_app"`
 	PushPlatform *string   `bun:"push_platform"`
 	PushDeviceID *string   `bun:"push_device_id"`

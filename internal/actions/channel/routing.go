@@ -8,6 +8,7 @@ import (
 	"errors"
 
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -46,7 +47,7 @@ func validateRoutingTarget(ctx context.Context, db bun.IDB, workspaceID string, 
 		return err
 	}
 	if !available {
-		return &ValidationError{Fields: map[string]ValidationCode{field: ValidationRoutingTargetInvalid}}
+		return &common.FieldError{Fields: map[string]common.FieldCode{field: ValidationRoutingTargetInvalid}}
 	}
 	return nil
 }

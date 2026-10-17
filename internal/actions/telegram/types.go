@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
@@ -22,7 +22,7 @@ var (
 
 // Telegram 连接配置的字段校验码。
 const (
-	ValidationBaseURLInvalid channelaction.ValidationCode = "TELEGRAM_WEBHOOK_BASE_URL_INVALID"
+	ValidationBaseURLInvalid common.FieldCode = "TELEGRAM_WEBHOOK_BASE_URL_INVALID"
 )
 
 const (
@@ -58,9 +58,9 @@ type SettingRecord struct {
 }
 
 // normalizeConnectionInput 规范化 Telegram 保存输入，并校验与规范化 Webhook 基础地址。
-func normalizeConnectionInput(input ConnectionInput) (ConnectionInput, map[string]channelaction.ValidationCode) {
+func normalizeConnectionInput(input ConnectionInput) (ConnectionInput, map[string]common.FieldCode) {
 	input.BotToken = strings.TrimSpace(input.BotToken)
-	fields := make(map[string]channelaction.ValidationCode)
+	fields := make(map[string]common.FieldCode)
 	input.WebhookBaseURL = strings.TrimSpace(input.WebhookBaseURL)
 	if len(input.WebhookBaseURL) > maxWebhookBaseURLLength {
 		fields["webhookBaseURL"] = ValidationBaseURLInvalid

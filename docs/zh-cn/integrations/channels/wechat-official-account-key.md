@@ -3,14 +3,13 @@ title: 微信公众号（密钥接入）
 order: 6
 ---
 
-用公众号自己的 AppID 与 AppSecret 接入已认证的服务号并接待客户。部署配置了微信开放平台时，也可以改用[授权接入](/docs/zh-cn/integrations/channels/wechat-official-account-authorization/)，由公众号管理员扫码授权，无需填写公众号凭据。
+用公众号自己的 AppID 与 AppSecret 接入已认证的服务号并接待客户。部署已配置微信开放平台时，也可以改用[授权接入](/docs/zh-cn/integrations/channels/wechat-official-account-authorization/)，由公众号管理员扫码授权，无需填写公众号凭据。
 
 本页内容正在编写。
 
 ## 准备工作
 
 - 已认证的服务号，以及能登录微信公众平台「设置与开发 › 基本配置」的管理员。
-- 部署方已在每台服务器的服务端配置中填写出口 IP（`server.egressIP`），见[配置参考](/docs/zh-cn/deployment/configure/configuration/)。
 - 一个公众号在同一部署中只能连接到一个密钥接入渠道；渠道连接公众号后不能更换 AppID，更换公众号请新建渠道。
 
 ## 连接公众号
@@ -24,7 +23,7 @@ order: 6
 | 消息加解密方式 | 安全模式或明文模式，推荐安全模式 |
 | 消息加解密密钥（EncodingAESKey） | 安全模式下填写 43 位英文字母或数字，可随机生成 |
 
-保存前，先把「连接」页签「IP 白名单」中列出的全部服务器出口 IP 加入公众平台「设置与开发 › 基本配置」中的 IP 白名单。保存时{{product}}用 AppID 与 AppSecret 向微信获取接口调用凭据，验证通过后才保存；出口 IP 不在白名单时提示对应的 IP。
+保存前，先把自行查询到的每台服务器的公网出口 IP 加入公众平台「设置与开发 › 基本配置」中的 IP 白名单。保存时{{product}}用 AppID 与 AppSecret 向微信获取接口调用凭据，验证通过后才保存；出口 IP 不在白名单时提示对应的 IP。
 
 ## 连接状态
 

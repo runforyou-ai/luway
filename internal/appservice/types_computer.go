@@ -121,7 +121,7 @@ type ComputerSharedFileList struct {
 	Files []ComputerSharedFile `json:"files"`
 }
 
-// ComputerSharedFile 定义共享文件区中的一个文件：文件区内路径、内容摘要、字节数与当前内容的下载地址，本地存储返回服务端相对路径。
+// ComputerSharedFile 定义共享文件区中的一个文件：文件区内路径、内容摘要、字节数与当前内容的下载地址。
 type ComputerSharedFile struct {
 	Path     string `json:"path"`
 	Hash     string `json:"hash"`
@@ -136,7 +136,7 @@ type ComputerSharedUploadInput struct {
 	ByteSize    int64  `json:"byteSize"`
 }
 
-// ComputerSharedUpload 定义创建的内容上传：内容文件编号与整体上传内容的请求，本地存储的地址为服务端相对路径。
+// ComputerSharedUpload 定义创建的内容上传：内容文件编号与整体上传内容的请求。
 type ComputerSharedUpload struct {
 	FileID  string            `json:"fileId"`
 	Request FileUploadRequest `json:"request"`

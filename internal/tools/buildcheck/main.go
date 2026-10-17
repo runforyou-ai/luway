@@ -107,8 +107,8 @@ func checkTargets(run goRunner) error {
 
 // validatePackages 校验依赖边界，realtime/protocol 是允许跨端引用的契约。
 func validatePackages(mode string, output []byte) error {
-	server := []string{"appservice/direct", "actions", "api", "httpcodec", "storage/server", "task", "ingress", "config/server", "publicweb", "realtime", "servertest", "integrationtest", "agentruntime", "servercli", "serverapp"}
-	mobile := []string{"computerhost", "executor", "executorcli", "integration/mcp"}
+	server := []string{"appservice/direct", "actions", "api", "httpcodec", "storage/server", "task", "server/ingress", "config/server", "web/messenger", "realtime", "servertest", "integrationtest", "agentruntime", "server/cli", "server/app"}
+	mobile := []string{"computerhost", "executor", "executor/cli", "integration/mcp"}
 	for _, pkg := range strings.Fields(string(output)) {
 		if (mode == "executor" || mode == "server") && strings.HasPrefix(pkg, "github.com/wailsapp/wails/") {
 			return fmt.Errorf("%s 不得依赖 %s", mode, pkg)
@@ -120,7 +120,7 @@ func validatePackages(mode string, output []byte) error {
 		if mode == "pkg" {
 			return fmt.Errorf("pkg 不得依赖 %s", pkg)
 		}
-		if name == "realtime/protocol" || strings.HasPrefix(name, "realtime/protocol/") {
+		if name == "realtime/protocol" || name == "realtime/wire" || name == "realtime/client" {
 			continue
 		}
 		if mode == "server" {
@@ -173,7 +173,10 @@ func checkLogs(mode string, run goRunner) error {
 		} else if target != "windows" {
 			cgo = "1"
 		}
-		args = append(args, "./...")
+		if mode == "slog:desktop" {
+			args = append(args, ".")
+		}
+		args = append(args, "./build/...", "./cmd/...", "./docs/...", "./frontend/...", "./internal/...", "./pkg/...")
 		if _, err := run([]string{"GOOS=" + target, "GOARCH=" + runtime.GOARCH, "CGO_ENABLED=" + cgo}, args...); err != nil {
 			return err
 		}

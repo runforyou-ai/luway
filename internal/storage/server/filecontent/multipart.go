@@ -5,12 +5,12 @@ package filecontent
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strconv"
+	"strings"
+	"time"
+
+	v4 "github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -20,7 +20,7 @@ import (
 // CreateMultipart 创建对象存储分片上传会话。
 func CreateMultipart(ctx context.Context, config S3Config, key, contentType string) (string, error) {
 	output, err := newS3Client(config).CreateMultipartUpload(ctx, &s3.CreateMultipartUploadInput{
-		Bucket: aws.String(config.Bucket), Key: aws.String(key), ContentType: aws.String(contentType),
+		Bucket: aws.String(config.Bucket), Key: aws.String(key), ContentType: aws.String(contentType), CacheControl: aws.String(ImmutableCacheControl),
 	})
 	if err != nil {
 		return "", err
@@ -47,38 +47,6 @@ func PresignPart(ctx context.Context, config S3Config, key, uploadID string, num
 	return SignedRequest{Method: output.Method, URL: output.URL, Headers: headers}, nil
 }
 
-// CompleteMultipart 按分片序号合并对象存储文件。
-func CompleteMultipart(ctx context.Context, config S3Config, key, uploadID string, size, partSize int64) error {
-	client := newS3Client(config)
-	paginator := s3.NewListPartsPaginator(client, &s3.ListPartsInput{
-		Bucket: aws.String(config.Bucket), Key: aws.String(key), UploadId: aws.String(uploadID),
-	})
-	completed := make([]types.CompletedPart, 0)
-	var total int64
-	for paginator.HasMorePages() {
-		page, err := paginator.NextPage(ctx)
-		if err != nil {
-			return err
-		}
-		for _, part := range page.Parts {
-			expectedSize := min(partSize, size-total)
-			if total >= size || aws.ToInt32(part.PartNumber) != int32(len(completed)+1) || aws.ToInt64(part.Size) != expectedSize {
-				return errors.New("invalid uploaded part sequence or size")
-			}
-			completed = append(completed, types.CompletedPart{PartNumber: part.PartNumber, ETag: part.ETag})
-			total += expectedSize
-		}
-	}
-	if total != size {
-		return errors.New("multipart upload is incomplete")
-	}
-	_, err := client.CompleteMultipartUpload(ctx, &s3.CompleteMultipartUploadInput{
-		Bucket: aws.String(config.Bucket), Key: aws.String(key), UploadId: aws.String(uploadID),
-		MultipartUpload: &types.CompletedMultipartUpload{Parts: completed},
-	})
-	return err
-}
-
 // AbortMultipart 清除未完成的对象存储分片，会话不存在时直接成功。
 func AbortMultipart(ctx context.Context, config S3Config, key, uploadID string) error {
 	_, err := newS3Client(config).AbortMultipartUpload(ctx, &s3.AbortMultipartUploadInput{
@@ -91,87 +59,6 @@ func AbortMultipart(ctx context.Context, config S3Config, key, uploadID string) 
 	return err
 }
 
-// SavePart 把单个分片原子保存到文件专属的临时目录。
-func (s *LocalStore) SavePart(ctx context.Context, key string, number int32, source io.Reader, size int64) error {
-	if _, err := s.path(key); err != nil {
-		return err
-	}
-	directory := filepath.Join(s.temporary, filepath.FromSlash(key))
-	if err := os.MkdirAll(directory, 0o750); err != nil {
-		return err
-	}
-	temporary, err := os.CreateTemp(directory, ".part-*")
-	if err != nil {
-		return err
-	}
-	defer func() { _ = temporary.Close(); _ = os.Remove(temporary.Name()) }()
-	written, err := io.Copy(temporary, io.LimitReader(source, size+1))
-	if err != nil {
-		return err
-	}
-	if err := ctx.Err(); err != nil {
-		return err
-	}
-	if written != size {
-		return fmt.Errorf("part size = %d, want %d", written, size)
-	}
-	if err := temporary.Close(); err != nil {
-		return err
-	}
-	return os.Rename(temporary.Name(), filepath.Join(directory, strconv.Itoa(int(number))))
-}
-
-// CompleteMultipart 顺序读取本地分片并原子生成最终文件。
-func (s *LocalStore) CompleteMultipart(ctx context.Context, key string, size, partSize int64) error {
-	if _, err := s.path(key); err != nil {
-		return err
-	}
-	directory := filepath.Join(s.temporary, filepath.FromSlash(key))
-	reader, writer := io.Pipe()
-	done := make(chan error, 1)
-	go func() {
-		var result error
-		defer func() { _ = writer.CloseWithError(result); done <- result }()
-		for offset, number := int64(0), 1; offset < size; offset, number = offset+partSize, number+1 {
-			if result = ctx.Err(); result != nil {
-				return
-			}
-			part, err := os.Open(filepath.Join(directory, strconv.Itoa(number)))
-			if err != nil {
-				result = err
-				return
-			}
-			expected := min(partSize, size-offset)
-			info, err := part.Stat()
-			if err != nil || info.Size() != expected {
-				_ = part.Close()
-				result = fmt.Errorf("invalid local part %d", number)
-				return
-			}
-			_, result = io.Copy(writer, part)
-			_ = part.Close()
-			if result != nil {
-				return
-			}
-		}
-	}()
-	err := s.Save(ctx, key, reader, size)
-	_ = reader.CloseWithError(err)
-	partErr := <-done
-	if err != nil {
-		return err
-	}
-	return partErr
-}
-
-// DeleteParts 清除文件的本地分片目录。
-func (s *LocalStore) DeleteParts(key string) error {
-	if _, err := s.path(key); err != nil {
-		return err
-	}
-	return os.RemoveAll(filepath.Join(s.temporary, filepath.FromSlash(key)))
-}
-
 // PresignDownload 创建携带原始文件名的对象存储下载请求。
 func PresignDownload(ctx context.Context, config S3Config, key, disposition string) (SignedRequest, error) {
 	output, err := s3.NewPresignClient(newS3Client(config)).PresignGetObject(ctx, &s3.GetObjectInput{
@@ -181,4 +68,39 @@ func PresignDownload(ctx context.Context, config S3Config, key, disposition stri
 		return SignedRequest{}, err
 	}
 	return SignedRequest{Method: output.Method, URL: output.URL, Headers: map[string]string{}}, nil
+}
+
+// PresignMultipartControl 为列举、完成和中止分片签名；对象键和会话已由业务层验证。
+func PresignMultipartControl(ctx context.Context, config S3Config, key, uploadID, method string) (SignedRequest, error) {
+	endpoint, err := s3.NewDefaultEndpointResolverV2().ResolveEndpoint(ctx, s3.EndpointParameters{
+		Region: aws.String(config.Region), Bucket: aws.String(config.Bucket), Endpoint: aws.String(config.Endpoint), ForcePathStyle: aws.Bool(config.ForcePathStyle),
+	})
+	if err != nil {
+		return SignedRequest{}, err
+	}
+	address := endpoint.URI
+	address.Path = strings.TrimRight(address.Path, "/") + "/" + key
+	query := address.Query()
+	query.Set("uploadId", uploadID)
+	query.Set("X-Amz-Expires", strconv.FormatInt(int64(signedRequestLifetime/time.Second), 10))
+	address.RawQuery = query.Encode()
+	request, err := http.NewRequestWithContext(ctx, method, address.String(), nil)
+	if err != nil {
+		return SignedRequest{}, err
+	}
+	if method == http.MethodPost {
+		request.Header.Set("Content-Type", "application/xml")
+	}
+	//clock:local 外部 S3 SigV4 签名使用当前机器时钟。
+	signed, headers, err := v4.NewSigner().PresignHTTP(ctx, aws.Credentials{AccessKeyID: config.AccessKeyID, SecretAccessKey: config.SecretAccessKey}, request, "UNSIGNED-PAYLOAD", "s3", config.Region, time.Now(), func(o *v4.SignerOptions) { o.DisableURIPathEscaping = true })
+	if err != nil {
+		return SignedRequest{}, err
+	}
+	result := SignedRequest{Method: method, URL: signed, Headers: map[string]string{}}
+	for name, values := range headers {
+		if !strings.EqualFold(name, "Host") && len(values) > 0 {
+			result.Headers[name] = values[0]
+		}
+	}
+	return result, nil
 }

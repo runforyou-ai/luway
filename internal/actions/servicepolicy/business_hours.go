@@ -1,0 +1,147 @@
+//go:build server
+
+package servicepolicy
+
+import (
+	"cmp"
+	"context"
+	"fmt"
+	"slices"
+	"time"
+	_ "time/tzdata"
+
+	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/support/set"
+	"github.com/runforyou-ai/support/validate"
+	"github.com/uptrace/bun"
+)
+
+const (
+	ValidationTimeZoneInvalid common.FieldCode = "BUSINESS_HOURS_TIME_ZONE_INVALID"
+	ValidationWeeklyInvalid   common.FieldCode = "BUSINESS_HOURS_WEEKLY_INVALID"
+	ValidationOverrideInvalid common.FieldCode = "BUSINESS_HOURS_OVERRIDE_INVALID"
+)
+
+// LoadBusinessHours 读取工作区服务工作时间。
+func LoadBusinessHours(ctx context.Context, db bun.IDB, workspaceID string, audience domain.ServiceAudience) (domain.BusinessHours, error) {
+	setting := &servermodels.ServicePolicy{}
+	if err := db.NewSelect().Model(setting).
+		Column("business_hours_enabled", "business_hours_time_zone", "business_hours_weekly", "business_hours_overrides").
+		Where("sp.workspace_id = ? AND sp.audience = ?", workspaceID, audience).
+		Scan(ctx); err != nil {
+		return domain.BusinessHours{}, fmt.Errorf("load business hours: %w", err)
+	}
+	hours := domain.BusinessHours{Enabled: setting.BusinessHoursEnabled, TimeZone: setting.BusinessHoursTimeZone, Overrides: setting.BusinessHoursOverrides}
+	for day := range hours.Weekly {
+		hours.Weekly[day] = setting.BusinessHoursWeekly[day]
+	}
+	return hours, nil
+}
+
+// GetBusinessHoursQuery 读取当前企业的服务工作时间。
+type GetBusinessHoursQuery struct {
+	db *bun.DB
+}
+
+// NewGetBusinessHoursQuery 创建服务工作时间读取查询。
+func NewGetBusinessHoursQuery(db *bun.DB) *GetBusinessHoursQuery {
+	return &GetBusinessHoursQuery{db: db}
+}
+
+// Execute 返回当前企业的服务工作时间。
+func (q *GetBusinessHoursQuery) Execute(ctx context.Context, identity *servermodels.Identity, audience domain.ServiceAudience) (domain.BusinessHours, error) {
+	if err := RequireManage(identity, audience); err != nil {
+		return domain.BusinessHours{}, err
+	}
+	return LoadBusinessHours(ctx, q.db, identity.Workspace.ID, audience)
+}
+
+// UpdateBusinessHoursAction 修改当前企业的服务工作时间。
+type UpdateBusinessHoursAction struct {
+	db *bun.DB
+}
+
+// NewUpdateBusinessHoursAction 创建服务工作时间修改操作。
+func NewUpdateBusinessHoursAction(db *bun.DB) *UpdateBusinessHoursAction {
+	return &UpdateBusinessHoursAction{db: db}
+}
+
+// Execute 校验并保存服务工作时间：时段按开始时间排序，日期覆盖按日期排序。
+func (a *UpdateBusinessHoursAction) Execute(ctx context.Context, identity *servermodels.Identity, audience domain.ServiceAudience, input domain.BusinessHours) (domain.BusinessHours, error) {
+	if err := RequireManage(identity, audience); err != nil {
+		return domain.BusinessHours{}, err
+	}
+	fields := make(map[string]common.FieldCode)
+	if !validate.Timezone(input.TimeZone) {
+		fields["timeZone"] = ValidationTimeZoneInvalid
+	}
+	for day := range input.Weekly {
+		if !domain.BusinessHoursPeriodsValid(input.Weekly[day]) {
+			fields["weekly"] = ValidationWeeklyInvalid
+		}
+		input.Weekly[day] = sortedPeriods(input.Weekly[day])
+	}
+	// 日期覆盖的日期必须合法且不重复，时段规则与每周时段相同。
+	var dates set.Set[string]
+	overrides := make([]domain.BusinessHoursOverride, 0, len(input.Overrides))
+	for _, override := range input.Overrides {
+		_, dateErr := time.Parse(domain.BusinessHoursDateLayout, override.Date)
+		if !dates.Add(override.Date) || dateErr != nil || !domain.BusinessHoursPeriodsValid(override.Periods) {
+			fields["overrides"] = ValidationOverrideInvalid
+		}
+		overrides = append(overrides, domain.BusinessHoursOverride{Date: override.Date, Periods: sortedPeriods(override.Periods)})
+	}
+	if len(fields) > 0 {
+		return domain.BusinessHours{}, &common.FieldError{Fields: fields}
+	}
+	slices.SortFunc(overrides, func(left, right domain.BusinessHoursOverride) int { return cmp.Compare(left.Date, right.Date) })
+	input.Overrides = overrides
+	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
+		// 工作时间变化后通知企业全部网站访客重新读取接待状态。
+		if audience == domain.ServiceAudienceCustomer {
+			realtime.Notify(ctx, realtime.WebsiteReceptionChanged(identity.Workspace.ID))
+		}
+		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
+			return err
+		}
+		setting := &servermodels.ServicePolicy{
+			WorkspaceID: identity.Workspace.ID, Audience: audience, BusinessHoursEnabled: input.Enabled, BusinessHoursTimeZone: input.TimeZone,
+			BusinessHoursWeekly: input.Weekly[:], BusinessHoursOverrides: input.Overrides,
+		}
+		if err := saveSetting(ctx, tx, setting, "business_hours_enabled", "business_hours_time_zone", "business_hours_weekly", "business_hours_overrides"); err != nil {
+			return fmt.Errorf("save business hours: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return domain.BusinessHours{}, err
+	}
+	return input, nil
+}
+
+// sortedPeriods 返回按开始时间排序的时段副本，nil 输出为空列表。
+func sortedPeriods(periods []domain.BusinessHoursPeriod) []domain.BusinessHoursPeriod {
+	sorted := append([]domain.BusinessHoursPeriod{}, periods...)
+	slices.SortFunc(sorted, func(left, right domain.BusinessHoursPeriod) int { return cmp.Compare(left.Start, right.Start) })
+	return sorted
+}
+
+// saveSetting 更新工作区服务策略行的指定列与更新时间，设置行必须恰好更新一行。
+func saveSetting(ctx context.Context, db bun.IDB, setting *servermodels.ServicePolicy, columns ...string) error {
+	result, err := db.NewUpdate().Model(setting).Column(columns...).WherePK().Exec(ctx)
+	if err != nil {
+		return err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rows != 1 {
+		return fmt.Errorf("service policy of workspace %s updated %d rows", setting.WorkspaceID, rows)
+	}
+	return nil
+}

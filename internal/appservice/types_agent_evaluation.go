@@ -125,3 +125,8 @@ type AgentEvaluationCaseDetail struct {
 	Case     AgentEvaluationCase      `json:"case"`
 	Attempts []AgentEvaluationAttempt `json:"attempts"`
 }
+
+// AgentEvaluationSettings 定义独立于服务策略的 AI 评测判断模型。
+type AgentEvaluationSettings struct {
+	DecisionModelID *string `json:"decisionModelId" validate:"omitnil,modelref" msg:"field.agent_evaluation_decision_model_invalid"`
+}

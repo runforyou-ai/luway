@@ -9,17 +9,17 @@ import {
   MobileProfileField,
   MobileScrollArea,
 } from "@/apps/mobile/shared/mobile-page"
-import { ConversationAvatar } from "@/features/inbox/shared/conversation-avatar"
-import { InternalConversationDetails } from "@/features/inbox/conversation/internal-conversation-details"
+import { ConversationAvatar } from "@/features/inbox/public"
+import { InternalConversationDetails } from "@/features/inbox/public"
+import { useConversationName } from "@/hooks/use-conversation-name"
 
 /** 全屏展示会话对端资料，返回时回到所在会话。 */
 export function MobileIndividualProfilePage() {
   const { t } = useTranslation("inbox")
+  const conversationName = useConversationName()
   const { conversation } = useOutletContext<MobileIndividualConversationContext>()
   const agent = isAgentInboxConversation(conversation)
-  const name =
-    (agent ? conversation.agent.agentName : conversation.direct.peerName).trim() ||
-    t("unknownSender")
+  const name = conversationName(conversation) || t("unknownSender")
 
   return (
     <section className="absolute inset-0 flex min-h-0 flex-col bg-background">

@@ -1,5 +1,5 @@
 /** 移动端群主添加任意成员、其他成员添加本人负责的个人 AI 员工，保留选择并返回原群详情。 */
-import { groupMemberMaxCount } from "@/features/inbox/group/group-conversation-schema"
+import { groupMemberMaxCount } from "@/features/inbox/public"
 import { useEffect } from "react"
 import { useController, useForm } from "react-hook-form"
 import { useTranslation } from "react-i18next"

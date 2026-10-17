@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	jetclient "github.com/runforyou-ai/jetcast/client"
+	jetclient "github.com/runforyou-ai/luway/internal/realtime/client"
 )
 
 // connectRealtime 维持正式 SDK 工作通知连接，连接结束时显式释放全部订阅和重试。
@@ -28,7 +28,7 @@ func (l *Link) connectRealtime() bool {
 	} else {
 		address.Scheme = "ws"
 	}
-	echo, err := jetclient.Connect(l.ctx, jetclient.Options{Servers: []string{address.String()}, Prefix: config.Prefix, GetToken: func(ctx context.Context) (string, error) {
+	echo, err := jetclient.Connect(l.ctx, jetclient.Options{URL: address.String(), GetToken: func(ctx context.Context) (string, error) {
 		// SDK 的令牌回调同时受连接代次和 SDK 自身截止时间约束。
 		ctx, cancel := context.WithCancel(ctx)
 		stop := context.AfterFunc(l.ctx, cancel)

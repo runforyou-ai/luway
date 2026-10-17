@@ -9,7 +9,7 @@ import (
 
 	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
 	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
-	memberaction "github.com/runforyou-ai/luway/internal/actions/member"
+	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/stretchr/testify/require"
@@ -39,8 +39,8 @@ func TestServiceDeskDirectory(t *testing.T) {
 	}
 	desk := createAgent("IT 服务台", domain.ServiceAudienceEmployee)
 	createAgent("官网客服", domain.ServiceAudienceCustomer)
-	listColleagues := func(query string) memberaction.ListColleaguesOutput {
-		output, err := memberaction.NewListColleaguesQuery(f.db).Execute(ctx, f.member, memberaction.ListColleaguesInput{Query: query, Page: 1, PageSize: 50})
+	listColleagues := func(query string) teamaction.ListColleaguesOutput {
+		output, err := teamaction.NewListColleaguesQuery(f.db).Execute(ctx, f.member, teamaction.ListColleaguesInput{Query: query, Page: 1, PageSize: 50})
 		require.NoError(t, err, "读取同事目录失败")
 		return output
 	}
@@ -83,7 +83,7 @@ func TestServiceDeskDirectory(t *testing.T) {
 	// 负责人停用后目录不再展示其姓名，保留原负责人时仍可保存其他资料。
 	_, err = testUserStatusAction(f.db).Execute(ctx, f.owner, f.member.User.ID, domain.IdentityStatusInactive)
 	require.NoError(t, err, "停用负责人失败")
-	listed, err = memberaction.NewListColleaguesQuery(f.db).Execute(ctx, f.owner, memberaction.ListColleaguesInput{Page: 1, PageSize: 50})
+	listed, err = teamaction.NewListColleaguesQuery(f.db).Execute(ctx, f.owner, teamaction.ListColleaguesInput{Page: 1, PageSize: 50})
 	require.NoError(t, err)
 	require.Equal(t, 2, listed.Page.Total)
 	require.Equal(t, desk.ID, listed.Colleagues[0].AgentID)

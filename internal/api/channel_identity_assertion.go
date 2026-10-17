@@ -9,9 +9,9 @@ import (
 	"net/http"
 
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
-	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/common"
 )
 
 // ChannelIdentityAsserter 定义业务系统设定与撤销渠道身份核验的应用操作。
@@ -39,7 +39,7 @@ func (s *Service) handleChannelIdentityAssertion(writer http.ResponseWriter, req
 	}
 	channelID := request.PathValue("channelID")
 	err := execute(request.Context(), channelID, request.PathValue("externalID"), token)
-	var validation *conversationaction.ValidationError
+	var validation *common.FieldError
 	switch {
 	case err == nil:
 		writer.WriteHeader(http.StatusNoContent)

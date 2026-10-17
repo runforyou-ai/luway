@@ -18,7 +18,7 @@ func TestCreateMemberWithAvatar(t *testing.T) {
 	t.Parallel()
 	f := newNavigationFixture(t)
 	ctx := context.Background()
-	avatar, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.owner, domain.FileStorageBackendLocal, fileaction.UploadInput{
+	avatar, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.owner, fileaction.UploadInput{
 		Purpose: domain.FilePurposeUserAvatar, FileName: "member.png", ContentType: "image/png", ByteSize: 1024,
 	})
 	require.NoError(t, err)
@@ -46,7 +46,7 @@ func TestUpdateMemberAvatar(t *testing.T) {
 	// 上传两张成员头像，分别用于创建和替换。
 	avatarIDs := make([]string, 0, 2)
 	for _, name := range []string{"first.png", "second.png"} {
-		avatar, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.owner, domain.FileStorageBackendLocal, fileaction.UploadInput{
+		avatar, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.owner, fileaction.UploadInput{
 			Purpose: domain.FilePurposeUserAvatar, FileName: name, ContentType: "image/png", ByteSize: 1024,
 		})
 		require.NoError(t, err)

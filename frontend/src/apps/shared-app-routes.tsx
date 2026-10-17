@@ -8,8 +8,8 @@ import { lazyNamed } from "@/lib/lazy-named"
 import { lastWorkspacePath } from "@/lib/workspace-route"
 
 // 工作台与会话独立窗口在首次进入时加载，入口页不携带工作台代码。
-const WorkspaceLayout = lazyNamed(() => import("@/features/workspace/workspace-layout"), "WorkspaceLayout")
-const ConversationWindowLayout = lazyNamed(() => import("@/features/workspace/conversation-window-layout"), "ConversationWindowLayout")
+const WorkspaceLayout = lazyNamed(() => import("@/apps/shell/workspace-layout"), "WorkspaceLayout")
+const ConversationWindowLayout = lazyNamed(() => import("@/apps/shell/conversation-window-layout"), "ConversationWindowLayout")
 
 /** 根路径渲染账号级页面；工作区地址下把工作台页面交给标签宿主管理，桌面端另有会话独立窗口路由；登录会话代次变化时重新挂载登录外壳。 */
 export function SharedAppRoutes({

@@ -17,6 +17,9 @@ type KnowledgeGapDraftStatus = domain.KnowledgeGapDraftStatus
 
 // KnowledgeGapListInput 定义待补知识清单的渠道、AI 员工、处理状态与分页：ChannelID 为空表示全部渠道，AgentID 限定登记时负责的 AI 员工，Mine 限定为当前成员负责的 AI 员工。
 type KnowledgeGapListInput struct {
+	Audience      ServiceAudience `json:"audience,omitempty" query:"audience" validate:"omitempty,oneof=customer employee" msg:"field.service_audience_invalid"`
+	ServiceSource ServiceSource   `json:"serviceSource,omitempty" query:"serviceSource" validate:"omitempty,oneof=channel direct" msg:"error.validation_failed"`
+
 	ChannelID string             `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
 	AgentID   string             `json:"agentId" query:"agentId" validate:"omitempty,uuid" msg:"error.agent_not_found"`
 	Mine      bool               `json:"mine" query:"mine"`
@@ -27,6 +30,8 @@ type KnowledgeGapListInput struct {
 
 // KnowledgeGapSummary 定义清单中的一条待补知识；Question 优先取 AI 起草的问题，其次为客户提问原文，HasDraft 表示 AI 已起草问答。
 type KnowledgeGapSummary struct {
+	Audience          ServiceAudience    `json:"audience"`
+	ServiceSource     ServiceSource      `json:"serviceSource"`
 	ID                string             `json:"id"`
 	ConversationID    string             `json:"conversationId"`
 	QuestionMessageID string             `json:"questionMessageId"`
@@ -55,6 +60,8 @@ type KnowledgeGapDraft struct {
 
 // KnowledgeGap 定义待补知识详情：Question 为客户提问原文，DraftStatus 为草稿状态，Draft 只在已起草时给出；DefaultKnowledgeBaseID 为接待 AI 员工绑定的问答知识库，KnowledgeBaseID 与 QAEntryID 为加入的知识库与问答；Evaluable 表示提问可以同时加入接待 AI 员工的评测。
 type KnowledgeGap struct {
+	Audience               ServiceAudience         `json:"audience"`
+	ServiceSource          ServiceSource           `json:"serviceSource"`
 	ID                     string                  `json:"id"`
 	ConversationID         string                  `json:"conversationId"`
 	QuestionMessageID      string                  `json:"questionMessageId"`

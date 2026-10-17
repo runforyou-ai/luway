@@ -37,9 +37,9 @@ type retrievalProbe struct {
 	embedded  [][]string
 }
 
-// Fetch 返回固定网页内容。
-func (p *retrievalProbe) Fetch(context.Context, string) (webfetch.Page, error) {
-	return webfetch.Page{ContentType: webfetch.ContentTypeHTML, Body: []byte(p.markdown)}, nil
+// Fetch 返回固定网页 Markdown 正文。
+func (p *retrievalProbe) Fetch(_ context.Context, _, url string) (webfetch.Document, error) {
+	return webfetch.Document{URL: url, Content: p.markdown}, nil
 }
 
 // Open 提供固定原件。

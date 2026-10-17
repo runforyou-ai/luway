@@ -11,9 +11,9 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice"
-	"github.com/runforyou-ai/luway/internal/clientrelease"
-	"github.com/runforyou-ai/luway/internal/productsite"
+	releaseclients "github.com/runforyou-ai/luway/internal/release/clients"
 	"github.com/runforyou-ai/luway/internal/servertest"
+	"github.com/runforyou-ai/luway/internal/web/site"
 	"github.com/stretchr/testify/require"
 )
 
@@ -28,15 +28,15 @@ func TestCoreLocalizedHTTP(t *testing.T) {
 	})
 	backend := newAccountTestBackend(t, store.DB())
 	handler := api.NewService(backend)
-	site := productsite.NewService("/site.css", &clientrelease.Catalog{}, func(ctx context.Context) (productsite.Home, error) {
+	site := site.NewService("/site.css", &releaseclients.Catalog{}, func(ctx context.Context) (site.Home, error) {
 		_, err := backend.InstallationStatus(ctx, appservice.RequestMeta{})
-		return productsite.Home{}, err
+		return site.Home{}, err
 	})
 	for _, item := range []struct{ locale, path, message string }{
 		{"zh-CN", "/zh-cn/", "请先登录。"},
 		{"en-US", "/en/", "Please log in first."},
 	} {
-		request := httptest.NewRequest(http.MethodGet, "/platform/settings", nil)
+		request := httptest.NewRequest(http.MethodGet, "/platform/site", nil)
 		request.Header.Set("Accept-Language", item.locale)
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, request)

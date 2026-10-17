@@ -20,6 +20,7 @@ import (
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/actions/membersend"
 	"github.com/runforyou-ai/luway/internal/actions/servicestate"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -77,7 +78,7 @@ func NewSendServiceTextMessageAction(db *bun.DB, enqueuer servertask.TxEnqueuer)
 func (a *SendServiceTextMessageAction) Execute(ctx context.Context, identity *servermodels.Identity, input ServiceTextMessageInput) (conversationaction.ConversationMessage, error) {
 	normalized, fields := normalizeServiceTextMessageInput(input)
 	if len(fields) > 0 {
-		return conversationaction.ConversationMessage{}, &conversationaction.ValidationError{Fields: fields}
+		return conversationaction.ConversationMessage{}, &common.FieldError{Fields: fields}
 	}
 	return runCustomerMessage(ctx, a.db, a.enqueuer, identity, customerMessagePayload{
 		ConversationID: normalized.ConversationID, ClientMessageID: normalized.ClientMessageID,
@@ -153,6 +154,10 @@ func sendCustomerMessage(ctx context.Context, tx bun.Tx, identity *servermodels.
 	service, err := chatstate.LoadServiceConversation(ctx, tx, identity.Workspace.ID, input.ConversationID)
 	if err != nil {
 		return conversationaction.ConversationMessage{}, err
+	}
+	// 翻译发送只适用于客户服务。
+	if input.Translation != nil && domain.ServiceAudience(service.Audience) != domain.ServiceAudienceCustomer {
+		return conversationaction.ConversationMessage{}, &common.FieldError{Fields: map[string]common.FieldCode{"translation": ValidationTranslationInvalid}}
 	}
 	if err := rejectServiceRequester(ctx, tx, service, identity.WorkspaceIdentity.ID); err != nil {
 		return conversationaction.ConversationMessage{}, err
@@ -411,8 +416,8 @@ func ensureNoteSubjects(ctx context.Context, tx bun.Tx, identity *servermodels.I
 }
 
 // normalizeServiceTextMessageInput 规范化成员客户消息输入，并校验提醒与译文只用于对应的消息可见范围。
-func normalizeServiceTextMessageInput(input ServiceTextMessageInput) (ServiceTextMessageInput, map[string]conversationaction.ValidationCode) {
-	fields := map[string]conversationaction.ValidationCode{}
+func normalizeServiceTextMessageInput(input ServiceTextMessageInput) (ServiceTextMessageInput, map[string]common.FieldCode) {
+	fields := map[string]common.FieldCode{}
 	input.Body = strings.TrimSpace(input.Body)
 	input.ConversationID, _ = str.NormalizeUUID(input.ConversationID)
 	input.ClientMessageID, _ = str.NormalizeUUID(input.ClientMessageID)

@@ -7,7 +7,7 @@ Replace the product name, icons, and client branding.
 
 ## Deployment branding
 
-Platform administrators can set the following for the whole deployment under **Settings → Platform → Deployment → Branding**:
+Platform administrators can set the following for the whole deployment under **Platform admin → System settings → Site settings**:
 
 - The product name for each interface language. Languages left blank keep the build-time brand.
 - The global object name the website embed script registers on the host page. It must start with a letter and contain only letters and digits.
@@ -21,4 +21,4 @@ Installer names, app identifiers, client icons, and other things fixed at build 
 
 ## License requirements
 
-Deployment branding takes effect only while the license grants custom branding and hasn't expired. You can save it before then, and it takes effect once the license grants it. When the license expires, the build-time brand returns. See [License](/docs/en/deployment/operate/license/).
+Deployment branding can be changed and takes effect only while a commercial license is active. Without a license or after expiry, branding fields on Site settings are read-only and show the build-time defaults (for example Luway). When the license expires, the build-time brand returns. See [License](/docs/en/deployment/manage/license/).

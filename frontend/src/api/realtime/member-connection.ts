@@ -1,6 +1,6 @@
-/** 账号共用一条 jetcast 连接，成员页面、运行流与跨工作区通知订阅同一连接的事件。 */
-import { connect, UnauthorizedError, type Echo, type Channel, type ChannelState } from "@runforyou/jetcast"
-import { isApiError, serverURL, sessionRequestMeta } from "@/api/client"
+/** 账号共用一条应用实时连接，成员页面、运行流与跨工作区通知订阅同一连接的事件。 */
+import { connect, UnauthorizedError, type Client, type Channel, type ChannelState } from "./transport"
+import { isApiError, serverURL } from "@/api/client"
 import type { RealtimeConnection, RealtimeMember } from "@/api/generated/contract"
 import { getRealtimeConnection, getSyncHeads, loadIdentity } from "@/api/generated/operations"
 import { sessionPath } from "@/api/session"
@@ -26,7 +26,7 @@ function untilCanceled<T>(request: Promise<T>, signal: AbortSignal): Promise<T> 
 class MemberConnection {
   private readonly scopes = new Set<Scope>()
   private readonly listeners = new Map<Scope, Set<(event: RealtimeClientEvent) => void>>()
-  private echo: Echo | undefined
+  private echo: Client | undefined
   private controller: AbortController | undefined
   private channels = new Map<string, Channel>()
   private runListeners = new Map<string, Set<RunListener>>()
@@ -98,7 +98,7 @@ class MemberConnection {
   private demand() { return this.scopes.size > 0 || this.runListeners.size > 0 }
 
   /** 安装本代次的运行频道并把恢复与失权状态交给各运行处理。 */
-  private subscribeRuns(echo: Echo) {
+  private subscribeRuns(echo: Client) {
     const attempt = this.attempt
     for (const [name, listeners] of this.runListeners) {
       if (this.runChannels.has(name)) continue
@@ -111,9 +111,6 @@ class MemberConnection {
       channel.onState((state) => {
         if (current()) for (const listener of [...listeners]) listener.state(state)
       })
-      void channel.ready().then(() => {
-        if (current()) for (const listener of [...listeners]) listener.state({ state: "subscribed", recovered: false })
-      }).catch(() => undefined)
     }
   }
 
@@ -155,12 +152,12 @@ class MemberConnection {
       address.protocol = address.protocol === "https:" ? "wss:" : "ws:"
       // 首次连接取消由令牌回调终止 SDK 重试；已在途的连接完成后立即关闭。
       const echo = await connect({
-        servers: address.href,
-        prefix: config.prefix,
+        url: address.href,
         getToken: async () => {
           if (!current()) throw new UnauthorizedError()
           try {
-            await untilCanceled(getRealtimeConnection(controller.signal), controller.signal)
+            const refreshed = await untilCanceled(getRealtimeConnection(controller.signal), controller.signal)
+            return refreshed.token
           } catch (error) {
             if (!current()) throw new UnauthorizedError()
             if (isApiError(error) && sessionPath(error.state)) {
@@ -171,9 +168,7 @@ class MemberConnection {
             }
             throw error
           }
-          const meta = sessionRequestMeta()
-          if (!current() || !meta?.token) throw new UnauthorizedError()
-          return meta.token
+
         },
       })
       if (!current()) { await echo.close(); return }
@@ -219,7 +214,7 @@ class MemberConnection {
   }
 
   /** 按认证响应中的精确频道安装订阅，订阅就绪后读取当前快照。 */
-  private subscribe(echo: Echo, current: () => boolean) {
+  private subscribe(echo: Client, current: () => boolean) {
     this.subscribeRuns(echo)
     const config = echo.info as RealtimeConnection
     const wanted = new Set<string>()
@@ -292,7 +287,7 @@ class MemberConnection {
 
   /** 解码成员事件，并在前端派生跨工作区变化和用户通知。 */
   private receive(member: RealtimeMember, data: unknown) {
-    const result = decodeServerFrame(JSON.stringify(data))
+    const result = decodeServerFrame(data)
     if (result.status !== "frame") return
     const frame = result.frame
     if (frame.type === "user_notification") this.emit("account", { type: "frame", frame })

@@ -20,7 +20,7 @@ import { TeamSelectField } from "@/components/form/team-select-field"
 import { ImagePicker } from "@/components/image-picker"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { NativeSelect } from "@/components/ui/native-select"
-import { selectableWorkStatuses, workStatusLabel } from "@/components/work-status"
+import { selectableWorkStatuses, workStatusLabel } from "@/features/contacts/public"
 import {
   AgentComputerField,
   AgentComputerGrantField,

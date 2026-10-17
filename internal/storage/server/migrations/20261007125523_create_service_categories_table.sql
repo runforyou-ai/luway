@@ -5,14 +5,15 @@ CREATE TABLE service_categories (
     created_at    timestamptz NOT NULL DEFAULT now(),
     updated_at    timestamptz NOT NULL DEFAULT now(),
     workspace_id  uuid NOT NULL,
+    audience      text NOT NULL,
     name          text NOT NULL,
     description   text NOT NULL DEFAULT '',
     team_id       uuid,
     archived_at   timestamptz
 );
 
-CREATE UNIQUE INDEX service_categories_workspace_name_unique
-    ON service_categories (workspace_id, lower(name)) WHERE (archived_at IS NULL);
+CREATE UNIQUE INDEX service_categories_workspace_audience_name_unique
+    ON service_categories (workspace_id, audience, lower(name)) WHERE (archived_at IS NULL);
 
 CREATE TRIGGER service_categories_set_updated_at BEFORE UPDATE ON service_categories FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
@@ -21,6 +22,7 @@ COMMENT ON COLUMN service_categories.id IS '咨询分类编号';
 COMMENT ON COLUMN service_categories.created_at IS '创建时间';
 COMMENT ON COLUMN service_categories.updated_at IS '更新时间';
 COMMENT ON COLUMN service_categories.workspace_id IS '所属工作区编号';
+COMMENT ON COLUMN service_categories.audience IS '分类所属服务对象，创建后保持固定';
 COMMENT ON COLUMN service_categories.name IS '分类名称，未归档的分类在工作区内唯一';
 COMMENT ON COLUMN service_categories.description IS '供 AI 判断归类的说明';
 COMMENT ON COLUMN service_categories.team_id IS 'AI 转人工时承接该分类的团队；为空时按渠道失败路由';

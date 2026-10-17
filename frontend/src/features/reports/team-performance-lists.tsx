@@ -1,4 +1,5 @@
 /** 团队表现报表的滚动加载列表：按客服、按渠道或咨询分类拆分与真人接待的问题会话。 */
+import type { ServiceAudience, ServiceSource } from "@/api"
 import { useTranslation } from "react-i18next"
 
 import {
@@ -19,6 +20,8 @@ import { ServiceIssueTable } from "./service-issue-list"
 
 /** 团队表现的筛选范围：publicQueue 限定公共队列，否则 teamId 限定团队，两者都未给出表示全部队列。 */
 export type TeamReportFilter = {
+ audience?: ServiceAudience
+ serviceSource?: ServiceSource
   days: number
   channelId: string
   teamId: string

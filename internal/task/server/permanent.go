@@ -3,15 +3,10 @@
 package server
 
 import (
-	"context"
-	"encoding/json"
 	"time"
 
 	"github.com/runforyou-ai/jetq"
 )
-
-// Handler 执行已经序列化的 Action 输入。
-type Handler func(context.Context, json.RawMessage) error
 
 // Permanent 将 Action 错误标记为永久失败，任务不再重试。
 func Permanent(err error) error { return jetq.Permanent(err) }

@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next"
 import { GroupParticipantRole, type GroupConversation } from "@/api"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { GroupAvatar } from "@/features/inbox/group/group-avatar"
+import { GroupAvatar } from "@/features/inbox/public"
 import { useDateTime } from "@/hooks/use-date-time"
 
 /** 紧凑展示群资料，资料操作、免打扰与归档操作保持统一表单行布局。 */

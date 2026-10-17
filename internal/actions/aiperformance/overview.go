@@ -9,6 +9,7 @@ import (
 	"slices"
 
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
+	"github.com/runforyou-ai/luway/internal/actions/reportpage"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -22,6 +23,9 @@ func NewOverviewQuery(db *bun.DB) *OverviewQuery { return &OverviewQuery{db: db}
 
 // Execute 以一条查询汇总统计范围内已关闭周期的整体计数、满意度、AI 质检与转人工原因分布，并读取所选渠道和 AI 员工范围下全部待处理的待补知识条数。
 func (q *OverviewQuery) Execute(ctx context.Context, identity *servermodels.Identity, input Input) (*Overview, error) {
+	if err := reportpage.ValidateServiceScope(ctx, q.db, identity.Workspace.ID, input.Audience, input.ServiceSource, input.ChannelID); err != nil {
+		return nil, err
+	}
 	scope, args := reportScope(identity, input)
 	var result struct {
 		Summary
@@ -62,7 +66,7 @@ FROM closed`, slices.Concat(args, []any{
 	if err := json.Unmarshal(result.HandoffReasons, &overview.HandoffReasons); err != nil {
 		return nil, fmt.Errorf("decode handoff reasons: %w", err)
 	}
-	total, err := knowledgegap.PendingCount(ctx, q.db, identity.Workspace.ID, knowledgegap.Scope{ChannelID: input.ChannelID, Agents: input.Agents})
+	total, err := knowledgegap.PendingCount(ctx, q.db, identity.Workspace.ID, knowledgegap.Scope{Audience: input.Audience, ServiceSource: input.ServiceSource, ChannelID: input.ChannelID, Agents: input.Agents})
 	if err != nil {
 		return nil, err
 	}

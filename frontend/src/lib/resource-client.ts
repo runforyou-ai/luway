@@ -53,3 +53,21 @@ export function beginSessionBoundary() {
   toast.dismiss()
   for (const listener of [...sessionBoundaryListeners]) listener()
 }
+
+/** 退出后台时保留的用户端账号级缓存（与平台管理 key 同属 Account 作用域）。 */
+const keepAccountKeysAfterAdminBoundary = new Set(["account", "workspaces", "workspace-attention"])
+
+/**
+ * 进入新的平台后台会话：清掉后台账号与平台管理缓存，保留用户端账号级数据。
+ * 不提升用户端会话代次，避免影响 Bearer 登录与实时连接。
+ */
+export function beginAdminSessionBoundary() {
+  resourceClient.removeQueries({
+    predicate: (query) => {
+      if (query.queryKey[0] !== ResourceScope.Account) return false
+      const name = query.queryKey[1]
+      return typeof name === "string" && !keepAccountKeysAfterAdminBoundary.has(name)
+    },
+  })
+  toast.dismiss()
+}

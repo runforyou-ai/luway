@@ -1,7 +1,5 @@
 /** 桌面端本机电脑：以登录会话为账号所在的工作区注册这台电脑，把电脑凭据交给本机执行器，并读取本机在当前工作区的电脑与运行环境。 */
-import { invoke, requestMeta, serverURL } from "@/api/client"
-import type { ComputerRegistration } from "@/api/generated/contract"
-import * as ops from "@/api/generated/operations"
+import { loadAccount, registerComputerInWorkspace, serverURL } from "@/api"
 import { currentSessionGeneration, requestWorkspace } from "@/api/session-scope"
 import { resolveDesktopOS } from "@/platform/app-platform"
 import {
@@ -33,10 +31,10 @@ async function registerWorkspace(account: ComputerAccount, workspaceID: string, 
   if (attached.has(workspaceID) || workspaces.has(workspaceID)) return
   const identity = await getComputerIdentity()
   if (!identity.installId) return
-  const registration = await invoke<ComputerRegistration>(
-    { method: "POST", path: "/computers", body: { installId: identity.installId, name: identity.name } },
-    { ...requestMeta(), workspaceId: workspaceID },
-  )
+  const registration = await registerComputerInWorkspace(workspaceID, {
+    installId: identity.installId,
+    name: identity.name,
+  })
   await attachComputer({
     serverUrl: account.serverUrl,
     accountId: account.accountId,
@@ -50,7 +48,7 @@ async function registerWorkspace(account: ComputerAccount, workspaceID: string, 
 
 /** 返回当前登录账号在当前服务器上的本机电脑分组。 */
 async function currentAccount(): Promise<ComputerAccount> {
-  const account = await ops.loadAccount()
+  const account = await loadAccount()
   return { serverUrl: serverURL(), accountId: account.id }
 }
 

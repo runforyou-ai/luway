@@ -212,6 +212,12 @@ tasks:
       - touch "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
 
+  release:sign:
+    summary: 正式签名、公证并打包已构建的 macOS 桌面端和执行器
+    platforms: [darwin]
+    cmds:
+      - bash build/scripts/ci-sign-macos.sh "{{.BIN_DIR}}/{{.APP_NAME}}.app" "{{.BIN_DIR}}/{{.APP_NAME}}-executor-darwin-{{.ARCH | default ARCH}}" "{{.RELEASE_DIR | default "release-assets"}}" "{{.APP_VERSION}}" "{{.ARCH | default ARCH}}"
+
   sign:
     summary: Signs the application bundle with Developer ID
     desc: |

@@ -1,15 +1,15 @@
 /** 概览的运行状态页签：各服务端进程的版本、心跳与消息总线负载，以及后台任务各队列的等待、执行、重试与失败情况，页头导出诊断信息。 */
-import { ServerIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { getPlatformRuntimeStatus, type PlatformServer, type PlatformTaskQueue } from "@/api"
-import { ReportSection, StatTile } from "@/components/report-parts"
+// 报表共用 UI 归属 reports；platform 经 public 跨 feature 引用。
+import { ReportSection, StatTile } from "@/components/metrics"
 import { ResourceListLayout } from "@/components/resource-list"
-import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable } from "@/components/resource-table"
 import { StatusBadge } from "@/components/status-badge"
+import { AdminTableFrame } from "@/features/admin/admin-list-layout"
 import { DiagnosticsExportButton } from "@/features/platform/platform-diagnostics-export"
-import { PlatformTabsActions } from "@/features/platform/platform-tabs"
+import { AdminPageActions } from "@/features/admin/admin-page"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useReportFormat } from "@/hooks/use-report-format"
@@ -80,9 +80,9 @@ export function PlatformRuntimeTab() {
 
   return (
     <>
-      <PlatformTabsActions>
+      <AdminPageActions>
         <DiagnosticsExportButton />
-      </PlatformTabsActions>
+      </AdminPageActions>
       <ResourceListLayout resources={status} errorMessage={t("runtime.loadError")}>
         {status.data ? (
           <div className="space-y-9">
@@ -105,37 +105,40 @@ export function PlatformRuntimeTab() {
             <ServerSection servers={servers} />
 
             <ReportSection title={t("runtime.queuesTitle")} titleClassName="px-3">
+              <AdminTableFrame>
               <ResourceTable<PlatformTaskQueue>
                 columns={[
                   {
                     key: "queue",
                     header: t("runtime.queueColumn"),
-                    cellClassName: "min-w-0 font-mono text-sm",
+                    cellClassName: "min-w-[8rem] font-mono text-sm",
                     cell: (queue) => queue.queue,
                   },
                   {
                     key: "waiting",
                     header: t("runtime.waiting"),
                     cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground tabular-nums",
-                    cell: (queue) => t("runtime.waitingCell", { formatted: count(queue.waiting) }),
+                    cell: (queue) => count(queue.waiting),
                   },
                   {
                     key: "running",
                     header: t("runtime.running"),
                     cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground tabular-nums",
-                    cell: (queue) => t("runtime.runningCell", { formatted: count(queue.running) }),
+                    cell: (queue) => count(queue.running),
                   },
                   {
                     key: "failed",
                     header: t("runtime.failed"),
                     cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground tabular-nums",
-                    cell: (queue) => t("runtime.failedCell", { formatted: count(queue.failed) }),
+                    cell: (queue) => count(queue.failed),
                   },
                 ]}
                 rows={queues}
                 rowKey={(queue) => queue.queue}
                 empty={t("runtime.noQueues")}
+                showHeader
               />
+              </AdminTableFrame>
             </ReportSection>
           </div>
         ) : null}
@@ -144,59 +147,80 @@ export function PlatformRuntimeTab() {
   )
 }
 
-/** 服务端进程列表：主机名、版本、最近心跳、消息总线传输方式与发送速率、启动时间，失联、消息总线未连接或丢失消息时标出。 */
+/** 服务端进程列表：主机名、版本、实例、状态、心跳、消息总线与启动时间分列展示。 */
 function ServerSection({ servers }: { servers: PlatformServer[] }) {
   const { t } = useTranslation("platform")
   const { formatDateTime } = useDateTime()
   const { count } = useReportFormat()
 
-  /** 返回服务器行的状态标记：失联、消息总线未连接或消息总线丢失消息，正常时不标记。 */
+  /** 返回服务器行的状态标记：失联、消息总线未连接或消息总线丢失消息，正常时显示在线。 */
   function serverBadge(server: PlatformServer) {
     if (!server.online) return <StatusBadge variant="destructive">{t("runtime.serverLost")}</StatusBadge>
     if (!server.busConnected) return <StatusBadge variant="warning">{t("runtime.busDisconnected")}</StatusBadge>
     if (server.busFailures > 0) return <StatusBadge variant="warning">{t("runtime.busDropping")}</StatusBadge>
-    return undefined
+    return <StatusBadge variant="success">{t("runtime.serverOnline")}</StatusBadge>
   }
 
   return (
     <ReportSection title={t("runtime.serversTitle")} titleClassName="px-3">
+      <AdminTableFrame>
       <ResourceTable<PlatformServer>
         columns={[
           {
             key: "server",
             header: t("runtime.serverColumn"),
-            cellClassName: "min-w-0",
-            cell: (server) => (
-              <ResourceRowIdentity
-                icon={ServerIcon}
-                name={server.hostname}
-                secondary={t("runtime.serverIdentity", { version: server.version, id: server.id.slice(0, 8) })}
-                badge={serverBadge(server)}
-                description={t("runtime.heartbeat", { time: formatDateTime(server.heartbeatAt) })}
-              />
-            ),
+            cellClassName: "min-w-[8rem] whitespace-nowrap font-medium",
+            cell: (server) => server.hostname,
           },
           {
-            key: "bus",
-            header: t("runtime.busColumn"),
-            cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground",
-            cell: (server) =>
-              t("runtime.busCell", {
-                driver: busDriverNames[server.busDriver] ?? server.busDriver,
-                rate: t("runtime.busRate", { formatted: count(Math.round(server.busMessageRate)) }),
-              }),
+            key: "version",
+            header: t("runtime.versionColumn"),
+            cellClassName: "w-px whitespace-nowrap text-muted-foreground",
+            cell: (server) => server.version,
+          },
+          {
+            key: "instance",
+            header: t("runtime.instanceColumn"),
+            cellClassName: "w-px whitespace-nowrap font-mono text-sm text-muted-foreground",
+            cell: (server) => server.id.slice(0, 8),
+          },
+          {
+            key: "status",
+            header: t("runtime.statusColumn"),
+            cellClassName: "w-px whitespace-nowrap",
+            cell: serverBadge,
+          },
+          {
+            key: "heartbeat",
+            header: t("runtime.heartbeatColumn"),
+            cellClassName: "w-px whitespace-nowrap text-muted-foreground",
+            cell: (server) => formatDateTime(server.heartbeatAt),
+          },
+          {
+            key: "busDriver",
+            header: t("runtime.busDriverColumn"),
+            cellClassName: "w-px whitespace-nowrap text-muted-foreground",
+            cell: (server) => busDriverNames[server.busDriver] ?? server.busDriver,
+          },
+          {
+            key: "busRate",
+            header: t("runtime.busRateColumn"),
+            cellClassName: "w-px whitespace-nowrap text-right tabular-nums text-muted-foreground",
+            cell: (server) => t("runtime.busRate", { formatted: count(Math.round(server.busMessageRate)) }),
           },
           {
             key: "startedAt",
             header: t("runtime.startedAtColumn"),
-            cellClassName: "hidden w-px whitespace-nowrap text-right text-muted-foreground sm:table-cell",
-            cell: (server) => t("runtime.startedAt", { time: formatDateTime(server.startedAt) }),
+            cellClassName: "w-px whitespace-nowrap text-muted-foreground",
+            cell: (server) => formatDateTime(server.startedAt),
           },
         ]}
         rows={servers}
         rowKey={(server) => server.id}
         empty={t("runtime.noServers")}
+        showHeader
       />
+      </AdminTableFrame>
     </ReportSection>
   )
 }

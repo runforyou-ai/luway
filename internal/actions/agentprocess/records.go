@@ -31,18 +31,19 @@ func (c CallChange) NewlySettledAs(status einorun.CallStatus) bool {
 }
 
 // NewlyHandedOver 判断调用经本次写入首次以 handover 交出。
-func (c CallChange) NewlyHandedOver(handover einorun.Handover) bool {
-	return c.After.Handover == handover && (c.Before == nil || c.Before.Handover != handover)
+func (c CallChange) NewlyHandedOver(handover agentcontract.Handover) bool {
+	want := einorun.Handover(handover)
+	return c.After.Handover == want && (c.Before == nil || c.Before.Handover != want)
 }
 
 // Submitted 判断工具调用记录是否提交给处理人：确认或批准后由服务端在运行外执行，结果以事件送达 AI 员工。
 func Submitted(row *servermodels.AgentToolCall) bool {
-	return row.Handover != nil && einorun.Handover(*row.Handover) == einorun.HandoverSubmitted
+	return row.Handover != nil && agentcontract.Handover(*row.Handover) == agentcontract.HandoverSubmitted
 }
 
 // Paused 判断调用是否暂停运行等待确认：由运行时推进且等待处理人的决定。
 func Paused(call einorun.ToolCall) bool {
-	return call.Handover == einorun.HandoverNone && call.Status == einorun.StatusAwaitingDecision
+	return call.Handover == einorun.Handover(agentcontract.HandoverNone) && call.Status == einorun.StatusAwaitingDecision
 }
 
 // CallRecord 把工具调用记录转换为运行时的调用记录。
@@ -73,7 +74,7 @@ func CallRecord(row servermodels.AgentToolCall) einorun.ToolCall {
 func resumeRecord(row servermodels.AgentToolCall) einorun.ToolCall {
 	call := CallRecord(row)
 	switch {
-	case call.Handover == einorun.HandoverSubmitted && row.Intervention != nil:
+	case call.Handover == einorun.Handover(agentcontract.HandoverSubmitted) && row.Intervention != nil:
 		call.Result = new(agentcontract.SubmittedResult(domain.ToolIntervention(*row.Intervention)))
 	case row.LocalAgentSessionID != nil && row.Operation != nil:
 		call.Result = new(agentcontract.LocalAgentSubmitted(row.Operation.Operation.LocalAgent))
@@ -229,7 +230,7 @@ func callRow(run *servermodels.AgentRun, call einorun.ToolCall) servermodels.Age
 		row.Completion, _ = json.Marshal(call.Completion)
 	}
 	// 提交确认或审批与暂停等待确认的调用记下介入方式，提交的电脑工具调用记下批准后派发的电脑与操作。
-	if call.Handover == einorun.HandoverSubmitted || Paused(call) {
+	if call.Handover == einorun.Handover(agentcontract.HandoverSubmitted) || Paused(call) {
 		var submission agentcontract.Submission
 		if json.Unmarshal(call.Payload, &submission) == nil && submission.Intervention != "" {
 			row.Intervention = new(string(submission.Intervention))

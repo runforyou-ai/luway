@@ -10,9 +10,9 @@ type FileBackend interface {
 	// CompleteFileUpload 核验并完成文件上传。
 	//appservice:route POST /files/{fileID:uuid}/complete perm=none
 	CompleteFileUpload(context.Context, RequestMeta, string) (File, error)
-	// CreateFilePartUpload 创建一个分片的直传请求。
-	//appservice:route POST /files/{fileID:uuid}/parts perm=none
-	CreateFilePartUpload(context.Context, RequestMeta, string, FilePartUploadInput) (FileUploadRequest, error)
+	// SignFileUpload 为当前上传签发 S3 请求。
+	//appservice:route POST /files/{fileID:uuid}/upload/sign perm=none
+	SignFileUpload(context.Context, RequestMeta, string, FileUploadSignInput) (FileUploadRequest, error)
 	// CancelFileUpload 将未发送的临时文件交给清理任务。
 	//appservice:route DELETE /files/{fileID:uuid}/upload perm=none
 	CancelFileUpload(context.Context, RequestMeta, string) error

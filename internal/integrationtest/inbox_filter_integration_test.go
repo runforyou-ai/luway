@@ -92,7 +92,7 @@ func TestInboxChannelFilter(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{other.Conversation.ID}, conversationIDs(closedPage.Conversations), "disabled channel")
 	login := servertest.LoginMember(t, f.db, f.owner.Workspace.ID, f.owner.Account.Email, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	candidates, err := backend.ListInboxChannels(ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Workspace.ID})
 	require.NoError(t, err)
 	require.Len(t, candidates.Channels, 2)

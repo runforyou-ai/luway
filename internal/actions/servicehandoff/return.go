@@ -9,8 +9,6 @@ import (
 	"log/slog"
 	"uuid"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentcancel"
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
@@ -24,14 +22,18 @@ import (
 	"github.com/uptrace/bun"
 )
 
+// CancelServiceSessionRunsFunc 取消服务周期内负责人的在途运行并结算其输入队列；由 agentrun 注入，避免本包依赖 agentrun。
+type CancelServiceSessionRunsFunc func(ctx context.Context, db bun.IDB, workspaceID, serviceSessionID, agentIdentityID string, reason domain.AgentRunErrorCode) ([]string, error)
+
 // Returner 在管理操作中把失去接待资格的身份负责的开放服务周期退回队列。
 type Returner struct {
-	enqueuer servertask.TxEnqueuer
+	enqueuer   servertask.TxEnqueuer
+	cancelRuns CancelServiceSessionRunsFunc
 }
 
-// NewReturner 创建服务周期退回处理。
-func NewReturner(enqueuer servertask.TxEnqueuer) *Returner {
-	return &Returner{enqueuer: enqueuer}
+// NewReturner 创建服务周期退回处理；cancelRuns 取消 AI 负责人在途运行，通常为 agentrun.CancelServiceSessionRuns。
+func NewReturner(enqueuer servertask.TxEnqueuer, cancelRuns CancelServiceSessionRunsFunc) *Returner {
+	return &Returner{enqueuer: enqueuer, cancelRuns: cancelRuns}
 }
 
 // ReturnServiceSessionsToQueue 在管理操作事务中把失去接待资格的身份负责的开放服务周期退回队列：取消在途运行并结算输入队列，写入退回事件；原负责人是 AI 员工时投递转人工承接任务。
@@ -59,7 +61,7 @@ func (a *Returner) ReturnServiceSessionsToQueue(ctx context.Context, db bun.IDB,
 		return fmt.Errorf("load assignee open service sessions: %w", err)
 	}
 	for _, row := range sessions {
-		if _, err := ReturnUnavailableAssigneeSession(ctx, db, a.enqueuer, workspaceID, row.ConversationID, row.ID, assignee, "returned:"+row.ID+":"+operationID); err != nil {
+		if _, err := ReturnUnavailableAssigneeSession(ctx, db, a.enqueuer, a.cancelRuns, workspaceID, row.ConversationID, row.ID, assignee, "returned:"+row.ID+":"+operationID); err != nil {
 			return err
 		}
 	}
@@ -67,7 +69,7 @@ func (a *Returner) ReturnServiceSessionsToQueue(ctx context.Context, db bun.IDB,
 }
 
 // ReturnUnavailableAssigneeSession 把失去接待资格的负责人所负责的指定周期退回队列并返回被取消的运行编号，周期已变化时跳过；调用方可以已在本事务中持有会话锁。
-func ReturnUnavailableAssigneeSession(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, workspaceID, conversationID, serviceSessionID string, assignee *servermodels.WorkspaceIdentity, key string) ([]string, error) {
+func ReturnUnavailableAssigneeSession(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, cancelRuns CancelServiceSessionRunsFunc, workspaceID, conversationID, serviceSessionID string, assignee *servermodels.WorkspaceIdentity, key string) ([]string, error) {
 	locked, err := chatstate.LockServiceSession(ctx, db, workspaceID, conversationID)
 	if err != nil {
 		return nil, err
@@ -79,7 +81,7 @@ func ReturnUnavailableAssigneeSession(ctx context.Context, db bun.IDB, enqueuer 
 	}
 	var runIDs []string
 	if domain.WorkspaceIdentityType(assignee.Type) == domain.WorkspaceIdentityTypeAgent {
-		runIDs, err = agentcancel.CancelServiceSessionRuns(ctx, db, workspaceID, session.ID, assignee.ID, domain.AgentRunErrorCodeAgentUnavailable)
+		runIDs, err = cancelRuns(ctx, db, workspaceID, session.ID, assignee.ID, domain.AgentRunErrorCodeAgentUnavailable)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +118,7 @@ func applyServiceSessionReturn(ctx context.Context, db bun.IDB, enqueuer servert
 	}
 	eventType := string(domain.ConversationSystemEventServiceSessionReturned)
 	eventKey := key + ":event"
-	if _, _, err := agentmessage.Append(ctx, db, enqueuer, conversation, &servermodels.Message{
+	if _, _, err := chatstate.Append(ctx, db, enqueuer, conversation, &servermodels.Message{
 		ID: uuid.NewV7().String(), WorkspaceID: session.WorkspaceID, ConversationID: session.ConversationID,
 		ServiceSessionID: &session.ID, Type: string(domain.MessageTypeSystem), Visibility: string(domain.MessageVisibilityInternal),
 		SystemEventType: &eventType, SystemEventPayload: payload, IdempotencyKey: &eventKey,

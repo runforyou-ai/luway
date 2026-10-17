@@ -63,9 +63,10 @@ func (c *runComputer) Execute(ctx context.Context, operation domain.ComputerOper
 	wake, unwatch := realtime.WatchAgentToolCallSettled(c.workspaceID, callID)
 	defer unwatch()
 	// 可挂起的调用交由电脑推进，恢复时等待电脑结果；不可挂起的调用在进程内等待，恢复时按进行中的调用结算。
-	var handover *einorun.Handover
+	var handover *agentcontract.Handover
 	if suspend {
-		handover = new(einorun.HandoverAwait)
+		h := agentcontract.HandoverAwait
+		handover = &h
 	}
 	dispatched := false
 	err := realtime.RunInTx(ctx, c.db, func(ctx context.Context, tx bun.Tx) error {

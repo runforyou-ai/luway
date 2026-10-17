@@ -13,7 +13,7 @@ import {
   type AgentToolCallProcess,
   type AgentToolCallStep,
 } from "@/api"
-import { isUnsettledToolCall, useToolStatusLabel } from "@/components/agent-run-blocks"
+import { isUnsettledToolCall, useToolStatusLabel } from "@/features/inbox/shared/agent-run-blocks"
 import { MessageMarkdown } from "@/components/message-markdown"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { resourceKeys } from "@/hooks/resource-keys"

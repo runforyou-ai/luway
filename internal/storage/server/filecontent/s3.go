@@ -5,6 +5,7 @@ package filecontent
 import (
 	"bytes"
 	"context"
+	"errors"
 	"net/http"
 	"sync"
 	"time"
@@ -12,15 +13,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // signedRequestLifetime 是预签名请求的有效期。
 const signedRequestLifetime = 15 * time.Minute
 
-// S3Config 定义访问 S3 兼容对象存储所需配置，关闭时新文件写入本地存储。
+// S3Config 定义访问 S3 兼容对象存储所需配置。
 type S3Config struct {
-	Enabled         bool
 	Endpoint        string
 	PublicBaseURL   string
 	Region          string
@@ -32,14 +31,6 @@ type S3Config struct {
 
 // S3Settings 返回当前的对象存储配置，部署配置修改后返回新值。
 type S3Settings func() S3Config
-
-// Backend 返回新文件写入的存储类型，开启对象存储时写入对象存储，否则写入本地目录。
-func (c S3Config) Backend() domain.FileStorageBackend {
-	if c.Enabled {
-		return domain.FileStorageBackendS3
-	}
-	return domain.FileStorageBackendLocal
-}
 
 // SignedRequest 定义客户端直传对象存储所需请求。
 type SignedRequest struct {
@@ -68,6 +59,9 @@ func Put(ctx context.Context, config S3Config, key, contentType string, data []b
 
 // PresignPut 创建对象直传请求，签名包含内容字节数，上传内容须与登记的大小一致。
 func PresignPut(ctx context.Context, config S3Config, key, contentType string, byteSize int64) (SignedRequest, error) {
+	if config.Endpoint == "" || config.Bucket == "" {
+		return SignedRequest{}, errors.New("S3 storage is not configured")
+	}
 	presigned, err := s3.NewPresignClient(newS3Client(config)).PresignPutObject(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(config.Bucket), Key: aws.String(key), ContentType: aws.String(contentType), CacheControl: aws.String(ImmutableCacheControl),
 		ContentLength: aws.Int64(byteSize),

@@ -15,7 +15,7 @@ import {
   type KnowledgeQAEntry,
 } from "@/api"
 import { FormActions } from "@/components/form/form-actions"
-import { QAFormFields, qaSchema, type QAFormValues } from "@/components/knowledge-qa-fields"
+import { QAFormFields, qaSchema, type QAFormValues } from "./knowledge-qa-fields"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
 import { ResourceContent } from "@/components/resource-content"

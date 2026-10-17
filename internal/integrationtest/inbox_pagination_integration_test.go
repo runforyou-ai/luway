@@ -225,7 +225,7 @@ func TestInboxPaginationBoundaries(t *testing.T) {
 			require.False(t, next.HasMore)
 			require.Equal(t, f.groupID, next.Conversations[1].ID)
 			for _, row := range next.Conversations {
-				_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: row.ID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+				_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: row.ID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 				require.NoError(t, err)
 			}
 			empty, _, err := query.Execute(ctx, f.member, input)
@@ -235,7 +235,7 @@ func TestInboxPaginationBoundaries(t *testing.T) {
 			require.False(t, empty.HasMore)
 			require.Empty(t, empty.NextCursor)
 			login := servertest.LoginMember(t, f.db, f.owner.Workspace.ID, f.member.Account.Email, "password123")
-			backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+			backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 			meta := appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Workspace.ID}
 			for _, request := range []appservice.LoadInboxInput{
 				{Scope: domain.InboxScopePending, Cursor: input.Cursor},

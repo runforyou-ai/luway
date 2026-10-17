@@ -18,12 +18,15 @@ import {
 } from "@/apps/mobile/shared/mobile-page"
 import { MobilePagedList } from "@/apps/mobile/shared/mobile-paged-list"
 import { useMobilePermission } from "@/apps/mobile/shared/mobile-workspace-layout"
-import { ContactProfileEditor } from "@/components/contact-profile-editor"
+import {
+  ContactProfileEditor,
+  contactStageKey,
+  contactStageOptions,
+  contactValuesFromDetail,
+} from "@/features/contacts/public"
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { Button } from "@/components/ui/button"
-import { contactStageKey, contactStageOptions } from "@/features/contacts/external/contact-labels"
-import { contactValuesFromDetail } from "@/features/contacts/external/contact-schema"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useContactName } from "@/hooks/use-contact-name"
 import { useDateTime } from "@/hooks/use-date-time"

@@ -12,7 +12,6 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/actions/channeladapter"
 	"github.com/runforyou-ai/luway/internal/domain"
-	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	models "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -112,30 +111,22 @@ type pipeline struct {
 
 // advanceRequest 返回推进渠道身份管道的任务请求：at 为零时立即执行且不去重，经长连接收发的渠道按渠道长连接路由，由持有连接的服务端实例执行；
 // 否则是在 at 执行、按渠道身份与时刻去重的定时推进，不按连接路由。
-func advanceRequest(ctx context.Context, db bun.IDB, p pipeline, at time.Time) (servertask.EnqueueRequest, error) {
+func advanceRequest(p pipeline, at time.Time) servertask.EnqueueRequest {
 	options := servertask.EnqueueOptions{WorkspaceID: p.WorkspaceID, Queue: servertask.QueueDelivery}
 	if at.IsZero() && domain.ChannelCapabilitiesOf(p.ChannelType).Connection {
 		options.Route = channeladapter.ConnectionRoute(p.ChannelID)
 	}
 	if !at.IsZero() {
-		// 延迟按任务运行时写入可执行时间所用的事务时刻计算，使可执行时间恰为 at。
-		now, err := serverstorage.Now(ctx, db)
-		if err != nil {
-			return servertask.EnqueueRequest{}, err
-		}
-		options.Delay = at.Sub(now)
+		options.At = at
 		options.IdempotencyKey = "chdeliv:" + p.IdentityID + ":" + at.UTC().Format(time.RFC3339Nano)
 	}
-	return servertask.EnqueueRequest{ActionName: AdvanceActionName, Payload: AdvanceInput{WorkspaceID: p.WorkspaceID, ChannelIdentityID: p.IdentityID, Scheduled: !at.IsZero()}, Options: options}, nil
+	return servertask.EnqueueRequest{ActionName: AdvanceActionName, Payload: AdvanceInput{WorkspaceID: p.WorkspaceID, ChannelIdentityID: p.IdentityID, Scheduled: !at.IsZero()}, Options: options}
 }
 
 // enqueueAdvance 在调用方事务中为渠道身份管道排一次推进，at 的含义同 advanceRequest。
 func enqueueAdvance(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, p pipeline, at time.Time) error {
-	request, err := advanceRequest(ctx, db, p, at)
-	if err != nil {
-		return err
-	}
-	_, err = enqueuer.EnqueueIn(ctx, request.ActionName, request.Payload, request.Options)
+	request := advanceRequest(p, at)
+	_, err := enqueuer.EnqueueIn(ctx, request.ActionName, request.Payload, request.Options)
 	return err
 }
 
@@ -151,13 +142,15 @@ func WakeChannel(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer
 	}
 	requests := make([]servertask.EnqueueRequest, len(pipelines))
 	for index, p := range pipelines {
-		var err error
-		if requests[index], err = advanceRequest(ctx, db, p, time.Time{}); err != nil {
-			return err
-		}
+		requests[index] = advanceRequest(p, time.Time{})
 	}
 	err := enqueuer.EnqueueManyIn(ctx, requests)
 	return err
+}
+
+// Enqueue 在业务事务中按此外发目标保存发送顺序并排一次渠道身份管道的推进。
+func (r Route) Enqueue(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, message *models.Message) error {
+	return Enqueue(ctx, db, enqueuer, r, message)
 }
 
 // Enqueue 在业务事务中保存发送顺序并排一次渠道身份管道的推进。

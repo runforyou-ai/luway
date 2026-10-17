@@ -24,8 +24,8 @@ func NewRemoveMembersAction(db *bun.DB) *RemoveMembersAction {
 }
 
 // Execute 规范化并校验成员后批量解除团队关系。
-func (a *RemoveMembersAction) Execute(ctx context.Context, identity *servermodels.Identity, teamID string, members []MemberIdentity) (*TeamRecord, error) {
-	var team *TeamRecord
+func (a *RemoveMembersAction) Execute(ctx context.Context, identity *servermodels.Identity, teamID string, members []MemberIdentity) (*Record, error) {
+	var team *Record
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err

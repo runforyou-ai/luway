@@ -13,9 +13,9 @@ import (
 	"uuid"
 
 	"github.com/runforyou-ai/einorun"
-	"github.com/runforyou-ai/einorun/stream"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -191,7 +191,7 @@ func syncProcess(ctx context.Context, tx bun.Tx, run *servermodels.AgentRun, blo
 }
 
 // encodeRunPlan 编码运行的任务清单，没有任务时返回 nil 使字段保持为空。
-func encodeRunPlan(plan []stream.PlanTask) (*string, error) {
+func encodeRunPlan(plan []agentcontract.PlanTask) (*string, error) {
 	if len(plan) == 0 {
 		return nil, nil
 	}

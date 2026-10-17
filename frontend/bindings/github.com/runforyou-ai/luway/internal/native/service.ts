@@ -141,10 +141,10 @@ export function RestartClientUpdate(): $CancellablePromise<void> {
 }
 
 /**
- * SaveTextFile 让用户选择保存位置并写入文本文件，用户取消时返回 false。
+ * SaveFile 让用户选择保存位置并写入文件，用户取消时返回 false。
  */
-export function SaveTextFile(input: $models.TextFileInput): $CancellablePromise<boolean> {
-    return $Call.ByID(101974738, input);
+export function SaveFile(input: $models.FileInput): $CancellablePromise<boolean> {
+    return $Call.ByID(3386091773, input);
 }
 
 /**

@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support/arr"
@@ -63,7 +64,7 @@ func (a *UpdateWebsiteChannelHelpCenterAction) Execute(ctx context.Context, iden
 				return err
 			}
 			if len(found) != len(ids) {
-				return &ValidationError{Fields: map[string]ValidationCode{"knowledgeBaseIds": ValidationKnowledgeBaseInvalid}}
+				return &common.FieldError{Fields: map[string]common.FieldCode{"knowledgeBaseIds": ValidationKnowledgeBaseInvalid}}
 			}
 		}
 		if _, err := tx.NewDelete().

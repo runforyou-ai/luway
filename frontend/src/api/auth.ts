@@ -7,13 +7,13 @@ import {
   SessionState,
   type Auth,
   type InstallationStatus,
-  type InstallWorkspaceInput,
+  type InstallPlatformInput,
   type LoginInput,
   type RegisterInput,
 } from "@/api/generated/contract"
 import * as ops from "@/api/generated/operations"
 import { i18n, resolveBrowserLanguage } from "@/i18n"
-import { beginSessionBoundary } from "@/lib/resource-client"
+import { beginAdminSessionBoundary, beginSessionBoundary } from "@/lib/resource-client"
 import { resolveBrowserTimeZone } from "@/lib/time-zones"
 import { syncLocale } from "@/platform/system"
 
@@ -25,9 +25,17 @@ function establishSession(auth: Auth) {
   return account
 }
 
-/** 用邮箱和密码登录并建立登录会话。 */
+/** 用邮箱和密码登录并建立用户端登录会话。 */
 export async function login(input: LoginInput) {
   return establishSession(await ops.login(input))
+}
+
+/** 用邮箱和密码登录平台后台；会话由 Cookie 维持，并进入新的后台会话缓存边界。 */
+export async function adminLogin(input: LoginInput) {
+  const auth = await ops.adminLogin(input)
+  beginAdminSessionBoundary()
+  syncLocale(auth.account.locale)
+  return auth.account
 }
 
 /** 注册本地账号并建立登录会话，语言和时区取自当前浏览器。 */
@@ -49,17 +57,22 @@ export async function logout() {
   await invoke({ method: "POST", path: "/auth/logout" }, meta)
 }
 
-/** 完成首次安装，建立平台管理员登录会话并返回创建的工作区。 */
-export async function install(
-  input: Omit<InstallWorkspaceInput, "locale" | "timeZone">,
-) {
-  const result = await ops.installWorkspace({
+/** 退出平台后台会话，并进入新的后台会话缓存边界，避免登录页用旧缓存弹回后台。 */
+export async function adminLogout() {
+  await ops.adminLogout()
+  beginAdminSessionBoundary()
+}
+
+/** 完成首次安装，建立平台管理员后台会话（Cookie）并返回账号。 */
+export async function install(input: Omit<InstallPlatformInput, "locale" | "timeZone">) {
+  const auth = await ops.installPlatform({
     ...input,
-    locale: resolveBrowserLanguage() as InstallWorkspaceInput["locale"],
+    locale: resolveBrowserLanguage() as InstallPlatformInput["locale"],
     timeZone: resolveBrowserTimeZone(),
   })
-  establishSession(result.auth)
-  return result.workspace
+  beginAdminSessionBoundary()
+  syncLocale(auth.account.locale)
+  return auth.account
 }
 
 /** 检测服务器并返回安装状态；无法访问或不是本产品的服务器时抛出无法连接的错误。 */

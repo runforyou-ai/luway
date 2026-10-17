@@ -70,7 +70,7 @@ func (q *LoadInboxQuery) readByIDs(ctx context.Context, identity *servermodels.I
 	return results, nil
 }
 
-// readSummaries 按当前阅读资格批量读取四类会话的公开摘要；同一会话既是服务会话又是本人的 AI 聊天时，serviceView 为真取服务会话摘要，否则取 AI 聊天摘要。
+// readSummaries 按当前阅读资格批量读取四类会话的公开摘要；同一会话既是服务会话又是本人的 AI 聊天时，serviceView 为真取服务会话摘要，否则取 AI 聊天摘要。未读与未回应提醒按页内会话编号批量聚合后填回。
 func (q *LoadInboxQuery) readSummaries(ctx context.Context, identity *servermodels.Identity, ids []string, serviceView bool) (map[string]*ConversationSummary, error) {
 	workspaceID, identityID, userID := identity.Workspace.ID, identity.WorkspaceIdentity.ID, identity.User.ID
 	var rows summaryRows
@@ -86,7 +86,43 @@ func (q *LoadInboxQuery) readSummaries(ctx context.Context, identity *servermode
 	if err := q.groupConversationsQuery(workspaceID, identityID, userID).Where("cv.id IN (?)", bun.List(ids)).Scan(ctx, &rows.groups); err != nil {
 		return nil, err
 	}
+	unread, err := q.loadConversationUnreadCounts(ctx, workspaceID, identityID, userID, ids)
+	if err != nil {
+		return nil, err
+	}
+	unanswered, err := q.loadUnansweredMentionCounts(ctx, workspaceID, ids)
+	if err != nil {
+		return nil, err
+	}
+	rows.applyUnreadAndUnanswered(unread, unanswered)
 	return rows.merge(serviceView), nil
+}
+
+// applyUnreadAndUnanswered 将页内批量未读与未回应提醒填回摘要行；缺省为 0。
+func (rows *summaryRows) applyUnreadAndUnanswered(unread map[string]conversationUnreadCounts, unanswered map[string]int) {
+	for i := range rows.services {
+		if counts, ok := unread[rows.services[i].ID]; ok {
+			rows.services[i].UnreadCount = counts.UnreadCount
+			rows.services[i].MentionedUnreadCount = counts.MentionedUnreadCount
+		}
+		rows.services[i].UnansweredMentionCount = unanswered[rows.services[i].ID]
+	}
+	for i := range rows.directs {
+		if counts, ok := unread[rows.directs[i].ID]; ok {
+			rows.directs[i].UnreadCount = counts.UnreadCount
+		}
+	}
+	for i := range rows.agents {
+		if counts, ok := unread[rows.agents[i].ID]; ok {
+			rows.agents[i].UnreadCount = counts.UnreadCount
+		}
+	}
+	for i := range rows.groups {
+		if counts, ok := unread[rows.groups[i].ID]; ok {
+			rows.groups[i].UnreadCount = counts.UnreadCount
+			rows.groups[i].MentionedUnreadCount = counts.MentionedUnreadCount
+		}
+	}
 }
 
 // summaryRows 保存同一查看者四类会话摘要查询的结果行。

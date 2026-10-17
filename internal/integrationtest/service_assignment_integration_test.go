@@ -148,7 +148,7 @@ func TestServiceSessionAutoAssignment(t *testing.T) {
 	if firstAssignee != member {
 		memberSession = second
 	}
-	closeSession := servicesessionaction.NewCloseServiceSessionAction(f.db, newGroupAgentCoordinator(f.db), testEnqueuer)
+	closeSession := servicesessionaction.NewCloseServiceSessionAction(f.db, newGroupAgentCanceller(f.db), testEnqueuer)
 	_, err := closeSession.Execute(ctx, f.member, memberSession.ConversationID)
 	require.NoError(t, err)
 	require.Nil(t, f.currentSession(t, memberSession.ConversationID).AwaitingReplySince)
@@ -214,7 +214,7 @@ func TestServiceSessionAssignmentScope(t *testing.T) {
 	require.Nil(t, f.currentSession(t, teamSession.ConversationID).AwaitingReplySince)
 
 	// 转回公共队列清空负责人与接手时间，分配任务排除原负责人。
-	transfer := servicesessionaction.NewTransferServiceSessionAction(f.db, newGroupAgentCoordinator(f.db), agentrunaction.NewScheduler(testEnqueuer), testEnqueuer)
+	transfer := servicesessionaction.NewTransferServiceSessionAction(f.db, newGroupAgentCanceller(f.db), agentrunaction.NewScheduler(testEnqueuer), testEnqueuer)
 	_, err = transfer.Execute(ctx, f.member, servicesessionaction.TransferServiceSessionInput{
 		ConversationID: teamSession.ConversationID, TargetKind: domain.ServiceSessionTargetPublicQueue,
 	})

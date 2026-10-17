@@ -18,13 +18,13 @@ type CustomerHistorySummary struct {
 	Resolved *bool     `json:"resolved,omitempty"`
 }
 
-// CustomerHistoryResult 按相关度从高到低列出命中的过往咨询，没有命中时 Message 说明结果。
+// CustomerHistoryResult 按最近消息或关键词相关度列出过往沟通，Message 说明空结果。
 type CustomerHistoryResult struct {
 	Sessions []CustomerHistorySession `json:"sessions"`
 	Message  string                   `json:"message,omitempty"`
 }
 
-// CustomerHistorySession 是命中的一次过往咨询：小结与命中消息前后的对客消息。
+// CustomerHistorySession 包含一次过往服务的小结与公开沟通消息。
 type CustomerHistorySession struct {
 	CustomerHistorySummary
 	Messages []CustomerHistoryMessage `json:"messages"`

@@ -13,7 +13,6 @@ import (
 	agentevaluation "github.com/runforyou-ai/luway/internal/actions/agentevaluation"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
@@ -96,10 +95,7 @@ func TestAgentEvaluation(t *testing.T) {
 	_, err = startRun.Execute(ctx, identity, agent.ID)
 	require.ErrorIs(t, err, agentevaluation.ErrDecisionModelUnavailable, "start without decision model")
 	summaryProviderID := seedSummaryModels(t, db, identity)
-	_, err = customerservice.NewUpdateServiceSummarySettingsAction(db).Execute(ctx, identity, domain.ServiceSummarySettings{
-		DecisionModelID: new(aiModelID(t, db, summaryProviderID, "decision-model")),
-		Locale:          domain.LocaleChineseSimplified,
-	})
+	_, err = agentevaluation.NewUpdateSettingsAction(db).Execute(ctx, identity, new(aiModelID(t, db, summaryProviderID, "decision-model")))
 	require.NoError(t, err)
 	_, err = startRun.Execute(ctx, identity, agent.ID)
 	require.ErrorIs(t, err, agentevaluation.ErrNoCases, "start without cases")
@@ -442,9 +438,7 @@ func TestAgentEvaluationCapturedCases(t *testing.T) {
 
 	// 回放以客户上下文开头，前文按发送方区分角色，客户历史检索只看提问之前关闭的周期。
 	summaryProviderID := seedSummaryModels(t, db, identity)
-	_, err = customerservice.NewUpdateServiceSummarySettingsAction(db).Execute(ctx, identity, domain.ServiceSummarySettings{
-		DecisionModelID: new(aiModelID(t, db, summaryProviderID, "decision-model")), Locale: domain.LocaleChineseSimplified,
-	})
+	_, err = agentevaluation.NewUpdateSettingsAction(db).Execute(ctx, identity, new(aiModelID(t, db, summaryProviderID, "decision-model")))
 	require.NoError(t, err)
 	runID, err := agentevaluation.NewStartRunAction(db, tasks).Execute(ctx, identity, agent.ID)
 	require.NoError(t, err)

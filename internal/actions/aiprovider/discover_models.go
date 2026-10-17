@@ -8,6 +8,7 @@ import (
 
 	"github.com/runforyou-ai/einorun/llm"
 	"github.com/runforyou-ai/einorun/provider/discovery"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/pkg/connectiontest"
 	"github.com/runforyou-ai/support/arr"
@@ -32,10 +33,10 @@ func (a *DiscoverModelsAction) Execute(ctx context.Context, input ConnectionInpu
 	input, fields := normalizeConnectionInput(input)
 	// 模型目录固定的品牌只提供预设清单，按品牌字段拒绝。
 	if len(fields) == 0 && !supportsDiscovery(input.Brand) {
-		fields = map[string]ValidationCode{"brand": ValidationBrandInvalid}
+		fields = map[string]common.FieldCode{"brand": ValidationBrandInvalid}
 	}
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	models := make([]Model, 0)
 	err := a.runner.Run(ctx, connectionTarget(input.Brand), connectiontest.ProbeFunc(func(ctx context.Context) error {

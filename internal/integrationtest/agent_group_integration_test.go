@@ -65,7 +65,7 @@ func TestGroupAgentMembership(t *testing.T) {
 	require.ErrorAs(t, err, &conflict, "agent owner error")
 	require.Equal(t, groupchataction.ConflictReasonGroupMemberNotActive, conflict.Reason)
 	// 最后一位真人可直接解散含有 Agent 的群聊。
-	_, err = groupchataction.NewDissolveGroupConversationAction(db, newGroupAgentCoordinator(db)).Execute(ctx, identity, group.ID)
+	_, err = groupchataction.NewDissolveGroupConversationAction(db, newGroupAgentCanceller(db)).Execute(ctx, identity, group.ID)
 	require.NoError(t, err)
 	var stored servermodels.Conversation
 	require.NoError(t, db.NewSelect().Model(&stored).Where("cv.id = ?", group.ID).Scan(ctx))
@@ -106,7 +106,7 @@ func testGroupAgentMessages(t *testing.T, db *bun.DB, identity *servermodels.Ide
 // testGroupAgentEligibility 验证重新添加、停用状态和企业隔离。
 func testGroupAgentEligibility(t *testing.T, db *bun.DB, identity *servermodels.Identity, groupID string, agent *agentaction.Agent) {
 	ctx := context.Background()
-	remove := groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCoordinator(db))
+	remove := groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCanceller(db))
 	add := groupchataction.NewAddGroupConversationMembersAction(db)
 	for _, active := range []bool{true, false} {
 		_, err := remove.Execute(ctx, identity, groupchataction.GroupConversationMemberInput{ConversationID: groupID, MemberIdentityID: agent.IdentityID})

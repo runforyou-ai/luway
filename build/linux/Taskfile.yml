@@ -180,17 +180,19 @@ tasks:
   generate:dotdesktop:
     summary: Generates a `.desktop` file
     dir: build
+    # 经环境变量传给 shell，避免品牌文案中的 $() 等在双引号展开时被当作命令执行。
+    env:
+      DESKTOP_NAME: '{{.APP_DISPLAY_NAME}}'
+      DESKTOP_COMMENT: '{{.APP_DESCRIPTION}}'
+      DESKTOP_EXEC: '{{.APP_NAME}} %u'
+      DESKTOP_ICON: '{{.APP_NAME}}'
+      DESKTOP_OUTPUT: '{{.PROJECT_DIR}}/build/linux/{{.APP_NAME}}.desktop'
+      DESKTOP_CATEGORIES: 'Development;'
+      # 以品牌标识为协议的唤起链接交给本应用。
+      DESKTOP_MIMETYPE: 'x-scheme-handler/{{.APP_NAME}};'
     cmds:
       - mkdir -p {{.PROJECT_DIR}}/build/linux/appimage
-      - wails3 generate .desktop -name "{{.APP_DISPLAY_NAME}}" -comment "{{.APP_DESCRIPTION}}" -exec "{{.EXEC}}" -icon "{{.ICON}}" -outputfile "{{.PROJECT_DIR}}/build/linux/{{.APP_NAME}}.desktop" -categories "{{.CATEGORIES}}" -mimetype "{{.MIMETYPE}}"
-    vars:
-      APP_NAME: '{{.APP_NAME}}'
-      EXEC: '{{.APP_NAME}} %u'
-      ICON: '{{.APP_NAME}}'
-      CATEGORIES: 'Development;'
-      # 以品牌标识为协议的唤起链接交给本应用。
-      MIMETYPE: 'x-scheme-handler/{{.APP_NAME}};'
-      OUTPUTFILE: '{{.PROJECT_DIR}}/build/linux/{{.APP_NAME}}.desktop'
+      - wails3 generate .desktop -name "$DESKTOP_NAME" -comment "$DESKTOP_COMMENT" -exec "$DESKTOP_EXEC" -icon "$DESKTOP_ICON" -outputfile "$DESKTOP_OUTPUT" -categories "$DESKTOP_CATEGORIES" -mimetype "$DESKTOP_MIMETYPE"
 
   run:
     cmds:

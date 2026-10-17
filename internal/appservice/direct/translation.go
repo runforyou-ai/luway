@@ -7,7 +7,6 @@ package direct
 import (
 	"context"
 
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
@@ -20,18 +19,13 @@ import (
 
 // translationOps 汇集客户会话翻译与翻译设置的业务依赖。
 type translationOps struct {
-	translator                *translationaction.Translator
-	getTranslationSettings    *customerserviceaction.GetTranslationSettingsQuery
-	updateTranslationSettings *customerserviceaction.UpdateTranslationSettingsAction
+	db         *bun.DB
+	translator *translationaction.Translator
 }
 
 // newTranslationOps 创建客户会话翻译与翻译设置的业务依赖。
 func newTranslationOps(db *bun.DB, translator *translationaction.Translator) *translationOps {
-	return &translationOps{
-		translator:                translator,
-		getTranslationSettings:    customerserviceaction.NewGetTranslationSettingsQuery(db),
-		updateTranslationSettings: customerserviceaction.NewUpdateTranslationSettingsAction(db),
-	}
+	return &translationOps{db: db, translator: translator}
 }
 
 // GetConversationTranslation 返回当前成员在客户会话中的翻译状态。
@@ -78,7 +72,7 @@ func (o *translationOps) PreviewCustomerReplyTranslation(ctx context.Context, me
 
 // GetTranslationSettings 读取当前企业的翻译设置。
 func (o *translationOps) GetTranslationSettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.TranslationSettings, error) {
-	model, err := o.getTranslationSettings.Execute(ctx, identity)
+	model, err := translationaction.GetTranslationSettings(ctx, o.db, identity)
 	if err != nil {
 		return appservice.TranslationSettings{}, appservice.FailedError(meta, i18n.ErrorTranslationSettingsLoadFailed, err)
 	}
@@ -87,7 +81,7 @@ func (o *translationOps) GetTranslationSettings(ctx context.Context, meta appser
 
 // UpdateTranslationSettings 修改当前企业的翻译设置。
 func (o *translationOps) UpdateTranslationSettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.TranslationSettings) (appservice.TranslationSettings, error) {
-	saved, err := o.updateTranslationSettings.Execute(ctx, identity, input.ModelID)
+	saved, err := translationaction.UpdateTranslationSettings(ctx, o.db, identity, input.ModelID)
 	if err != nil {
 		return appservice.TranslationSettings{}, dispatch.Catalog{dispatch.FieldRule(translationSettingsFieldKeys), dispatch.SessionRule}.Translate(meta, err, i18n.ErrorTranslationSettingsUpdateFailed)
 	}
@@ -109,7 +103,7 @@ var translationFieldKeys = map[common.FieldCode]i18n.Key{
 
 // translationSettingsFieldKeys 把翻译设置校验错误码映射为本地化文案键。
 var translationSettingsFieldKeys = map[common.FieldCode]i18n.Key{
-	customerserviceaction.ValidationTranslationModelInvalid: i18n.FieldChatModelInvalid,
+	translationaction.ValidationTranslationModelInvalid: i18n.FieldChatModelInvalid,
 }
 
 // translationErrors 是客户会话翻译的错误转换规则。

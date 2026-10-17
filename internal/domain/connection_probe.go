@@ -9,6 +9,7 @@ const (
 	ConnectionProbeMCPServer     ConnectionProbeCategory = "mcp_server"
 	ConnectionProbeOpenAPI       ConnectionProbeCategory = "openapi"
 	ConnectionProbeWebSearch     ConnectionProbeCategory = "web_search"
+	ConnectionProbeWebFetch      ConnectionProbeCategory = "web_fetch"
 )
 
 // ConnectionProbeLocation 标识连接测试实际执行的位置。

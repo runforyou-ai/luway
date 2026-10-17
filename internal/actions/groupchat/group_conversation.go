@@ -16,6 +16,7 @@ import (
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/actions/membersend"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
@@ -89,7 +90,7 @@ func NewSendGroupTextMessageAction(db *bun.DB, enqueuer servertask.TxEnqueuer, a
 func (a *CreateGroupConversationAction) Execute(ctx context.Context, identity *servermodels.Identity, input GroupConversationInput) (GroupConversationSummary, error) {
 	normalized, fields := normalizeGroupConversationInput(identity.WorkspaceIdentity.ID, input)
 	if len(fields) > 0 {
-		return GroupConversationSummary{}, &conversationaction.ValidationError{Fields: fields}
+		return GroupConversationSummary{}, &common.FieldError{Fields: fields}
 	}
 
 	conversationID := uuid.NewV7().String()
@@ -324,7 +325,7 @@ func normalizeGroupTextMessageInput(input GroupTextMessageInput) GroupTextMessag
 }
 
 // normalizeGroupConversationInput 规范化群聊资料和初始成员并按顺序去重，初始成员不得包含当前成员。
-func normalizeGroupConversationInput(currentIdentityID string, input GroupConversationInput) (GroupConversationInput, map[string]conversationaction.ValidationCode) {
+func normalizeGroupConversationInput(currentIdentityID string, input GroupConversationInput) (GroupConversationInput, map[string]common.FieldCode) {
 	input.Title = strings.TrimSpace(input.Title)
 	input.Description = strings.TrimSpace(input.Description)
 	if input.ImageFileID != "" {

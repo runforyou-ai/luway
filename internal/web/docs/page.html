@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#131416">
+<title>{{.Title}} · {{.SiteTitle}}</title>
+{{if .NotFound}}<meta name="robots" content="noindex">{{end}}
+<link rel="icon" href="/favicon.png">
+<style>{{.ThemeStyle}}</style>
+</head>
+<body class="lp-body lp-page-docs">
+{{define "docs-nav"}}<nav class="lp-docs-nav">
+  {{range .Nav}}
+  {{with .Index}}<ul><li{{if .Current}} class="is-active"{{end}}><a href="{{.Path}}"{{if .Current}} aria-current="page"{{end}}>{{.Title}}</a></li></ul>{{end}}
+  {{range .Groups}}
+  <details class="lp-docs-group"{{if .Open}} open{{end}}>
+    <summary>{{.Title}}</summary>
+    <ul>
+      {{range .Pages}}<li{{if .Current}} class="is-active"{{end}}><a href="{{.Path}}"{{if .Current}} aria-current="page"{{end}}>{{.Title}}</a></li>{{end}}
+    </ul>
+  </details>
+  {{end}}
+  {{end}}
+</nav>{{end}}
+
+<nav id="lp-nav" class="lp-nav" aria-label="{{.Product}}">
+  <div class="lp-container lp-nav-inner">
+    <a class="lp-brand" href="{{.SiteHomePath}}"><img src="/favicon.png" width="46" height="46" alt="">{{.Product}}</a>
+    <div class="lp-nav-actions">
+      {{with .Data}}{{if .Pricing.Available}}<a class="lp-nav-quiet" href="{{$.SiteHomePath}}pricing/">{{$.Text.pricing}}</a>{{end}}{{end}}
+      <a class="lp-nav-quiet" href="{{.HomePath}}">{{.Text.docs}}</a>
+      {{if .Caps.Contact}}<a class="lp-nav-quiet" href="{{.SiteHomePath}}contact/">{{.Text.contact}}</a>{{end}}
+      {{range .Languages}}{{if not .Current}}<a class="lp-nav-quiet lp-nav-lang" href="{{.Path}}" hreflang="{{.Lang}}" lang="{{.Lang}}"><svg class="lp-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>{{.Label}}</a>{{end}}{{end}}
+      <a class="lp-button lp-button-dark lp-nav-button" href="{{.AppPath}}">{{.Labels.openApp}}</a>
+    </div>
+    <button type="button" class="lp-nav-toggle" id="lp-nav-toggle" aria-label="{{.Text.menu}}" aria-expanded="false" aria-controls="lp-nav-menu">
+      <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3 7h14M3 13h14"/></svg>
+    </button>
+    <div class="lp-nav-menu" id="lp-nav-menu" hidden>
+      {{with .Data}}{{if .Pricing.Available}}<a href="{{$.SiteHomePath}}pricing/">{{$.Text.pricing}}</a>{{end}}{{end}}
+      <a href="{{.HomePath}}">{{.Text.docs}}</a>
+      {{if .Caps.Contact}}<a href="{{.SiteHomePath}}contact/">{{.Text.contact}}</a>{{end}}
+      <a href="{{.DownloadPath}}">{{.Labels.download}}</a>
+      {{range .Languages}}{{if not .Current}}<a class="lp-nav-menu-lang" href="{{.Path}}" hreflang="{{.Lang}}" lang="{{.Lang}}">{{.Label}}</a>{{end}}{{end}}
+      <a href="{{.AppPath}}">{{.Labels.openApp}}</a>
+    </div>
+  </div>
+</nav>
+
+<main class="lp-docs">
+  <div class="lp-container lp-docs-layout">
+    <div class="lp-docs-backdrop" data-docs-menu-close></div>
+    <aside id="lp-docs-sidebar" class="lp-docs-sidebar" data-section="{{.ActiveSection}}" aria-label="{{.Labels.menu}}">
+      <form class="lp-docs-search" action="{{.SearchPath}}" method="get" role="search">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" name="q" value="{{with .Search}}{{.Query}}{{end}}" placeholder="{{.Labels.search}}" aria-label="{{.Labels.search}}" autocomplete="off" spellcheck="false">
+      </form>
+      {{if gt (len .Tabs) 1}}<div class="lp-docs-tabs">{{range .Tabs}}<a href="{{.Path}}"{{if .Current}} aria-current="page"{{end}}>{{.Title}}</a>{{end}}</div>{{end}}
+      {{template "docs-nav" .}}
+    </aside>
+    <div class="lp-docs-main">
+      <article class="lp-docs-article">
+        <button type="button" class="lp-button lp-button-dark lp-docs-menu-button" data-docs-menu aria-controls="lp-docs-sidebar" aria-expanded="false">{{.Labels.menu}}</button>
+        <p class="lp-eyebrow lp-docs-breadcrumb"><a href="{{.HomePath}}">{{.Text.docs}}</a>{{range .Nav}}{{if .Title}}<span>{{.Title}}</span>{{end}}{{end}}</p>
+        <h1 class="lp-docs-title">{{.Title}}</h1>
+        <div class="lp-prose">
+          {{with .Search}}
+            {{if .Heading}}<p class="lp-docs-search-heading">{{.Heading}}</p>{{end}}
+            {{if .Empty}}<p>{{.Empty}}</p>{{end}}
+            {{if .Results}}
+            <ol class="lp-docs-search-results">
+              {{range .Results}}<li><a href="{{.Path}}">{{.Title}}</a><p>{{.Snippet}}</p></li>{{end}}
+            </ol>
+            {{end}}
+          {{end}}
+          {{.HTML}}
+        </div>
+      </article>
+    </div>
+  </div>
+</main>
+
+<footer class="lp-footer">
+  <div class="lp-container">
+    <div class="lp-footer-grid">
+      <div class="lp-footer-brand">
+        <a class="lp-brand" href="{{.SiteHomePath}}"><img src="/favicon.png" width="28" height="28" alt="">{{.Product}}</a>
+        <p>{{.Text.description}}</p>
+      </div>
+      <div>
+        <h4>{{.Product}}</h4>
+        <ul>
+          <li><a href="{{.DownloadPath}}">{{.Labels.download}}</a></li>
+          {{if .Caps.Changelog}}<li><a href="{{.SiteHomePath}}changelog/">{{.Text.releaseNotes}}</a></li>{{end}}
+          <li><a href="{{.HomePath}}">{{.Text.docs}}</a></li>
+          {{with .Data}}{{if not .Pricing}}<li><a href="{{$.HomePath}}deployment/">{{$.Text.selfHostAction}}</a></li>{{end}}{{end}}
+        </ul>
+      </div>
+      {{if or .Caps.License .Caps.Contact}}
+      <div>
+        <h4>{{.Text.support}}</h4>
+        <ul>
+          {{if .Caps.License}}<li><a href="{{.SiteHomePath}}license-manager/">{{.Text.licenseManager}}</a></li>{{end}}
+          {{if .Caps.Contact}}<li><a href="{{.SiteHomePath}}contact/">{{.Text.contact}}</a></li>{{end}}
+        </ul>
+      </div>
+      {{end}}
+      {{if .Caps.Legal}}
+      <div>
+        <h4>{{.Text.legal}}</h4>
+        <ul>
+          <li><a href="{{.SiteHomePath}}privacy/">{{.Text.privacy}}</a></li>
+          <li><a href="{{.SiteHomePath}}license-agreement/">{{.Text.licenseAgreement}}</a></li>
+          <li><a href="{{.SiteHomePath}}terms/">{{.Text.terms}}</a></li>
+        </ul>
+      </div>
+      {{end}}
+      {{if .Caps.Newsletter}}
+      <div class="lp-newsletter">
+        <h4>{{.Text.newsletter}}</h4>
+        <p>{{.Text.newsletterBody}}</p>
+        <form id="lp-newsletter" class="lp-newsletter-form" novalidate>
+          <label class="lp-visually-hidden" for="lp-newsletter-email">{{.Text.newsletterPlaceholder}}</label>
+          <input id="lp-newsletter-email" name="Email" type="email" class="lp-input" placeholder="{{.Text.newsletterPlaceholder}}" required>
+          <button class="lp-button lp-button-dark" type="submit">{{.Text.newsletterAction}}</button>
+        </form>
+        <p id="lp-newsletter-status" class="lp-newsletter-status" role="status" aria-live="polite"
+          data-subscribing="{{.Text.newsletterSubscribing}}" data-subscribed="{{.Text.newsletterSubscribed}}"
+          data-failed="{{.Text.newsletterFailed}}"></p>
+      </div>
+      {{end}}
+    </div>
+    <div class="lp-footer-bottom">
+      {{if .Text.footerBottom}}<span>{{.Text.footerBottom}}</span>{{else}}{{with .Copyright}}<span>{{.}}</span>{{end}}{{end}}
+      {{if or .Caps.Social.Github .Caps.Social.Email .Text.socialFacebook}}
+      <div class="lp-social">
+        {{if .Text.socialFacebook}}
+        <span class="lp-social-muted" title="{{.Text.socialFacebook}}" aria-label="{{.Text.socialFacebook}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 22v-8h2.7l.4-3.2h-3.1V8.8c0-.9.3-1.6 1.6-1.6h1.7V4.4c-.3 0-1.3-.1-2.5-.1-2.5 0-4.1 1.5-4.1 4.2v2.3H7.5V14h2.7v8h3.3z"/></svg>
+        </span>
+        <span class="lp-social-muted" title="{{.Text.socialX}}" aria-label="{{.Text.socialX}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.8 3h3.1l-6.8 7.8L22 21h-6.2l-4.9-6.4L5.3 21H2.2l7.3-8.3L2 3h6.4l4.4 5.8L17.8 3zm-1.1 16.2h1.7L7.4 4.7H5.6l11.1 14.5z"/></svg>
+        </span>
+        {{end}}
+        {{if .Caps.Social.Github}}
+        <a href="{{.Caps.Social.Github}}" target="_blank" rel="noopener" aria-label="{{.Text.socialGithub}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.2c0 4.5 2.9 8.3 6.8 9.7.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1 1.5 1 .9 1.6 2.4 1.1 2.9.9.1-.7.4-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.8 1a9.4 9.4 0 0 1 5 0c1.9-1.3 2.8-1 2.8-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.4 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5 4-1.4 6.8-5.2 6.8-9.7C22 6.6 17.5 2 12 2z"/></svg>
+        </a>
+        {{end}}
+        {{if .Caps.Social.Email}}
+        <a href="mailto:{{.Caps.Social.Email}}" aria-label="{{.Text.socialEmail}}">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm0 2v.4l8 5.1 8-5.1V7H4zm16 2.8-7.5 4.8a1 1 0 0 1-1 0L4 9.8V17h16V9.8z"/></svg>
+        </a>
+        {{end}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+</footer>
+<script>{{.ThemeScript}}</script>
+</body>
+</html>

@@ -6,23 +6,20 @@ package role
 import (
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
-// Input 定义角色可编辑字段。
-type Input struct {
-	Name        string
-	Description string
-	Permissions []domain.PermissionCode
-}
+// Input 是角色可编辑字段，与契约共用形状。
+type Input = apptypes.RoleInput
 
-// AssignmentInput 定义一个成员的目标角色。
-type AssignmentInput struct {
-	IdentityID string
-	RoleID     string
-}
+// AssignmentInput 是一个成员的目标角色，与契约共用形状。
+type AssignmentInput = apptypes.RoleAssignmentInput
 
-// Record 定义角色及其权限。
+// Option 是成员表单与筛选使用的角色选项，与契约共用形状。
+type Option = apptypes.RoleOption
+
+// Record 是 Action 内部角色视图；含 WorkspaceID，不得直接作为 API 输出。
 type Record struct {
 	ID          string
 	WorkspaceID string
@@ -41,10 +38,12 @@ type ListOutput struct {
 	Permissions []domain.PermissionDefinition
 }
 
-// Option 是成员表单与筛选使用的角色选项，Assignable 表示操作者可以把成员调整到该角色：管理员角色只有管理员可以分配。
-type Option struct {
-	ID         string
-	Kind       domain.RoleKind
-	Name       string
-	Assignable bool
+// ToRole 转为对外 API 形状，去掉内部字段。
+func (r Record) ToRole() apptypes.Role {
+	permissions := append(make([]domain.PermissionCode, 0, len(r.Permissions)), r.Permissions...)
+	return apptypes.Role{
+		ID: r.ID, Kind: r.Kind, Name: r.Name, Description: r.Description,
+		Permissions: permissions, MemberCount: r.MemberCount,
+		CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt,
+	}
 }

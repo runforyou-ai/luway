@@ -14,8 +14,9 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess/processquery"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/contact"
 	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -88,7 +89,7 @@ func NewListConversationMessagesQuery(db *bun.DB) *ListConversationMessagesQuery
 // Execute 在同一只读快照中读取消息、关系和双向边界。
 func (q *ListConversationMessagesQuery) Execute(ctx context.Context, identity *servermodels.Identity, input ConversationMessageHistoryInput) (ConversationMessageHistory, error) {
 	if fields := validateConversationMessageHistoryInput(input); len(fields) > 0 {
-		return ConversationMessageHistory{}, &ValidationError{Fields: fields}
+		return ConversationMessageHistory{}, &common.FieldError{Fields: fields}
 	}
 	var history ConversationMessageHistory
 	err := q.db.RunInTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true}, func(ctx context.Context, tx bun.Tx) error {
@@ -186,7 +187,7 @@ func conversationMessagesQuery(db bun.IDB, identity *servermodels.Identity, conv
 		ColumnExpr("cs.id AS sender_subject_id").
 		ColumnExpr("cs.kind AS sender_kind").
 		ColumnExpr("cs.source_id AS sender_source_id").
-		ColumnExpr("CASE WHEN cs.kind = ? THEN "+contactname.Expr("c", "ci.display_name")+" WHEN cs.kind = ? THEN oi.display_name END AS sender_display_name", domain.ChatSubjectKindContact, domain.ChatSubjectKindWorkspaceIdentity).
+		ColumnExpr("CASE WHEN cs.kind = ? THEN "+contact.Expr("c", "ci.display_name")+" WHEN cs.kind = ? THEN oi.display_name END AS sender_display_name", domain.ChatSubjectKindContact, domain.ChatSubjectKindWorkspaceIdentity).
 		ColumnExpr("c.number AS sender_contact_number").
 		ColumnExpr("CASE WHEN cs.kind = ? THEN ci.avatar_file_id ELSE oi.avatar_file_id END::text AS sender_avatar_file_id", domain.ChatSubjectKindContact).
 		ColumnExpr("oi.type AS sender_identity_type").
@@ -198,7 +199,7 @@ func conversationMessagesQuery(db bun.IDB, identity *servermodels.Identity, conv
 		ColumnExpr("reply_cs.id AS reply_to_sender_subject_id").
 		ColumnExpr("reply_cs.kind AS reply_to_sender_kind").
 		ColumnExpr("reply_cs.source_id AS reply_to_sender_source_id").
-		ColumnExpr("CASE WHEN reply_cs.kind = ? THEN "+contactname.Expr("reply_c", "reply_cci.display_name")+" ELSE reply_oi.display_name END AS reply_to_sender_display_name", domain.ChatSubjectKindContact).
+		ColumnExpr("CASE WHEN reply_cs.kind = ? THEN "+contact.Expr("reply_c", "reply_cci.display_name")+" ELSE reply_oi.display_name END AS reply_to_sender_display_name", domain.ChatSubjectKindContact).
 		ColumnExpr("reply_c.number AS reply_to_sender_contact_number").
 		ColumnExpr("CASE WHEN reply_cs.kind = ? THEN reply_cci.avatar_file_id ELSE reply_oi.avatar_file_id END::text AS reply_to_sender_avatar_file_id", domain.ChatSubjectKindContact).
 		ColumnExpr("reply_oi.type AS reply_to_sender_identity_type").
@@ -289,8 +290,8 @@ func loadConversationWindowRows(ctx context.Context, db bun.IDB, identity *serve
 }
 
 // validateConversationMessageHistoryInput 校验成员消息历史输入。
-func validateConversationMessageHistoryInput(input ConversationMessageHistoryInput) map[string]ValidationCode {
-	fields := map[string]ValidationCode{}
+func validateConversationMessageHistoryInput(input ConversationMessageHistoryInput) map[string]common.FieldCode {
+	fields := map[string]common.FieldCode{}
 	if (input.Before != nil && input.After != nil) || (input.AroundMessageID != "" && (input.Before != nil || input.After != nil)) {
 		fields["cursor"] = ValidationCursorInvalid
 	}

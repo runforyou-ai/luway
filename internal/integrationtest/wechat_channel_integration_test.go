@@ -63,8 +63,7 @@ func TestWechatKeyConnection(t *testing.T) {
 	server := httptest.NewServer(fake)
 	t.Cleanup(server.Close)
 	client := wechat.NewClient(server.Client(), wechat.WithBaseURL(server.URL))
-	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db), Wechat: client},
-		nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db), Wechat: client}, nil, nil, testEnqueuer, nil, nil, nil)
 	service := backend
 	first := servertest.InstallWorkspace(t, db, servertest.WorkspaceSpec{Name: "公众号甲", DisplayName: "甲", Email: servertest.UniqueEmail("wechat-a"), Password: "password123"})
 	second := servertest.InstallWorkspace(t, db, servertest.WorkspaceSpec{Name: "公众号乙", DisplayName: "乙", Email: servertest.UniqueEmail("wechat-b"), Password: "password123"})
@@ -76,9 +75,9 @@ func TestWechatKeyConnection(t *testing.T) {
 	appID := randomWechatAppID()
 	input := appservice.WechatKeyConnectionInput{AppID: appID, AppSecret: "secret-1", Token: "callbacktoken", EncryptionMode: domain.WechatEncryptionSafe, EncodingAESKey: testComponentAESKey}
 
-	// 尚未连接时只有服务器出口。
+	// 尚未连接时显示消息接收地址。
 	channel, err := service.GetWechatKeyChannel(ctx, firstMeta, channelID)
-	if err != nil || channel.Connection.AppID != "" || channel.Connection.Servers == nil {
+	if err != nil || channel.Connection.AppID != "" {
 		t.Fatalf("initial channel = %#v, err = %v", channel.Connection, err)
 	}
 	if _, err := service.CheckWechatKeyChannelConnection(ctx, firstMeta, channelID); err == nil {

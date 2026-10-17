@@ -8,6 +8,7 @@ import (
 	"errors"
 
 	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
+	"github.com/runforyou-ai/luway/internal/common"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support"
 	"github.com/runforyou-ai/support/arr"
@@ -26,7 +27,7 @@ func validateSourceChannel(ctx context.Context, tx bun.Tx, workspaceID, channelI
 		return err
 	}
 	if !exists {
-		return &ValidationError{Fields: map[string]ValidationCode{"channelId": ValidationChannelInvalid}}
+		return &common.FieldError{Fields: map[string]common.FieldCode{"channelId": ValidationChannelInvalid}}
 	}
 	return nil
 }

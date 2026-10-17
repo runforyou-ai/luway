@@ -59,12 +59,12 @@ const PublicURL = "https://app.example.test"
 const LicenseKID = "k-test"
 
 // SignLicense 用测试私钥为服务器签发授权码。
-func SignLicense(t *testing.T, key ed25519.PrivateKey, serverID string, issuedAt, expiresAt time.Time, capabilities map[string]any) string {
+func SignLicense(t *testing.T, key ed25519.PrivateKey, serverID string, issuedAt, expiresAt time.Time) string {
 	t.Helper()
 	token := jwt.NewWithClaims(jwt.SigningMethodEdDSA, jwt.MapClaims{
 		"iss": license.Issuer, "aud": license.ProductID, "sub": serverID,
 		"iat": issuedAt.Unix(), "exp": expiresAt.Unix(),
-		"license_id": uuid.NewV7().String(), "customer": "测试客户", "capabilities": capabilities,
+		"license_id": uuid.NewV7().String(), "customer": "测试客户",
 	})
 	token.Header["typ"] = "license+jwt"
 	token.Header["kid"] = LicenseKID

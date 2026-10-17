@@ -12,6 +12,8 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/go-playground/validator/v10/non-standard/validators"
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/support/str"
 )
 
 // validatedField 是输入结构体中声明 validate 或 msg 标签的一个字段。
@@ -55,10 +57,16 @@ func collectValidatedFields(typ types.Type, prefix string, seen map[types.Type]b
 // ruleChecker 按字段类型试跑 validate 标签中的每个规则，与服务端校验器使用相同的选项与自定义规则。
 type ruleChecker struct{ validate *validator.Validate }
 
-// newRuleChecker 创建注册了 notblank 的规则检查器。
+// newRuleChecker 创建注册了 notblank 与 modelref 的规则检查器，与分发层校验器保持一致。
 func newRuleChecker() (*ruleChecker, error) {
 	validate := validator.New(validator.WithRequiredStructEnabled())
 	if err := validate.RegisterValidation("notblank", validators.NotBlank); err != nil {
+		return nil, err
+	}
+	if err := validate.RegisterValidation("modelref", func(fl validator.FieldLevel) bool {
+		value := strings.TrimSpace(fl.Field().String())
+		return value == domain.AIModelRefAuto || str.IsUUID(value)
+	}); err != nil {
 		return nil, err
 	}
 	return &ruleChecker{validate: validate}, nil

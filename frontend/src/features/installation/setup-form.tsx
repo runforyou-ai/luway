@@ -12,10 +12,9 @@ import { FieldGroup } from "@/components/ui/field"
 import { useStartup } from "@/contexts/startup-context"
 import { createSetupSchema, type SetupFormValues } from "@/features/installation/setup-schema"
 import { useRequestErrorReporter } from "@/hooks/use-request-error-reporter"
-import { enterWorkspace } from "@/lib/workspace-route"
 import { zodResolver } from "@/lib/zod-resolver"
 
-/** 创建第一个工作区和平台管理员账号。 */
+/** 创建平台管理员账号并进入平台后台。 */
 export function SetupForm() {
   const { t } = useTranslation("setup")
   const navigate = useNavigate()
@@ -34,12 +33,12 @@ export function SetupForm() {
     },
   })
 
-  /** 提交首次安装并进入新建的工作区。 */
+  /** 提交首次安装并进入平台后台。 */
   async function submitSetup(values: SetupFormValues) {
     try {
-      const workspace = await install(values)
+      await install(values)
       completeStartup()
-      enterWorkspace(workspace.slug, "/inbox", { replace: true })
+      navigate("/admin", { replace: true })
     } catch (error) {
       // 平台已由他人完成安装时回到登录页。
       if (isApiError(error) && error.state === SessionState.Login) {
@@ -60,7 +59,6 @@ export function SetupForm() {
           name="publicURL"
           control={form.control}
           label={t("publicURLLabel")}
-          description={t("publicURLHelp")}
           type="url"
         />
         <FormInputField

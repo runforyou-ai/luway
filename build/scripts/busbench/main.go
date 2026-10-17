@@ -1,4 +1,4 @@
-// busbench 在一个进程中启动多个消息总线实例模拟多台服务器，按群消息扇出与 AI 回复同步的流量形状逐级加压并运行带 NOTIFY 的业务写事务，输出各级的送达延迟、丢失、发送失败、业务提交延迟与 PostgreSQL 通知队列使用率。
+// busbench 在一个进程中启动多个消息总线实例模拟多台服务器，按群消息扇出与 AI 回复同步的流量形状逐级加压并运行带 NOTIFY 的业务写事务，输出各级的送达延迟、丢失、发送失败与业务提交延迟。
 package main
 
 import (
@@ -44,7 +44,6 @@ const (
 
 // options 是一次压测的参数。
 type options struct {
-	driver       string
 	instances    int
 	levels       []float64
 	duration     time.Duration
@@ -55,15 +54,12 @@ type options struct {
 	payloadBytes int
 	deltaBytes   int
 	writeRate    float64
-	stall        bool
-	channel      string
 }
 
 // main 解析参数，启动总线实例并逐级执行压测。
 func main() {
 	var opts options
 	var levels string
-	flag.StringVar(&opts.driver, "driver", clusterbus.DriverPostgres, "传输层：postgres 或 nats（进程内 NATS 服务器）")
 	flag.IntVar(&opts.instances, "instances", 2, "模拟的服务器台数")
 	flag.StringVar(&levels, "levels", "1,2,4,8,16,32,64", "逐级的负载倍数，逗号分隔")
 	flag.DurationVar(&opts.duration, "duration", 20*time.Second, "每一级的持续时长")
@@ -74,8 +70,6 @@ func main() {
 	flag.IntVar(&opts.payloadBytes, "payload-bytes", 240, "一条通知的内容长度")
 	flag.IntVar(&opts.deltaBytes, "delta-bytes", 320, "一条运行流增量的内容长度")
 	flag.Float64Var(&opts.writeRate, "write-rate", 100, "每秒带 NOTIFY 的业务写事务数，0 表示不运行")
-	flag.BoolVar(&opts.stall, "stall", false, "额外登记一个监听但不读取的连接，模拟卡住的服务器")
-	flag.StringVar(&opts.channel, "channel", "busbench", "PostgreSQL 总线的广播频道")
 	flag.Parse()
 	for _, field := range strings.Split(levels, ",") {
 		level, err := strconv.ParseFloat(strings.TrimSpace(field), 64)
@@ -125,7 +119,6 @@ func openDB(maxConns int) *bun.DB {
 // node 是一个模拟的服务器实例。
 type node struct {
 	bus *clusterbus.Bus
-	db  *bun.DB
 	// topics 是连接到本实例的成员的通知主题。
 	topics map[string]struct{}
 }
@@ -140,28 +133,18 @@ type bench struct {
 	levels []*levelStats
 }
 
-// run 启动全部实例与可选的卡住连接，逐级压测并输出结果。
+// run 启动全部实例，逐级压测并输出结果。
 func run(opts options, counters *logCounters) error {
 	b := &bench{opts: opts, counters: counters}
-	var nats string
-	if opts.driver == clusterbus.DriverNATS {
-		server := natstest.RunRandClientPortServer()
-		defer server.Shutdown()
-		nats = server.ClientURL()
-	}
-	statsDB := openDB(4)
-	defer statsDB.Close()
+	server := natstest.RunRandClientPortServer()
+	defer server.Shutdown()
+	natsURL := server.ClientURL()
 	// 成员数为群成员数的若干倍，每个成员连接到一台服务器，订阅自己的通知主题。
 	userCount := max(opts.members*8, opts.instances)
 	for index := range opts.instances {
 		n := &node{topics: map[string]struct{}{}}
 		id := fmt.Sprintf("bench%02d", index)
-		if opts.driver == clusterbus.DriverNATS {
-			n.bus = clusterbus.NewNATS(id, clusterbus.NATSOptions{URL: nats, Namespace: "busbench"})
-		} else {
-			n.db = openDB(4)
-			n.bus = clusterbus.NewPostgres(id, n.db.DB, connConfig(), clusterbus.PostgresOptions{Channel: opts.channel})
-		}
+		n.bus = clusterbus.NewNATS(id, clusterbus.NATSOptions{URL: natsURL, Namespace: "busbench"})
 		b.nodes = append(b.nodes, n)
 	}
 	for index := range userCount {
@@ -174,26 +157,11 @@ func run(opts options, counters *logCounters) error {
 		if err := n.bus.Start(); err != nil {
 			return fmt.Errorf("start bus: %w", err)
 		}
-		defer func() {
-			_ = n.bus.Close()
-			if n.db != nil {
-				_ = n.db.Close()
-			}
-		}()
+		defer func() { _ = n.bus.Close() }()
 	}
 	for _, n := range b.nodes {
 		if err := n.bus.Sync(context.Background()); err != nil {
 			return fmt.Errorf("sync bus: %w", err)
-		}
-	}
-	if opts.stall {
-		conn, err := statsDB.Conn(context.Background())
-		if err != nil {
-			return err
-		}
-		defer conn.Close()
-		if _, err := conn.ExecContext(context.Background(), "LISTEN "+opts.channel); err != nil {
-			return err
 		}
 	}
 	writeDB := openDB(16)
@@ -212,16 +180,16 @@ func run(opts options, counters *logCounters) error {
 			os.Exit(1)
 		}()
 	}
-	fmt.Printf("driver=%s instances=%d members=%d per-message=%d runs/level=%.1f watchers=%d payload=%dB delta=%dB write-rate=%.0f/s stall=%t duration=%s\n",
-		opts.driver, opts.instances, opts.members, opts.perMessage, opts.runsPerLevel, opts.watchers, opts.payloadBytes, opts.deltaBytes, opts.writeRate, opts.stall, opts.duration)
-	fmt.Println("msg/s  runs  notify/s  bytes/s    deliv/s  bc.p50  bc.p99  bc.max  dl.p50  dl.p99  lost%   sendErr drops  wr.p50  wr.p99  queue%")
+	fmt.Printf("driver=nats instances=%d members=%d per-message=%d runs/level=%.1f watchers=%d payload=%dB delta=%dB write-rate=%.0f/s duration=%s\n",
+		opts.instances, opts.members, opts.perMessage, opts.runsPerLevel, opts.watchers, opts.payloadBytes, opts.deltaBytes, opts.writeRate, opts.duration)
+	fmt.Println("msg/s  runs  notify/s  bytes/s    deliv/s  bc.p50  bc.p99  bc.max  dl.p50  dl.p99  lost%   sendErr drops  wr.p50  wr.p99")
 	levels := append([]float64{0}, opts.levels...)
 	b.levels = make([]*levelStats, len(levels))
 	for index := range levels {
 		b.levels[index] = &levelStats{}
 	}
 	for index, level := range levels {
-		result := b.runLevel(index, level, writeDB, statsDB)
+		result := b.runLevel(index, level, writeDB)
 		fmt.Println(result)
 	}
 	return nil
@@ -238,7 +206,7 @@ func (b *bench) register(n *node) {
 }
 
 // runLevel 按负载倍数发送群消息通知与运行流增量并运行业务写事务，等待在途消息送达后汇总结果。
-func (b *bench) runLevel(index int, level float64, writeDB, statsDB *bun.DB) string {
+func (b *bench) runLevel(index int, level float64, writeDB *bun.DB) string {
 	stats := b.levels[index]
 	b.counters.reset()
 	ctx, cancel := context.WithTimeout(context.Background(), b.opts.duration)
@@ -268,12 +236,7 @@ func (b *bench) runLevel(index int, level float64, writeDB, statsDB *bun.DB) str
 	wg.Wait()
 	elapsed := time.Since(start)
 	time.Sleep(drainWait)
-	var usage float64
-	_ = statsDB.QueryRowContext(context.Background(), "SELECT pg_notification_queue_usage()").Scan(&usage)
-	if b.opts.driver == clusterbus.DriverNATS {
-		usage = 0
-	}
-	return stats.format(level, b.opts.runsPerLevel, elapsed, b.counters, usage)
+	return stats.format(level, b.opts.runsPerLevel, elapsed, b.counters)
 }
 
 // runMessages 以每倍负载每秒一条的速率在随机实例上发出群消息，按成员扇出广播通知。
@@ -464,7 +427,7 @@ func percentile(values []time.Duration, p float64) time.Duration {
 }
 
 // format 汇总一级的发送速率、送达延迟、丢失率、失败与业务提交延迟。
-func (s *levelStats) format(level, runsPerLevel float64, elapsed time.Duration, counters *logCounters, queueUsage float64) string {
+func (s *levelStats) format(level, runsPerLevel float64, elapsed time.Duration, counters *logCounters) string {
 	seconds := elapsed.Seconds()
 	broadcast, direct := s.broadcast.snapshot(), s.direct.snapshot()
 	s.writesMu.Lock()
@@ -477,12 +440,12 @@ func (s *levelStats) format(level, runsPerLevel float64, elapsed time.Duration, 
 	if expected > 0 {
 		lost = 100 * float64(expected-delivered) / float64(expected)
 	}
-	return fmt.Sprintf("%5.0f  %4d  %8.0f  %9s  %7.0f  %6s  %6s  %6s  %6s  %6s  %6.2f  %7d %5d  %6s  %6s  %6.4f",
+	return fmt.Sprintf("%5.0f  %4d  %8.0f  %9s  %7.0f  %6s  %6s  %6s  %6s  %6s  %6.2f  %7d %5d  %6s  %6s",
 		level, int(level*runsPerLevel), float64(s.messages.Load())/seconds, humanBytes(float64(s.bytes.Load())/seconds), float64(delivered)/seconds,
 		short(percentile(broadcast, 0.5)), short(percentile(broadcast, 0.99)), short(percentile(broadcast, 1)),
 		short(percentile(direct, 0.5)), short(percentile(direct, 0.99)),
 		lost, s.sendErr.Load()+s.writeErr.Load(), counters.drops.Load(),
-		short(percentile(writes, 0.5)), short(percentile(writes, 0.99)), queueUsage*100)
+		short(percentile(writes, 0.5)), short(percentile(writes, 0.99)))
 }
 
 // short 把耗时格式化为毫秒。

@@ -12,6 +12,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/channelinbound"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
@@ -41,7 +42,6 @@ type websiteMessageRow struct {
 	SenderIdentityType      *domain.WorkspaceIdentityType `bun:"sender_identity_type"`
 	SenderIdentityID        *string                       `bun:"sender_identity_id"`
 	SenderDisplayName       *string                       `bun:"sender_display_name"`
-	SenderAvatarBackend     *string                       `bun:"sender_avatar_storage_backend"`
 	SenderAvatarStorageKey  *string                       `bun:"sender_avatar_storage_key"`
 	OriginatedAt            time.Time                     `bun:"originated_at"`
 	CreatedAt               time.Time                     `bun:"created_at"`
@@ -58,7 +58,6 @@ type websiteMessageRow struct {
 	AttachmentImageWidth    *int                          `bun:"attachment_image_width"`
 	AttachmentImageHeight   *int                          `bun:"attachment_image_height"`
 	AttachmentTransfer      *string                       `bun:"attachment_transfer_status"`
-	AttachmentBackend       *string                       `bun:"attachment_storage_backend"`
 	AttachmentStorageKey    *string                       `bun:"attachment_storage_key"`
 }
 
@@ -71,7 +70,7 @@ func NewListWebsiteMessagesQuery(db *bun.DB) *ListWebsiteMessagesQuery {
 func (q *ListWebsiteMessagesQuery) Execute(ctx context.Context, input MessageHistoryInput) (MessageHistory, error) {
 	fields := validateMessageHistoryInput(input)
 	if len(fields) > 0 {
-		return MessageHistory{}, &conversationaction.ValidationError{Fields: fields}
+		return MessageHistory{}, &common.FieldError{Fields: fields}
 	}
 	channel, err := loadWebsiteChannel(ctx, q.db, input.ChannelID)
 	if err != nil {
@@ -111,7 +110,6 @@ func (q *ListWebsiteMessagesQuery) Execute(ctx context.Context, input MessageHis
 		ColumnExpr("oi.type AS sender_identity_type").
 		ColumnExpr("oi.id::text AS sender_identity_id").
 		ColumnExpr("oi.display_name AS sender_display_name").
-		ColumnExpr("sav.storage_backend AS sender_avatar_storage_backend").
 		ColumnExpr("sav.storage_key AS sender_avatar_storage_key").
 		ColumnExpr("msg.originated_at AS originated_at").
 		ColumnExpr("msg.created_at AS created_at").
@@ -128,7 +126,6 @@ func (q *ListWebsiteMessagesQuery) Execute(ctx context.Context, input MessageHis
 		ColumnExpr("ma.image_width AS attachment_image_width").
 		ColumnExpr("ma.image_height AS attachment_image_height").
 		ColumnExpr("ma.transfer_status AS attachment_transfer_status").
-		ColumnExpr("af.storage_backend AS attachment_storage_backend").
 		ColumnExpr("af.storage_key AS attachment_storage_key").
 		Join("LEFT JOIN message_attachments AS ma ON ma.message_id = msg.id AND ma.workspace_id = msg.workspace_id").
 		Join("LEFT JOIN files AS af ON af.id = ma.file_id AND af.workspace_id = ma.workspace_id").
@@ -242,8 +239,8 @@ func listWebsiteSessionRatings(ctx context.Context, db bun.IDB, workspaceID, con
 }
 
 // validateMessageHistoryInput 校验消息分页输入。
-func validateMessageHistoryInput(input MessageHistoryInput) map[string]conversationaction.ValidationCode {
-	fields := map[string]conversationaction.ValidationCode{}
+func validateMessageHistoryInput(input MessageHistoryInput) map[string]common.FieldCode {
+	fields := map[string]common.FieldCode{}
 	if !str.IsUUID(input.ChannelID) {
 		fields["channelId"] = ValidationChannelIDInvalid
 	}
@@ -299,8 +296,8 @@ func buildMessageHistory(rows []websiteMessageRow, input MessageHistoryInput) (M
 			message.SenderIdentityID = *row.SenderIdentityID
 			message.SenderDisplayName = *row.SenderDisplayName
 		}
-		if row.SenderAvatarBackend != nil && row.SenderAvatarStorageKey != nil {
-			message.SenderAvatar = &FileLocation{StorageBackend: domain.FileStorageBackend(*row.SenderAvatarBackend), StorageKey: *row.SenderAvatarStorageKey}
+		if row.SenderAvatarStorageKey != nil {
+			message.SenderAvatar = &FileLocation{StorageKey: *row.SenderAvatarStorageKey}
 		}
 		// 附件行存在时其余列均非空；取回失败的附件没有文件编号和存储位置。
 		if row.AttachmentName != nil {
@@ -309,9 +306,8 @@ func buildMessageHistory(rows []websiteMessageRow, input MessageHistoryInput) (M
 				ImageWidth: *row.AttachmentImageWidth, ImageHeight: *row.AttachmentImageHeight,
 				TransferStatus: domain.MessageAttachmentTransferStatus(*row.AttachmentTransfer),
 			}}
-			if row.AttachmentFileID != nil && row.AttachmentBackend != nil && row.AttachmentStorageKey != nil {
+			if row.AttachmentFileID != nil && row.AttachmentStorageKey != nil {
 				message.Attachment.ID = *row.AttachmentFileID
-				message.Attachment.StorageBackend = domain.FileStorageBackend(*row.AttachmentBackend)
 				message.Attachment.StorageKey = *row.AttachmentStorageKey
 			}
 		}

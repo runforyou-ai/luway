@@ -244,7 +244,7 @@ func TestConversationPinRevocation(t *testing.T) {
 	pinned := inboxaction.LoadInput{Scope: domain.InboxScopeChat, Partition: domain.InboxPartitionPinned}
 	version := f.pin(t, f.member, conversationaction.ConversationPinInput{ConversationID: f.groupA, Pinned: true})
 	version = f.pin(t, f.member, conversationaction.ConversationPinInput{ConversationID: f.groupB, Pinned: true, ExpectedPinOrderVersion: version})
-	_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{
+	_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{
 		ConversationID: f.groupA, MemberIdentityID: f.member.WorkspaceIdentity.ID,
 	})
 	require.NoError(t, err)
@@ -261,7 +261,7 @@ func TestConversationPinRevocation(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, []string{f.groupB}, f.partition(t, f.member, pinned), "重新入群恢复了置顶")
 	// 解散后历史仍可阅读，置顶保留。
-	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, f.groupB)
+	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, f.groupB)
 	require.NoError(t, err)
 	require.Equal(t, []string{f.groupB}, f.partition(t, f.member, pinned), "解散清除了可读会话的置顶")
 }
@@ -323,7 +323,7 @@ func TestConversationPinRemovalLockOrder(t *testing.T) {
 	// 群主同时移除该成员：失权清理不写成员账号行，因此不与持有该行的置顶写入形成循环等待。
 	removed := make(chan error, 1)
 	go func() {
-		_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{
+		_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{
 			ConversationID: f.groupA, MemberIdentityID: f.member.WorkspaceIdentity.ID,
 		})
 		removed <- err
@@ -394,7 +394,7 @@ func TestGroupRemovalLockOrderAcrossOwners(t *testing.T) {
 	remove := func(actor *servermodels.Identity, conversationID, memberIdentityID string) <-chan error {
 		done := make(chan error, 1)
 		go func() {
-			_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, actor, groupchataction.GroupConversationMemberInput{
+			_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, actor, groupchataction.GroupConversationMemberInput{
 				ConversationID: conversationID, MemberIdentityID: memberIdentityID,
 			})
 			done <- err
@@ -477,7 +477,7 @@ func TestConversationPinRenumberKeepsRevokedCleared(t *testing.T) {
 		t.Fatal(ctx.Err())
 	}
 	// 群主在重编号之前移除该成员并提交，群 A 的置顶随失权清除。
-	_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{
+	_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{
 		ConversationID: f.groupA, MemberIdentityID: f.member.WorkspaceIdentity.ID,
 	})
 	require.NoError(t, err)

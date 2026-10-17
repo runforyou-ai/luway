@@ -1,5 +1,5 @@
 /** 移动端建群和添加群成员共用的真人与 AI 员工搜索和多选。 */
-import { groupAdditionalMemberMaxCount } from "@/features/inbox/group/group-conversation-schema"
+import { groupAdditionalMemberMaxCount } from "@/features/inbox/public"
 import { useId, useState, type Ref } from "react"
 import { useTranslation } from "react-i18next"
 
@@ -8,8 +8,8 @@ import { LoadingIndicator } from "@/components/loading-indicator"
 import { Button } from "@/components/ui/button"
 import { FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { GroupMemberOptionContent } from "@/features/inbox/group/group-member-option-content"
-import { listChatTargets } from "@/features/inbox/shared/list-all-member-options"
+import { GroupMemberOptionContent } from "@/features/inbox/public"
+import { listChatTargets } from "@/features/inbox/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource } from "@/hooks/use-resource"
 

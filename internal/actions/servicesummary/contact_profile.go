@@ -87,7 +87,7 @@ func (w *Worker) ExtractContactProfile(ctx context.Context, input ExtractContact
 	if err != nil {
 		return fmt.Errorf("load extracting contact: %w", err)
 	}
-	_, decisionModel, summaryModel, err := loadSummaryModels(ctx, w.db, input.WorkspaceID)
+	_, decisionModel, summaryModel, err := loadSummaryModels(ctx, w.db, input.WorkspaceID, input.ServiceSessionID)
 	if err != nil {
 		return err
 	}

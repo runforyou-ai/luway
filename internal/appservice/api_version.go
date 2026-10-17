@@ -9,13 +9,13 @@ import (
 )
 
 // APIVersion 是当前代码的接口版本，服务端与原生端之间出现不兼容的接口变化时加 1。
-const APIVersion = 1
+const APIVersion = 3
 
 // MinClientAPIVersion 是服务端接受的最低原生端接口版本。
-const MinClientAPIVersion = 1
+const MinClientAPIVersion = 3
 
 // MinServerAPIVersion 是原生端要求的最低服务端接口版本。
-const MinServerAPIVersion = 1
+const MinServerAPIVersion = 3
 
 // ClientAPIVersionHeader 是原生端请求携带本端接口版本的请求头。
 const ClientAPIVersionHeader = "X-Client-API-Version"

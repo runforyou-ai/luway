@@ -45,7 +45,7 @@ docker exec {{slug}}-server /server status
 
 ## 数据持久化
 
-容器内的数据目录为 `/var/lib/{{slug}}-server`，部署未开启对象存储时本地文件保存在其中的 `files`。把该目录挂载为卷，重建容器后文件仍然保留。开启对象存储后文件保存在存储桶中，见[文件存储](/docs/zh-cn/deployment/configure/storage/)。
+文件统一保存在 S3 存储桶中，首次安装后请配置[文件存储](/docs/zh-cn/deployment/configure/storage/)。数据目录仍保存日志和内嵌消息队列数据，容器部署时应保留数据卷。
 
 ## 端口与 HTTPS
 

@@ -1,4 +1,4 @@
-/** 按用途读取可选模型，平台模型与各供应商的工作区模型分组渲染下拉选项，选项值为模型编号。 */
+/** 按用途读取可选模型，Auto 与各供应商的工作区模型分组渲染下拉选项；选项值为模型编号或 auto。 */
 import { useTranslation } from "react-i18next"
 
 import { listAIModelOptions, type AIModelOption, type AIModelUsage } from "@/api"
@@ -14,12 +14,12 @@ export function useAIModelOptions(usage: AIModelUsage) {
   )
 }
 
-/** 返回模型的展示名称：工作区模型带供应商名称，平台模型只显示模型名称。 */
+/** 返回模型的展示名称：工作区模型带供应商名称，Auto 只显示 API 返回的名称。 */
 export function aiModelLabel(model: Pick<AIModelOption, "name"> & { provider: { name: string } | null }) {
   return model.provider ? `${model.provider.name} · ${model.name}` : model.name
 }
 
-/** 平台模型归入同一组，工作区模型按供应商分组，保持读取顺序。 */
+/** Auto 归入同一组，工作区模型按供应商分组，保持读取顺序；选项值可为 auto 或 UUID。 */
 export function AIModelOptionGroups({
   models,
 }: {

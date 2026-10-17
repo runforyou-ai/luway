@@ -64,7 +64,7 @@ type ComputerTarget struct {
 	Operation  domain.ComputerOperation `json:"operation"`
 }
 
-// ProcessChanges 是运行过程自上次成功保存以来的变化：先删除移除的内容块与工具调用，再写入新增或变化的工具调用与内容块。
+// ProcessChanges 是业务投影侧的过程变化（展示用 Block/ToolCall），不是 einorun.Changes；Journal 持久化仍使用引擎记录形状，勿与本类型混用。
 type ProcessChanges struct {
 	Blocks        []Block    // 新增或位置、文本变化的内容块，按位置排列；工具调用块只写入块与调用的对应关系。
 	Calls         []ToolCall // 新增或变化的工具调用，包括内容块中的调用与子 Agent 发起的调用。

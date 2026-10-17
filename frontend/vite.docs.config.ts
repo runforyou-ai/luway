@@ -5,7 +5,7 @@ export default defineConfig({
   base: "./",
   publicDir: false,
   build: {
-    outDir: "../internal/productdocs/dist/site",
+    outDir: "../internal/web/docs/dist/site",
     emptyOutDir: true,
     rollupOptions: {
       input: "src/product-docs/site.css",

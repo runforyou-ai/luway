@@ -17,8 +17,10 @@ import (
 
 // Scope 定义待补知识的筛选范围：ChannelID 为空表示全部渠道，Agents 限定来源周期的接待 AI 员工。
 type Scope struct {
-	ChannelID string
-	Agents    reportpage.AgentScope
+	Audience      domain.ServiceAudience
+	ServiceSource domain.ServiceSource
+	ChannelID     string
+	Agents        reportpage.AgentScope
 }
 
 // ListInput 定义待补知识清单的筛选范围、处理状态与分页。
@@ -31,16 +33,18 @@ type ListInput struct {
 
 // Summary 定义清单中的一条待补知识；Question 优先取 AI 起草的问题，其次为客户提问原文，HasDraft 表示 AI 已起草问答。
 type Summary struct {
-	ID                string    `bun:"id"`
-	ConversationID    string    `bun:"conversation_id"`
-	QuestionMessageID *string   `bun:"question_message_id"`
-	Question          string    `bun:"question"`
-	Source            string    `bun:"source"`
-	Status            string    `bun:"status"`
-	CategoryName      *string   `bun:"category_name"`
-	HasDraft          bool      `bun:"has_draft"`
-	OccurredAt        time.Time `bun:"occurred_at"`
-	Handleable        bool      `bun:"handleable"`
+	Audience          domain.ServiceAudience `bun:"audience"`
+	ServiceSource     domain.ServiceSource   `bun:"service_source"`
+	ID                string                 `bun:"id"`
+	ConversationID    string                 `bun:"conversation_id"`
+	QuestionMessageID *string                `bun:"question_message_id"`
+	Question          string                 `bun:"question"`
+	Source            string                 `bun:"source"`
+	Status            string                 `bun:"status"`
+	CategoryName      *string                `bun:"category_name"`
+	HasDraft          bool                   `bun:"has_draft"`
+	OccurredAt        time.Time              `bun:"occurred_at"`
+	Handleable        bool                   `bun:"handleable"`
 }
 
 // List 定义一页待补知识与总条数。
@@ -59,16 +63,19 @@ func NewListQuery(db *bun.DB) *ListQuery { return &ListQuery{db: db} }
 
 // Execute 按来源发生时间倒序返回一页指定处理状态的待补知识，并标出当前成员能否处理每一条。
 func (q *ListQuery) Execute(ctx context.Context, identity *servermodels.Identity, input ListInput) (*List, error) {
+	if err := reportpage.ValidateServiceScope(ctx, q.db, identity.Workspace.ID, input.Audience, input.ServiceSource, input.ChannelID); err != nil {
+		return nil, err
+	}
 	page, pageSize, valid := common.NormalizePagination(input.Page, input.PageSize)
 	if !valid {
-		return nil, ErrPageSizeInvalid
+		return nil, common.ErrPageSizeInvalid
 	}
 	list := &List{Gaps: []Summary{}, Page: page, PageSize: pageSize}
 	query := scoped(q.db.NewSelect(), identity.Workspace.ID, input.Scope).
 		Where("kg.status = ?", input.Status).
 		Join("LEFT JOIN service_categories AS sc ON sc.id = ss.category_id AND sc.workspace_id = ss.workspace_id").
 		Join("LEFT JOIN messages AS qm ON qm.id = kg.question_message_id AND qm.workspace_id = kg.workspace_id").
-		ColumnExpr("kg.id, kg.conversation_id, kg.question_message_id, kg.source, kg.status, kg.occurred_at, sc.name AS category_name").
+		ColumnExpr("svc.audience, svc.source AS service_source, kg.id, kg.conversation_id, kg.question_message_id, kg.source, kg.status, kg.occurred_at, sc.name AS category_name").
 		ColumnExpr("coalesce(kg.draft_question, CASE WHEN qm.deleted_at IS NULL THEN qm.body END, '') AS question").
 		ColumnExpr("kg.draft_status = ? AS has_draft", domain.KnowledgeGapDraftStatusReady).
 		ColumnExpr("? AS handleable", handleableSQL(identity)).
@@ -98,11 +105,19 @@ func PendingCount(ctx context.Context, db bun.IDB, workspaceID string, scope Sco
 func scoped(query *bun.SelectQuery, workspaceID string, scope Scope) *bun.SelectQuery {
 	query = query.TableExpr("knowledge_gaps AS kg").
 		Join("JOIN service_sessions AS ss ON ss.id = kg.service_session_id AND ss.workspace_id = kg.workspace_id").
+		Join("JOIN service_conversations AS svc ON svc.id = ss.service_conversation_id AND svc.workspace_id = ss.workspace_id").
+		Where("svc.audience IN (?)", bun.List([]domain.ServiceAudience{domain.ServiceAudienceCustomer, domain.ServiceAudienceEmployee})).
 		Join("LEFT JOIN channel_conversations AS cc ON cc.conversation_id = ss.conversation_id AND cc.workspace_id = ss.workspace_id").
 		Join("LEFT JOIN channel_identities AS ci ON ci.id = cc.channel_identity_id AND ci.workspace_id = cc.workspace_id").
 		Where("kg.workspace_id = ?", workspaceID)
+	if scope.Audience != "" {
+		query = query.Where("svc.audience = ?", scope.Audience)
+	}
+	if scope.ServiceSource != "" {
+		query = query.Where("svc.source = ?", scope.ServiceSource)
+	}
 	if scope.ChannelID != "" {
-		query = query.Where("ci.channel_id = ?", scope.ChannelID)
+		query = query.Where("ss.channel_id = ?", scope.ChannelID)
 	}
 	if condition, args := scope.Agents.Condition("ss.agent_identity_id", workspaceID); condition != "" {
 		query = query.Where(condition, args...)
@@ -114,6 +129,8 @@ func scoped(query *bun.SelectQuery, workspaceID string, scope Scope) *bun.Select
 // workspaces 为限定 kg.workspace_id 的工作区条件，结果列为 workspace_id 与 pending。
 func WorkspacePendingSQL(workspaces string, workspaceArgs []any) (string, []any) {
 	return `SELECT kg.workspace_id, count(*) AS pending FROM knowledge_gaps AS kg
-WHERE ` + workspaces + ` AND kg.status = ?
+JOIN service_sessions AS ss ON ss.workspace_id = kg.workspace_id AND ss.id = kg.service_session_id
+JOIN service_conversations AS svc ON svc.workspace_id = ss.workspace_id AND svc.id = ss.service_conversation_id
+WHERE svc.audience IN ('customer', 'employee') AND ` + workspaces + ` AND kg.status = ?
 GROUP BY GROUPING SETS ((kg.workspace_id), ())`, append(slices.Clone(workspaceArgs), domain.KnowledgeGapStatusPending)
 }

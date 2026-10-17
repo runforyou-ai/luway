@@ -3,9 +3,10 @@
 package integrationtest
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/json"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -19,7 +20,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/luway/internal/i18n"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/luway/pkg/clusterbus"
 	"github.com/stretchr/testify/require"
@@ -30,55 +30,62 @@ func TestPlatformDiagnostics(t *testing.T) {
 	t.Parallel()
 	db := servertest.OpenEmptyDatabase(t, serverstorage.CoreMigrations())
 	monitor := &fakeTaskMonitor{}
-	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db), InstanceID: "exporter", TaskMonitor: monitor}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db), InstanceID: "exporter", TaskMonitor: monitor, DataDirectory: t.TempDir()}, nil, nil, testEnqueuer, nil, nil, nil)
 	service := backend
 	ctx := context.Background()
-	meta := appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}
-	installed, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
-		PublicURL: servertest.PublicURL, WorkspaceName: "诊断信息", DisplayName: "管理员", Email: servertest.UniqueEmail("diagnostics"),
+	adminEmail := servertest.UniqueEmail("diagnostics")
+	admin := servertest.InstallPlatform(t, service, appservice.InstallPlatformInput{
+		PublicURL: servertest.PublicURL, WorkspaceName: "诊断信息", DisplayName: "管理员", Email: adminEmail,
 		Password: "password123", Locale: domain.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
-	admin := installed.Auth
+	adminMeta := servertest.AdminMeta(admin.AdminToken)
+	userAuth, err := backend.Login(ctx, appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}, appservice.LoginInput{Email: adminEmail, Password: "password123"})
 	require.NoError(t, err)
-	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: domain.LocaleChineseSimplified}
-	workspaces, err := backend.ListWorkspaces(ctx, adminMeta)
+	workspaces, err := backend.ListWorkspaces(ctx, appservice.RequestMeta{Token: userAuth.Token, Locale: domain.LocaleChineseSimplified})
 	require.NoError(t, err)
 	require.Len(t, workspaces.Items, 1)
-	owner := servertest.ResolveMemberSession(t, db, workspaces.Items[0].ID, admin.Token).Identity
-	adminMeta.WorkspaceID = owner.Workspace.ID
+	workspace := workspaces.Items[0]
+	owner := servertest.ResolveMemberSession(t, db, workspace.ID, userAuth.Token).Identity
 	memberEmail := servertest.UniqueEmail("diagnostics-member")
 	_, err = newTestMemberCreator(db, testEnqueuer).Execute(ctx, owner, memberSpec{DisplayName: "成员", Email: memberEmail, Password: "password123", RoleID: owner.User.RoleID})
 	require.NoError(t, err)
 	member := servertest.LoginMember(t, db, owner.Workspace.ID, memberEmail, "password123")
 	memberMeta := appservice.RequestMeta{Token: member.Token, WorkspaceID: owner.Workspace.ID, Locale: domain.LocaleChineseSimplified}
 
-	// 诊断信息只对平台管理员开放。
+	// 诊断信息需要平台后台会话；用户端令牌不能调用。
 	_, err = backend.GetPlatformDiagnostics(ctx, memberMeta)
-	servertest.RequireLocalizedError(t, err, i18n.ErrorPlatformAdminRequired)
+	requireSessionState(t, err, appservice.SessionStateLogin)
+
+	// 导出诊断包复用管理员权限和部署诊断摘要。
+	_, err = backend.ExportDiagnosticBundle(ctx, memberMeta)
+	requireSessionState(t, err, appservice.SessionStateLogin)
+	bundle, err := backend.ExportDiagnosticBundle(ctx, adminMeta)
+	require.NoError(t, err)
+	archive, err := zip.NewReader(bytes.NewReader(bundle.Content), int64(len(bundle.Content)))
+	require.NoError(t, err)
+	require.Equal(t, "manifest.json", archive.File[0].Name)
 
 	// 部署配置的对象存储与邮件发送带有密钥和密码。
-	_, err = db.NewRaw(`UPDATE platforms SET s3_enabled = true, s3_endpoint = 'https://s3.example.test', s3_bucket = 'files',
+	_, err = db.NewRaw(`UPDATE platforms SET s3_endpoint = 'https://s3.example.test', s3_bucket = 'files',
 		s3_access_key_id = 'access-key-id', s3_secret_access_key = 'secret-access-key'`).Exec(ctx)
 	require.NoError(t, err)
-	_, err = backend.UpdatePlatformEmail(ctx, adminMeta, appservice.PlatformEmailSettings{
-		Host: "smtp.example.test", Port: 587, Username: "smtp-user", Password: "smtp-password", Security: "starttls", FromAddress: "support@example.test",
-	})
+	_, err = backend.UpdatePlatformEmail(ctx, adminMeta, appservice.PlatformEmailInput{Enabled: true, Provider: domain.EmailProviderSMTP, FromAddress: "support@example.test", SMTP: &appservice.PlatformEmailSMTPInput{Host: "smtp.example.test", Port: 587, Username: "smtp-user", Password: "smtp-password", Security: "starttls"}})
 	require.NoError(t, err)
 	// 两台服务器登记各自的启动配置，配置中带有密码和地址凭据。
 	config := serverconfig.Config{
 		Server:   serverconfig.ServerConfig{Host: "0.0.0.0", Port: 8080},
 		Database: serverconfig.DatabaseConfig{Host: "db", Port: 5432, User: "app", Password: "db-password", Name: "app", SSLMode: "disable"},
-		NATS:     serverconfig.NATSConfig{URL: "nats://nats-user:nats-password@nats:4222", Namespace: "app"},
+		NATS:     serverconfig.NATSConfig{URL: "nats://nats-user:nats-password@nats:4222"},
 		Data:     serverconfig.DataConfig{Directory: "/var/lib/app"},
 	}
 	first, second := uuid.NewV7().String(), uuid.NewV7().String()
 	for _, report := range []serverinstanceaction.InstanceReport{
 		{ID: first, Hostname: "host-a", Version: "v1.0.0", BusDriver: clusterbus.DriverNATS, BusConnected: true, Config: config.Diagnostics("/opt/app/clients")},
-		{ID: second, Hostname: "host-b", Version: "v1.0.0", BusDriver: clusterbus.DriverPostgres, BusConnected: true},
+		{ID: second, Hostname: "host-b", Version: "v1.0.0", BusDriver: clusterbus.DriverNATS, BusConnected: true},
 	} {
 		require.NoError(t, serverinstanceaction.ReportInstance(ctx, db, report))
 	}
-	_, err = backend.CreateAIProvider(ctx, adminMeta, appservice.AIProviderInput{
+	_, err = backend.CreateAIProvider(ctx, memberMeta, appservice.AIProviderInput{
 		Brand: domain.AIProviderBrandOpenRouter, Name: "诊断来源", CredentialType: domain.AIProviderCredentialTypeAPIKey,
 		APIKey: "provider-api-key", APIURL: "https://provider.example.test/v1",
 		Models: []appservice.AIProviderModel{{Identifier: "chat", Name: "对话", Type: domain.AIModelTypeChat, InputModalities: []domain.AIModelInputModality{domain.AIModelInputModalityText}, ContextWindow: 8192, MaxOutputTokens: 100}},
@@ -100,7 +107,7 @@ func TestPlatformDiagnostics(t *testing.T) {
 	require.Equal(t, 1, diagnostics.Overview.WorkspaceCount)
 	require.Equal(t, 2, diagnostics.Overview.AccountCount)
 	require.False(t, diagnostics.InstalledAt.IsZero(), "diagnostics installed at")
-	require.Len(t, diagnostics.License.ServerID, 36)
+	require.Len(t, diagnostics.License.DeploymentID, 36)
 	require.Equal(t, domain.LicenseStatusNone, diagnostics.License.Status)
 	// 开启对象存储时由执行导出的服务器检查存储桶，无法访问时给出原因。
 	require.True(t, diagnostics.ObjectStorage.Enabled)
@@ -113,19 +120,17 @@ func TestPlatformDiagnostics(t *testing.T) {
 		configs[server.ID] = server.Config
 		drivers[server.ID] = server.BusDriver
 	}
-	require.Equal(t, map[string]string{first: "nats", second: "postgres"}, drivers)
+	require.Equal(t, map[string]string{first: "nats", second: "nats"}, drivers)
 	firstConfig := configs[first]
 	require.Equal(t, "nats://nats:4222", firstConfig.NATS.URL)
 	require.Equal(t, "app", firstConfig.Database.User)
-	require.Equal(t, filepath.Join("/var/lib/app", "files"), firstConfig.LocalDirectory)
 	require.Equal(t, "0.0.0.0:8080", firstConfig.Listen)
 	require.Empty(t, configs[second].Listen)
 	deployment := diagnostics.Deployment
 	require.Equal(t, servertest.PublicURL, deployment.PublicURL)
-	require.True(t, deployment.Storage.Enabled)
 	require.Equal(t, "files", deployment.Storage.Bucket)
 	require.True(t, deployment.Email.Enabled)
-	require.Equal(t, "smtp.example.test", deployment.Email.Host)
+	require.Equal(t, domain.EmailProviderSMTP, deployment.Email.Provider)
 	require.Len(t, diagnostics.FailedTasks, 1)
 	task := diagnostics.FailedTasks[0]
 	require.Equal(t, &owner.Workspace.ID, task.WorkspaceID)

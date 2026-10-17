@@ -67,7 +67,7 @@ type AgentBusinessSystemOptionList struct {
 
 // AgentManagedExecutionInput 定义平台托管执行配置输入。
 type AgentManagedExecutionInput struct {
-	ModelID           string   `json:"modelId" validate:"uuid" msg:"field.chat_model_invalid"`
+	ModelID           string   `json:"modelId" validate:"modelref" msg:"field.chat_model_invalid"`
 	SystemInstruction string   `json:"systemInstruction" validate:"max=20000" msg:"field.agent_system_instruction_too_long"`
 	KnowledgeBaseIDs  []string `json:"knowledgeBaseIds" validate:"dive,uuid" msg:"field.agent_knowledge_base_invalid"`
 }

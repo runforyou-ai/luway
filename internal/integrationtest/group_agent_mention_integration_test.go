@@ -169,7 +169,7 @@ func TestGroupAgentMentionReplies(t *testing.T) {
 
 	t.Run("群内附件进入上下文", func(t *testing.T) {
 		f := newGroupAgentFixture(t, db, identity, agents)
-		file, err := fileaction.NewCreateUploadAction(db).Execute(ctx, identity, domain.FileStorageBackendLocal, fileaction.UploadInput{
+		file, err := fileaction.NewCreateUploadAction(db).Execute(ctx, identity, fileaction.UploadInput{
 			Purpose: domain.FilePurposeMessageAttachment, FileName: "diagram.png", ContentType: "image/png", ByteSize: domain.FilePartSize + 1,
 		})
 		require.NoError(t, err)
@@ -200,7 +200,7 @@ func TestGroupAgentMentionReplies(t *testing.T) {
 				require.NoError(t, json.Unmarshal([]byte(message.Content), &envelope), "群上下文不是 JSON：%s", message.Content)
 				if message.ID == attachment.Message.ID {
 					attached = envelope.Attachment != nil && envelope.Attachment.MessageID == attachment.Message.ID &&
-						envelope.Attachment.Name == "diagram.png" && strings.Contains(envelope.Attachment.URL, "/storage/") && message.Media != nil && message.Media.MIME == "image/png"
+						envelope.Attachment.Name == "diagram.png" && strings.Contains(envelope.Attachment.URL, "/files/") && message.Media != nil && message.Media.MIME == "image/png"
 				}
 				if envelope.ReplyTo != nil && envelope.ReplyTo.Attachment != nil && envelope.ReplyTo.Attachment.Name == "diagram.png" && envelope.ReplyTo.Attachment.ByteSize == domain.FilePartSize+1 {
 					referenced = true

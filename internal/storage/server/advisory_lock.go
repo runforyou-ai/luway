@@ -19,8 +19,6 @@ type LockNamespace string
 const (
 	// LockMessagePartitions 串行创建消息分区。
 	LockMessagePartitions LockNamespace = "message-partitions"
-	// LockServerLogPartitions 串行维护服务端日志分区。
-	LockServerLogPartitions LockNamespace = "server-log-partitions"
 	// LockPlatformStats 串行执行运营数据汇总与重建。
 	LockPlatformStats LockNamespace = "platform-stats"
 	// LockVectorIndexes 串行执行知识库专属向量索引对账。

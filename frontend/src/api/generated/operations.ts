@@ -5,7 +5,7 @@ import { call } from "@/api/client"
 
 import type * as contract from "./contract"
 
-/** 返回当前账号的成员实时连接配置。 */
+/** 返回当前账号的成员实时连接配置；用户端与支援会话均可调用。 */
 export function getRealtimeConnection(signal?: AbortSignal) {
   return call<contract.RealtimeConnection>({ method: "GET", path: "/realtime/connection" }, signal)
 }
@@ -15,14 +15,19 @@ export function installationStatus(signal?: AbortSignal) {
   return call<contract.InstallationStatus>({ method: "GET", path: "/installation/status" }, signal)
 }
 
-/** 在平台尚无账号时创建平台管理员和第一个工作区，返回工作区和平台管理员登录会话。 */
-export function installWorkspace(input: contract.InstallWorkspaceInput, signal?: AbortSignal) {
-  return call<contract.InstallWorkspaceResult>({ method: "POST", path: "/install", body: input }, signal)
+/** 在平台尚无账号时创建平台管理员，返回后台会话（由 HTTP 层写入 Cookie）。 */
+export function installPlatform(input: contract.InstallPlatformInput, signal?: AbortSignal) {
+  return call<contract.AdminAuth>({ method: "POST", path: "/install", body: input }, signal)
 }
 
-/** 校验账号密码并建立登录会话。 */
+/** 校验账号密码并建立用户端登录会话。 */
 export function login(input: contract.LoginInput, signal?: AbortSignal) {
   return call<contract.Auth>({ method: "POST", path: "/auth/login", body: input }, signal)
+}
+
+/** 校验平台管理员密码并建立后台会话（由 HTTP 层写入 Cookie）。 */
+export function adminLogin(input: contract.LoginInput, signal?: AbortSignal) {
+  return call<contract.AdminAuth>({ method: "POST", path: "/admin/auth/login", body: input }, signal)
 }
 
 /** 在平台开放注册或持有效邀请时注册本地账号并建立登录会话。 */
@@ -30,22 +35,37 @@ export function register(input: contract.RegisterInput, signal?: AbortSignal) {
   return call<contract.Auth>({ method: "POST", path: "/auth/register", body: input }, signal)
 }
 
-/** 退出当前登录会话。 */
+/** 退出当前用户端登录会话。 */
 export function logout(signal?: AbortSignal) {
   return call<void>({ method: "POST", path: "/auth/logout" }, signal)
 }
 
-/** 返回当前登录账号。 */
+/** 退出当前平台后台会话（由 HTTP 层清除 Cookie）。 */
+export function adminLogout(signal?: AbortSignal) {
+  return call<void>({ method: "POST", path: "/admin/auth/logout" }, signal)
+}
+
+/** 返回当前用户端登录账号。 */
 export function loadAccount(signal?: AbortSignal) {
   return call<contract.Account>({ method: "GET", path: "/account" }, signal)
 }
 
-/** 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。 */
+/** 返回当前平台后台登录账号。 */
+export function loadAdminAccount(signal?: AbortSignal) {
+  return call<contract.Account>({ method: "GET", path: "/admin/account" }, signal)
+}
+
+/** 核验当前平台管理员的密码并保存新密码。 */
+export function changeAdminPassword(input: contract.ChangePasswordInput, signal?: AbortSignal) {
+  return call<void>({ method: "PATCH", path: "/admin/password", body: input }, signal)
+}
+
+/** 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区；支援会话只返回绑定工作区。 */
 export function listWorkspaces(signal?: AbortSignal) {
   return call<contract.WorkspaceList>({ method: "GET", path: "/workspaces" }, signal)
 }
 
-/** 返回当前账号在各工作区的提醒数量，工作区切换器与应用角标据此提示其他工作区的未读。 */
+/** 返回当前账号在各工作区的提醒数量，工作区切换器与应用角标据此提示其他工作区的未读；支援会话只返回绑定工作区。 */
 export function listWorkspaceAttention(signal?: AbortSignal) {
   return call<contract.WorkspaceAttentionList>({ method: "GET", path: "/workspace-attention" }, signal)
 }
@@ -68,6 +88,16 @@ export function changePassword(input: contract.ChangePasswordInput, signal?: Abo
 /** 把本设备的离线推送目标记到当前登录会话，推送只发往未过期的登录会话。 */
 export function setPushDevice(input: contract.PushDeviceInput, signal?: AbortSignal) {
   return call<void>({ method: "PUT", path: "/push-device", body: input }, signal)
+}
+
+/** 为平台管理员签发进入指定工作区的短期支援凭证。 */
+export function createSupportAccess(workspaceID: string, signal?: AbortSignal) {
+  return call<contract.SupportAccess>({ method: "POST", path: `/platform/workspaces/${encodeURIComponent(workspaceID)}/support-access` }, signal)
+}
+
+/** 撤销当前支援会话。 */
+export function revokeSupportAccess(signal?: AbortSignal) {
+  return call<void>({ method: "DELETE", path: "/auth/support-access" }, signal)
 }
 
 /** 返回当前平台可见的产品文档页面正文，供应用内帮助显示。 */
@@ -220,9 +250,9 @@ export function completeFileUpload(fileID: string, signal?: AbortSignal) {
   return call<contract.File>({ method: "POST", path: `/files/${encodeURIComponent(fileID)}/complete` }, signal)
 }
 
-/** 创建一个分片的直传请求。 */
-export function createFilePartUpload(fileID: string, input: contract.FilePartUploadInput, signal?: AbortSignal) {
-  return call<contract.FileUploadRequest>({ method: "POST", path: `/files/${encodeURIComponent(fileID)}/parts`, body: input }, signal)
+/** 为当前上传签发 S3 请求。 */
+export function signFileUpload(fileID: string, input: contract.FileUploadSignInput, signal?: AbortSignal) {
+  return call<contract.FileUploadRequest>({ method: "POST", path: `/files/${encodeURIComponent(fileID)}/upload/sign`, body: input }, signal)
 }
 
 /** 将未发送的临时文件交给清理任务。 */
@@ -556,53 +586,53 @@ export function regenerateCustomerIdentitySecret(signal?: AbortSignal) {
 }
 
 /** 读取当前企业的客服工作时间。 */
-export function getBusinessHours(signal?: AbortSignal) {
-  return call<contract.BusinessHours>({ method: "GET", path: "/settings/customer-service/business-hours" }, signal)
+export function getBusinessHours(audience: string, signal?: AbortSignal) {
+  return call<contract.BusinessHours>({ method: "GET", path: `/settings/service-policies/${encodeURIComponent(audience)}/business-hours` }, signal)
 }
 
 /** 修改当前企业的客服工作时间。 */
-export function updateBusinessHours(input: contract.BusinessHours, signal?: AbortSignal) {
-  return call<contract.BusinessHours>({ method: "PUT", path: "/settings/customer-service/business-hours", body: input }, signal)
+export function updateBusinessHours(audience: string, input: contract.BusinessHours, signal?: AbortSignal) {
+  return call<contract.BusinessHours>({ method: "PUT", path: `/settings/service-policies/${encodeURIComponent(audience)}/business-hours`, body: input }, signal)
 }
 
 /** 读取当前企业的客服超时时长。 */
-export function getServiceTimeouts(signal?: AbortSignal) {
-  return call<contract.ServiceTimeouts>({ method: "GET", path: "/settings/customer-service/timeouts" }, signal)
+export function getServiceTimeouts(audience: string, signal?: AbortSignal) {
+  return call<contract.ServiceTimeouts>({ method: "GET", path: `/settings/service-policies/${encodeURIComponent(audience)}/timeouts` }, signal)
 }
 
 /** 修改当前企业的客服超时时长。 */
-export function updateServiceTimeouts(input: contract.ServiceTimeouts, signal?: AbortSignal) {
-  return call<contract.ServiceTimeouts>({ method: "PUT", path: "/settings/customer-service/timeouts", body: input }, signal)
+export function updateServiceTimeouts(audience: string, input: contract.ServiceTimeouts, signal?: AbortSignal) {
+  return call<contract.ServiceTimeouts>({ method: "PUT", path: `/settings/service-policies/${encodeURIComponent(audience)}/timeouts`, body: input }, signal)
 }
 
 /** 读取当前企业的周期小结设置。 */
-export function getServiceSummarySettings(signal?: AbortSignal) {
-  return call<contract.ServiceSummarySettings>({ method: "GET", path: "/settings/customer-service/summary" }, signal)
+export function getServiceSummarySettings(audience: string, signal?: AbortSignal) {
+  return call<contract.ServiceSummarySettings>({ method: "GET", path: `/settings/service-policies/${encodeURIComponent(audience)}/summary` }, signal)
 }
 
 /** 修改当前企业的周期小结设置。 */
-export function updateServiceSummarySettings(input: contract.ServiceSummarySettings, signal?: AbortSignal) {
-  return call<contract.ServiceSummarySettings>({ method: "PUT", path: "/settings/customer-service/summary", body: input }, signal)
+export function updateServiceSummarySettings(audience: string, input: contract.ServiceSummarySettings, signal?: AbortSignal) {
+  return call<contract.ServiceSummarySettings>({ method: "PUT", path: `/settings/service-policies/${encodeURIComponent(audience)}/summary`, body: input }, signal)
 }
 
 /** 返回当前企业的咨询分类目录。 */
-export function listServiceCategories(signal?: AbortSignal) {
-  return call<contract.ServiceCategoryList>({ method: "GET", path: "/settings/customer-service/categories" }, signal)
+export function listServiceCategories(audience: string, signal?: AbortSignal) {
+  return call<contract.ServiceCategoryList>({ method: "GET", path: `/settings/service-policies/${encodeURIComponent(audience)}/categories` }, signal)
 }
 
 /** 新增咨询分类。 */
-export function createServiceCategory(input: contract.ServiceCategoryInput, signal?: AbortSignal) {
-  return call<contract.ServiceCategory>({ method: "POST", path: "/settings/customer-service/categories", body: input }, signal)
+export function createServiceCategory(audience: string, input: contract.ServiceCategoryInput, signal?: AbortSignal) {
+  return call<contract.ServiceCategory>({ method: "POST", path: `/settings/service-policies/${encodeURIComponent(audience)}/categories`, body: input }, signal)
 }
 
 /** 修改咨询分类。 */
-export function updateServiceCategory(categoryID: string, input: contract.ServiceCategoryInput, signal?: AbortSignal) {
-  return call<contract.ServiceCategory>({ method: "PUT", path: `/settings/customer-service/categories/${encodeURIComponent(categoryID)}`, body: input }, signal)
+export function updateServiceCategory(audience: string, categoryID: string, input: contract.ServiceCategoryInput, signal?: AbortSignal) {
+  return call<contract.ServiceCategory>({ method: "PUT", path: `/settings/service-policies/${encodeURIComponent(audience)}/categories/${encodeURIComponent(categoryID)}`, body: input }, signal)
 }
 
 /** 删除咨询分类，历史记录保留分类名称。 */
-export function deleteServiceCategory(categoryID: string, signal?: AbortSignal) {
-  return call<void>({ method: "DELETE", path: `/settings/customer-service/categories/${encodeURIComponent(categoryID)}` }, signal)
+export function deleteServiceCategory(audience: string, categoryID: string, signal?: AbortSignal) {
+  return call<void>({ method: "DELETE", path: `/settings/service-policies/${encodeURIComponent(audience)}/categories/${encodeURIComponent(categoryID)}` }, signal)
 }
 
 /** 返回当前成员在客户会话中的翻译状态。 */
@@ -870,7 +900,7 @@ export function checkWechatAuthorizationChannelConnection(channelID: string, sig
   return call<contract.WechatAuthorizationChannel>({ method: "POST", path: `/channels/${encodeURIComponent(channelID)}/wechat-authorization/connection/check` }, signal)
 }
 
-/** 返回微信第三方平台配置、可用状态、接入地址、各服务器出口 IP 与平台凭据状态。 */
+/** 返回微信第三方平台配置、可用状态、接入地址与平台凭据状态。 */
 export function getWechatPlatform(signal?: AbortSignal) {
   return call<contract.WechatPlatform>({ method: "GET", path: "/platform/wechat" }, signal)
 }
@@ -883,6 +913,16 @@ export function saveWechatPlatform(input: contract.WechatPlatformInput, signal?:
 /** 立即重新获取微信平台凭据并返回结果。 */
 export function checkWechatPlatform(signal?: AbortSignal) {
   return call<contract.WechatPlatform>({ method: "POST", path: "/platform/wechat/check" }, signal)
+}
+
+/** 读取工作区 AI 评测设置。 */
+export function getAgentEvaluationSettings(signal?: AbortSignal) {
+  return call<contract.AgentEvaluationSettings>({ method: "GET", path: "/settings/ai-evaluation" }, signal)
+}
+
+/** 修改工作区 AI 评测设置。 */
+export function updateAgentEvaluationSettings(input: contract.AgentEvaluationSettings, signal?: AbortSignal) {
+  return call<contract.AgentEvaluationSettings>({ method: "PUT", path: "/settings/ai-evaluation", body: input }, signal)
 }
 
 /** 返回 AI 员工评测页的最近两次运行与全部用例。 */
@@ -1020,59 +1060,54 @@ export function acceptInvitation(input: contract.InvitationTokenInput, signal?: 
   return call<contract.Workspace>({ method: "POST", path: "/invitation-acceptances", body: input }, signal)
 }
 
+/** 生成当前服务端的诊断包。 */
+export function exportDiagnosticBundle(signal?: AbortSignal) {
+  return call<contract.DiagnosticBundle>({ method: "POST", path: "/platform/diagnostic-bundles" }, signal)
+}
+
+/** 生成并主动上传诊断包。 */
+export function uploadDiagnosticBundle(input: contract.DiagnosticUploadInput, signal?: AbortSignal) {
+  return call<void>({ method: "POST", path: "/platform/diagnostic-bundles/upload", body: input }, signal)
+}
+
 /** 返回平台规模与活跃趋势。 */
 export function getPlatformOverview(signal?: AbortSignal) {
   return call<contract.PlatformOverview>({ method: "GET", path: "/platform/overview" }, signal)
 }
 
-/** 返回平台注册策略与工作区创建策略。 */
-export function getPlatformSettings(signal?: AbortSignal) {
-  return call<contract.PlatformSettings>({ method: "GET", path: "/platform/settings" }, signal)
+/** 返回站点设置：部署名称与时区、注册与创建、访问地址与证书、部署品牌与产品首页。 */
+export function getPlatformSite(signal?: AbortSignal) {
+  return call<contract.PlatformSite>({ method: "GET", path: "/platform/site" }, signal)
 }
 
-/** 修改平台注册策略和工作区创建策略。 */
-export function updatePlatformSettings(input: contract.PlatformPoliciesInput, signal?: AbortSignal) {
-  return call<contract.PlatformSettings>({ method: "PUT", path: "/platform/settings", body: input }, signal)
+/** 一次保存站点设置；上传证书的空证书或私钥保留已存值；未授权时不改写品牌；时区变化时在后台按新时区重建运营数据；HTTPS 需自动签发时先签发再保存。 */
+export function updatePlatformSite(input: contract.PlatformSiteInput, signal?: AbortSignal) {
+  return call<contract.PlatformSite>({ method: "PUT", path: "/platform/site", body: input }, signal)
 }
 
-/** 返回部署名称、部署地址、平台时区、上报开关、对象存储、邮件发送、部署品牌与产品首页配置。 */
+/** 返回对象存储与邮件发送配置。 */
 export function getPlatformDeployment(signal?: AbortSignal) {
   return call<contract.PlatformDeployment>({ method: "GET", path: "/platform/deployment" }, signal)
 }
 
-/** 修改部署名称、平台时区与上报开关，时区变化时在后台按新时区重建运营数据。 */
-export function updatePlatformDeploymentBasics(input: contract.PlatformDeploymentBasicsInput, signal?: AbortSignal) {
-  return call<contract.PlatformDeployment>({ method: "PUT", path: "/platform/deployment/basics", body: input }, signal)
-}
-
-/** 修改部署地址与证书：上传的证书须与私钥匹配、未到期且包含 HTTPS 部署地址的域名；自动签发时，部署中有直接提供 HTTPS 的服务器而 HTTPS 部署地址没有有效证书时先签发证书，成功后一起保存。 */
-export function updatePlatformAddress(input: contract.PlatformAddressInput, signal?: AbortSignal) {
-  return call<contract.PlatformDeployment>({ method: "PUT", path: "/platform/deployment/address", body: input }, signal)
-}
-
 /** 修改对象存储配置：开启时先确认能访问存储桶，部署中有其他服务器运行时不能关闭。 */
 export function updatePlatformStorage(input: contract.PlatformStorageSettings, signal?: AbortSignal) {
-  return call<contract.PlatformDeployment>({ method: "PUT", path: "/platform/deployment/storage", body: input }, signal)
+  return call<contract.PlatformStorageCheck>({ method: "PUT", path: "/platform/deployment/storage", body: input }, signal)
 }
 
-/** 修改 SMTP 邮件发送配置，主机为空时关闭邮件发送。 */
-export function updatePlatformEmail(input: contract.PlatformEmailSettings, signal?: AbortSignal) {
+/** 修改当前邮件接入方式与发件人配置。 */
+export function updatePlatformEmail(input: contract.PlatformEmailInput, signal?: AbortSignal) {
   return call<contract.PlatformDeployment>({ method: "PUT", path: "/platform/deployment/email", body: input }, signal)
 }
 
-/** 修改部署品牌，授权授予自定义品牌期间生效。 */
-export function updatePlatformBranding(input: contract.PlatformBrandingSettings, signal?: AbortSignal) {
-  return call<contract.PlatformDeployment>({ method: "PUT", path: "/platform/deployment/branding", body: input }, signal)
-}
-
-/** 修改产品首页配置，首页提供价格区块时生效。 */
-export function updatePlatformHome(input: contract.PlatformHomeSettings, signal?: AbortSignal) {
-  return call<contract.PlatformDeployment>({ method: "PUT", path: "/platform/deployment/home", body: input }, signal)
+/** 使用已保存的配置发送测试邮件。 */
+export function testPlatformEmail(input: contract.PlatformEmailTestInput, signal?: AbortSignal) {
+  return call<void>({ method: "POST", path: "/platform/deployment/email/test", body: input }, signal)
 }
 
 /** 返回平台内的账号。 */
 export function listPlatformAccounts(input: contract.PlatformAccountListInput, signal?: AbortSignal) {
-  return call<contract.PlatformAccountList>({ method: "GET", path: "/platform/accounts", query: { query: input.query, status: input.status, page: input.page, pageSize: input.pageSize } }, signal)
+  return call<contract.PlatformAccountList>({ method: "GET", path: "/platform/accounts", query: { workspaceId: input.workspaceId, query: input.query, status: input.status, page: input.page, pageSize: input.pageSize } }, signal)
 }
 
 /** 停用其他账号并使其登录会话失效。 */
@@ -1100,7 +1135,7 @@ export function listPlatformWorkspaces(input: contract.PlatformWorkspaceListInpu
   return call<contract.PlatformWorkspaceList>({ method: "GET", path: "/platform/workspaces", query: { query: input.query, status: input.status, sort: input.sort, page: input.page, pageSize: input.pageSize } }, signal)
 }
 
-/** 返回服务器标识、授权状态与 control 同步结果。 */
+/** 返回部署标识、授权状态。 */
 export function getLicense(signal?: AbortSignal) {
   return call<contract.License>({ method: "GET", path: "/platform/license" }, signal)
 }
@@ -1113,11 +1148,6 @@ export function activateLicense(input: contract.ActivateLicenseInput, signal?: A
 /** 用激活码经 control 在线激活授权。 */
 export function activateLicenseOnline(input: contract.ActivateLicenseOnlineInput, signal?: AbortSignal) {
   return call<contract.License>({ method: "POST", path: "/platform/license/activations", body: input }, signal)
-}
-
-/** 立即向 control 登记服务器并拉取最新授权。 */
-export function syncLicense(signal?: AbortSignal) {
-  return call<contract.License>({ method: "POST", path: "/platform/license/sync" }, signal)
 }
 
 /** 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。 */
@@ -1150,12 +1180,7 @@ export function listPlatformFailedTasks(input: contract.PlatformFailedTaskListIn
   return call<contract.PlatformFailedTaskList>({ method: "GET", path: "/platform/runtime/failed-tasks", query: { page: input.page, pageSize: input.pageSize } }, signal)
 }
 
-/** 按筛选条件以时间倒序返回近 30 天的服务端日志，按游标逐页读取。 */
-export function listPlatformServerLogs(input: contract.PlatformServerLogListInput, signal?: AbortSignal) {
-  return call<contract.PlatformServerLogList>({ method: "GET", path: "/platform/runtime/server-logs", query: { cursor: input.cursor, pageSize: input.pageSize, minLevel: input.minLevel, instanceId: input.instanceId, workspaceId: input.workspaceId, entry: input.entry, traceId: input.traceId } }, signal)
-}
-
-/** 返回平台概览、授权与 control 同步结果、部署配置与对象存储检查结果、各服务端进程的状态与配置、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。 */
+/** 返回平台概览、授权、部署配置与对象存储检查结果、各服务端进程的状态与配置、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。 */
 export function getPlatformDiagnostics(signal?: AbortSignal) {
   return call<contract.PlatformDiagnostics>({ method: "GET", path: "/platform/diagnostics" }, signal)
 }
@@ -1485,19 +1510,44 @@ export function testWebSearchService(input: contract.WebSearchService, signal?: 
   return call<void>({ method: "POST", path: "/settings/web-search/test", body: input }, signal)
 }
 
+/** 读取当前企业的网页读取设置。 */
+export function getWebFetchSettings(signal?: AbortSignal) {
+  return call<contract.WebFetchSettings>({ method: "GET", path: "/settings/web-fetch" }, signal)
+}
+
+/** 修改当前企业的网页读取设置。 */
+export function updateWebFetchSettings(input: contract.WebFetchSettings, signal?: AbortSignal) {
+  return call<contract.WebFetchSettings>({ method: "PUT", path: "/settings/web-fetch", body: input }, signal)
+}
+
+/** 用草稿配置读取一次固定页面，验证读取服务可用。 */
+export function testWebFetchService(input: contract.WebFetchSettings, signal?: AbortSignal) {
+  return call<void>({ method: "POST", path: "/settings/web-fetch/test", body: input }, signal)
+}
+
+/** 读取当前企业的媒体理解设置。 */
+export function getMediaUnderstandingSettings(signal?: AbortSignal) {
+  return call<contract.MediaUnderstandingSettings>({ method: "GET", path: "/settings/media-understanding" }, signal)
+}
+
+/** 修改当前企业的媒体理解设置。 */
+export function updateMediaUnderstandingSettings(input: contract.MediaUnderstandingSettings, signal?: AbortSignal) {
+  return call<contract.MediaUnderstandingSettings>({ method: "PUT", path: "/settings/media-understanding", body: input }, signal)
+}
+
 /** 返回当前企业指定范围内的 AI 客服表现概览。 */
 export function getAIPerformanceReport(input: contract.AIPerformanceReportInput, signal?: AbortSignal) {
-  return call<contract.AIPerformanceReport>({ method: "GET", path: "/reports/ai-performance", query: { days: input.days, channelId: input.channelId, agentId: input.agentId, mine: input.mine } }, signal)
+  return call<contract.AIPerformanceReport>({ method: "GET", path: "/reports/ai-performance", query: { audience: input.audience, serviceSource: input.serviceSource, days: input.days, channelId: input.channelId, agentId: input.agentId, mine: input.mine } }, signal)
 }
 
 /** 返回按渠道或咨询分类拆分的一页 AI 客服表现。 */
 export function listAIPerformanceBreakdowns(input: contract.AIPerformanceBreakdownInput, signal?: AbortSignal) {
-  return call<contract.AIPerformanceBreakdownList>({ method: "GET", path: "/reports/ai-performance/breakdowns", query: { days: input.days, channelId: input.channelId, agentId: input.agentId, mine: input.mine, dimension: input.dimension, page: input.page, pageSize: input.pageSize } }, signal)
+  return call<contract.AIPerformanceBreakdownList>({ method: "GET", path: "/reports/ai-performance/breakdowns", query: { audience: input.audience, serviceSource: input.serviceSource, days: input.days, channelId: input.channelId, agentId: input.agentId, mine: input.mine, dimension: input.dimension, page: input.page, pageSize: input.pageSize } }, signal)
 }
 
 /** 返回一页指定类型的 AI 表现问题会话。 */
 export function listAIPerformanceIssues(input: contract.AIPerformanceIssueListInput, signal?: AbortSignal) {
-  return call<contract.ServiceIssueList>({ method: "GET", path: "/reports/ai-performance/issues", query: { days: input.days, channelId: input.channelId, agentId: input.agentId, mine: input.mine, issue: input.issue, page: input.page, pageSize: input.pageSize } }, signal)
+  return call<contract.ServiceIssueList>({ method: "GET", path: "/reports/ai-performance/issues", query: { audience: input.audience, serviceSource: input.serviceSource, days: input.days, channelId: input.channelId, agentId: input.agentId, mine: input.mine, issue: input.issue, page: input.page, pageSize: input.pageSize } }, signal)
 }
 
 /** 返回 AI 员工接待的一页服务周期。 */
@@ -1507,22 +1557,22 @@ export function listAgentServiceSessions(agentID: string, input: contract.AgentS
 
 /** 返回当前企业指定范围内的真人客服表现概览。 */
 export function getTeamPerformanceReport(input: contract.TeamPerformanceReportInput, signal?: AbortSignal) {
-  return call<contract.TeamPerformanceReport>({ method: "GET", path: "/reports/team-performance", query: { days: input.days, channelId: input.channelId, teamId: input.teamId, publicQueue: input.publicQueue } }, signal)
+  return call<contract.TeamPerformanceReport>({ method: "GET", path: "/reports/team-performance", query: { audience: input.audience, serviceSource: input.serviceSource, days: input.days, channelId: input.channelId, teamId: input.teamId, publicQueue: input.publicQueue } }, signal)
 }
 
 /** 返回按客服拆分的一页真人客服表现。 */
 export function listTeamPerformanceMembers(input: contract.TeamPerformanceMemberListInput, signal?: AbortSignal) {
-  return call<contract.TeamPerformanceMemberList>({ method: "GET", path: "/reports/team-performance/members", query: { days: input.days, channelId: input.channelId, teamId: input.teamId, publicQueue: input.publicQueue, page: input.page, pageSize: input.pageSize } }, signal)
+  return call<contract.TeamPerformanceMemberList>({ method: "GET", path: "/reports/team-performance/members", query: { audience: input.audience, serviceSource: input.serviceSource, days: input.days, channelId: input.channelId, teamId: input.teamId, publicQueue: input.publicQueue, page: input.page, pageSize: input.pageSize } }, signal)
 }
 
 /** 返回按渠道或咨询分类拆分的一页真人客服表现。 */
 export function listTeamPerformanceBreakdowns(input: contract.TeamPerformanceBreakdownInput, signal?: AbortSignal) {
-  return call<contract.TeamPerformanceBreakdownList>({ method: "GET", path: "/reports/team-performance/breakdowns", query: { days: input.days, channelId: input.channelId, teamId: input.teamId, publicQueue: input.publicQueue, dimension: input.dimension, page: input.page, pageSize: input.pageSize } }, signal)
+  return call<contract.TeamPerformanceBreakdownList>({ method: "GET", path: "/reports/team-performance/breakdowns", query: { audience: input.audience, serviceSource: input.serviceSource, days: input.days, channelId: input.channelId, teamId: input.teamId, publicQueue: input.publicQueue, dimension: input.dimension, page: input.page, pageSize: input.pageSize } }, signal)
 }
 
 /** 返回一页指定类型的真人接待问题会话。 */
 export function listTeamPerformanceIssues(input: contract.TeamPerformanceIssueListInput, signal?: AbortSignal) {
-  return call<contract.ServiceIssueList>({ method: "GET", path: "/reports/team-performance/issues", query: { days: input.days, channelId: input.channelId, teamId: input.teamId, publicQueue: input.publicQueue, issue: input.issue, page: input.page, pageSize: input.pageSize } }, signal)
+  return call<contract.ServiceIssueList>({ method: "GET", path: "/reports/team-performance/issues", query: { audience: input.audience, serviceSource: input.serviceSource, days: input.days, channelId: input.channelId, teamId: input.teamId, publicQueue: input.publicQueue, issue: input.issue, page: input.page, pageSize: input.pageSize } }, signal)
 }
 
 /** 返回客服周期的质检结论与对客沟通。 */
@@ -1532,7 +1582,7 @@ export function getServiceIssue(serviceSessionID: string, signal?: AbortSignal) 
 
 /** 返回一页指定处理状态的待补知识，并标出当前成员能否处理每一条。 */
 export function listKnowledgeGaps(input: contract.KnowledgeGapListInput, signal?: AbortSignal) {
-  return call<contract.KnowledgeGapList>({ method: "GET", path: "/knowledge-gaps", query: { channelId: input.channelId, agentId: input.agentId, mine: input.mine, status: input.status, page: input.page, pageSize: input.pageSize } }, signal)
+  return call<contract.KnowledgeGapList>({ method: "GET", path: "/knowledge-gaps", query: { audience: input.audience, serviceSource: input.serviceSource, channelId: input.channelId, agentId: input.agentId, mine: input.mine, status: input.status, page: input.page, pageSize: input.pageSize } }, signal)
 }
 
 /** 返回待补知识详情，并标出当前成员能否处理。 */

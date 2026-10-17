@@ -9,7 +9,7 @@ Deployment administrators review scale and usage in [Platform overview](/docs/en
 
 ## Addresses
 
-The server provides these entry points under the deployment address:
+The server provides these entry points under the access address:
 
 | Path | Content |
 | --- | --- |

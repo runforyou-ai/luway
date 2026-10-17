@@ -185,7 +185,7 @@ const channels = {
     checkFailed: "Couldn't obtain the API credential. See the reason below.",
     checkError: "Couldn't check the Official Account credentials. Try again later.",
     credentialsTitle: "Official Account credentials",
-    credentialsHelp: "Saving verifies the AppID and AppSecret with WeChat. Add the server egress IPs listed under IP whitelist to the Official Account's IP whitelist first.",
+    credentialsHelp: "Saving verifies the AppID and AppSecret with WeChat. Find your servers' public egress IPs and add them to the Official Account's IP whitelist first.",
     form: {
       appId: "AppID",
       appIdHelp: "Can't be changed after connecting. Create a new channel for a different Official Account.",
@@ -216,10 +216,6 @@ const channels = {
       waiting: "Waiting for verification",
       verifiedAt: "WeChat verified this URL at {{time}}.",
       waitingHelp: "WeChat verifies this URL after you submit the server configuration in the Official Account Platform.",
-    },
-    info: {
-      whitelistTitle: "IP whitelist",
-      whitelistHelp: "Add these server egress IPs to the IP whitelist under Settings & Development › Basic Configuration in the Official Account Platform.",
     },
   },
   wechatAuthorization: {

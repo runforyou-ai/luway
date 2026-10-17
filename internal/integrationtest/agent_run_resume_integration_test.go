@@ -13,6 +13,7 @@ import (
 	"github.com/runforyou-ai/einorun/llm"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess/processquery"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -48,7 +49,7 @@ func testAgentRunSuspendAndResume(t *testing.T, db *bun.DB, identity *servermode
 		if err := request.Journal.SaveStep(ctx, step); err != nil {
 			return agentruntime.RunResult{}, err
 		}
-		return agentruntime.RunResult{Usage: agentcontract.UsageFrom(step.Usage), Blocks: runBlocks(blocks), Suspended: true}, nil
+		return agentruntime.RunResult{Usage: agentcontract.NewUsage(step.Usage.Input, step.Usage.Output), Blocks: runBlocks(blocks), Suspended: true}, nil
 	}}
 	require.NoError(t, newTestAgentRun(db, tasks, suspending, testModelInvoker(db), testAttachmentReader(db), nil, servertest.DisabledMail{}, nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}))
 	assertAgentRunStatus(t, ctx, db, run.ID, domain.AgentRunStatusWaiting)
@@ -65,7 +66,7 @@ func testAgentRunSuspendAndResume(t *testing.T, db *bun.DB, identity *servermode
 	require.NoError(t, retried.Execute(ctx, agentrunaction.RunInput{RunID: run.ID}))
 	require.NoError(t, retried.FinalizeFailure(ctx, agentrunaction.RunInput{RunID: run.ID}, errors.New("retried task failed")))
 	assertAgentRunStatus(t, ctx, db, run.ID, domain.AgentRunStatusWaiting)
-	waitingProcess, err := processquery.NewGetRunProcessQuery(db).Execute(ctx, identity, run.ID)
+	waitingProcess, err := processquery.NewGetRunProcessQuery(db, conversationaccess.Guard{}).Execute(ctx, identity, run.ID)
 	require.NoError(t, err)
 	require.Len(t, waitingProcess.Blocks, 2)
 	require.Equal(t, domain.AgentToolCallWaiting, waitingProcess.Blocks[1].Payload.ToolCall.Status)
@@ -112,7 +113,7 @@ func testAgentRunSuspendAndResume(t *testing.T, db *bun.DB, identity *servermode
 	}}
 	require.NoError(t, newTestAgentRun(db, tasks, resuming, testModelInvoker(db), testAttachmentReader(db), nil, servertest.DisabledMail{}, nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}))
 	assertAgentRunStatus(t, ctx, db, run.ID, domain.AgentRunStatusSucceeded)
-	process, err := processquery.NewGetRunProcessQuery(db).Execute(ctx, identity, run.ID)
+	process, err := processquery.NewGetRunProcessQuery(db, conversationaccess.Guard{}).Execute(ctx, identity, run.ID)
 	require.NoError(t, err)
 	require.Len(t, process.Blocks, 2)
 	require.Equal(t, "需要等待外部结果", process.Blocks[0].Payload.Text)
@@ -248,7 +249,7 @@ func testAgentRunEndedWithoutNotice(t *testing.T, db *bun.DB, identity *servermo
 	count, err := db.NewSelect().Model((*servermodels.AgentToolCall)(nil)).Where("atc.id = ?", call.ID).Count(ctx)
 	require.NoError(t, err)
 	require.Zero(t, count, "tool calls written after run ended")
-	process, err := processquery.NewGetRunProcessQuery(db).Execute(ctx, identity, run.ID)
+	process, err := processquery.NewGetRunProcessQuery(db, conversationaccess.Guard{}).Execute(ctx, identity, run.ID)
 	require.NoError(t, err)
 	require.Len(t, process.Blocks, 1)
 	require.Equal(t, "先查询订单", process.Blocks[0].Payload.Text)

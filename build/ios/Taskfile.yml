@@ -162,6 +162,16 @@ tasks:
           codesign --force --sign "{{.CODESIGN_IDENTITY}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app"
         fi
 
+  test:simulator:
+    summary: 在独立 iOS 模拟器中验证应用安装、启动与进程存活
+    platforms: [darwin]
+    cmds:
+      - task: package
+        vars:
+          IOS_PLATFORM: simulator
+          ARCH: arm64
+      - bash build/ios/scripts/test_simulator.sh "{{.BIN_DIR}}/{{.APP_NAME}}.app" "{{.BIN_DIR}}/ios-test"
+
   deploy-simulator:
     summary: Deploy to iOS Simulator
     deps: [package]

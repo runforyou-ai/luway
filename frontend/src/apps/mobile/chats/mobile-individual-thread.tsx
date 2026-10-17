@@ -1,5 +1,5 @@
 /** 移动端真人、AI、服务会话与群聊共用的时间线、阅读进度、文本与附件发送、服务会话内部备注和失败重试。 */
-import type { ComposerDisabledAction, ComposerDraftBridge, CustomerChannelCapabilities, ServiceRecipient } from "@/features/inbox/composer/conversation-composer-types"
+import type { ComposerDisabledAction, ComposerDraftBridge, CustomerChannelCapabilities, ServiceRecipient } from "@/features/inbox/public"
 import { useEffect, type RefObject } from "react"
 
 import {
@@ -13,14 +13,14 @@ import {
 import { useMobileWorkspace } from "@/apps/mobile/shared/mobile-workspace-layout"
 import {
   ConversationComposer,
-} from "@/features/inbox/composer/conversation-composer"
+} from "@/features/inbox/public"
 import {
   ConversationTimeline,
   type ConversationLocateTarget,
-} from "@/features/inbox/timeline/conversation-timeline"
-import { useConversationReadMarker } from "@/features/inbox/conversation/use-conversation-read-marker"
-import { useRecentConversations } from "@/features/inbox/shared/use-recent-conversations"
-import { useThreadComposerBridge } from "@/features/inbox/composer/use-thread-composer-bridge"
+} from "@/features/inbox/public"
+import { useConversationReadMarker } from "@/features/inbox/public"
+import { useRecentConversations } from "@/features/inbox/public"
+import { useThreadComposerBridge } from "@/features/inbox/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 

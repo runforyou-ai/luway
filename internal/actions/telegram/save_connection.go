@@ -10,9 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentcancel"
+	"github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/telegram"
@@ -41,11 +42,11 @@ func NewSaveConnectionAction(db *bun.DB, runner *connectiontest.Runner, api tele
 func (a *SaveConnectionAction) Execute(ctx context.Context, identity *servermodels.Identity, channelID string, input ConnectionInput) (*ChannelDetail, error) {
 	input, fields := normalizeConnectionInput(input)
 	if len(fields) > 0 {
-		return nil, &channelaction.ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	webhookURL, err := buildWebhookURL(input.WebhookBaseURL, channelID)
 	if err != nil {
-		return nil, &channelaction.ValidationError{Fields: map[string]channelaction.ValidationCode{"webhookBaseURL": ValidationBaseURLInvalid}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"webhookBaseURL": ValidationBaseURLInvalid}}
 	}
 
 	var detail *ChannelDetail
@@ -106,7 +107,7 @@ func (a *SaveConnectionAction) Execute(ctx context.Context, identity *servermode
 				oldBotID = telegramBotID(channel)
 				oldMode = domain.TelegramConnectionMode(setting.ConnectionMode)
 				if oldBotID != nil && *oldBotID != bot.ID {
-					cancelledRuns, err = agentcancel.CancelChannelRuns(ctx, tx, identity.Workspace.ID, channelID, domain.AgentRunErrorCodeAccountChanged)
+					cancelledRuns, err = agentrun.CancelChannelRuns(ctx, tx, identity.Workspace.ID, channelID, domain.AgentRunErrorCodeAccountChanged)
 					if err != nil {
 						return err
 					}

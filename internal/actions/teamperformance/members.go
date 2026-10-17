@@ -21,9 +21,12 @@ func NewMemberListQuery(db *bun.DB) *MemberListQuery { return &MemberListQuery{d
 
 // Execute 返回一页客服表现，按关闭时由其负责的周期数从多到少排列，同数量按名称排列。
 func (q *MemberListQuery) Execute(ctx context.Context, identity *servermodels.Identity, input ListInput) (*MemberList, error) {
+	if err := reportpage.ValidateServiceScope(ctx, q.db, identity.Workspace.ID, input.Audience, input.ServiceSource, input.ChannelID); err != nil {
+		return nil, err
+	}
 	page, pageSize, valid := common.NormalizePagination(input.Page, input.PageSize)
 	if !valid {
-		return nil, ErrPageSizeInvalid
+		return nil, common.ErrPageSizeInvalid
 	}
 	scope, args := reportScope(identity, input.Input)
 	// 总行数与当前页在同一条查询中基于同一份分组结果计算。

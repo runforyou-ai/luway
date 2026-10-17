@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -48,10 +49,10 @@ func (a *UpdateRoleAction) Execute(ctx context.Context, identity *servermodels.I
 		if kind == domain.RoleKindAdmin {
 			return ErrAdminImmutable
 		}
-		var fields map[string]ValidationCode
+		var fields map[string]common.FieldCode
 		normalized, fields = normalizeInput(input, kind == domain.RoleKindCustom)
 		if len(fields) > 0 {
-			return &ValidationError{Fields: fields}
+			return &common.FieldError{Fields: fields}
 		}
 		if kind == domain.RoleKindCustom {
 			role.Name = normalized.Name
@@ -92,7 +93,7 @@ func (a *UpdateRoleAction) Execute(ctx context.Context, identity *servermodels.I
 		return nil
 	})
 	if isRoleNameConflict(err) {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"name": ValidationNameDuplicate}}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update role: %w", err)

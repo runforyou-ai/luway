@@ -33,6 +33,7 @@ var modelModalities = map[domain.AIModelInputModality]llm.Modality{
 	domain.AIModelInputModalityImage: llm.Image,
 	domain.AIModelInputModalityAudio: llm.Audio,
 	domain.AIModelInputModalityVideo: llm.Video,
+	domain.AIModelInputModalityFile:  llm.File,
 }
 
 // EinoRuntime 把平台托管 Agent 的运行交给 einorun 执行。
@@ -63,7 +64,7 @@ func (r *EinoRuntime) Run(ctx context.Context, request RunRequest, feed einorun.
 	}
 	result, err := r.runtime.Run(ctx, assembled)
 	out := RunResult{
-		Usage: agentcontract.UsageFrom(result.Usage), Blocks: result.Blocks, Calls: result.Calls, Plan: result.Plan, Suspended: result.Suspended,
+		Usage: usageFrom(result.Usage), Blocks: result.Blocks, Calls: result.Calls, Plan: planTasksFrom(result.Plan), Suspended: result.Suspended,
 	}
 	if err != nil || result.Suspended {
 		return out, err
@@ -107,6 +108,9 @@ func (r *EinoRuntime) assemble(ctx context.Context, request RunRequest, feed ein
 		return einorun.Request{}, err
 	}
 	extensions := []einorun.Extension{versions}
+	if projector, ok := request.AdaptMedia.(einorun.Extension); ok {
+		extensions = append(extensions, projector)
+	}
 	if b.sequencer != nil {
 		extensions = append(extensions, b.sequencer)
 	}
@@ -152,7 +156,8 @@ func (r *EinoRuntime) assemble(ctx context.Context, request RunRequest, feed ein
 	return einorun.Request{
 		RunID: request.RunID, Instruction: assignment.Instruction,
 		Model: einorun.Model{New: config.New, ContextWindow: config.ContextWindow, MaxOutputTokens: config.MaxOutputTokens, Inputs: modalities},
-		Tools: tools, Feed: feed, Journal: request.Journal, Resume: request.Resume, ReadMedia: readMedia(request),
+		Tools: tools, Feed: feed, Journal: request.Journal, Resume: request.Resume,
+		ReadMedia: readMedia(request), MediaURL: request.MediaURL, AdaptMedia: request.AdaptMedia,
 		Stream: request.OnStream, StreamID: request.StreamID,
 		Limits:     einorun.Limits{MaxIterations: request.MaxIterations, MaxTurns: request.MaxTurns, Corrections: correctionLimit},
 		Completion: completion, Guard: guard, Extensions: extensions, BuiltinTools: builtins,

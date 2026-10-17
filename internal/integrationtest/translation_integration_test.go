@@ -11,7 +11,6 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"github.com/runforyou-ai/einorun/provider"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
 	useraction "github.com/runforyou-ai/luway/internal/actions/user"
@@ -69,7 +68,7 @@ func TestCustomerConversationTranslation(t *testing.T) {
 	require.Same(t, translationaction.ErrDisabled, err)
 
 	providerID := seedSummaryModels(t, f.db, f.owner)
-	_, err = customerservice.NewUpdateTranslationSettingsAction(f.db).Execute(ctx, f.owner,
+	_, err = translationaction.UpdateTranslationSettings(ctx, f.db, f.owner,
 		new(aiModelID(t, f.db, providerID, "chat-model")))
 	require.NoError(t, err)
 
@@ -162,7 +161,7 @@ func TestCustomerConversationTranslation(t *testing.T) {
 
 	// 预览发送成功后回复语言改变，同一发送编号的重试仍返回已保存的消息。
 	login := servertest.LoginMember(t, f.db, f.owner.Workspace.ID, f.ownerEmail, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, translator, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, translator, nil)
 	requestCtx, meta := ctx, appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Workspace.ID}
 	previewInput := appservice.ServiceTextMessageInput{
 		ClientMessageID: uuid.NewV7().String(), Body: "马上为您查询。",

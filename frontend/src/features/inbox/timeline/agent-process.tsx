@@ -38,7 +38,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
-import { AgentRunBlocks, isPlanToolBlock, isUnsettledToolCall, localAgentToolName, useToolStatusLabel } from "@/components/agent-run-blocks"
+import { AgentRunBlocks, isPlanToolBlock, isUnsettledToolCall, localAgentToolName, useToolStatusLabel } from "@/features/inbox/shared/agent-run-blocks"
 import { cn } from "@/lib/utils"
 
 /** 展示任务清单与完成进度，清单限高滚动；live 表示运行仍在进行，进行中的任务显示进行时说明；inBubble 表示位于消息气泡内，使用与气泡区分的底色。 */

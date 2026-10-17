@@ -146,7 +146,8 @@ func goStatus(status int) string {
 
 // generateDirectBackend 在 pkg 包中生成服务端认证分发层。
 //
-// auth=member 的方法先解析工作区成员身份并按 perm 选项校验成员角色的权限，auth=account 的方法先解析登录账号，auth=admin 的方法先解析登录账号并校验其为平台管理员，
+// auth=member 的方法先解析工作区成员身份并按 perm 选项校验成员角色的权限，auth=account 的方法先解析用户端登录账号，
+// auth=bearer 的方法先解析用户端或支援会话账号，auth=admin 的方法先解析平台后台 Cookie 会话并校验其为平台管理员，
 // 执行器契约的方法先以电脑凭据认证电脑，再把身份交给 ops 嵌入的各业务域实现；auth=public 的方法不解析身份。
 // 方法名与认证得到的身份记入日志作用域，每个方法返回时由 dispatch.Settle 统一收尾错误。
 func (c *contract) generateDirectBackend(methods []method, layer dispatch, pkg string) []byte {
@@ -158,6 +159,8 @@ func (c *contract) generateDirectBackend(methods []method, layer dispatch, pkg s
 		case authenticator != "":
 		case item.route.account:
 			authenticator, identityName = "AuthenticateAccount", "account"
+		case item.route.bearer:
+			authenticator, identityName = "AuthenticateBearer", "account"
 		case item.route.admin:
 			authenticator, identityName = "AuthenticateAdmin", "account"
 		default:

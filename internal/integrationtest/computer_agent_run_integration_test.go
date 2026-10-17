@@ -237,10 +237,10 @@ func testPersonalAgentComputer(t *testing.T, db *bun.DB, identity *servermodels.
 	})
 
 	t.Run("电脑上报结果后立即唤醒等待的运行", func(t *testing.T) {
-		channel := servertest.BusChannel()
-		startTestPublisherOn(t, openRealtimeDB(t), channel)
+		namespace := servertest.BusNamespace()
+		startTestPublisherOn(t, openRealtimeDB(t), namespace)
 		// 另一服务端实例订阅调用的结果写入信号。
-		other := servertest.StartBus(t, openRealtimeDB(t), channel, uuid.NewV7().String())
+		other := servertest.StartBus(t, namespace, uuid.NewV7().String())
 		fixture.online()
 		run := fixture.sendAndLoadRun(fixture.personalAgentChat(), "读一下会议纪要")
 		fixture.model.use("read_file", `{"file_path":"notes.txt"}`)

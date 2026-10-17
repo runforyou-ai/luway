@@ -84,7 +84,9 @@ func (a *ExecuteAction) loadDependencies(ctx context.Context, execution executio
 		if loaded.WebSearch, err = loadRunWebSearch(ctx, a.db, a.webSearch, run.WorkspaceID); err != nil {
 			return loaded, fmt.Errorf("load agent run web search: %w", err)
 		}
-		loaded.WebFetch = a.webFetch.Read
+		if loaded.WebFetch, err = loadRunWebFetch(ctx, a.db, a.webFetch, run.WorkspaceID); err != nil {
+			return loaded, fmt.Errorf("load agent run web fetch: %w", err)
+		}
 		if a.sharedFiles != nil {
 			files, err := loadRunSharedFiles(ctx, a.db, a.sharedFiles, a.documents, run)
 			if err != nil {

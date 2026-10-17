@@ -28,7 +28,8 @@ CREATE TABLE agent_runs (
     state                bytea,
     task_run_id          uuid,
     task_attempt         integer NOT NULL DEFAULT 0,
-    task_instance_id     uuid
+    task_instance_id     uuid,
+    completion           jsonb
 );
 
 CREATE UNIQUE INDEX agent_runs_active_scope_unique
@@ -77,6 +78,7 @@ COMMENT ON COLUMN agent_runs.state IS '运行恢复状态：模型上下文、�
 COMMENT ON COLUMN agent_runs.task_run_id IS '执行或即将执行运行的任务编号，同一运行同一时刻只由该任务执行';
 COMMENT ON COLUMN agent_runs.task_attempt IS '执行运行的任务尝试序号，同一任务更新的尝试接手后旧尝试的写回被拒绝';
 COMMENT ON COLUMN agent_runs.task_instance_id IS '执行运行的服务端实例编号，运行过程流据此定位执行实例';
+COMMENT ON COLUMN agent_runs.completion IS '运行当前生效的完成：结束方式与载荷，没有时为空';
 
 -- +goose Down
 DROP TABLE agent_runs;

@@ -56,6 +56,11 @@ const common = {
   pagination: {
     total: "{{count}} total",
     previous: "Previous",
+    next: "Next",
+    navLabel: "Pagination",
+    goToPage: "Page {{page}}",
+    pageSize: "Rows per page",
+    perPage: "{{count}} / page",
   },
   time: {
     addedAt: "Added {{time}}",
@@ -113,7 +118,7 @@ const common = {
     member: "Member",
   },
   aiModels: {
-    platformGroup: "Platform models",
+    platformGroup: "Auto",
     usages: {
       agent: "AI employee",
       summary: "Summary",
@@ -121,6 +126,8 @@ const common = {
       decision: "Decision",
       embedding: "Embedding",
       rerank: "Rerank",
+      ocr: "OCR",
+      transcription: "Transcription",
     },
     callStatuses: {
       running: "Running",

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 )
@@ -34,12 +35,18 @@ func main() {
 		{"server.host", "SERVER_HOST"}, {"server.port", "SERVER_PORT"}, {"server.httpsPort", "SERVER_HTTPS_PORT"},
 		{"database.host", "POSTGRES_HOST"}, {"database.port", "POSTGRES_PORT"}, {"database.user", "POSTGRES_USER"},
 		{"database.password", "POSTGRES_PASSWORD"}, {"database.name", "POSTGRES_DB"}, {"database.sslMode", "POSTGRES_SSLMODE"},
-		{"server.clientIPHeader", "CLIENT_IP_HEADER"}, {"server.countryHeader", "COUNTRY_HEADER"}, {"server.egressIP", "EGRESS_IP"},
-		{"nats.url", "NATS_URL"}, {"nats.namespace", "NATS_NAMESPACE"}, {"log.level", "LOG_LEVEL"},
-		{"nats.calloutSeed", "NATS_CALLOUT_SEED"}, {"nats.webSocketURL", "NATS_WEBSOCKET_URL"}, {"nats.systemURL", "NATS_SYSTEM_URL"}, {"nats.replicas", "NATS_REPLICAS"},
+		{"server.clientIPHeader", "CLIENT_IP_HEADER"}, {"server.countryHeader", "COUNTRY_HEADER"},
+		{"nats.url", "NATS_URL"}, {"log.level", "LOG_LEVEL"},
 	} {
 		if value := os.Getenv(item[1]); value != "" {
 			settings = append(settings, serverconfig.Setting{Key: item[0], Value: value})
+		}
+	}
+	// SERVER_EXTENSION 是逗号分隔的 名称=取值，写为程序组成专属的 extension.<名称> 配置项。
+	for _, pair := range strings.Split(os.Getenv("SERVER_EXTENSION"), ",") {
+		name, value, found := strings.Cut(strings.TrimSpace(pair), "=")
+		if found && name != "" {
+			settings = append(settings, serverconfig.Setting{Key: "extension." + name, Value: value})
 		}
 	}
 	if *container {

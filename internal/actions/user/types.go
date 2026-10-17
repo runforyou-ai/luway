@@ -6,7 +6,7 @@ import (
 	"time"
 
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
-	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
@@ -75,5 +75,5 @@ type TeamSummary = teamaction.Summary
 // ListOutput 定义企业成员分页结果。
 type ListOutput struct {
 	Users []User
-	Page  common.PageInfo
+	Page  apptypes.PageInfo
 }

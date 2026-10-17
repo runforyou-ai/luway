@@ -1,4 +1,8 @@
-/** 将附件上传队列保持在整个已登录工作台的生命周期内。 */
+/**
+ * 将附件上传队列保持在整个已登录工作台的生命周期内。
+ * 工作台级挂载是有意为之：跨设置与消息页导航时保留上传队列。
+ * start() 仅复位 disposed，真正上传在 enqueue。
+ */
 import {
   createContext,
   useContext,
@@ -16,7 +20,10 @@ import { useOutgoingMessageStore } from "@/features/inbox/state/outgoing-message
 
 const AttachmentQueueContext = createContext<AttachmentQueue | null>(null)
 
-/** 为所有聊天页面提供同一上传队列。 */
+/**
+ * 为所有聊天页面提供同一上传队列。
+ * 工作台级挂载是有意为之；start() 仅复位 disposed，真正上传在 enqueue。
+ */
 export function AttachmentQueueProvider({ children }: { children: ReactNode }) {
   const invalidate = useResourceInvalidator()
   const reportError = useRequestErrorReporter()
@@ -36,6 +43,7 @@ export function AttachmentQueueProvider({ children }: { children: ReactNode }) {
       ),
   )
   useEffect(() => {
+    // start() 仅复位 disposed，真正上传在 enqueue。
     queue.start()
     // 页面进入往返缓存时保留队列，真正卸载时才结束。
     const leave = (event: PageTransitionEvent) => {

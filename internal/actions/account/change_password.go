@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -35,7 +36,7 @@ func NewChangePasswordAction(db *bun.DB) *ChangePasswordAction {
 // Execute 在事务内核验当前密码、保存新密码，删除该账号除当前会话外的全部登录会话，提交后撤销这些会话在各工作区的实时连接。
 func (a *ChangePasswordAction) Execute(ctx context.Context, identity *servermodels.AccountIdentity, input ChangePasswordInput) error {
 	if code, ok := passwordCode(input.NewPassword); ok {
-		return &ValidationError{Fields: map[string]ValidationCode{"newPassword": code}}
+		return &common.FieldError{Fields: map[string]common.FieldCode{"newPassword": code}}
 	}
 	return realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		account := &servermodels.Account{}
@@ -51,7 +52,7 @@ func (a *ChangePasswordAction) Execute(ctx context.Context, identity *servermode
 			return fmt.Errorf("read current password: %w", err)
 		}
 		if !commonpassword.Matches(account.PasswordHash, input.CurrentPassword) {
-			return &ValidationError{Fields: map[string]ValidationCode{"currentPassword": ValidationCurrentPasswordIncorrect}}
+			return &common.FieldError{Fields: map[string]common.FieldCode{"currentPassword": ValidationCurrentPasswordIncorrect}}
 		}
 		passwordHash, err := commonpassword.Hash(input.NewPassword)
 		if err != nil {

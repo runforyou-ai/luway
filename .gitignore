@@ -1,9 +1,10 @@
 .task
 .env
 bin
-frontend/dist
-frontend/node_modules
-internal/publicweb/dist
+**/frontend/dist/
+**/frontend/node_modules
+.export/
+internal/web/messenger/dist
 /data/
 /experiments/
 build/linux/appimage/build
@@ -24,7 +25,7 @@ build/android/app/src/main/jniLibs/
 __pycache__/
 *.pyc
 /luway
-internal/productdocs/dist/*
-!internal/productdocs/dist/.gitkeep
+internal/web/docs/dist/*
+!internal/web/docs/dist/.gitkeep
 
 *.tsbuildinfo

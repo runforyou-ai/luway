@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -43,7 +44,7 @@ func NewDecideWebsiteToolCallAction(db *bun.DB, decider CustomerToolDecider) *De
 
 // Execute 在访客拥有的会话中以访客所属联系人的身份裁决操作；会话不属于访客时返回会话不存在。
 func (a *DecideWebsiteToolCallAction) Execute(ctx context.Context, input WebsiteToolCallDecisionInput) error {
-	fields := map[string]conversationaction.ValidationCode{}
+	fields := map[string]common.FieldCode{}
 	if !str.IsUUID(input.ChannelID) {
 		fields["channelId"] = ValidationChannelIDInvalid
 	}
@@ -51,7 +52,7 @@ func (a *DecideWebsiteToolCallAction) Execute(ctx context.Context, input Website
 		fields["visitorToken"] = ValidationExternalIDInvalid
 	}
 	if len(fields) > 0 {
-		return &conversationaction.ValidationError{Fields: fields}
+		return &common.FieldError{Fields: fields}
 	}
 	if !str.IsUUID(input.ConversationID) {
 		return conversationaction.ErrConversationNotFound

@@ -12,8 +12,9 @@ import { BusinessSystemConnectionForm } from "@/features/integrations/business-s
 import { BusinessSystemTools } from "@/features/integrations/business-systems/business-system-tools"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource } from "@/hooks/use-resource"
+import { businessSystemsPath } from "@/lib/workspace-paths"
 
-const listPath = "/business-systems"
+const listPath = businessSystemsPath
 
 /** 编辑页的页签，与 URL 的 tab 参数同步。 */
 const editTabs = ["connection", "tools"] as const

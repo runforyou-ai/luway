@@ -32,9 +32,8 @@ type GetQuery struct {
 
 // Location 定义生成公开地址所需的文件位置。
 type Location struct {
-	ID             string                    `bun:"id"`
-	StorageBackend domain.FileStorageBackend `bun:"storage_backend"`
-	StorageKey     string                    `bun:"storage_key"`
+	ID         string `bun:"id"`
+	StorageKey string `bun:"storage_key"`
 }
 
 // NewGetQuery 创建文件查询。
@@ -74,7 +73,7 @@ func (q *GetQuery) ListActiveLocations(ctx context.Context, identity *servermode
 		return locations, nil
 	}
 	if err := q.db.NewSelect().TableExpr("files AS f").
-		ColumnExpr("f.id::text, f.storage_backend, f.storage_key").
+		ColumnExpr("f.id::text, f.storage_key").
 		Where("f.workspace_id = ?", identity.Workspace.ID).
 		Where("f.id IN (?)", bun.List(fileIDs)).
 		Where("f.status = ?", domain.FileStatusActive).

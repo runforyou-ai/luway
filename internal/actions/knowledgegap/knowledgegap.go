@@ -31,8 +31,6 @@ var (
 	ErrForbidden = errors.New("knowledge gap requires ai employees manage permission")
 	// ErrHandled 表示待补知识已加入知识库，不能再次处理。
 	ErrHandled = errors.New("knowledge gap already handled")
-	// ErrPageSizeInvalid 表示每页数量超出上限。
-	ErrPageSizeInvalid = errors.New("knowledge gap page size invalid")
 )
 
 // DraftInput 定义一次问答起草任务；RequestedAt 与条目当前的起草请求时间不一致时任务不再生效。

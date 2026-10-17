@@ -54,3 +54,6 @@ export function notificationPath(target: NotificationTarget) {
     ? inboxPath({ conversation: target.conversationId })
     : chatPath({ conversation: target.conversationId })
 }
+
+/** 设置中的业务系统管理地址。 */
+export const businessSystemsPath = "/settings/business-systems"

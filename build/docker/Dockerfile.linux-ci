@@ -1,0 +1,27 @@
+# syntax=docker/dockerfile:1
+ARG GO_VERSION=1.27.1
+ARG NODE_VERSION=24
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-trixie AS cli
+ARG TARGETARCH
+ARG WAILS_VERSION=v3.0.0-beta.28
+# 使用宿主架构编译 CLI，避免在模拟器中编译工具链。
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go install github.com/wailsapp/wails/v3/cmd/wails3@${WAILS_VERSION} && \
+    mkdir /out && find /go/bin -type f -name wails3 -exec cp {} /out/wails3 \;
+FROM node:${NODE_VERSION}-bookworm AS node
+FROM golang:${GO_VERSION}-bookworm AS sdk
+# 保持 Ubuntu 24.04 的系统库基线，不随宿主虚拟机版本提高运行要求。
+FROM ubuntu:24.04
+COPY --from=sdk /usr/local/go /usr/local/go
+ENV PATH=/usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm && \
+    ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx && \
+    apt-get update && apt-get install -y --no-install-recommends \
+      build-essential git pkg-config curl python3 \
+      libgtk-4-dev libwebkitgtk-6.0-dev libfuse2t64 rpm zstd jq zip file ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+COPY --from=cli /out/wails3 /usr/local/bin/wails3
+ENV APPIMAGE_EXTRACT_AND_RUN=1
+WORKDIR /workspace

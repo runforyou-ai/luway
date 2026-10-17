@@ -14,9 +14,9 @@ import {
   type ServiceAudience,
   type ComputerLocalAgent,
 } from "@/api"
-import { AgentBusinessSystemsField } from "@/components/agent-fields/agent-business-systems-field"
-import { AgentKnowledgeField } from "@/components/agent-fields/agent-knowledge-field"
-import { AgentModelField } from "@/components/agent-fields/agent-model-field"
+import { AgentBusinessSystemsField } from "@/features/agents/fields/agent-business-systems-field"
+import { AgentKnowledgeField } from "@/features/agents/fields/agent-knowledge-field"
+import { AgentModelField } from "@/features/agents/fields/agent-model-field"
 import { FormActions } from "@/components/form/form-actions"
 import { FormInputField } from "@/components/form/form-input-field"
 import { ImagePicker } from "@/components/image-picker"
@@ -80,6 +80,7 @@ export function PersonalAgentCreateForm({
   draftDirty,
   avatar,
   serviceAvailable = true,
+  canManageBusinessSystems = false,
   onServiceAudiencesChange,
   onSaved,
   onCancel,
@@ -90,6 +91,7 @@ export function PersonalAgentCreateForm({
   draftDirty: boolean
   avatar: AgentAvatarUpload
   serviceAvailable?: boolean
+  canManageBusinessSystems?: boolean
   onServiceAudiencesChange: (audiences: ServiceAudience[], draft: AgentCreateDraft) => void
   onSaved: () => void
   onCancel: () => void
@@ -150,6 +152,7 @@ export function PersonalAgentCreateForm({
   return (
     <form className="w-full space-y-9" onSubmit={form.handleSubmit(submit)} noValidate>
       <PersonalAgentFields
+        canManageBusinessSystems={canManageBusinessSystems}
         control={form.control}
         disabled={saving}
         avatarURL={avatar.pending?.previewURL}
@@ -176,9 +179,11 @@ export function PersonalAgentCreateForm({
 /** 编辑当前成员负责的个人 AI 员工，改动自动保存为新的配置版本。 */
 export function PersonalAgentEditForm({
   detail,
+  canManageBusinessSystems = false,
   onSaved,
 }: {
   detail: PersonalAgentDetailData
+  canManageBusinessSystems?: boolean
   onSaved: () => void
 }) {
   const reportError = useRequestErrorReporter()
@@ -235,6 +240,7 @@ export function PersonalAgentEditForm({
   return (
     <form onSubmit={form.handleSubmit(() => saveNow(true))} noValidate>
       <PersonalAgentFields
+        canManageBusinessSystems={canManageBusinessSystems}
         control={form.control}
         disabled={form.formState.isSubmitting}
         avatarURL={avatar.pending?.previewURL || agent.avatarUrl}
@@ -253,6 +259,7 @@ export function PersonalAgentEditForm({
 
 /** 渲染个人 AI 员工的头像、名称、对话模型、指令、知识库、业务系统授权、只读的使用电脑与电脑上可启用的本机 Agent。 */
 function PersonalAgentFields({
+  canManageBusinessSystems,
   control,
   disabled,
   avatarURL,
@@ -262,6 +269,7 @@ function PersonalAgentFields({
   localAgents,
   leading,
 }: {
+  canManageBusinessSystems: boolean
   control: Control<PersonalAgentFormValues>
   disabled: boolean
   avatarURL?: string
@@ -327,7 +335,7 @@ function PersonalAgentFields({
           <Field>
             <FieldLabel>{t("businessSystems.label")}</FieldLabel>
             <FieldDescription>{t("personal.form.businessSystemsHelp")}</FieldDescription>
-            <AgentBusinessSystemsField value={field.value} onChange={field.onChange} disabled={disabled} />
+            <AgentBusinessSystemsField canManage={canManageBusinessSystems} value={field.value} onChange={field.onChange} disabled={disabled} />
           </Field>
         )}
       />

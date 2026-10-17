@@ -57,11 +57,11 @@ func CoreMigrations() Migrations {
 	return coreMigrations()
 }
 
-// SharedModelAllowedFunction 是判断共享模型对工作区是否可用的 SQL 扩展点 shared_model_allowed(workspace_id uuid, model_id uuid) boolean：核心迁移定义默认实现（不开放共享模型），模型解析与调用经它判断，其他迁移来源可声明覆盖。
-const SharedModelAllowedFunction = "shared_model_allowed"
+// AutoPoolMemberAllowedFunction 是判断 Auto 池成员对工作区是否可用的 SQL 扩展点 auto_pool_member_allowed(workspace_id uuid, member_id uuid) boolean：核心迁移定义默认实现（不开放），选型与调用经它判断，其他迁移来源可声明覆盖。
+const AutoPoolMemberAllowedFunction = "auto_pool_member_allowed"
 
 // extensionFunctions 是核心迁移定义默认实现、其他迁移来源可声明覆盖的 SQL 函数扩展点，名称均为小写。
-var extensionFunctions = []string{SharedModelAllowedFunction}
+var extensionFunctions = []string{AutoPoolMemberAllowedFunction}
 
 // MigrationSource 是一个迁移来源：根目录下的 .sql 迁移文件，以及该来源声明覆盖的 SQL 函数扩展点。
 type MigrationSource struct {

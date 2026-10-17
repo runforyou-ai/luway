@@ -16,7 +16,6 @@ import (
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
-	"github.com/runforyou-ai/luway/internal/actions/conversationfile"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
 	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
@@ -25,7 +24,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/usernotification"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
-	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support/arr"
 	"github.com/stretchr/testify/require"
@@ -60,7 +58,7 @@ type accessMatrixFixture struct {
 	db            *bun.DB
 	identities    map[string]*servermodels.Identity // 按矩阵身份名称索引。
 	order         []string                          // 身份名称的固定顺序。
-	files         *conversationfile.MemberFiles
+	files         *conversationaction.MemberFiles
 	messages      map[string]string // 按会话名称索引用于通知矩阵的消息编号。
 	conversations []accessConversation
 }
@@ -77,11 +75,9 @@ func newAccessMatrixFixture(t *testing.T) *accessMatrixFixture {
 	f.identities["otherWorkspace"] = newNavigationFixture(t).owner
 	f.order = []string{"owner", "memberA", "memberB", "outsider", "removed", "left", "otherWorkspace"}
 	disableAutoAssignment(t, db, owner.Workspace.ID)
-	local, err := serverfilecontent.NewLocalStore(t.TempDir())
-	require.NoError(t, err)
-	settings := func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} }
-	f.files = conversationfile.NewMemberFiles(conversationfile.NewStore(db, func() domain.FileStorageBackend { return domain.FileStorageBackendLocal },
-		serverfilecontent.NewWriter(local, settings), serverfilecontent.NewReader(local, settings)))
+	files := servertest.NewFiles(t)
+	f.files = conversationaction.NewMemberFiles(conversationaction.NewStore(db,
+		files.Store, files.Store))
 	a, b := f.identities["memberA"], f.identities["memberB"]
 	removed, left := f.identities["removed"], f.identities["left"]
 
@@ -95,9 +91,9 @@ func newAccessMatrixFixture(t *testing.T) *accessMatrixFixture {
 
 	// 活跃群聊：所有者建群，移出 removed，left 主动退群，之后所有者发言。
 	group := f.createGroup(t, "活跃群", a, removed, left)
-	_, err = groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCoordinator(db)).Execute(ctx, owner, groupchataction.GroupConversationMemberInput{ConversationID: group, MemberIdentityID: removed.WorkspaceIdentity.ID})
+	_, err = groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCanceller(db)).Execute(ctx, owner, groupchataction.GroupConversationMemberInput{ConversationID: group, MemberIdentityID: removed.WorkspaceIdentity.ID})
 	require.NoError(t, err)
-	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(db, testEnqueuer, newGroupAgentCoordinator(db)).Execute(ctx, left, group))
+	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(db, testEnqueuer, newGroupAgentCanceller(db)).Execute(ctx, left, group))
 	groupMessage, err := newGroupSendAction(db).Execute(ctx, owner, groupchataction.GroupTextMessageInput{ConversationID: group, ClientMessageID: uuid.NewV7().String(), Body: "群消息"})
 	require.NoError(t, err)
 	f.add("group", group, "")
@@ -107,9 +103,9 @@ func newAccessMatrixFixture(t *testing.T) *accessMatrixFixture {
 	dissolved := f.createGroup(t, "解散群", a, removed)
 	dissolvedMessage, err := newGroupSendAction(db).Execute(ctx, owner, groupchataction.GroupTextMessageInput{ConversationID: dissolved, ClientMessageID: uuid.NewV7().String(), Body: "解散前消息"})
 	require.NoError(t, err)
-	_, err = groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCoordinator(db)).Execute(ctx, owner, groupchataction.GroupConversationMemberInput{ConversationID: dissolved, MemberIdentityID: removed.WorkspaceIdentity.ID})
+	_, err = groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCanceller(db)).Execute(ctx, owner, groupchataction.GroupConversationMemberInput{ConversationID: dissolved, MemberIdentityID: removed.WorkspaceIdentity.ID})
 	require.NoError(t, err)
-	_, err = groupchataction.NewDissolveGroupConversationAction(db, newGroupAgentCoordinator(db)).Execute(ctx, owner, dissolved)
+	_, err = groupchataction.NewDissolveGroupConversationAction(db, newGroupAgentCanceller(db)).Execute(ctx, owner, dissolved)
 	require.NoError(t, err)
 	f.add("dissolvedGroup", dissolved, "")
 	f.messages["dissolvedGroup"] = dissolvedMessage.ID

@@ -10,7 +10,6 @@ import (
 	"slices"
 	"uuid"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
@@ -149,12 +148,12 @@ func (a *Action) finishLocalAgentTurn(ctx context.Context, tx bun.Tx, workspaceI
 		serviceSessionID = &session.ID
 	}
 	if participantID == "" {
-		if participantID, err = agentmessage.EnsureCustomerParticipant(ctx, tx, workspaceID, locked.Run.ConversationID, locked.Run.AgentIdentityID); err != nil {
+		if participantID, err = chatstate.EnsureCustomerParticipant(ctx, tx, workspaceID, locked.Run.ConversationID, locked.Run.AgentIdentityID); err != nil {
 			return err
 		}
 	}
 	key := "local-agent:" + call.ID
-	_, _, err = agentmessage.Append(ctx, tx, a.enqueuer, locked.Scope.Conversation(), &servermodels.Message{
+	_, _, err = chatstate.Append(ctx, tx, a.enqueuer, locked.Scope.Conversation(), &servermodels.Message{
 		ID: uuid.NewV7().String(), WorkspaceID: workspaceID, ConversationID: locked.Run.ConversationID, ServiceSessionID: serviceSessionID,
 		SenderParticipantID: &participantID, Type: string(messageType), Body: body, IdempotencyKey: &key, AgentToolCallID: &call.ID,
 	})

@@ -32,7 +32,7 @@ import {
   normalizeInboxQuery,
   serviceAudienceOptions,
   writeInboxQuerySearch,
-} from "@/features/inbox/list/inbox-query"
+} from "@/features/inbox/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource } from "@/hooks/use-resource"
 import { cn } from "@/lib/utils"

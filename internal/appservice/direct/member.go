@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 
-	memberaction "github.com/runforyou-ai/luway/internal/actions/member"
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/i18n"
@@ -17,21 +16,21 @@ import (
 
 // ListMemberOptions 返回可分配的企业身份。
 func (o *directoryOps) ListMemberOptions(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.MemberOptionListInput) (appservice.MemberOptionList, error) {
-	output, err := o.listMemberOptions.Execute(ctx, identity, memberaction.ListOptionsInput{Query: input.Query, Page: input.Page, PageSize: input.PageSize})
-	if errors.Is(err, memberaction.ErrQueryInvalid) {
+	output, err := o.listMemberOptions.Execute(ctx, identity, teamaction.ListOptionsInput{Query: input.Query, Page: input.Page, PageSize: input.PageSize})
+	if errors.Is(err, teamaction.ErrQueryInvalid) {
 		return appservice.MemberOptionList{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 	}
 	if err != nil {
 		return appservice.MemberOptionList{}, appservice.FailedError(meta, i18n.ErrorUserListFailed, err)
 	}
-	avatarFileIDs := arr.FilterMap(output.Members, func(member memberaction.Option) (string, bool) {
+	avatarFileIDs := arr.FilterMap(output.Members, func(member teamaction.Option) (string, bool) {
 		return support.Deref(member.AvatarFileID), member.AvatarFileID != nil
 	})
 	avatarURLs, err := o.files.activeFileURLs(ctx, identity, avatarFileIDs)
 	if err != nil {
 		return appservice.MemberOptionList{}, appservice.FailedError(meta, i18n.ErrorUserListFailed, err)
 	}
-	members := arr.Map(output.Members, func(member memberaction.Option) appservice.MemberOption {
+	members := arr.Map(output.Members, func(member teamaction.Option) appservice.MemberOption {
 		return appservice.MemberOption{
 			ID: member.ID, Type: member.Type, DisplayName: member.DisplayName, AvatarURL: optionalFileURL(avatarURLs, member.AvatarFileID),
 		}
@@ -41,19 +40,19 @@ func (o *directoryOps) ListMemberOptions(ctx context.Context, meta appservice.Re
 
 // ListColleagues 返回通讯录同事目录。
 func (o *directoryOps) ListColleagues(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.ColleagueListInput) (appservice.ColleagueList, error) {
-	output, err := o.listColleagues.Execute(ctx, identity, memberaction.ListColleaguesInput{Query: input.Query, Page: input.Page, PageSize: input.PageSize})
-	if errors.Is(err, memberaction.ErrQueryInvalid) {
+	output, err := o.listColleagues.Execute(ctx, identity, teamaction.ListColleaguesInput{Query: input.Query, Page: input.Page, PageSize: input.PageSize})
+	if errors.Is(err, teamaction.ErrQueryInvalid) {
 		return appservice.ColleagueList{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 	}
 	if err != nil {
 		return appservice.ColleagueList{}, appservice.FailedError(meta, i18n.ErrorUserListFailed, err)
 	}
-	avatarFileIDs := arr.Map(output.Colleagues, func(colleague memberaction.Colleague) *string { return colleague.AvatarFileID })
+	avatarFileIDs := arr.Map(output.Colleagues, func(colleague teamaction.Colleague) *string { return colleague.AvatarFileID })
 	avatarURLs, err := o.files.optionalFileURLs(ctx, identity, avatarFileIDs...)
 	if err != nil {
 		return appservice.ColleagueList{}, appservice.FailedError(meta, i18n.ErrorUserListFailed, err)
 	}
-	colleagues := arr.Map(output.Colleagues, func(colleague memberaction.Colleague) appservice.Colleague {
+	colleagues := arr.Map(output.Colleagues, func(colleague teamaction.Colleague) appservice.Colleague {
 		return appservice.Colleague{
 			IdentityID: colleague.IdentityID, IdentityType: colleague.IdentityType,
 			UserID: colleague.UserID, AgentID: colleague.AgentID,

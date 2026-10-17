@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -92,13 +91,14 @@ func ArgumentTitles(call string) string {
 			AND jsonb_typeof(property.value->'title') = 'string'), '{}'::jsonb)`, call)
 }
 
-// SubjectName 返回聊天主体名称的 SQL 表达式：工作区身份取显示名称，联系人取成员界面的联系人名称；subjectID 是聊天主体编号的 SQL 表达式，为空时结果为 NULL。
+// SubjectName 返回聊天主体名称的 SQL 表达式：工作区身份取显示名称，联系人取 DENORM 成员界面名称。
+// 本包不能依赖 contactprofile（contactprofile→chatstate→servicestate→本包），公式与 contactprofile.SubjectName 保持一致。
 func SubjectName(subjectID string) string {
-	return fmt.Sprintf(`(SELECT CASE WHEN name_cs.kind = '%[2]s' THEN %[3]s ELSE name_oi.display_name END
+	return fmt.Sprintf(`(SELECT CASE WHEN name_cs.kind = '%[2]s' THEN name_c.resolved_display_name ELSE name_oi.display_name END
 		FROM chat_subjects AS name_cs
-		LEFT JOIN workspace_identities AS name_oi ON name_oi.workspace_id = name_cs.workspace_id AND name_oi.id = name_cs.source_id AND name_cs.kind = '%[4]s'
+		LEFT JOIN workspace_identities AS name_oi ON name_oi.workspace_id = name_cs.workspace_id AND name_oi.id = name_cs.source_id AND name_cs.kind = '%[3]s'
 		LEFT JOIN contacts AS name_c ON name_c.workspace_id = name_cs.workspace_id AND name_c.id = name_cs.source_id AND name_cs.kind = '%[2]s'
-		WHERE name_cs.id = %[1]s)`, subjectID, domain.ChatSubjectKindContact, contactname.Expr("name_c", contactname.LatestIdentityName("name_c")), domain.ChatSubjectKindWorkspaceIdentity)
+		WHERE name_cs.id = %[1]s)`, subjectID, domain.ChatSubjectKindContact, domain.ChatSubjectKindWorkspaceIdentity)
 }
 
 // LoadToolDecisions 按编号读取工具调用的处理内容，按编号索引返回。
