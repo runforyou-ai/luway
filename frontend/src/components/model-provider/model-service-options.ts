@@ -26,12 +26,13 @@ export const modelInputModalityOrder: AIModelInputModality[] = [
   AIModelInputModality.Image,
   AIModelInputModality.Audio,
   AIModelInputModality.Video,
+  AIModelInputModality.File,
 ]
 
 /** 输入模态对应的名称文案键。 */
 export const modelInputModalityNameKeys: Record<
   AIModelInputModality,
-  `modelServices.models.modalities.${"text" | "image" | "audio" | "video"}`
+  `modelServices.models.modalities.${"text" | "image" | "audio" | "video" | "file"}`
 > = {
   [AIModelInputModality.Text]:
     "modelServices.models.modalities.text",
@@ -41,4 +42,6 @@ export const modelInputModalityNameKeys: Record<
     "modelServices.models.modalities.audio",
   [AIModelInputModality.Video]:
     "modelServices.models.modalities.video",
+  [AIModelInputModality.File]:
+    "modelServices.models.modalities.file",
 }

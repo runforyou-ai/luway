@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
 	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -74,7 +73,7 @@ func loadContactDetail(ctx context.Context, db bun.IDB, workspaceID, contactID s
 	if err := db.NewSelect().
 		TableExpr("contacts AS c").
 		ColumnExpr(contactAvatarFileIDColumn).
-		ColumnExpr(contactname.Expr("c", contactname.LatestIdentityName("c"))+" AS name").
+		ColumnExpr(contactprofile.ResolvedColumn("c") + " AS name").
 		Where("c.workspace_id = ?", workspaceID).
 		Where("c.id = ?", contactID).
 		Scan(ctx, &avatarFileID, &name); err != nil {

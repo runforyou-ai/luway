@@ -147,15 +147,14 @@ export class RunStreamClient {
   /** 暂存快照窗口内的增量，缺口与服务端失效信号触发业务恢复。 */
   private receive(data: unknown) {
     if (this.stopped || this.generation !== currentSessionGeneration()) return
-    const text = JSON.stringify(data)
-    const decoded = decodeServerFrame(text)
+    const decoded = decodeServerFrame(data)
     if (decoded.status !== "frame") { void this.refresh(); return }
     const frame = decoded.frame
     if (!("runId" in frame) || frame.runId !== this.runID) return
     if (frame.type !== "run_stream_delta") { void this.refresh(); return }
     if (this.state && frame.attempt < this.state.attempt) return
     if (this.request || !this.state) {
-      this.pendingBytes += text.length
+      this.pendingBytes += JSON.stringify(data).length
       if (this.pendingBytes > 1024*1024 || this.pending.length >= 1024) {
         this.pending = []
         this.pendingBytes = 0

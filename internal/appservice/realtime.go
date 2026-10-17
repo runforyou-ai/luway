@@ -4,7 +4,7 @@ package appservice
 type RealtimeConnection struct {
 	UserID    string           `json:"userId"`
 	SessionID string           `json:"sessionId"`
-	Prefix    string           `json:"prefix"`
+	Token     string           `json:"token"`
 	Path      string           `json:"path"`
 	Members   []RealtimeMember `json:"members"`
 }

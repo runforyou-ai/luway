@@ -14,6 +14,7 @@ import (
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	"github.com/runforyou-ai/luway/internal/actions/ratelimit"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/servertest"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -63,6 +64,7 @@ func TestRateLimitConcurrentRetryAfter(t *testing.T) {
 	ctx := context.Background()
 	limiter := ratelimit.NewLimiter(db)
 	subject := uuid.NewV7().String()
+	started := time.Now()
 	results := make(chan error, 20)
 	for range 20 {
 		go func() { results <- limiter.Allow(ctx, ratelimit.RegisterByIP.For(subject)) }()
@@ -76,7 +78,10 @@ func TestRateLimitConcurrentRetryAfter(t *testing.T) {
 		}
 		var limited *ratelimit.LimitedError
 		require.ErrorAs(t, err, &limited)
-		require.GreaterOrEqual(t, limited.RetryAfter, 50*time.Second, "retry after reflects consumed quota")
+		// 重试等待随实际耗时缩短，仍须覆盖突发额度耗尽后剩余的一个恢复间隔。
+		require.GreaterOrEqual(t, limited.RetryAfter, time.Minute-time.Since(started), "retry after reflects consumed quota")
+		require.Greater(t, limited.RetryAfter, time.Duration(0))
+		require.LessOrEqual(t, limited.RetryAfter, time.Minute)
 	}
 	require.Equal(t, 10, allowed)
 }
@@ -130,11 +135,11 @@ func TestVisitorUploadRejectsMismatchedImage(t *testing.T) {
 	t.Parallel()
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
-	record, err := customerchataction.NewCreateWebsiteVisitorUploadAction(f.db, testEnqueuer, localStorage).Execute(ctx, customerchataction.WebsiteVisitorUploadInput{
+	record, err := customerchataction.NewCreateWebsiteVisitorUploadAction(f.db, testEnqueuer).Execute(ctx, customerchataction.WebsiteVisitorUploadInput{
 		ChannelID: f.channelID, ExternalID: websiteVisitorExternalID, FileName: "伪装.png", ContentType: "image/png", ByteSize: 15,
 	})
 	require.NoError(t, err)
-	var validation *fileaction.ValidationError
+	var validation *common.FieldError
 	_, err = customerchataction.NewCompleteWebsiteVisitorUploadAction(f.db).Execute(ctx, f.channelID, websiteVisitorExternalID, record.ID,
 		func(_ context.Context, file *servermodels.File) (serverfilecontent.UploadedObject, error) {
 			return serverfilecontent.UploadedObject{ByteSize: file.ByteSize, Head: []byte("<html>script</html>")}, nil

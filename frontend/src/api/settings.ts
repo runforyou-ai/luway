@@ -30,6 +30,12 @@ export const getTranslationSettings = ops.getTranslationSettings
 /** 修改当前企业的翻译设置。 */
 export const updateTranslationSettings = ops.updateTranslationSettings
 
+/** 读取当前企业的媒体理解设置。 */
+export const getMediaUnderstandingSettings = ops.getMediaUnderstandingSettings
+
+/** 修改当前企业的媒体理解设置。 */
+export const updateMediaUnderstandingSettings = ops.updateMediaUnderstandingSettings
+
 /** 读取当前企业的客户身份密钥，未生成时为空。 */
 export const getCustomerIdentitySecret = ops.getCustomerIdentitySecret
 

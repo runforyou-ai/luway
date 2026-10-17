@@ -20,6 +20,8 @@ import (
 
 // agentEvaluationOps 持有 AI 员工评测的查询与操作。
 type agentEvaluationOps struct {
+	getEvaluationSettings     *agentevaluationaction.SettingsQuery
+	updateEvaluationSettings  *agentevaluationaction.UpdateSettingsAction
 	getAgentEvaluation        *agentevaluationaction.OverviewQuery
 	getAgentEvaluationCase    *agentevaluationaction.CaseDetailQuery
 	addServiceIssueCase       *agentevaluationaction.AddServiceSessionCaseAction
@@ -33,6 +35,8 @@ type agentEvaluationOps struct {
 // newAgentEvaluationOps 创建 AI 员工评测的业务实现依赖。
 func newAgentEvaluationOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer) *agentEvaluationOps {
 	return &agentEvaluationOps{
+		getEvaluationSettings:     agentevaluationaction.NewSettingsQuery(db),
+		updateEvaluationSettings:  agentevaluationaction.NewUpdateSettingsAction(db),
 		getAgentEvaluation:        agentevaluationaction.NewOverviewQuery(db),
 		getAgentEvaluationCase:    agentevaluationaction.NewCaseDetailQuery(db),
 		addServiceIssueCase:       agentevaluationaction.NewAddServiceSessionCaseAction(db),
@@ -185,6 +189,7 @@ func agentEvaluationRunSummary(summary agentevaluationaction.RunSummary) appserv
 
 // agentEvaluationFieldKeys 把评测用例校验错误码映射为本地化文案键。
 var agentEvaluationFieldKeys = map[common.FieldCode]i18n.Key{
+	agentevaluationaction.ValidationDecisionModelInvalid:   i18n.FieldAgentEvaluationDecisionModelInvalid,
 	agentevaluationaction.ValidationAudienceInvalid:        i18n.FieldAgentEvaluationAudienceInvalid,
 	agentevaluationaction.ValidationExpectedAnswerRequired: i18n.FieldAgentEvaluationExpectedAnswerRequired,
 }
@@ -209,4 +214,22 @@ var agentEvaluationErrors = dispatch.Catalog{
 // agentEvaluationError 把评测错误转换为结构化、本地化错误。
 func agentEvaluationError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	return agentEvaluationErrors.Translate(meta, err, failureKey)
+}
+
+// GetAgentEvaluationSettings 读取独立的评测判断模型。
+func (o *agentEvaluationOps) GetAgentEvaluationSettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.AgentEvaluationSettings, error) {
+	model, err := o.getEvaluationSettings.Execute(ctx, identity)
+	if err != nil {
+		return appservice.AgentEvaluationSettings{}, appservice.FailedError(meta, i18n.ErrorAgentEvaluationLoadFailed, err)
+	}
+	return appservice.AgentEvaluationSettings{DecisionModelID: model}, nil
+}
+
+// UpdateAgentEvaluationSettings 保存独立的评测判断模型。
+func (o *agentEvaluationOps) UpdateAgentEvaluationSettings(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.AgentEvaluationSettings) (appservice.AgentEvaluationSettings, error) {
+	model, err := o.updateEvaluationSettings.Execute(ctx, identity, input.DecisionModelID)
+	if err != nil {
+		return appservice.AgentEvaluationSettings{}, dispatch.Catalog{dispatch.FieldRule(agentEvaluationFieldKeys), dispatch.SessionRule}.Translate(meta, err, i18n.ErrorAgentEvaluationSettingsUpdateFailed)
+	}
+	return appservice.AgentEvaluationSettings{DecisionModelID: model}, nil
 }

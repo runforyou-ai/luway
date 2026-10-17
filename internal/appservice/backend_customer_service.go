@@ -23,33 +23,33 @@ type CustomerServiceBackend interface {
 	//appservice:route POST /settings/customer-service/identity-secret perm=customer_service.manage
 	RegenerateCustomerIdentitySecret(context.Context, RequestMeta) (CustomerIdentitySecret, error)
 	// GetBusinessHours 读取当前企业的客服工作时间。
-	//appservice:route GET /settings/customer-service/business-hours perm=customer_service.manage
-	GetBusinessHours(context.Context, RequestMeta) (BusinessHours, error)
+	//appservice:route GET /settings/service-policies/{audience}/business-hours perm=none
+	GetBusinessHours(context.Context, RequestMeta, string) (BusinessHours, error)
 	// UpdateBusinessHours 修改当前企业的客服工作时间。
-	//appservice:route PUT /settings/customer-service/business-hours perm=customer_service.manage
-	UpdateBusinessHours(context.Context, RequestMeta, BusinessHours) (BusinessHours, error)
+	//appservice:route PUT /settings/service-policies/{audience}/business-hours perm=none
+	UpdateBusinessHours(context.Context, RequestMeta, string, BusinessHours) (BusinessHours, error)
 	// GetServiceTimeouts 读取当前企业的客服超时时长。
-	//appservice:route GET /settings/customer-service/timeouts perm=customer_service.manage
-	GetServiceTimeouts(context.Context, RequestMeta) (ServiceTimeouts, error)
+	//appservice:route GET /settings/service-policies/{audience}/timeouts perm=none
+	GetServiceTimeouts(context.Context, RequestMeta, string) (ServiceTimeouts, error)
 	// UpdateServiceTimeouts 修改当前企业的客服超时时长。
-	//appservice:route PUT /settings/customer-service/timeouts perm=customer_service.manage
-	UpdateServiceTimeouts(context.Context, RequestMeta, ServiceTimeouts) (ServiceTimeouts, error)
+	//appservice:route PUT /settings/service-policies/{audience}/timeouts perm=none
+	UpdateServiceTimeouts(context.Context, RequestMeta, string, ServiceTimeouts) (ServiceTimeouts, error)
 	// GetServiceSummarySettings 读取当前企业的周期小结设置。
-	//appservice:route GET /settings/customer-service/summary perm=customer_service.manage
-	GetServiceSummarySettings(context.Context, RequestMeta) (ServiceSummarySettings, error)
+	//appservice:route GET /settings/service-policies/{audience}/summary perm=none
+	GetServiceSummarySettings(context.Context, RequestMeta, string) (ServiceSummarySettings, error)
 	// UpdateServiceSummarySettings 修改当前企业的周期小结设置。
-	//appservice:route PUT /settings/customer-service/summary perm=customer_service.manage
-	UpdateServiceSummarySettings(context.Context, RequestMeta, ServiceSummarySettings) (ServiceSummarySettings, error)
+	//appservice:route PUT /settings/service-policies/{audience}/summary perm=none
+	UpdateServiceSummarySettings(context.Context, RequestMeta, string, ServiceSummarySettings) (ServiceSummarySettings, error)
 	// ListServiceCategories 返回当前企业的咨询分类目录。
-	//appservice:route GET /settings/customer-service/categories perm=none
-	ListServiceCategories(context.Context, RequestMeta) (ServiceCategoryList, error)
+	//appservice:route GET /settings/service-policies/{audience}/categories perm=none
+	ListServiceCategories(context.Context, RequestMeta, string) (ServiceCategoryList, error)
 	// CreateServiceCategory 新增咨询分类。
-	//appservice:route POST /settings/customer-service/categories status=201 perm=customer_service.manage
-	CreateServiceCategory(context.Context, RequestMeta, ServiceCategoryInput) (ServiceCategory, error)
+	//appservice:route POST /settings/service-policies/{audience}/categories status=201 perm=none
+	CreateServiceCategory(context.Context, RequestMeta, string, ServiceCategoryInput) (ServiceCategory, error)
 	// UpdateServiceCategory 修改咨询分类。
-	//appservice:route PUT /settings/customer-service/categories/{categoryID:uuid} perm=customer_service.manage
-	UpdateServiceCategory(context.Context, RequestMeta, string, ServiceCategoryInput) (ServiceCategory, error)
+	//appservice:route PUT /settings/service-policies/{audience}/categories/{categoryID:uuid} perm=none
+	UpdateServiceCategory(context.Context, RequestMeta, string, string, ServiceCategoryInput) (ServiceCategory, error)
 	// DeleteServiceCategory 删除咨询分类，历史记录保留分类名称。
-	//appservice:route DELETE /settings/customer-service/categories/{categoryID:uuid} perm=customer_service.manage
-	DeleteServiceCategory(context.Context, RequestMeta, string) error
+	//appservice:route DELETE /settings/service-policies/{audience}/categories/{categoryID:uuid} perm=none
+	DeleteServiceCategory(context.Context, RequestMeta, string, string) error
 }

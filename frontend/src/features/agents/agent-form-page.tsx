@@ -1,23 +1,22 @@
-/** AI 员工独立创建页和详情页：创建页先选择服务对象，仅自己时切换为本机创建表单；详情页分概览、待补知识、问题会话、评测、服务记录、基本资料与运行配置七个与地址同步的页签，没有服务对象的 AI 员工不显示评测，没有数据报表权限时不显示概览与问题会话。 */
-import { useEffect, useState } from "react"
+/** AI 员工独立创建页和详情页：创建页先选择服务对象，仅自己时切换为本机创建表单；详情页分概览、待补知识、问题会话、评测、服务记录、基本资料与运行配置七个与地址同步的页签，没有服务对象的 AI 员工不显示评测，没有数据报表权限时不显示概览与问题会话。表现页签内容由宿主经 renderPerformance 注入。 */
+import { useEffect, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useSearchParams } from "react-router"
 
 import {
-  getAIPerformanceReport,
   getAgent,
   isNotFoundApiError,
+  KnowledgeGapStatus,
   listComputers,
   listTeams,
   PermissionCode,
+  ServiceIssueType,
   type AgentData,
   type ServiceAudience,
 } from "@/api"
 import { FormActions } from "@/components/form/form-actions"
-import { ListToolbar, ListToolbarFilter } from "@/components/list-toolbar"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
-import { ReportPeriodFilter } from "@/components/report-parts"
 import { ResourceContent } from "@/components/resource-content"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -27,12 +26,9 @@ import { AgentExecutionForm } from "@/features/agents/agent-execution-form"
 import { AgentForm, useAgentAvatarUpload, type AgentCreateDraft } from "@/features/agents/agent-form"
 import { AgentProfileForm } from "@/features/agents/agent-profile-form"
 import { AgentServiceRecords } from "@/features/agents/agent-service-records"
-import { aiIssueTypes, gapStatuses } from "@/features/reports/ai-performance-format"
-import { AIKnowledgeGapList, AIPerformanceIssueList } from "@/features/reports/ai-performance-lists"
-import { AIPerformanceOverview } from "@/features/reports/ai-performance-overview"
 import { PersonalAgentCreateForm } from "@/features/agents/personal/personal-agent-form"
-import { useReportSearchParams } from "@/features/reports/report-filters"
 import { resourceKeys } from "@/hooks/resource-keys"
+import { useReportSearchParams } from "@/hooks/use-report-search-params"
 import { useContactInvalidator } from "@/hooks/use-contact-invalidator"
 import { periodOptions } from "@/hooks/use-report-format"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
@@ -40,10 +36,31 @@ import { useReturnTo } from "@/hooks/use-return-to"
 import { cn } from "@/lib/utils"
 import { currentComputer } from "@/platform/local-computer"
 
+const gapStatuses = [KnowledgeGapStatus.Pending, KnowledgeGapStatus.Accepted, KnowledgeGapStatus.Dismissed] as const
+const aiIssueTypes = [
+  ServiceIssueType.All,
+  ServiceIssueType.Dissatisfied,
+  ServiceIssueType.AIIncorrect,
+  ServiceIssueType.AIMissedHandoff,
+  ServiceIssueType.AIPoorAttitude,
+] as const
+
 /** 详情页签，第一个为默认值。 */
 const detailTabs = ["overview", "knowledgeGaps", "issues", "evaluation", "records", "basic", "execution"] as const
 
 type DetailTab = (typeof detailTabs)[number]
+
+/** 表现页签渲染上下文，由 shell 组合报表 UI。 */
+export type AgentPerformanceSlotContext = {
+  agent: AgentData
+  tab: DetailTab
+  days: number
+  status: KnowledgeGapStatus
+  gapId: string
+  issue: ServiceIssueType
+  sessionId: string
+  setParameters: (patch: Record<string, string>) => void
+}
 
 /** 详情页地址参数的默认值，等于默认值时从地址中移除。 */
 const parameterDefaults = {
@@ -60,7 +77,14 @@ const parameterDefaults = {
 const openItems = ["gap", "session", "case"] as const
 
 /** 加载 AI 员工详情；新建时只显示创建表单。 */
-export function AgentFormPage({ mode }: { mode: "create" | "edit" }) {
+export function AgentFormPage({
+  mode,
+  renderPerformance,
+}: {
+  mode: "create" | "edit"
+  /** 概览 / 待补知识 / 问题会话页签由宿主注入，避免 agents 依赖 reports UI。 */
+  renderPerformance?: (ctx: AgentPerformanceSlotContext) => ReactNode
+}) {
   const { t } = useTranslation(["agents", "common"])
   const { agentId = "" } = useParams()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -105,7 +129,14 @@ export function AgentFormPage({ mode }: { mode: "create" | "edit" }) {
         </PageContent>
       ) : (
         <ResourceContent resources={detail} errorMessage={t("form.loadError")}>
-          {agent ? <AgentDetailTabs key={agent.id} agent={agent} tab={tab} /> : null}
+          {agent ? (
+            <AgentDetailTabs
+              key={agent.id}
+              agent={agent}
+              tab={tab}
+              renderPerformance={renderPerformance}
+            />
+          ) : null}
         </ResourceContent>
       )}
     </div>
@@ -133,6 +164,7 @@ function AgentCreateForms({
     draft.displayName !== "" || draft.modelId !== "" || draft.systemInstruction !== "" || draft.knowledgeBaseIds.length > 0
   const local = useResource(resourceKeys.currentComputer(), () => currentComputer())
   const canManage = usePermission(PermissionCode.PermissionAIEmployeesManage)
+  const canManageBusinessSystems = usePermission(PermissionCode.PermissionWorkspaceManage)
   // 显示个人 AI 员工表单时读取电脑列表：选择了仅自己，或没有管理权限只能创建仅自己的 AI 员工。
   const computers = useResource(resourceKeys.computers(), () => listComputers(), { enabled: personal || !canManage })
   const localComputerID = local.data?.computerId ?? ""
@@ -142,6 +174,7 @@ function AgentCreateForms({
     return (
       <ResourceContent resources={computers} errorMessage={t("personal.loadError")}>
         <PersonalAgentCreateForm
+          canManageBusinessSystems={canManageBusinessSystems}
           computerID={localComputerID}
           computerName={localComputer?.name ?? ""}
           draft={draft}
@@ -192,7 +225,15 @@ function AgentCreateForms({
 }
 
 /** AI 员工详情的页签与各页签内容；页签、统计天数、待补知识状态、问题类型与打开的条目保存在地址中，两个配置表单保持挂载以保留未保存的修改，团队只在基本资料中读取。 */
-function AgentDetailTabs({ agent, tab: requestedTab }: { agent: AgentData; tab: DetailTab }) {
+function AgentDetailTabs({
+  agent,
+  tab: requestedTab,
+  renderPerformance,
+}: {
+  agent: AgentData
+  tab: DetailTab
+  renderPerformance?: (ctx: AgentPerformanceSlotContext) => ReactNode
+}) {
   const { t } = useTranslation("agents")
   const [searchParams, setParameters] = useReportSearchParams(parameterDefaults, openItems)
   const [, setSearchParams] = useSearchParams()
@@ -228,12 +269,8 @@ function AgentDetailTabs({ agent, tab: requestedTab }: { agent: AgentData; tab: 
       { replace: true },
     )
   }, [requestedTab, setSearchParams, tab])
-  const filter = { channelId: "", agentId: agent.id, mine: false }
-  const report = useResource(
-    resourceKeys.aiPerformanceReport({ days, ...filter }),
-    () => getAIPerformanceReport({ days, ...filter }),
-    { keepPreviousData: true, enabled: tab === "overview" },
-  )
+
+  const performanceTab = tab === "overview" || tab === "knowledgeGaps" || tab === "issues"
 
   return (
     <>
@@ -248,68 +285,18 @@ function AgentDetailTabs({ agent, tab: requestedTab }: { agent: AgentData; tab: 
           </TabsList>
         </Tabs>
       </div>
-      {tab === "overview" ? (
-        <>
-          <ListToolbar>
-            <ReportPeriodFilter value={days} onValueChange={(value) => setParameters({ days: value })} />
-          </ListToolbar>
-          <PageContent>
-            <ResourceContent resources={report} errorMessage={t("performance.loadError")}>
-              {report.data ? (
-                <AIPerformanceOverview
-                  report={report.data}
-                  onOpenKnowledgeGaps={() => setParameters({ tab: "knowledgeGaps", status: gapStatuses[0] })}
-                  onOpenIssues={(value) => setParameters({ tab: "issues", issue: value })}
-                />
-              ) : null}
-            </ResourceContent>
-          </PageContent>
-        </>
-      ) : null}
-      {tab === "knowledgeGaps" ? (
-        <>
-          <ListToolbar>
-            <ListToolbarFilter
-              label={t("performance.gapStatus")}
-              value={status}
-              options={gapStatuses.map((value) => ({
-                value,
-                label: t(`performance.gapStatuses.${value}`),
-              }))}
-              onValueChange={(value) => setParameters({ status: value })}
-            />
-          </ListToolbar>
-          <AIKnowledgeGapList
-            filter={filter}
-            status={status}
-            gapId={gapId}
-            onGapChange={(value) => setParameters({ gap: value })}
-          />
-        </>
-      ) : null}
-      {tab === "issues" ? (
-        <>
-          <ListToolbar>
-            <ReportPeriodFilter value={days} onValueChange={(value) => setParameters({ days: value })} />
-            <ListToolbarFilter
-              label={t("performance.issueType")}
-              value={issue}
-              options={aiIssueTypes.map((value) => ({
-                value,
-                label: t(`performance.issueTypes.${value}`),
-              }))}
-              onValueChange={(value) => setParameters({ issue: value })}
-            />
-          </ListToolbar>
-          <AIPerformanceIssueList
-            days={days}
-            filter={filter}
-            issue={issue}
-            serviceSessionId={sessionId}
-            onIssueOpen={(value) => setParameters({ session: value })}
-          />
-        </>
-      ) : null}
+      {performanceTab
+        ? renderPerformance?.({
+            agent,
+            tab,
+            days,
+            status,
+            gapId,
+            issue,
+            sessionId,
+            setParameters,
+          })
+        : null}
       {tab === "evaluation" ? (
         <AgentEvaluationPanel agent={agent} caseId={caseId} onCaseChange={(value) => setParameters({ case: value })} />
       ) : null}

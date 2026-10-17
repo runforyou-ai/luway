@@ -57,7 +57,7 @@ func loadUser(ctx context.Context, db bun.IDB, workspaceID, userID string) (*Use
 func validateRoleID(ctx context.Context, db bun.IDB, workspaceID, roleID string) error {
 	_, err := roleaction.ValidateAssignment(ctx, db, workspaceID, roleID)
 	if errors.Is(err, roleaction.ErrAssignmentInvalid) {
-		return &ValidationError{Fields: map[string]ValidationCode{"roleId": ValidationRoleInvalid}}
+		return &common.FieldError{Fields: map[string]common.FieldCode{"roleId": ValidationRoleInvalid}}
 	}
 	return err
 }
@@ -67,7 +67,7 @@ func validateTeamIDs(ctx context.Context, db bun.IDB, workspaceID string, teamID
 	ids, _ := common.NormalizeUUIDs(teamIDs)
 	_, err := teamaction.LockTeams(ctx, db, workspaceID, ids)
 	if errors.Is(err, teamaction.ErrNotFound) {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"teamIds": ValidationTeamInvalid}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"teamIds": ValidationTeamInvalid}}
 	}
 	if err != nil {
 		return nil, err

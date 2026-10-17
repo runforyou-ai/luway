@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"fmt"
 	"slices"
+	"time"
 
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -163,49 +164,80 @@ func (q *LoadInboxQuery) loadConversationPage(ctx context.Context, identity *ser
 	return page, nil
 }
 
-// loadUnreadCounts 按完整会话范围汇总提醒，不受当前筛选和列表条数限制，本人已归档的聊天除外。
+// unreadStateRow 是内部会话未读汇总所需的个人状态；TrackMentions 仅群聊为真，静音时才把提醒未读计入角标。
+type unreadStateRow struct {
+	ID            string     `bun:"id"`
+	Muted         bool       `bun:"muted"`
+	MarkedUnread  bool       `bun:"marked_unread"`
+	ArchivedAt    *time.Time `bun:"archived_at"`
+	TrackMentions bool       `bun:"track_mentions"`
+}
+
+// loadUnreadCounts 按完整会话范围汇总提醒，不受当前筛选和列表条数限制，本人已归档的聊天除外；先取会话状态再批量聚合未读。
 func (q *LoadInboxQuery) loadUnreadCounts(ctx context.Context, workspaceID, identityID, userID string) (UnreadCounts, error) {
 	direct := q.db.NewSelect().TableExpr("(?) AS direct", withIndividualConversationDetails(q.directConversationsQuery(workspaceID, identityID), identityID, userID)).
-		ColumnExpr("unread_count, 0::bigint AS mentioned_unread_count, muted, marked_unread, archived_at")
+		ColumnExpr("direct.id::text AS id, direct.muted, direct.marked_unread, direct.archived_at, false AS track_mentions")
 	group := q.db.NewSelect().TableExpr("(?) AS groups", q.groupConversationsQuery(workspaceID, identityID, userID)).
-		ColumnExpr("unread_count, mentioned_unread_count, muted, marked_unread, archived_at")
-	agent := q.db.NewSelect().TableExpr("(?) AS agents", withIndividualConversationDetails(q.agentConversationsQuery(workspaceID, identityID), identityID, userID)).ColumnExpr("unread_count, 0::bigint AS mentioned_unread_count, muted, marked_unread, archived_at")
-	counts := UnreadCounts{}
-	err := q.db.NewSelect().TableExpr("(?) AS internal", direct.UnionAll(group).UnionAll(agent)).
+		ColumnExpr("groups.id::text AS id, groups.muted, groups.marked_unread, groups.archived_at, true AS track_mentions")
+	agent := q.db.NewSelect().TableExpr("(?) AS agents", withIndividualConversationDetails(q.agentConversationsQuery(workspaceID, identityID), identityID, userID)).
+		ColumnExpr("agents.id::text AS id, agents.muted, agents.marked_unread, agents.archived_at, false AS track_mentions")
+	var states []unreadStateRow
+	if err := q.db.NewSelect().TableExpr("(?) AS internal", direct.UnionAll(group).UnionAll(agent)).
 		Where("internal.archived_at IS NULL").
-		ColumnExpr("COALESCE(sum(unread_count), 0) AS unread_count").
-		ColumnExpr(`COALESCE(sum(CASE WHEN muted THEN mentioned_unread_count
-            ELSE GREATEST(unread_count, CASE WHEN marked_unread THEN 1 ELSE 0 END)
-        END), 0) AS attention_unread_count`).Scan(ctx, &counts)
+		ColumnExpr("internal.id, internal.muted, internal.marked_unread, internal.archived_at, internal.track_mentions").
+		Scan(ctx, &states); err != nil {
+		return UnreadCounts{}, fmt.Errorf("list internal conversations for unread: %w", err)
+	}
+	ids := make([]string, len(states))
+	for i, state := range states {
+		ids[i] = state.ID
+	}
+	perConversation, err := q.loadConversationUnreadCounts(ctx, workspaceID, identityID, userID, ids)
 	if err != nil {
-		return UnreadCounts{}, fmt.Errorf("count internal unread messages: %w", err)
+		return UnreadCounts{}, err
+	}
+	counts := UnreadCounts{}
+	for _, state := range states {
+		unread := perConversation[state.ID]
+		counts.Unread += unread.UnreadCount
+		if state.Muted {
+			if state.TrackMentions {
+				counts.Attention += unread.MentionedUnreadCount
+			}
+			continue
+		}
+		attention := unread.UnreadCount
+		if state.MarkedUnread && attention < 1 {
+			attention = 1
+		}
+		counts.Attention += attention
 	}
 	return counts, nil
 }
 
-// countPending 统计本人全部待处理条目数及这些条目中本人的未读消息总数，不受当前筛选影响；未读口径与客户会话摘要一致。
+// countPending 统计本人全部待处理条目数及这些条目中本人的未读消息总数，不受当前筛选影响；未读口径与客户会话摘要一致，按页内同构批量聚合。
 func (q *LoadInboxQuery) countPending(ctx context.Context, identity *servermodels.Identity) (int, int, error) {
-	var counts struct {
-		Pending int `bun:"pending_count"`
-		Unread  int `bun:"pending_unread_count"`
+	var ids []string
+	if err := q.db.NewSelect().TableExpr("(?) AS pending", q.pendingCandidates(identity.Workspace.ID, identity.WorkspaceIdentity.ID, LoadInput{Scope: domain.InboxScopePending})).
+		ColumnExpr("pending.id::text").
+		Scan(ctx, &ids); err != nil {
+		return 0, 0, fmt.Errorf("list pending service conversations: %w", err)
 	}
-	err := q.db.NewSelect().TableExpr("(?) AS pending", q.pendingCandidates(identity.Workspace.ID, identity.WorkspaceIdentity.ID, LoadInput{Scope: domain.InboxScopePending})).
-		ColumnExpr("count(*) AS pending_count").
-		ColumnExpr("COALESCE(sum(unread.unread_count), 0) AS pending_unread_count").
-		Join("JOIN conversations AS cv ON cv.workspace_id = ? AND cv.id = pending.id", identity.Workspace.ID).
-		Join("LEFT JOIN conversation_user_states AS state ON state.workspace_id = cv.workspace_id AND state.conversation_id = cv.id AND state.user_id = ?", identity.User.ID).
-		Join("JOIN LATERAL (?) AS unread ON TRUE", unreadCountsQuery(q.db, identity.WorkspaceIdentity.ID)).
-		Scan(ctx, &counts)
+	perConversation, err := q.loadConversationUnreadCounts(ctx, identity.Workspace.ID, identity.WorkspaceIdentity.ID, identity.User.ID, ids)
 	if err != nil {
-		return 0, 0, fmt.Errorf("count pending service conversations: %w", err)
+		return 0, 0, err
 	}
-	return counts.Pending, counts.Unread, nil
+	unread := 0
+	for _, counts := range perConversation {
+		unread += counts.UnreadCount
+	}
+	return len(ids), unread, nil
 }
 
 // LoadAgentConversation 读取当前成员指定 AI 会话的完整收件箱摘要。
 func (q *LoadInboxQuery) LoadAgentConversation(ctx context.Context, identity *servermodels.Identity, conversationID string) (ConversationSummary, error) {
 	var row agentConversationRow
-	err := withAgentConversationDetails(q.agentConversationsQuery(identity.Workspace.ID, identity.WorkspaceIdentity.ID), identity.WorkspaceIdentity.ID, identity.User.ID).Where("cv.id = ?", conversationID).Scan(ctx, &row)
+	err := withLateralUnreadCount(withAgentConversationDetails(q.agentConversationsQuery(identity.Workspace.ID, identity.WorkspaceIdentity.ID), identity.WorkspaceIdentity.ID, identity.User.ID), identity.WorkspaceIdentity.ID).Where("cv.id = ?", conversationID).Scan(ctx, &row)
 	if err != nil {
 		return ConversationSummary{}, err
 	}

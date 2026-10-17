@@ -20,6 +20,7 @@ import (
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
@@ -33,7 +34,7 @@ type directServiceFixture struct {
 	navigationFixture
 	tasks     *servertest.Tasks
 	execution agentaction.ExecutionInput
-	team      *teamaction.TeamRecord
+	team      *teamaction.Record
 	agent     *agentaction.Agent
 }
 
@@ -277,12 +278,44 @@ func TestDirectServiceConversation(t *testing.T) {
 		domain.ServiceRequestStatusHandedOff, domain.ServiceRequestStatusProcessing, domain.ServiceRequestStatusClosed,
 	}, statuses(f.history(t, f.owner, conversationID)), "发起人应看到已转交、处理中、已结束")
 
+	// 新周期的 AI 可复用历史工具读取员工旧请求，并区分发起人与处理人；内部备注不进入结果。
+	historyRead := false
+	historyRuntime := &testAgentRuntime{run: func(ctx context.Context, request agentruntime.RunRequest, feed einorun.Feed) (agentruntime.RunResult, error) {
+		historyRead = true
+		require.NotNil(t, request.CustomerHistorySearch)
+		require.Contains(t, request.Assignment.Tools, agentruntime.CustomerHistoryToolName)
+		history, err := request.CustomerHistorySearch(ctx, "")
+		require.NoError(t, err)
+		require.Len(t, history.Sessions, 1)
+		var foundRequester, foundHandler bool
+		for _, message := range history.Sessions[0].Messages {
+			require.NotEqual(t, "先查一下账号", message.Body, "内部备注不应进入历史结果")
+			switch message.Body {
+			case "电脑连不上 VPN":
+				foundRequester = true
+				require.Equal(t, "customer", message.Sender, "提问员工应标记为发起人")
+			case "请重启客户端再试":
+				foundHandler = true
+				require.Equal(t, "member", message.Sender, "处理同事应标记为真人客服")
+			}
+		}
+		require.True(t, foundRequester)
+		require.True(t, foundHandler)
+		current, err := request.CustomerHistorySearch(ctx, "打印机")
+		require.NoError(t, err)
+		require.Empty(t, current.Sessions, "当前周期不应进入历史结果")
+		return replyRuntime("我来看看打印机的问题").Run(ctx, request, feed)
+	}}
+	run = (handoffFixture{db: f.db}).queuedRun(t, conversationID)
+	require.NoError(t, newTestAgentRun(f.db, f.tasks, historyRuntime, testModelInvoker(f.db), testAttachmentReader(f.db), nil, servertest.DisabledMail{}, nil, nil).Execute(ctx, agentrunaction.RunInput{RunID: run.ID}))
+	require.True(t, historyRead)
+
 	// 真人只能把 单聊交还给该会话的 AI 员工。
 	_, err = servicesessionaction.NewClaimServiceSessionAction(f.db, coordinator, f.tasks).Execute(ctx, f.member, conversationID)
 	require.NoError(t, err)
 	other := f.newAgent(t, "行政服务台", domain.ServiceAudienceEmployee)
 	transfer := servicesessionaction.NewTransferServiceSessionAction(f.db, coordinator, scheduler, f.tasks)
-	var validation *conversationaction.ValidationError
+	var validation *common.FieldError
 	_, err = transfer.Execute(ctx, f.member, servicesessionaction.TransferServiceSessionInput{
 		ConversationID: conversationID, TargetKind: domain.ServiceSessionTargetMember, IdentityID: other.IdentityID,
 	})

@@ -1,0 +1,23 @@
+name: Setup Android
+description: Prepare Java 21, Android SDK 35 and the pinned NDK for APK/AAB builds.
+runs:
+  using: composite
+  steps:
+    - name: Select macOS Android SDK directory
+      if: runner.os == 'macOS'
+      shell: bash
+      run: echo "ANDROID_SDK_ROOT=$RUNNER_TOOL_CACHE/android-sdk" >> "$GITHUB_ENV"
+    - name: Setup Java
+      uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+      with:
+        distribution: temurin
+        java-version: "21"
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407 # v3
+      with:
+        cmdline-tools-version: ${{ runner.os == 'macOS' && '15641748' || '15859902' }}
+        packages: 'platform-tools platforms;android-35 build-tools;35.0.0 ndk;26.3.11579264'
+        log-accepted-android-sdk-licenses: false
+    - name: Select Android NDK
+      shell: bash
+      run: echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.3.11579264" >> "$GITHUB_ENV"

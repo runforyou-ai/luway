@@ -16,10 +16,10 @@ type GetTeamQuery struct{ db *bun.DB }
 func NewGetTeamQuery(db *bun.DB) *GetTeamQuery { return &GetTeamQuery{db: db} }
 
 // Execute 返回团队及其活跃成员数，团队不属于当前企业时返回 ErrNotFound。
-func (q *GetTeamQuery) Execute(ctx context.Context, identity *servermodels.Identity, teamID string) (TeamRecord, error) {
+func (q *GetTeamQuery) Execute(ctx context.Context, identity *servermodels.Identity, teamID string) (Record, error) {
 	team, err := loadTeam(ctx, q.db, identity.Workspace.ID, teamID)
 	if err != nil {
-		return TeamRecord{}, err
+		return Record{}, err
 	}
 	return *team, nil
 }

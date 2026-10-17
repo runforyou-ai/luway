@@ -176,7 +176,7 @@ var knowledgeBaseErrors = dispatch.Catalog{
 	dispatch.Is(knowledgebaseaction.ErrSegmentsNotReady, dispatch.Conflict(i18n.ErrorKnowledgeSegmentsNotReady, "segments_not_ready")),
 	dispatch.Is(knowledgebaseaction.ErrSegmentStale, dispatch.Conflict(i18n.ErrorKnowledgeSegmentStale, "segment_stale")),
 	dispatch.Is(knowledgebaseaction.ErrSegmentQueryInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
-	dispatch.Is(knowledgebaseaction.ErrPageSizeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
+	dispatch.Is(common.ErrPageSizeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
 	dispatch.Is(knowledgebaseaction.ErrDocumentNotFound, dispatch.NotFound(i18n.ErrorKnowledgeDocumentNotFound)),
 	dispatch.Is(knowledgebaseaction.ErrDocumentUnsupported, dispatch.Invalid(i18n.ErrorKnowledgeDocumentUnsupported)),
 	dispatch.Is(knowledgebaseaction.ErrDocumentSourceUnsupported, dispatch.Invalid(i18n.ErrorKnowledgeDocumentSourceUnsupported)),

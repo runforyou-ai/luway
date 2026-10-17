@@ -14,7 +14,7 @@ import {
   type KnowledgeBase,
   type KnowledgeGap,
 } from "@/api"
-import { QAFormFields, qaSchema, type QAFormValues } from "@/components/knowledge-qa-fields"
+import { QAFormFields, qaSchema, type QAFormValues } from "@/features/knowledge-base/public"
 import { Button } from "@/components/ui/button"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { NativeSelect } from "@/components/ui/native-select"

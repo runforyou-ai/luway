@@ -39,7 +39,7 @@ func TestGroupPersonalAgents(t *testing.T) {
 	})
 	require.NoError(t, err)
 	add := groupchataction.NewAddGroupConversationMembersAction(db)
-	remove := groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCoordinator(db))
+	remove := groupchataction.NewRemoveGroupConversationMemberAction(db, testEnqueuer, newGroupAgentCanceller(db))
 	addPersonalAgent := func() {
 		t.Helper()
 		_, err := add.Execute(ctx, member, groupchataction.GroupConversationMembersInput{ConversationID: group.ID, MemberIdentityIDs: []string{personalAgent.IdentityID}})
@@ -143,7 +143,7 @@ func TestGroupPersonalAgents(t *testing.T) {
 
 	t.Run("负责人退群时个人 AI 员工随之退出", func(t *testing.T) {
 		callID := submitted()
-		require.NoError(t, groupchataction.NewLeaveGroupConversationAction(db, testEnqueuer, newGroupAgentCoordinator(db)).Execute(ctx, member, group.ID))
+		require.NoError(t, groupchataction.NewLeaveGroupConversationAction(db, testEnqueuer, newGroupAgentCanceller(db)).Execute(ctx, member, group.ID))
 		require.False(t, inGroup(), "personalAgent stayed after owner left")
 		require.Equal(t, domain.AgentToolCallCancelled, toolCallStatus(t, ctx, db, callID), "decision after owner left")
 		_, err := add.Execute(ctx, identity, groupchataction.GroupConversationMembersInput{ConversationID: group.ID, MemberIdentityIDs: []string{member.WorkspaceIdentity.ID}})

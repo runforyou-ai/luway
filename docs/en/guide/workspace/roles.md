@@ -31,7 +31,7 @@ Members with the **Manage workspace** permission can create, edit, and delete ro
 
 | Permission | Features |
 | --- | --- |
-| Manage workspace | General settings; invite, edit, deactivate, and restore members, and manage teams; roles and permissions; model services, web search, and business systems; workspace computers; turn other members' personal AI assistants on or off |
+| Manage workspace | General settings; invite, edit, deactivate, and restore members, and manage teams; roles and permissions; model services, Web, and business systems; workspace computers; turn other members' personal AI assistants on or off |
 | Manage AI employees | Create, edit, deactivate, and reactivate AI employees, maintain evaluations, and view service records; documents and Q&A in knowledge bases; handle knowledge gaps for any AI employee |
 | Manage customer service | Channels; business hours, timeouts, conversation summaries, translation, the customer identity secret, service categories, contact fields, and tags |
 | Manage external contacts | Create, edit, delete, and restore external contacts, and fill in their contact fields and tags |

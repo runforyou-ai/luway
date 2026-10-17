@@ -30,7 +30,7 @@ func (q *ListQAEntriesQuery) Execute(ctx context.Context, identity *servermodels
 	var pageValid bool
 	input.Page, input.PageSize, pageValid = common.NormalizePagination(input.Page, input.PageSize)
 	if !pageValid {
-		return QAListOutput{}, ErrPageSizeInvalid
+		return QAListOutput{}, common.ErrPageSizeInvalid
 	}
 	records := make([]QASummary, 0)
 	query := q.db.NewSelect().TableExpr("knowledge_qa_entries AS kqe").

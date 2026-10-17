@@ -4,6 +4,7 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 @import "./styles/theme-tokens.css";
+@import "./styles/admin-theme.css";
 
 @custom-variant dark (&:is(.dark *));
 @custom-variant touch (&:is([data-platform="mobile"] *));

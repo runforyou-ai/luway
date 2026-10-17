@@ -35,8 +35,7 @@
   "overrides": [
     {
       "includes": [
-        "src/features/**",
-        "!src/features/workspace/**"
+        "src/features/**"
       ],
       "linter": {
         "rules": {
@@ -47,9 +46,412 @@
                 "patterns": [
                   {
                     "group": [
-                      "@/features/workspace/**"
+                      "@/apps/**"
                     ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
+                    "message": "features 不得依赖 apps"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/agents/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
+                      "@/features/reports/**"
+                    ],
+                    "message": "agents 不得依赖 reports；表现页签由 apps/shell 注入"
+                  },
+                  {
+                    "group": [
+                      "@/features/contacts/**",
+                      "!@/features/contacts/public"
+                    ],
+                    "message": "agents 只从 @/features/contacts/public 引用通讯录"
+                  },
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/transcript"
+                    ],
+                    "message": "agents 只从 @/features/inbox/transcript 引用会话过程展示"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/tool-decisions/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/transcript"
+                    ],
+                    "message": "tool-decisions 只从 @/features/inbox/transcript 引用工具状态文案"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/settings/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
+                      "@/features/inbox/**"
+                    ],
+                    "message": "settings 不得依赖 inbox"
+                  },
+                  {
+                    "group": [
+                      "@/features/agents/**",
+                      "!@/features/agents/public"
+                    ],
+                    "message": "settings 只从 @/features/agents/public 引用 AI 员工"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/inbox/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/contacts/**",
+                      "!@/features/contacts/public"
+                    ],
+                    "message": "inbox 只从 @/features/contacts/public 引用通讯录"
+                  },
+                  {
+                    "group": [
+                      "@/features/tool-decisions/**",
+                      "!@/features/tool-decisions/public"
+                    ],
+                    "message": "inbox 只从 @/features/tool-decisions/public 引用待处理操作"
+                  },
+                  {
+                    "group": [
+                      "@/features/agents/**",
+                      "!@/features/agents/public"
+                    ],
+                    "message": "inbox 只从 @/features/agents/public 引用 AI 员工"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/platform/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
+                      "@/features/reports/**"
+                    ],
+                    "message": "platform 不得依赖 reports；指标 UI 使用 @/components/metrics"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/channels/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
+                      "@/features/agents/**"
+                    ],
+                    "message": "channels 不得依赖 agents；共用选择器使用 @/components/resource-picker-field"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/reports/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/transcript"
+                    ],
+                    "message": "reports 只从 @/features/inbox/transcript 引用会话转录"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/features/knowledge-gaps/**"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/transcript"
+                    ],
+                    "message": "knowledge-gaps 只从 @/features/inbox/transcript 引用会话转录"
+                  },
+                  {
+                    "group": [
+                      "@/features/knowledge-base/**",
+                      "!@/features/knowledge-base/public"
+                    ],
+                    "message": "knowledge-gaps 只从 @/features/knowledge-base/public 引用知识库"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/apps/**",
+        "!src/apps/shell/workspace-page-routes.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/**",
+                      "!@/features/inbox/public",
+                      "!@/features/inbox/shell"
+                    ],
+                    "message": "宿主静态引用只从 @/features/inbox/public 或 @/features/inbox/shell 取收件箱"
+                  },
+                  {
+                    "group": [
+                      "@/features/session/**",
+                      "!@/features/session/public"
+                    ],
+                    "message": "宿主只从 @/features/session/public 引用登录会话"
+                  },
+                  {
+                    "group": [
+                      "@/features/notifications/**",
+                      "!@/features/notifications/public"
+                    ],
+                    "message": "宿主只从 @/features/notifications/public 引用通知"
+                  },
+                  {
+                    "group": [
+                      "@/features/platform/**",
+                      "!@/features/platform/public"
+                    ],
+                    "message": "宿主只从 @/features/platform/public 引用平台能力"
+                  },
+                  {
+                    "group": [
+                      "@/features/agents/**",
+                      "!@/features/agents/public"
+                    ],
+                    "message": "宿主只从 @/features/agents/public 引用 AI 员工"
+                  },
+                  {
+                    "group": [
+                      "@/features/reports/**",
+                      "!@/features/reports/public"
+                    ],
+                    "message": "宿主只从 @/features/reports/public 引用报表"
+                  },
+                  {
+                    "group": [
+                      "@/features/knowledge-gaps/**",
+                      "!@/features/knowledge-gaps/public"
+                    ],
+                    "message": "宿主只从 @/features/knowledge-gaps/public 引用待补知识"
+                  },
+                  {
+                    "group": [
+                      "@/features/settings/**",
+                      "!@/features/settings/public"
+                    ],
+                    "message": "宿主只从 @/features/settings/public 引用设置"
+                  },
+                  {
+                    "group": [
+                      "@/features/tool-decisions/**",
+                      "!@/features/tool-decisions/public"
+                    ],
+                    "message": "宿主只从 @/features/tool-decisions/public 引用待处理操作"
+                  },
+                  {
+                    "group": [
+                      "@/features/contacts/**",
+                      "!@/features/contacts/public"
+                    ],
+                    "message": "宿主只从 @/features/contacts/public 引用通讯录"
+                  },
+                  {
+                    "group": [
+                      "@/features/server-connection/**",
+                      "!@/features/server-connection/public"
+                    ],
+                    "message": "宿主只从 @/features/server-connection/public 引用服务器连接"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "src/apps/shell/workspace-page-routes.tsx"
+      ],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": {
+              "level": "error",
+              "options": {
+                "patterns": [
+                  {
+                    "group": [
+                      "@/features/inbox/public",
+                      "@/features/inbox/shell",
+                      "@/features/inbox/transcript"
+                    ],
+                    "message": "路由懒加载禁止经 inbox barrel，以免打入整个收件箱图；请直链页面模块"
                   }
                 ]
               }
@@ -71,16 +473,16 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
                       "@/features/inbox/**",
                       "!@/features/inbox/state/**"
                     ],
                     "message": "收件箱 state 不依赖其他子目录。"
-                  },
-                  {
-                    "group": [
-                      "@/features/workspace/**"
-                    ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
                   }
                 ]
               }
@@ -102,17 +504,17 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
                       "@/features/inbox/**",
                       "!@/features/inbox/shared/**",
                       "!@/features/inbox/state/**"
                     ],
                     "message": "收件箱 shared 只依赖 state。"
-                  },
-                  {
-                    "group": [
-                      "@/features/workspace/**"
-                    ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
                   }
                 ]
               }
@@ -134,18 +536,18 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
                       "@/features/inbox/**",
                       "!@/features/inbox/list/**",
                       "!@/features/inbox/shared/**",
                       "!@/features/inbox/state/**"
                     ],
                     "message": "收件箱 list 只依赖 shared 与 state。"
-                  },
-                  {
-                    "group": [
-                      "@/features/workspace/**"
-                    ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
                   }
                 ]
               }
@@ -167,18 +569,18 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
                       "@/features/inbox/**",
                       "!@/features/inbox/timeline/**",
                       "!@/features/inbox/shared/**",
                       "!@/features/inbox/state/**"
                     ],
                     "message": "收件箱 timeline 只依赖 shared 与 state。"
-                  },
-                  {
-                    "group": [
-                      "@/features/workspace/**"
-                    ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
                   }
                 ]
               }
@@ -200,18 +602,18 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
                       "@/features/inbox/**",
                       "!@/features/inbox/composer/**",
                       "!@/features/inbox/shared/**",
                       "!@/features/inbox/state/**"
                     ],
                     "message": "收件箱 composer 只依赖 shared 与 state。"
-                  },
-                  {
-                    "group": [
-                      "@/features/workspace/**"
-                    ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
                   }
                 ]
               }
@@ -233,18 +635,18 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
                       "@/features/inbox/**",
                       "!@/features/inbox/group/**",
                       "!@/features/inbox/shared/**",
                       "!@/features/inbox/state/**"
                     ],
                     "message": "收件箱 group 只依赖 shared 与 state。"
-                  },
-                  {
-                    "group": [
-                      "@/features/workspace/**"
-                    ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
                   }
                 ]
               }
@@ -266,6 +668,12 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
                       "@/features/inbox/**",
                       "!@/features/inbox/service/**",
                       "!@/features/inbox/composer/**",
@@ -274,12 +682,6 @@
                       "!@/features/inbox/state/**"
                     ],
                     "message": "收件箱 service 只依赖 composer、timeline、shared 与 state。"
-                  },
-                  {
-                    "group": [
-                      "@/features/workspace/**"
-                    ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
                   }
                 ]
               }
@@ -301,6 +703,12 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
                       "@/features/inbox/**",
                       "!@/features/inbox/search/**",
                       "!@/features/inbox/list/**",
@@ -308,12 +716,6 @@
                       "!@/features/inbox/state/**"
                     ],
                     "message": "收件箱 search 只依赖 list、shared 与 state。"
-                  },
-                  {
-                    "group": [
-                      "@/features/workspace/**"
-                    ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
                   }
                 ]
               }
@@ -335,6 +737,12 @@
                 "patterns": [
                   {
                     "group": [
+                      "@/apps/**"
+                    ],
+                    "message": "features 不得依赖 apps"
+                  },
+                  {
+                    "group": [
                       "@/features/inbox/**",
                       "!@/features/inbox/conversation/**",
                       "!@/features/inbox/list/**",
@@ -347,12 +755,6 @@
                       "!@/features/inbox/state/**"
                     ],
                     "message": "收件箱 conversation 不引用顶层路由入口。"
-                  },
-                  {
-                    "group": [
-                      "@/features/workspace/**"
-                    ],
-                    "message": "只有路由中枢 features/workspace 可以引用各 feature，其余 feature 不得引用 workspace。"
                   }
                 ]
               }

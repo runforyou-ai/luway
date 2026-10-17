@@ -56,6 +56,11 @@ const common = {
   pagination: {
     total: "共 {{count}} 条",
     previous: "上一页",
+    next: "下一页",
+    navLabel: "分页",
+    goToPage: "第 {{page}} 页",
+    pageSize: "每页条数",
+    perPage: "{{count}} 条/页",
   },
   time: {
     addedAt: "{{time}} 添加",
@@ -113,7 +118,7 @@ const common = {
     member: "成员",
   },
   aiModels: {
-    platformGroup: "平台模型",
+    platformGroup: "Auto",
     usages: {
       agent: "AI 员工",
       summary: "小结",
@@ -121,6 +126,8 @@ const common = {
       decision: "判断",
       embedding: "向量化",
       rerank: "重排序",
+      ocr: "图片识别",
+      transcription: "语音转写",
     },
     callStatuses: {
       running: "进行中",

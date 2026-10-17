@@ -67,11 +67,12 @@ export function useFormSave<T extends FieldValues, R>({
         const result = await save(values)
         if (!mounted.current) return true
         onSaved?.(result, values)
+        const next = savedValues?.(result, values) ?? values
         if (autoSaved) {
-          acceptSaved(values, savedValues?.(result, values) ?? values)
+          acceptSaved(values, next)
         } else {
           dirty.current = false
-          form.reset(values)
+          form.reset(next)
           onSubmitted?.(result, values)
         }
         return true

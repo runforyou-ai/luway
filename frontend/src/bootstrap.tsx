@@ -10,11 +10,18 @@ import App from "@/App"
 import { setAppExtensions, type AppExtensions } from "@/app-extensions"
 import { preloadPlatformApp } from "@/apps/lazy-platform-app"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { adminRootPath } from "@/features/admin/admin-paths"
 import { initializeI18n } from "@/i18n"
 import { beginWorkspaceBoundary, resourceClient } from "@/lib/resource-client"
 import { workspaceBasename, workspaceSlugFromHash } from "@/lib/workspace-route"
 import { resolveAppPlatform, type AppPlatform } from "@/platform/app-platform"
 import { scheduleDesktopWindowReveal } from "@/platform/desktop-window"
+
+/** 当前 hash 是否落在平台后台路由。 */
+function isAdminHashPath() {
+  const path = (window.location.hash.replace(/^#/, "") || "/").split("?")[0]
+  return path === adminRootPath || path.startsWith(`${adminRootPath}/`)
+}
 
 /** 按地址中的工作区标识创建哈希路由器：工作区地址以 /w/<标识> 为 basename，切换工作区时重建路由器并进入新的会话代次，账号级数据保留。 */
 function AppRouter({ platform }: { platform: AppPlatform }) {
@@ -60,9 +67,19 @@ export async function bootstrap(extensions: Partial<AppExtensions>) {
   await initializeI18n()
   // 根元素标记平台，样式用 touch: 变体给移动端触屏尺寸。
   document.documentElement.dataset.platform = platform
-  // Web 和桌面端禁用原生右键菜单。
+  // 自托管等 Web 构建仍可能打入真 Wails runtime；提前打标供 --default-contextmenu: show。
+  if (platform === "web") {
+    const syncAdminRouteFlag = () => {
+      document.documentElement.toggleAttribute("data-admin-route", isAdminHashPath())
+    }
+    syncAdminRouteFlag()
+    window.addEventListener("hashchange", syncAdminRouteFlag)
+  }
+  // 用户端 Web 与桌面端禁用原生右键；仅 Web 总后台放行。
+  // 托管 Web 另以 wails-runtime-web 替身避免打进 Wails contextmenu 副作用。
   if (platform !== "mobile") {
     document.addEventListener("contextmenu", (event) => {
+      if (platform === "web" && isAdminHashPath()) return
       event.preventDefault()
     })
   }

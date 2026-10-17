@@ -19,6 +19,7 @@ import {
   ChannelDelivery,
   ServiceSessionStatus,
   ServiceSource,
+  ServiceAudience,
   isServiceInboxConversation,
   type ServiceInboxConversationData,
 } from "@/api"
@@ -42,21 +43,21 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { serviceRecipient, type ComposerDraftBridge } from "@/features/inbox/composer/conversation-composer-types"
+import { serviceRecipient, type ComposerDraftBridge } from "@/features/inbox/public"
 import {
   CustomerSessionCloseDialog,
   customerReplyBlocker,
   customerReplyDisabledReason,
   useReplyWindowNow,
   useCustomerSessionActions,
-} from "@/features/inbox/service/customer-session-actions"
-import { CustomerTranslationProvider } from "@/features/inbox/shared/customer-translation"
-import { HandoffSummaryCard } from "@/features/inbox/service/handoff-summary-card"
-import { useConversationSummary } from "@/features/inbox/shared/use-conversation-summary"
+} from "@/features/inbox/public"
+import { CustomerTranslationProvider } from "@/features/inbox/public"
+import { HandoffSummaryCard } from "@/features/inbox/public"
+import { useConversationSummary } from "@/features/inbox/public"
 import {
   customerTypingSenderName,
   useConversationTypingLabel,
-} from "@/features/inbox/shared/use-conversation-typing"
+} from "@/features/inbox/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useContactName } from "@/hooks/use-contact-name"
 import { useConversationName } from "@/hooks/use-conversation-name"
@@ -275,7 +276,7 @@ export function MobileCustomerConversationPage() {
       : null
 
   return (
-    <CustomerTranslationProvider key={conversationID} conversationID={conversation?.service.channel ? conversationID : null}>
+    <CustomerTranslationProvider key={conversationID} conversationID={conversation?.service.audience === ServiceAudience.Customer ? conversationID : null}>
     <MobileCoveredPage
       covered={covered}
       outlet={

@@ -30,12 +30,10 @@ import (
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	"github.com/runforyou-ai/luway/internal/realtime/members"
+	"github.com/runforyou-ai/luway/internal/realtime/wire"
 	"github.com/runforyou-ai/luway/internal/servertest"
-	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
-	"github.com/runforyou-ai/luway/pkg/clusterbus"
 	"github.com/runforyou-ai/luway/pkg/connectiontest"
-	"github.com/runforyou-ai/luway/pkg/pglisten"
 	"github.com/runforyou-ai/support/arr"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
@@ -65,6 +63,7 @@ func (n receivedNotification) withChanges(changes domain.ConversationChanges) re
 
 // realtimeFeed 旁听单个测试企业的全部受众通知。
 type realtimeFeed struct {
+	db          *bun.DB
 	workspaceID string
 	broadcasts  <-chan tappedBroadcast
 }
@@ -81,24 +80,36 @@ func openRealtimeDB(t *testing.T) *bun.DB {
 	return store.DB()
 }
 
-// startTestPublisher 在测试独占的总线频道上启动进程内活动发布器。
+// startTestPublisher 在测试独占的总线命名空间上启动进程内活动发布器。
 func startTestPublisher(t *testing.T) *realtime.Publisher {
 	t.Helper()
-	return startTestPublisherOn(t, openRealtimeDB(t), servertest.BusChannel())
+	return startTestPublisherOn(t, openRealtimeDB(t), servertest.BusNamespace())
 }
 
-// startTestPublisherOn 独占进程内活动发布器，以新的实例编号加入指定总线频道并启动发布器，测试结束时停止发布器、离开总线后释放独占。
-func startTestPublisherOn(t *testing.T, db *bun.DB, channel string) *realtime.Publisher {
+// newTestPublisherOn 独占进程内发布器并创建总线，依赖由调用方接入后再启动。
+func newTestPublisherOn(t *testing.T, db *bun.DB, namespace string) *realtime.Publisher {
 	t.Helper()
 	realtimePublisherLock.Lock()
 	t.Cleanup(realtimePublisherLock.Unlock)
-	return startPublisher(t, servertest.StartBus(t, db, channel, uuid.NewV7().String()), db)
+	return realtime.NewPublisher(servertest.StartBus(t, namespace, uuid.NewV7().String()), db)
 }
 
-// startPublisher 在已启动的总线上启动发布器，测试结束时停止。
-func startPublisher(t *testing.T, bus *clusterbus.Bus, db *bun.DB) *realtime.Publisher {
+// startTestPublisherOn 在实时网关就绪后启动发布器，内部信号测试同样完整投递共享库中的持久通知。
+func startTestPublisherOn(t *testing.T, db *bun.DB, namespace string) *realtime.Publisher {
 	t.Helper()
-	publisher := realtime.NewPublisher(bus)
+	publisher := newTestPublisherOn(t, db, namespace)
+	connection := servertest.StartRealtimeBroker(t)
+	service, err := members.New(connection, newAccountTestBackend(t, db), db)
+	require.NoError(t, err)
+	require.NoError(t, service.Start(t.Context()))
+	t.Cleanup(func() { _ = service.Stop() })
+	publisher.SetMembers(service)
+	return startPublisher(t, publisher)
+}
+
+// startPublisher 启动已接入依赖的发布器，测试结束时先停止投递再关闭其依赖。
+func startPublisher(t *testing.T, publisher *realtime.Publisher) *realtime.Publisher {
+	t.Helper()
 	require.NoError(t, publisher.Start())
 	t.Cleanup(func() { _ = publisher.Stop() })
 	return publisher
@@ -110,18 +121,19 @@ type tappedBroadcast struct {
 	data  []byte
 }
 
-// tapBroadcasts 监听总线广播频道，把主题以 prefix 开头的广播送入通道；载荷按总线传输层的 JSON 编码解析，测试通知不超过单条 NOTIFY 上限。
-func tapBroadcasts(t *testing.T, channel, prefix string) chan tappedBroadcast {
+// tapBroadcasts 旁听总线命名空间下的广播，把主题以 prefix 开头的消息送入通道；载荷按总线传输层的 JSON 编码解析。
+func tapBroadcasts(t *testing.T, connection *nats.Conn, namespace, prefix string) chan tappedBroadcast {
 	t.Helper()
-	listenConfig, err := serverstorage.ConnConfig(servertest.DatabaseConfig(t), "")
-	require.NoError(t, err)
 	broadcasts := make(chan tappedBroadcast, 256)
-	listener, err := pglisten.Listen(context.Background(), listenConfig, []string{channel}, func(notification pglisten.Notification) {
+	sub, err := connection.Subscribe(namespace+".>", func(msg *nats.Msg) {
+		if strings.Contains(msg.Subject, ".instance.") {
+			return
+		}
 		var message struct {
 			Topic string `json:"o"`
 			Data  []byte `json:"d"`
 		}
-		if json.Unmarshal([]byte(notification.Payload), &message) != nil || !strings.HasPrefix(message.Topic, prefix) {
+		if json.Unmarshal(msg.Data, &message) != nil || !strings.HasPrefix(message.Topic, prefix) {
 			return
 		}
 		if strings.Contains(message.Topic, ".user.") || strings.Contains(message.Topic, ".customer_inbox.") {
@@ -133,32 +145,35 @@ func tapBroadcasts(t *testing.T, channel, prefix string) chan tappedBroadcast {
 		}
 	})
 	require.NoError(t, err)
-	t.Cleanup(listener.Close)
+	t.Cleanup(func() { _ = sub.Unsubscribe() })
+	require.NoError(t, connection.Flush())
 	return broadcasts
 }
 
-// startRealtimeFeed 在独立总线频道上启动实时发布器，并旁听指定企业的全部受众通知。
+// startRealtimeFeed 在独立总线命名空间上启动实时发布器，并旁听指定企业的全部受众通知。
 func startRealtimeFeed(t *testing.T, workspaceID string) *realtimeFeed {
 	t.Helper()
 	db := openRealtimeDB(t)
-	channel := servertest.BusChannel()
-	broadcasts := tapBroadcasts(t, channel, "realtime."+workspaceID+".")
-	publisher := startTestPublisherOn(t, db, channel)
+	namespace := servertest.BusNamespace()
 	connection := servertest.StartRealtimeBroker(t)
-	backend := newAccountTestBackend(t, db)
-	service, err := members.New(connection, backend, db, "app_realtime", 1)
-	require.NoError(t, err)
-	require.NoError(t, service.Start(context.Background()))
-	t.Cleanup(func() { _ = service.Stop() })
-	publisher.SetMembers(service)
-	// 应用账户旁听真实 jetcast 频道，沿用业务受众与载荷的断言。
-	sub, err := connection.Conn.Subscribe("app_realtime.ev.prv.w."+workspaceID+".>", func(message *nats.Msg) {
+	broadcasts := tapBroadcasts(t, connection.Conn, namespace, "realtime."+workspaceID+".")
+	startTestPublisherOn(t, db, namespace)
+	waitRealtimeOutbox(t, db, workspaceID)
+	// 应用账户旁听真实 应用网关 频道，沿用业务受众与载荷的断言。
+	sub, err := connection.Conn.Subscribe("app.rt.*.w."+workspaceID+".>", func(message *nats.Msg) {
 		parts := strings.Split(message.Subject, ".")
+		if parts[2] == "in" {
+			return
+		}
+		var transport wire.Frame
+		if json.Unmarshal(message.Data, &transport) != nil {
+			return
+		}
 		var envelope struct {
 			Type string                     `json:"type"`
 			Data map[string]json.RawMessage `json:"data"`
 		}
-		if json.Unmarshal(message.Data, &envelope) != nil {
+		if json.Unmarshal(transport.Data, &envelope) != nil {
 			return
 		}
 		envelope.Data["kind"], _ = json.Marshal(envelope.Type)
@@ -188,7 +203,7 @@ func startRealtimeFeed(t *testing.T, workspaceID string) *realtimeFeed {
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = sub.Unsubscribe() })
 	require.NoError(t, connection.Conn.Flush())
-	return &realtimeFeed{workspaceID: workspaceID, broadcasts: broadcasts}
+	return &realtimeFeed{db: db, workspaceID: workspaceID, broadcasts: broadcasts}
 }
 
 // notice 构造发往指定用户受众的期望通知。
@@ -554,7 +569,7 @@ func TestRealtimeGroupMembershipNotifications(t *testing.T) {
 	f := newNavigationFixture(t)
 	ctx := context.Background()
 	third := newChatLockUser(t, f.db, f.owner)
-	coordinator := newGroupAgentCoordinator(f.db)
+	coordinator := newGroupAgentCanceller(f.db)
 	feed := startRealtimeFeed(t, f.owner.Workspace.ID)
 
 	group, err := groupchataction.NewCreateGroupConversationAction(f.db).Execute(ctx, f.owner, groupchataction.GroupConversationInput{
@@ -614,7 +629,7 @@ func TestRealtimeGroupMembershipNotifications(t *testing.T) {
 	feed.expect(t, append(changed(f.owner, f.member, third), actorRead(f.owner))...)
 
 	// 主动退出的成员收到失权通知，并作为系统事件操作人收到本人阅读水位通知；其余成员收到变更。
-	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, third, group.ID))
+	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, third, group.ID))
 	feed.expect(t, append(changed(f.owner, f.member), feed.removed(third.User.ID, group.ID), actorRead(third))...)
 
 	// 转让群主通知全部当前成员。
@@ -696,7 +711,7 @@ func TestRealtimeCustomerInboxNotifications(t *testing.T) {
 	t.Parallel()
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
-	coordinator := newGroupAgentCoordinator(f.db)
+	coordinator := newGroupAgentCanceller(f.db)
 	claim := servicesessionaction.NewClaimServiceSessionAction(f.db, coordinator, testEnqueuer)
 	closeSession := servicesessionaction.NewCloseServiceSessionAction(f.db, coordinator, testEnqueuer)
 	reopen := servicesessionaction.NewReopenServiceSessionAction(f.db, testEnqueuer)

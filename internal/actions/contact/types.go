@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
-	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
@@ -41,7 +41,7 @@ type ListInput struct {
 }
 
 // PageInfo 定义服务端分页信息。
-type PageInfo = common.PageInfo
+type PageInfo = apptypes.PageInfo
 
 // ContactSummary 定义外部联系人列表项；DisplayName 为成员界面名称，按档案名称、最近更新的渠道身份名称、首选邮箱依次取第一个非空值。
 type ContactSummary struct {

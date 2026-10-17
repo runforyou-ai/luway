@@ -1,16 +1,5 @@
 package domain
 
-// FileStorageBackend 定义文件内容实际保存的位置。
-type FileStorageBackend string
-
-const (
-	FileStorageBackendLocal FileStorageBackend = "local"
-	FileStorageBackendS3    FileStorageBackend = "s3"
-)
-
-// LocalFilePublicPath 是本地存储文件相对服务端的公开路径前缀。
-const LocalFilePublicPath = "/storage"
-
 // FilePurpose 定义文件上传用途。
 type FilePurpose string
 
@@ -35,7 +24,7 @@ const (
 	FileStatusDeleting FileStatus = "deleting"
 )
 
-// FilePartSize 是分片上传阈值和默认分片字节数。
+// FilePartSize 是默认分片字节数。
 const FilePartSize int64 = 5 * 1024 * 1024
 
 // inlineImageExtensions 列出浏览器可内嵌展示的图片内容类型及其存储扩展名，其余文件只按附件下载。
@@ -61,3 +50,15 @@ func InlineImageContentType(extension string) (string, bool) {
 	}
 	return "", false
 }
+
+// StorageOriginAccess 表示对测试对象执行源站匿名读取的结果。
+type StorageOriginAccess string
+
+const (
+	StorageOriginAccessPublic     StorageOriginAccess = "public"
+	StorageOriginAccessRestricted StorageOriginAccess = "restricted"
+	StorageOriginAccessUnknown    StorageOriginAccess = "unknown"
+)
+
+// FileMultipartThreshold 是启用分片的文件大小阈值。
+const FileMultipartThreshold int64 = 100 * 1024 * 1024

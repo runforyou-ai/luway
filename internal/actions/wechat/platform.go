@@ -14,14 +14,12 @@ import (
 	"time"
 
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
-	serverinstanceaction "github.com/runforyou-ai/luway/internal/actions/serverinstance"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/wechat"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
-	"github.com/runforyou-ai/support/arr"
 	"github.com/uptrace/bun"
 )
 
@@ -52,7 +50,7 @@ type PlatformInput struct {
 	EncodingAESKey     string
 }
 
-// Platform 定义第三方平台的配置、接入地址、服务器出口与运行状态；Configured 为假时只有接入地址与服务器出口有值。
+// Platform 定义第三方平台的配置、接入地址与运行状态；Configured 为假时只有接入地址有值。
 type Platform struct {
 	Configured bool
 	// Status 是平台可用状态，Configured 为假时为空。
@@ -65,7 +63,6 @@ type Platform struct {
 	EventURL            string
 	// MessageURL 是授权公众号消息与事件接收地址，其中的 $APPID$ 由微信替换为公众号 AppID。
 	MessageURL             string
-	Servers                []ServerEgress
 	VerifyTicketReceivedAt *time.Time
 	// AccessTokenExpiresAt 是平台接口调用凭据的到期时间，尚未成功获取时为空。
 	AccessTokenExpiresAt *time.Time
@@ -73,24 +70,6 @@ type Platform struct {
 	TokenFailedAt      *time.Time
 	TokenFailure       *domain.WechatTokenFailure
 	TokenFailureDetail string
-}
-
-// ServerEgress 定义一台服务端进程的主机名、配置的出口 IP 与是否在线。
-type ServerEgress struct {
-	Hostname string
-	EgressIP string
-	Online   bool
-}
-
-// listServerEgress 列出已登记的服务端进程及其配置的出口 IP。
-func listServerEgress(ctx context.Context, db bun.IDB) ([]ServerEgress, error) {
-	instances, err := serverinstanceaction.ListInstances(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-	return arr.Map(instances, func(instance serverinstanceaction.ServerInstance) ServerEgress {
-		return ServerEgress{Hostname: instance.Hostname, EgressIP: instance.Config.EgressIP, Online: instance.Online}
-	}), nil
 }
 
 // PlatformQuery 读取第三方平台配置与状态。
@@ -104,18 +83,13 @@ func NewPlatformQuery(db *bun.DB, publicURL func() string) *PlatformQuery {
 	return &PlatformQuery{db: db, publicURL: publicURL}
 }
 
-// Execute 返回第三方平台配置、接入地址、各服务器出口 IP 与平台凭据状态。
+// Execute 返回第三方平台配置、接入地址与平台凭据状态。
 func (q *PlatformQuery) Execute(ctx context.Context) (Platform, error) {
 	publicURL := q.publicURL()
 	output := Platform{EventURL: publicURL + EventPath, MessageURL: publicURL + AuthorizationMessagePath}
 	if parsed, err := url.Parse(publicURL); err == nil {
 		output.AuthorizationDomain = parsed.Host
 	}
-	servers, err := listServerEgress(ctx, q.db)
-	if err != nil {
-		return Platform{}, err
-	}
-	output.Servers = servers
 	platform, err := loadPlatform(ctx, q.db.NewSelect())
 	if errors.Is(err, ErrPlatformNotConfigured) {
 		return output, nil

@@ -16,6 +16,7 @@ import (
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
 	"github.com/runforyou-ai/luway/internal/actions/servicestate"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -53,7 +54,7 @@ func NewRateWebsiteServiceSessionAction(db *bun.DB, enqueuer servertask.TxEnqueu
 // Execute 在会话锁内写入周期评价并追加仅成员可见的评价事件，AI 员工关闭的周期评价为未解决时登记待补知识；渠道须开启评价，每个周期只能评价一次，周期须处于关闭状态。
 func (a *RateWebsiteServiceSessionAction) Execute(ctx context.Context, input WebsiteServiceSessionRatingInput) (VisitorRating, error) {
 	input.Comment = strings.TrimSpace(input.Comment)
-	fields := map[string]conversationaction.ValidationCode{}
+	fields := map[string]common.FieldCode{}
 	if !str.IsUUID(input.ChannelID) {
 		fields["channelId"] = ValidationChannelIDInvalid
 	}
@@ -64,7 +65,7 @@ func (a *RateWebsiteServiceSessionAction) Execute(ctx context.Context, input Web
 		fields["comment"] = ValidationRatingCommentTooLong
 	}
 	if len(fields) > 0 {
-		return VisitorRating{}, &conversationaction.ValidationError{Fields: fields}
+		return VisitorRating{}, &common.FieldError{Fields: fields}
 	}
 	if !str.IsUUID(input.ConversationID) || !str.IsUUID(input.ServiceSessionID) {
 		return VisitorRating{}, conversationaction.ErrConversationNotFound

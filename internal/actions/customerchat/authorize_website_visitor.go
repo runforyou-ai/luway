@@ -6,6 +6,7 @@ import (
 	"context"
 
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/support/str"
 	"github.com/uptrace/bun"
@@ -30,7 +31,7 @@ func NewAuthorizeWebsiteVisitorQuery(db *bun.DB) *AuthorizeWebsiteVisitorQuery {
 
 // Execute 返回当前访客的渠道身份受众；渠道停用、所属工作区已暂停或渠道不存在返回 ErrChannelNotFound，尚未建立身份返回 ErrConversationNotFound，读操作不创建联系人。
 func (q *AuthorizeWebsiteVisitorQuery) Execute(ctx context.Context, channelID, externalID string) (WebsiteVisitorAudience, error) {
-	fields := map[string]conversationaction.ValidationCode{}
+	fields := map[string]common.FieldCode{}
 	if !str.IsUUID(channelID) {
 		fields["channelId"] = ValidationChannelIDInvalid
 	}
@@ -38,7 +39,7 @@ func (q *AuthorizeWebsiteVisitorQuery) Execute(ctx context.Context, channelID, e
 		fields["visitorToken"] = ValidationExternalIDInvalid
 	}
 	if len(fields) > 0 {
-		return WebsiteVisitorAudience{}, &conversationaction.ValidationError{Fields: fields}
+		return WebsiteVisitorAudience{}, &common.FieldError{Fields: fields}
 	}
 	channel, err := loadWebsiteChannel(ctx, q.db, channelID)
 	if err != nil {

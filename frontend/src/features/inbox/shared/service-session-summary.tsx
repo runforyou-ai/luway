@@ -150,7 +150,7 @@ function ServiceSessionSummaryForm({
   const { t } = useTranslation(["inbox", "common"])
   const reportError = useRequestErrorReporter()
   const invalidate = useResourceInvalidator()
-  const categories = useResource(resourceKeys.serviceCategories(), () => listServiceCategories())
+  const categories = useResource(resourceKeys.serviceCategories(summary.audience), () => listServiceCategories(summary.audience))
   const form = useForm<ServiceSessionSummaryFormValues>({
     resolver: zodResolver(summarySchema),
     shouldUseNativeValidation: true,

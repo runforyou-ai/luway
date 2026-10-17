@@ -9,7 +9,7 @@ This page is being written.
 
 ## Prerequisites
 
-- A platform administrator has configured the third-party platform under **Settings → Platform → Deployment → WeChat Open Platform** and its status is **Available**. See [WeChat Open Platform](/docs/en/deployment/manage/wechat-open-platform/). Authorized-access channels can't be added before it is configured.
+- A platform administrator has configured the third-party platform under **Platform admin → System settings → WeChat Open Platform** and its status is **Available**. See [WeChat Open Platform](/docs/en/deployment/manage/wechat-open-platform/). Authorized-access channels can't be added before it is configured.
 - A verified service account, and an Official Account administrator who can scan with WeChat to authorize it. Subscription accounts and unverified service accounts can't be authorized.
 - An Official Account can be authorized for only one authorized-access channel in a deployment. The same account can also be connected to one key-access channel.
 

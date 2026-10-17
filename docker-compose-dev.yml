@@ -1,20 +1,35 @@
-name: luway
-
 volumes:
   postgres-data:
+  s3-data:
 
 services:
   postgres:
-    image: ghcr.io/runforyou-ai/pgvector:0.8.7-pg18-trixie@sha256:9d9c930220cb9bf2f956d10a8f909cf9973d9672ca0278aef2c1e6facccad2e0
+    image: ghcr.io/runforyou-ai/pgvector:0.8.7-pg18-trixie
     environment:
-      POSTGRES_USER: luway
-      POSTGRES_PASSWORD: luway
+      POSTGRES_USER: ${POSTGRES_USER:-luway}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-luway}
     ports:
-      - "127.0.0.1:5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U luway -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d postgres"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  s3:
+    image: rustfs/rustfs:1.0.1
+    environment:
+      RUSTFS_ACCESS_KEY: luway-test
+      RUSTFS_SECRET_KEY: luway-test-secret
+      RUSTFS_CONSOLE_ENABLE: "false"
+    ports:
+      - "127.0.0.1:9002:9000"
+    volumes:
+      - s3-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:9000/health"]
       interval: 2s
       timeout: 5s
       retries: 30

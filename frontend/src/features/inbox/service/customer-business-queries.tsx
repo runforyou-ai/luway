@@ -3,7 +3,7 @@ import { BriefcaseBusinessIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { listServiceBusinessQueries } from "@/api"
-import { AgentTool } from "@/components/agent-run-blocks"
+import { AgentTool } from "@/features/inbox/shared/agent-run-blocks"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
 import { useResource } from "@/hooks/use-resource"

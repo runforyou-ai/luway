@@ -12,6 +12,7 @@ import (
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
+	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support/random"
 	"github.com/runforyou-ai/support/str"
@@ -117,7 +118,7 @@ func (q *ResumeWebsiteVisitorQuery) Execute(ctx context.Context, channelID, toke
 	if err != nil {
 		return ResumedWebsiteVisitor{}, err
 	}
-	if err := resolveSummaryReception(ctx, serviceroute.NewReceptionResolver(q.db, channel.WorkspaceID), &summary); err != nil {
+	if err := resolveSummaryReception(ctx, serviceroute.NewReceptionResolver(q.db, channel.WorkspaceID, domain.ServiceAudienceCustomer), &summary); err != nil {
 		return ResumedWebsiteVisitor{}, err
 	}
 	return ResumedWebsiteVisitor{VisitorToken: visitorToken, Conversation: summary}, nil

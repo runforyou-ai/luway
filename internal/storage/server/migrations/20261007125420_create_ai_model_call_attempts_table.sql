@@ -20,6 +20,9 @@ CREATE TABLE ai_model_call_attempts (
 CREATE INDEX ai_model_call_attempts_call_idx
     ON ai_model_call_attempts (call_id);
 
+CREATE INDEX ai_model_call_attempts_route_idx
+    ON ai_model_call_attempts (route_id, finished_at DESC, id DESC);
+
 CREATE TRIGGER ai_model_call_attempts_set_updated_at BEFORE UPDATE ON ai_model_call_attempts FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 COMMENT ON TABLE ai_model_call_attempts IS 'AI 模型上游尝试，一次调用按来源路由依次请求上游，每次请求一条';
@@ -32,7 +35,7 @@ COMMENT ON COLUMN ai_model_call_attempts.route_id IS '使用的来源路由编�
 COMMENT ON COLUMN ai_model_call_attempts.provider_id IS '请求的供应商编号';
 COMMENT ON COLUMN ai_model_call_attempts.provider_name IS '请求时的供应商名称';
 COMMENT ON COLUMN ai_model_call_attempts.identifier IS '请求时使用的上游模型标识';
-COMMENT ON COLUMN ai_model_call_attempts.status IS '尝试状态：running 进行中、succeeded 成功、failed 失败、canceled 已取消、timed_out 超时';
+COMMENT ON COLUMN ai_model_call_attempts.status IS '尝试状态：running 进行中、succeeded 成功、failed 失败、canceled 调用方取消、时限到期或进程中断、timed_out 上游超时';
 COMMENT ON COLUMN ai_model_call_attempts.input_tokens IS '输入 Token 数，含命中缓存的部分';
 COMMENT ON COLUMN ai_model_call_attempts.cached_input_tokens IS '命中缓存的输入 Token 数';
 COMMENT ON COLUMN ai_model_call_attempts.output_tokens IS '输出 Token 数';

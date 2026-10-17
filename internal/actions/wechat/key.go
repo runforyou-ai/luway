@@ -35,7 +35,7 @@ type KeyConnectionInput struct {
 	EncodingAESKey string
 }
 
-// KeyConnection 定义密钥接入渠道的公众号凭据、服务器地址与验证状态、服务器出口与接口调用凭据状态；尚未连接时只有服务器地址与服务器出口有值。
+// KeyConnection 定义密钥接入渠道的公众号凭据、服务器地址、验证状态与接口调用凭据状态；尚未连接时只有服务器地址有值。
 type KeyConnection struct {
 	AppID          string
 	AppSecret      string
@@ -46,8 +46,6 @@ type KeyConnection struct {
 	ServerURL string
 	// ServerVerifiedAt 是微信按当前 Token 验证服务器地址成功的时间，尚未验证时为空。
 	ServerVerifiedAt *time.Time
-	// Servers 是部署中各服务器的出口。
-	Servers []ServerEgress
 	TokenState
 }
 
@@ -252,17 +250,13 @@ func loadAccountKey(ctx context.Context, query *bun.SelectQuery, appID string) (
 	return key, nil
 }
 
-// loadKeyChannel 读取密钥接入公众号渠道详情、凭据、服务器地址与验证状态、服务器出口与接口调用凭据状态。
+// loadKeyChannel 读取密钥接入公众号渠道详情、凭据、服务器地址、验证状态与接口调用凭据状态。
 func loadKeyChannel(ctx context.Context, db *bun.DB, publicURL, workspaceID, channelID string) (*KeyChannel, error) {
 	channel, err := loadChannelModel(ctx, db.NewSelect(), domain.ChannelTypeWechatKey, workspaceID, channelID)
 	if err != nil {
 		return nil, err
 	}
-	servers, err := listServerEgress(ctx, db)
-	if err != nil {
-		return nil, err
-	}
-	output := &KeyChannel{MessageChannelRecord: *channelaction.NewMessageChannelRecord(channel), Connection: KeyConnection{ServerURL: publicURL + KeyMessagePath(channelID), Servers: servers}}
+	output := &KeyChannel{MessageChannelRecord: *channelaction.NewMessageChannelRecord(channel), Connection: KeyConnection{ServerURL: publicURL + KeyMessagePath(channelID)}}
 	if channel.ProviderAccountID == nil {
 		return output, nil
 	}

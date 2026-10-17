@@ -19,11 +19,11 @@ import (
 
 // ListTeams 返回企业团队列表。
 func (o *directoryOps) ListTeams(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.TeamListInput) (appservice.TeamList, error) {
-	output, err := o.listTeams.Execute(ctx, identity, teamaction.ListInput{Query: input.Query, Page: input.Page, PageSize: input.PageSize})
+	output, err := o.listTeams.Execute(ctx, identity, input)
 	if err != nil {
 		return appservice.TeamList{}, teamError(meta, err, i18n.ErrorTeamListFailed)
 	}
-	teams := arr.Map(output.Teams, teamFromAction)
+	teams := arr.Map(output.Teams, func(team teamaction.Record) appservice.Team { return team.ToTeam() })
 	return appservice.TeamList{Teams: teams, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total}}, nil
 }
 
@@ -33,27 +33,27 @@ func (o *directoryOps) GetTeam(ctx context.Context, meta appservice.RequestMeta,
 	if err != nil {
 		return appservice.Team{}, teamError(meta, err, i18n.ErrorTeamLoadFailed)
 	}
-	return teamFromAction(team), nil
+	return team.ToTeam(), nil
 }
 
 // CreateTeam 创建企业团队。
 func (o *directoryOps) CreateTeam(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.TeamInput) (appservice.Team, error) {
-	team, err := o.createTeam.Execute(ctx, identity, teamaction.Input{Name: input.Name, Description: input.Description})
+	team, err := o.createTeam.Execute(ctx, identity, input)
 	if err != nil {
 		return appservice.Team{}, teamError(meta, err, i18n.ErrorTeamCreateFailed)
 	}
 	slog.InfoContext(ctx, "团队创建成功", "team_id", team.ID)
-	return teamFromAction(*team), nil
+	return team.ToTeam(), nil
 }
 
 // UpdateTeam 修改企业团队。
 func (o *directoryOps) UpdateTeam(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, teamID string, input appservice.TeamInput) (appservice.Team, error) {
-	team, err := o.updateTeam.Execute(ctx, identity, teamID, teamaction.Input{Name: input.Name, Description: input.Description})
+	team, err := o.updateTeam.Execute(ctx, identity, teamID, input)
 	if err != nil {
 		return appservice.Team{}, teamError(meta, err, i18n.ErrorTeamUpdateFailed)
 	}
 	slog.InfoContext(ctx, "团队更新成功", "team_id", teamID)
-	return teamFromAction(*team), nil
+	return team.ToTeam(), nil
 }
 
 // DeleteTeam 删除企业团队及其成员关系。
@@ -96,7 +96,7 @@ func (o *directoryOps) teamMemberList(ctx context.Context, meta appservice.Reque
 
 // ListTeamMemberCandidates 返回尚未加入团队的企业身份。
 func (o *directoryOps) ListTeamMemberCandidates(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, teamID string, input appservice.TeamMemberCandidateInput) (appservice.TeamMemberCandidateList, error) {
-	output, err := o.listTeamMemberCandidates.Execute(ctx, identity, teamID, teamaction.MemberCandidateInput{Query: input.Query, Page: input.Page, PageSize: input.PageSize})
+	output, err := o.listTeamMemberCandidates.Execute(ctx, identity, teamID, input)
 	if err != nil {
 		return appservice.TeamMemberCandidateList{}, teamError(meta, err, i18n.ErrorTeamMemberListFailed)
 	}
@@ -118,28 +118,22 @@ func (o *directoryOps) ListTeamMemberCandidates(ctx context.Context, meta appser
 
 // AddTeamMembers 将企业身份批量加入团队。
 func (o *directoryOps) AddTeamMembers(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, teamID string, input appservice.TeamMemberInput) (appservice.Team, error) {
-	members := arr.Map(input.Members, func(member appservice.TeamMemberIdentityInput) teamaction.MemberIdentity {
-		return teamaction.MemberIdentity{IdentityType: member.IdentityType, IdentityID: member.IdentityID}
-	})
-	team, err := o.addTeamMembers.Execute(ctx, identity, teamID, members)
+	team, err := o.addTeamMembers.Execute(ctx, identity, teamID, input.Members)
 	if err != nil {
 		return appservice.Team{}, teamError(meta, err, i18n.ErrorTeamMemberAddFailed)
 	}
-	slog.InfoContext(ctx, "团队成员添加成功", "team_id", teamID, "requested_member_count", len(members))
-	return teamFromAction(*team), nil
+	slog.InfoContext(ctx, "团队成员添加成功", "team_id", teamID, "requested_member_count", len(input.Members))
+	return team.ToTeam(), nil
 }
 
 // RemoveTeamMembers 将企业身份批量移出团队。
 func (o *directoryOps) RemoveTeamMembers(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, teamID string, input appservice.TeamMemberInput) (appservice.Team, error) {
-	members := arr.Map(input.Members, func(member appservice.TeamMemberIdentityInput) teamaction.MemberIdentity {
-		return teamaction.MemberIdentity{IdentityType: member.IdentityType, IdentityID: member.IdentityID}
-	})
-	team, err := o.removeTeamMembers.Execute(ctx, identity, teamID, members)
+	team, err := o.removeTeamMembers.Execute(ctx, identity, teamID, input.Members)
 	if err != nil {
 		return appservice.Team{}, teamError(meta, err, i18n.ErrorTeamMemberRemoveFailed)
 	}
-	slog.InfoContext(ctx, "团队成员移出成功", "team_id", teamID, "requested_member_count", len(members))
-	return teamFromAction(*team), nil
+	slog.InfoContext(ctx, "团队成员移出成功", "team_id", teamID, "requested_member_count", len(input.Members))
+	return team.ToTeam(), nil
 }
 
 // teamFieldKeys 把团队校验错误码映射为本地化文案键。
@@ -159,9 +153,4 @@ var teamErrors = dispatch.Catalogs(dispatch.CommonErrors, dispatch.Catalog{
 // teamError 转换团队领域错误。
 func teamError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	return teamErrors.Translate(meta, err, failureKey)
-}
-
-// teamFromAction 转换团队契约。
-func teamFromAction(team teamaction.TeamRecord) appservice.Team {
-	return appservice.Team{ID: team.ID, Name: team.Name, Description: team.Description, MemberCount: team.MemberCount, CreatedAt: team.CreatedAt, UpdatedAt: team.UpdatedAt}
 }

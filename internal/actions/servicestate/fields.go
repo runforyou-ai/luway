@@ -4,6 +4,8 @@ package servicestate
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -40,6 +42,15 @@ func Open(ctx context.Context, db bun.IDB, input OpenInput) (*servermodels.Servi
 	if input.AgentIdentityID == nil {
 		humanRequestedAt, humanAssignedAt = new(input.OpenedAt), assignedAt
 	}
+	var channelID *string
+	err := db.NewSelect().TableExpr("channel_conversations AS cc").
+		Column("ci.channel_id").
+		Join("JOIN channel_identities AS ci ON ci.workspace_id = cc.workspace_id AND ci.id = cc.channel_identity_id").
+		Where("cc.workspace_id = ? AND cc.conversation_id = ?", input.WorkspaceID, input.ConversationID).
+		Scan(ctx, &channelID)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return nil, fmt.Errorf("load service session channel: %w", err)
+	}
 	session := &servermodels.ServiceSession{
 		ID: input.ID, WorkspaceID: input.WorkspaceID,
 		ConversationID: input.ConversationID, ServiceConversationID: input.ServiceConversationID,
@@ -49,10 +60,10 @@ func Open(ctx context.Context, db bun.IDB, input OpenInput) (*servermodels.Servi
 		LastMessageAt: input.OpenedAt,
 		AssignedAt:    assignedAt, AssigneeAssignedAt: assignedAt, QueuedAt: queuedAt, StatusChangedAt: input.OpenedAt,
 		HumanRequestedAt: humanRequestedAt, HumanAssignedAt: humanAssignedAt,
-		VisitorContext: input.VisitorContext,
+		VisitorContext: input.VisitorContext, ChannelID: channelID,
 	}
 	if _, err := db.NewInsert().Model(session).
-		Column("id", "workspace_id", "conversation_id", "service_conversation_id", "sequence", "status", "team_id", "assignee_identity_id", "agent_identity_id", "opening_message_id", "last_message_id", "last_message_at", "assigned_at", "assignee_assigned_at", "queued_at", "status_changed_at", "human_requested_at", "human_assigned_at", "visitor_context").
+		Column("id", "workspace_id", "conversation_id", "service_conversation_id", "sequence", "status", "team_id", "assignee_identity_id", "agent_identity_id", "opening_message_id", "last_message_id", "last_message_at", "assigned_at", "assignee_assigned_at", "queued_at", "status_changed_at", "human_requested_at", "human_assigned_at", "visitor_context", "channel_id").
 		Returning("*").
 		Exec(ctx); err != nil {
 		return nil, fmt.Errorf("create service session: %w", err)

@@ -27,12 +27,14 @@ import { useAccountStatusToggle } from "@/components/account-status-toggle"
 import { aiModelLabel } from "@/components/ai-model-options"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { LoadingIndicator } from "@/components/loading-indicator"
-import { PersonalAgentPresenceMark } from "@/components/personal-agent-presence-mark"
+import {
+  PersonalAgentEditForm,
+  PersonalAgentPresenceMark,
+  usePersonalAgentPause,
+} from "@/features/agents/public"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { PersonalAgentEditForm } from "@/features/agents/personal/personal-agent-form"
-import { usePersonalAgentPause } from "@/features/agents/personal/use-personal-agent-pause"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useListSearchParams } from "@/hooks/use-list-search-params"
 import {

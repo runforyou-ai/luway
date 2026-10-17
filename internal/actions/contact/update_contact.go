@@ -10,6 +10,7 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
@@ -29,7 +30,7 @@ func NewUpdateContactAction(db *bun.DB) *UpdateContactAction {
 func (a *UpdateContactAction) Execute(ctx context.Context, identity *servermodels.Identity, contactID string, input ContactInput) (*ContactDetail, error) {
 	input, fields := normalizeContactInput(input)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 
 	var detail *ContactDetail
@@ -55,7 +56,7 @@ func (a *UpdateContactAction) Execute(ctx context.Context, identity *servermodel
 			return err
 		}
 		if stored.SourceChannelID != input.ChannelID {
-			return &ValidationError{Fields: map[string]ValidationCode{"channelId": ValidationChannelImmutable}}
+			return &common.FieldError{Fields: map[string]common.FieldCode{"channelId": ValidationChannelImmutable}}
 		}
 		query := tx.NewUpdate().
 			Table("contacts").
@@ -84,6 +85,9 @@ func (a *UpdateContactAction) Execute(ctx context.Context, identity *servermodel
 		}
 		// 档案名称或首选邮箱变化会改变成员界面名称，在联系人写入完成后推进其全部客户会话的版本。
 		if stored.DisplayName != input.DisplayName || primaryEmailChanged {
+			if _, err := RefreshResolvedDisplayName(ctx, tx, identity.Workspace.ID, contactID); err != nil {
+				return err
+			}
 			if err := chatstate.TouchContactProfileConversations(ctx, tx, identity.Workspace.ID, contactID); err != nil {
 				return err
 			}

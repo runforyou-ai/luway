@@ -19,7 +19,11 @@ func (o *fileOps) identityFromModel(ctx context.Context, identity *servermodels.
 	if err != nil {
 		return appservice.Identity{}, err
 	}
-	return appservice.Identity{Workspace: workspaceFromModel(identity.Workspace), User: user}, nil
+	return appservice.Identity{
+		Workspace:   workspaceFromModel(identity.Workspace),
+		User:        user,
+		SupportMode: identity.Session.Kind == string(domain.SessionKindSupport),
+	}, nil
 }
 
 // workspaceFromModel 把存储工作区转换为应用契约。
@@ -69,7 +73,7 @@ func (o *fileOps) activeFileURLs(ctx context.Context, identity *servermodels.Ide
 	}
 	urls := make(map[string]string, len(locations))
 	for _, location := range locations {
-		contentURL, err := o.links.URL(location.StorageBackend, location.StorageKey)
+		contentURL, err := o.links.URL(location.StorageKey)
 		if err != nil {
 			return nil, fmt.Errorf("build public URL for file %s: %w", location.ID, err)
 		}

@@ -3,13 +3,13 @@ title: Standalone program
 order: 2
 ---
 
-Run the server program directly on Linux, Windows, or macOS.
+The published standalone server supports Linux amd64 and arm64.
 
 ## Download
 
 The server needs PostgreSQL. Have its connection details ready before you run it. When several servers run, they also need NATS with JetStream enabled. See [Multiple servers](/docs/en/deployment/operate/multi-server/).
 
-Download the server archive for your platform and architecture from the release and extract it: `{{slug}}-server_<version>_<os>_<arch>.tar.gz` on Linux and macOS, `{{slug}}-server_<version>_windows_<arch>.zip` on Windows. The archive contains only the program `{{slug}}-server` (`{{slug}}-server.exe` on Windows), which runs from any directory.
+Download `{{slug}}-server_<version>_linux_<arch>.tar.gz` from the release, choosing `amd64` or `arm64`, and extract it. The archive contains only `{{slug}}-server`, which runs from any directory. Prebuilt server releases are not provided for Windows or macOS.
 
 ## Write the startup configuration
 
@@ -34,7 +34,7 @@ The locations of the configuration file and the data directory depend on the sys
 | macOS | `~/Library/Application Support/{{slug}}-server/server.yaml` | `~/Library/Application Support/{{slug}}-server` |
 | Windows | `%LOCALAPPDATA%\{{slug}}-server\server.yaml` | `%LOCALAPPDATA%\{{slug}}-server` |
 
-When the deployment doesn't use object storage, local files are saved in `files` under the data directory. To keep data on another disk, set an absolute path with `data.directory`.
+Files are stored in S3. Configure [File storage](/docs/en/deployment/configure/storage/) after installation. The data directory still holds logs and embedded message queue data; preserve its volume in container deployments.
 
 ## Download client files
 
@@ -42,7 +42,7 @@ When the deployment doesn't use object storage, local files are saved in `files`
 ./{{slug}}-server download-clients
 ```
 
-Run it while the server is stopped. The command downloads the release manifest and client files that match this program's version from the release, verifies the signature and checksums, and puts them in the program directory so the download page can offer desktop installers and executors. If the server can't reach the release, download `release.json`, `release.json.sig`, and the client files listed in `release.json` from the same release on another machine, put them in one directory, and pass it with `--from <directory>`. Without this step, the download page shows that this server provides no installers or executors. See [Client distribution](/docs/en/deployment/operate/client-distribution/).
+Run it while the server is stopped. The command downloads the release manifest and client files that match this program's version from the release, verifies their sizes and checksums, and puts them in the program directory so the download page can offer desktop installers and executors. If the server can't reach the release, download `release.json` and the client files listed in it from the same release on another machine, put them in one directory, and pass it with `--from <directory>`. Without this step, the download page shows that this server provides no installers or executors. See [Client distribution](/docs/en/deployment/operate/client-distribution/).
 
 ## Run
 
@@ -50,7 +50,7 @@ Run it while the server is stopped. The command downloads the release manifest a
 ./{{slug}}-server run
 ```
 
-The server runs in the foreground and writes logs to standard error. Press `Ctrl+C` to stop it. By default it listens on `0.0.0.0:8080`, so other machines on the same network can reach it.
+The server runs in the foreground and writes JSON logs to standard output and daily rotated files in the data directory. Press `Ctrl+C` to stop it. By default it listens on `0.0.0.0:8080`, so other machines on the same network can reach it.
 
 > [!WARNING]
 > Complete the first-time setup soon after starting, or restrict access with a firewall first. Until setup is complete, anyone who can reach the server can create the platform administrator.
@@ -71,9 +71,10 @@ The program doesn't register a system service. To start it at boot or restart it
 | `config set <field> <value>` | Change one field in the configuration file, keeping its comments. Takes effect after the server restarts |
 | `download-clients` | Download the release manifest and client files that match this program's version; run it while the server is stopped. `--from <directory>` reads them from a local directory |
 | `preflight` | Check whether this program can join the deployment with the current configuration |
-| `public-url <deployment address>` | Change the deployment address when the admin console is unreachable. See [HTTPS and reverse proxies](/docs/en/deployment/configure/https/#change-the-deployment-address-when-the-admin-console-is-unreachable) |
+| `public-url <access address>` | Change the access address when the admin console is unreachable. See [HTTPS and reverse proxies](/docs/en/deployment/configure/https/#change-the-access-address-when-the-admin-console-is-unreachable) |
 | `migrate status` | Show how many database migrations are applied and pending |
-| `reset-server-id` | Generate a new server ID for a new platform built from a copied database |
+| `diagnostics --output diagnostics.zip` | Export the runtime summary and local logs; add `--upload` to upload |
+| `reset-deployment-id` | Generate a new deployment ID for a new platform built from a copied database |
 | `version` | Print the version and the database migration version |
 
 See [Upgrade and rollback](/docs/en/deployment/operate/upgrade/).

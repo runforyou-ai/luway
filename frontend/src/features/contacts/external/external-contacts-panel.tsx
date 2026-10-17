@@ -23,7 +23,7 @@ import {
   type ContactTag,
 } from "@/api"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
-import { ContactProfileEditor, ContactProfileGridRow } from "@/components/contact-profile-editor"
+import { ContactProfileEditor, ContactProfileGridRow } from "../contact-profile-editor"
 import {
   ListToolbarFilter,
   ListToolbarReset,

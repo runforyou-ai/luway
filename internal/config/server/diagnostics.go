@@ -12,14 +12,12 @@ import (
 
 // Diagnostics 定义写入诊断信息的服务端启动配置与本机目录，只包含不含密码和地址凭据的字段。
 type Diagnostics struct {
-	EgressIP       string              `json:"egressIP"`
-	Listen         string              `json:"listen"`
-	HTTPSPort      int                 `json:"httpsPort"`
-	Database       DatabaseDiagnostics `json:"database"`
-	NATS           NATSDiagnostics     `json:"nats"`
-	LogLevel       string              `json:"logLevel"`
-	LocalDirectory string              `json:"localDirectory"`
-	ClientsDir     string              `json:"clientsDirectory"`
+	Listen     string              `json:"listen"`
+	HTTPSPort  int                 `json:"httpsPort"`
+	Database   DatabaseDiagnostics `json:"database"`
+	NATS       NATSDiagnostics     `json:"nats"`
+	LogLevel   string              `json:"logLevel"`
+	ClientsDir string              `json:"clientsDirectory"`
 }
 
 // DatabaseDiagnostics 定义 PostgreSQL 连接的地址、账号名、库名与 SSL 模式。
@@ -31,27 +29,23 @@ type DatabaseDiagnostics struct {
 	SSLMode string `json:"sslMode"`
 }
 
-// NATSDiagnostics 定义去掉凭据的 NATS 地址、命名空间与任务队列副本数。
+// NATSDiagnostics 定义去掉凭据的 NATS 地址。
 type NATSDiagnostics struct {
-	URL       string `json:"url"`
-	Namespace string `json:"namespace"`
-	Replicas  int    `json:"replicas"`
+	URL string `json:"url"`
 }
 
-// Diagnostics 返回本配置中可写入诊断信息的字段、本地文件目录与客户端目录 clientsDirectory，地址中的凭据被去掉。
+// Diagnostics 返回本配置中可写入诊断信息的字段、客户端目录 clientsDirectory，地址中的凭据被去掉。
 func (config Config) Diagnostics(clientsDirectory string) Diagnostics {
 	return Diagnostics{
-		EgressIP:  config.Server.EgressIP,
 		Listen:    config.Server.Host + ":" + strconv.Itoa(config.Server.Port),
 		HTTPSPort: config.Server.HTTPSPort,
 		Database: DatabaseDiagnostics{
 			Host: config.Database.Host, Port: config.Database.Port, User: config.Database.User,
 			Name: config.Database.Name, SSLMode: config.Database.SSLMode,
 		},
-		NATS:           NATSDiagnostics{URL: withoutCredentials(config.NATS.URL), Namespace: config.NATS.Namespace, Replicas: config.NATS.Replicas},
-		LogLevel:       config.Log.Level,
-		LocalDirectory: config.Data.FilesDirectory(),
-		ClientsDir:     clientsDirectory,
+		NATS:       NATSDiagnostics{URL: withoutCredentials(config.NATS.URL)},
+		LogLevel:   config.Log.Level,
+		ClientsDir: clientsDirectory,
 	}
 }
 

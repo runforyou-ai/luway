@@ -1,0 +1,15 @@
+/** platform 对外导出：供云前端与宿主装配平台管理页。 */
+export { PlatformAdminGate } from "./platform-admin-gate"
+export { PlatformTabsPage, PlatformTabsActions } from "./platform-tabs"
+// 后台页面布局与分页原语，供托管后台页面复用。
+export { AdminPage, AdminPageActions } from "@/features/admin/admin-page"
+export { AdminListLayout, AdminTableFrame } from "@/features/admin/admin-list-layout"
+export { AdminPagination } from "@/features/admin/admin-pagination"
+export { useLicenseReminder } from "./license-reminder"
+export { PlatformOverviewPage } from "./platform-overview-page"
+export { PlatformDashboardPage } from "./platform-dashboard-page"
+export { PlatformWorkspacesPage } from "./platform-workspaces-page"
+export { PlatformAccountsPage } from "./platform-accounts-page"
+export { PlatformDeploymentPage } from "./platform-deployment-page"
+export { PlatformSitePage } from "./platform-site-page"
+export { PlatformLicensePage } from "./platform-license-page"

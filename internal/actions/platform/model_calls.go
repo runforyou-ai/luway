@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/support/str"
@@ -22,7 +23,7 @@ var ErrModelCallNotFound = errors.New("platform AI model call not found")
 // ValidationModelCallQueryInvalid 表示平台模型调用记录的筛选或分页条件无效。
 const ValidationModelCallQueryInvalid common.FieldCode = "PLATFORM_AI_MODEL_CALL_QUERY_INVALID"
 
-// ModelCallListInput 定义平台模型调用记录的筛选与分页条件：ModelID、Status 为空表示不限，Query 按工作区名称或标识匹配。
+// ModelCallListInput 定义平台 Auto 调用记录的筛选与分页条件：ModelID 为池成员编号（按上游尝试筛选），Status 为空表示不限，Query 按工作区名称或标识匹配。
 type ModelCallListInput struct {
 	ModelID  string
 	Status   domain.AIModelCallStatus
@@ -74,7 +75,7 @@ type ModelCallDetail struct {
 // ModelCallList 定义平台模型调用记录分页结果。
 type ModelCallList struct {
 	Calls []ModelCall
-	Page  common.PageInfo
+	Page  apptypes.PageInfo
 }
 
 // ListModelCalls 按开始时间倒序返回平台模型调用记录分页列表；计数与列表在 db 上分两条语句读取，需要一致快照时传入可重复读事务。
@@ -90,7 +91,8 @@ func ListModelCalls(ctx context.Context, db bun.IDB, input ModelCallListInput) (
 		query = query.Join("JOIN workspaces AS o ON o.id = amc.workspace_id").
 			Where("amc.model_scope = ?", domain.AIModelScopePlatform)
 		if input.ModelID != "" {
-			query = query.Where("amc.model_id = ?", input.ModelID)
+			// 平台调用的 model_id 恒为 auto；按池成员筛选时匹配上游尝试的 route_id（即成员编号）。
+			query = query.Where("EXISTS (SELECT 1 FROM ai_model_call_attempts AS amca WHERE amca.call_id = amc.id AND amca.route_id = ?)", input.ModelID)
 		}
 		if input.Status != "" {
 			query = query.Where("amc.status = ?", input.Status)
@@ -113,7 +115,7 @@ func ListModelCalls(ctx context.Context, db bun.IDB, input ModelCallListInput) (
 		Scan(ctx, &calls); err != nil {
 		return ModelCallList{}, fmt.Errorf("list platform AI model calls: %w", err)
 	}
-	return ModelCallList{Calls: calls, Page: common.PageInfo{Number: input.Page, Size: input.PageSize, Total: int(total)}}, nil
+	return ModelCallList{Calls: calls, Page: apptypes.PageInfo{Number: input.Page, Size: input.PageSize, Total: int(total)}}, nil
 }
 
 // GetModelCall 返回平台模型调用及其上游尝试，不存在时返回 ErrModelCallNotFound；需要一致快照时传入可重复读事务。

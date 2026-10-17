@@ -8,7 +8,7 @@ import (
 )
 
 // AssignmentRulesVersion 是基线与场景规则的规则版本，基线或场景规则增删时加一；措辞调整只体现在指令哈希上。
-const AssignmentRulesVersion = 13
+const AssignmentRulesVersion = 14
 
 // SceneContext 表示拼接场景规则所需的运行期事实，群聊字段只在群聊场景取值，咨询分类只在客服场景取值。
 type SceneContext struct {
@@ -53,7 +53,7 @@ type Capabilities struct {
 	ComputerTools []string
 	// WorkspaceComputer 是运行使用的工作区电脑名称，使用负责人的个人电脑或不使用电脑时为空。
 	WorkspaceComputer string
-	// CustomerHistory 表示本次运行关联客户会话，可检索同一客户以往的沟通记录。
+	// CustomerHistory 表示本次运行可查询同一发起人以往的服务沟通。
 	CustomerHistory bool
 	// CustomerLoginRequired 表示客服场景中有绑定客户身份的业务系统工具因客户未验证身份而未挂载。
 	CustomerLoginRequired bool

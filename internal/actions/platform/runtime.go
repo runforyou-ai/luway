@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	serverinstanceaction "github.com/runforyou-ai/luway/internal/actions/serverinstance"
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/common"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/support"
@@ -66,7 +67,7 @@ type FailedTaskListInput struct {
 // FailedTaskListOutput 定义失败任务分页结果。
 type FailedTaskListOutput struct {
 	Tasks []FailedTask
-	Page  common.PageInfo
+	Page  apptypes.PageInfo
 }
 
 // FailedTaskListQuery 读取近期失败与等待重试的后台任务。
@@ -118,5 +119,5 @@ func (q *FailedTaskListQuery) Execute(ctx context.Context, input FailedTaskListI
 		}
 		tasks = append(tasks, task)
 	}
-	return FailedTaskListOutput{Tasks: tasks, Page: common.PageInfo{Number: page, Size: pageSize, Total: total}}, nil
+	return FailedTaskListOutput{Tasks: tasks, Page: apptypes.PageInfo{Number: page, Size: pageSize, Total: total}}, nil
 }

@@ -6,11 +6,10 @@ import (
 	"context"
 	"testing"
 	"time"
-
 	"uuid"
 
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	servicepolicyaction "github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
@@ -86,7 +85,7 @@ func TestMessengerNewSessionReception(t *testing.T) {
 	for day := range hours.Weekly {
 		hours.Weekly[day] = []domain.BusinessHoursPeriod{{Start: "00:00", End: "24:00"}}
 	}
-	_, err := customerserviceaction.NewUpdateBusinessHoursAction(f.db).Execute(ctx, f.owner, hours)
+	_, err := servicepolicyaction.NewUpdateBusinessHoursAction(f.db).Execute(ctx, f.owner, domain.ServiceAudienceCustomer, hours)
 	require.NoError(t, err)
 	f.setWorkStatus(t, ctx, domain.WorkStatusWorking)
 	tomorrow := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
@@ -101,7 +100,7 @@ func TestMessengerNewSessionReception(t *testing.T) {
 	require.NotNil(t, directory.ReceptionRefreshAt)
 	require.True(t, directory.ReceptionRefreshAt.Equal(tomorrow), "reception refresh at = %v, want %v", directory.ReceptionRefreshAt, tomorrow)
 	hours.Enabled = false
-	_, err = customerserviceaction.NewUpdateBusinessHoursAction(f.db).Execute(ctx, f.owner, hours)
+	_, err = servicepolicyaction.NewUpdateBusinessHoursAction(f.db).Execute(ctx, f.owner, domain.ServiceAudienceCustomer, hours)
 	require.NoError(t, err)
 
 	// AI 员工首接待时始终在线并立即回复。

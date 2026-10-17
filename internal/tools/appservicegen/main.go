@@ -79,22 +79,17 @@ func runModule(options moduleOptions) error {
 	if err := loaded.validate(business, businessContract); err != nil {
 		return err
 	}
-	// 模块契约的文案键可以来自模块与核心词条，核心仓库根目录是模块根目录之上最近的 go.mod 所在目录。
-	coreRoot := filepath.Dir(root)
-	for {
-		if _, err := os.Stat(filepath.Join(coreRoot, "go.mod")); err == nil {
-			break
-		}
-		if parent := filepath.Dir(coreRoot); parent != coreRoot {
-			coreRoot = parent
-			continue
-		}
-		return fmt.Errorf("core go.mod not found above module %s", root)
-	}
-	if err := checkValidation([]string{root, coreRoot}, business, businessContract); err != nil {
+	// 业务契约与核心领域包各自对应所属 internal 目录下的词条。
+	moduleRoot := filepath.Dir(filepath.Dir(contractDir))
+	coreRoot := filepath.Dir(filepath.Dir(loaded.domainDir))
+	if err := checkValidation([]string{moduleRoot, coreRoot}, business, businessContract); err != nil {
 		return err
 	}
-	types, err := loaded.generateTypeScriptContract(business, filepath.ToSlash(options.contract))
+	source, err := filepath.Rel(moduleRoot, contractDir)
+	if err != nil {
+		return err
+	}
+	types, err := loaded.generateTypeScriptContract(business, filepath.ToSlash(source))
 	if err != nil {
 		return err
 	}

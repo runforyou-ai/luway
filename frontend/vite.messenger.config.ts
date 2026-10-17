@@ -10,7 +10,7 @@ export default defineConfig({
   },
   define: { "process.env.NODE_ENV": JSON.stringify("production") },
   build: {
-    outDir: "../internal/publicweb/dist",
+    outDir: "../internal/web/messenger/dist",
     emptyOutDir: true,
     lib: {
       entry: "src/publicweb/markdown.tsx",

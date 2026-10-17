@@ -1,4 +1,5 @@
 /** 企业咨询分类目录：列表、新增编辑弹窗与删除确认。 */
+import { useServicePolicyAudience } from "./service-policy-context"
 import { useEffect } from "react"
 import { TagIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
@@ -32,8 +33,9 @@ import { DictionaryListSettings } from "./dictionary-list-settings"
 /** 读取咨询分类与团队，展示分类列表并承载新增、编辑和删除。 */
 export function ServiceCategoriesSettings() {
   const { t } = useTranslation("settings")
-  const categories = useResource(resourceKeys.serviceCategories(), () =>
-    listServiceCategories(),
+  const audience = useServicePolicyAudience()
+  const categories = useResource(resourceKeys.serviceCategories(audience), () =>
+    listServiceCategories(audience),
   )
   const teams = useResource(resourceKeys.teams({ all: true }), () =>
     listAllTeams(),
@@ -66,9 +68,9 @@ export function ServiceCategoriesSettings() {
         renderForm={(category, actions) => (
           <ServiceCategoryForm category={category} teams={teams.data ?? []} {...actions} />
         )}
-        invalidateKeys={[resourceKeys.serviceCategories()]}
+        invalidateKeys={[resourceKeys.serviceCategories(audience)]}
         deletion={{
-          action: (category) => deleteServiceCategory(category.id),
+          action: (category) => deleteServiceCategory(audience, category.id),
           title: (name) => t("customerService.categories.deleteTitle", { name }),
           description: t("customerService.categories.deleteDescription"),
           success: t("customerService.categories.deleted"),
@@ -102,6 +104,7 @@ function ServiceCategoryForm({
   onCancel: () => void
 }) {
   const { t } = useTranslation("settings")
+  const audience = useServicePolicyAudience()
   const form = useForm<ServiceCategoryFormValues>({
     resolver: zodResolver(serviceCategorySchema),
     shouldUseNativeValidation: true,
@@ -123,7 +126,7 @@ function ServiceCategoryForm({
         description: values.description,
         teamId: values.teamId || null,
       }
-      await (category ? updateServiceCategory(category.id, input) : createServiceCategory(input))
+      await (category ? updateServiceCategory(audience, category.id, input) : createServiceCategory(audience, input))
       toast.success(t(category ? "customerService.categories.updated" : "customerService.categories.created"))
       onSaved()
     },

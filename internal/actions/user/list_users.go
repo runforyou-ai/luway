@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -85,5 +86,5 @@ func (q *ListUsersQuery) Execute(ctx context.Context, identity *servermodels.Ide
 	for index := range users {
 		users[index].Teams = teamsByIdentity[users[index].IdentityID]
 	}
-	return ListOutput{Users: users, Page: common.PageInfo{Number: input.Page, Size: input.PageSize, Total: int(total)}}, nil
+	return ListOutput{Users: users, Page: apptypes.PageInfo{Number: input.Page, Size: input.PageSize, Total: int(total)}}, nil
 }

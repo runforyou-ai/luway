@@ -9,6 +9,7 @@ import (
 
 	accountaction "github.com/runforyou-ai/luway/internal/actions/account"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/pkg/languagetag"
@@ -28,7 +29,7 @@ func NewUpdatePreferencesAction(db *bun.DB) *UpdatePreferencesAction {
 
 // Execute 在事务内校验并保存当前用户的偏好设置。
 func (a *UpdatePreferencesAction) Execute(ctx context.Context, identity *servermodels.Identity, input PreferencesInput) (*servermodels.Identity, error) {
-	fields := make(map[string]ValidationCode)
+	fields := make(map[string]common.FieldCode)
 	if !input.Locale.Valid() {
 		fields["locale"] = ValidationLocaleInvalid
 	}
@@ -45,7 +46,7 @@ func (a *UpdatePreferencesAction) Execute(ctx context.Context, identity *serverm
 		translationLanguage = &normalized
 	}
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	var updatedIdentity *servermodels.Identity
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {

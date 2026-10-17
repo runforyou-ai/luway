@@ -46,10 +46,10 @@ func TestAgentInputWakesRunningRun(t *testing.T) {
 			var remote <-chan struct{}
 			first, run := createAgentLockChat(t, ctx, db, identity, agent.IdentityID, tasks)
 			if withPublisher {
-				channel := servertest.BusChannel()
-				startTestPublisherOn(t, openRealtimeDB(t), channel)
+				namespace := servertest.BusNamespace()
+				startTestPublisherOn(t, openRealtimeDB(t), namespace)
 				// 另一服务端实例订阅同一输入队列的新增输入信号。
-				other := servertest.StartBus(t, openRealtimeDB(t), channel, uuid.NewV7().String())
+				other := servertest.StartBus(t, namespace, uuid.NewV7().String())
 				signals := make(chan struct{}, 1)
 				unsubscribe, err := other.Subscribe(realtime.Topic(identity.Workspace.ID, realtime.AudienceAgentLane, run.LaneID), func([]byte) {
 					select {

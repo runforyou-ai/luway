@@ -91,12 +91,12 @@ func (s *Service) SelectImage(ctx context.Context) (ImageFile, error) {
 	return s.options.Images.SelectImage(ctx, s.meta())
 }
 
-// SaveTextFile 让用户选择保存位置并写入文本文件，用户取消时返回 false。
-func (s *Service) SaveTextFile(ctx context.Context, input TextFileInput) (bool, error) {
+// SaveFile 让用户选择保存位置并写入文件，用户取消时返回 false。
+func (s *Service) SaveFile(ctx context.Context, input FileInput) (bool, error) {
 	if s.options.Files == nil {
-		return false, appservice.UnsupportedError(ctx, s.meta(), "SaveTextFile")
+		return false, appservice.UnsupportedError(ctx, s.meta(), "SaveFile")
 	}
-	return s.options.Files.SaveTextFile(ctx, s.meta(), input)
+	return s.options.Files.SaveFile(ctx, s.meta(), input)
 }
 
 // OpenConversationWindow 在独立窗口打开指定会话，同一会话已打开时聚焦现有窗口。

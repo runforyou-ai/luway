@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"uuid"
 
-	"github.com/runforyou-ai/einorun"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
+	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -58,7 +58,7 @@ func Dispatch(ctx context.Context, tx bun.Tx, turn Turn) (bool, error) {
 		Set("operation = ?", domain.ComputerCall{Operation: operation}).
 		Set("local_agent_session_id = ?", session.ID).
 		Set("status = ?", domain.AgentToolCallQueued).
-		Set("handover = COALESCE(handover, ?)", einorun.HandoverDetached).
+		Set("handover = COALESCE(handover, ?)", agentcontract.HandoverDetached).
 		Set("trace_id = ?", support.NilIfZero(logscope.From(ctx).TraceID)).
 		Set("started_at = NULL").
 		Where("id = ? AND workspace_id = ? AND status = ?", turn.CallID, turn.WorkspaceID, turn.From).

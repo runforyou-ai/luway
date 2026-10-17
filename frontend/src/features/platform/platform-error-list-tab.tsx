@@ -1,19 +1,17 @@
 /** 概览的近期错误页签：列出等待重试与近 7 天失败的后台任务，点击在侧栏查看完整错误，页头导出诊断信息。 */
-import { CircleAlertIcon } from "lucide-react"
 import { useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { listPlatformFailedTasks, type PlatformFailedTask } from "@/api"
-import { ResourceListLayout } from "@/components/resource-list"
-import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable } from "@/components/resource-table"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { AdminListLayout, AdminTableFrame } from "@/features/admin/admin-list-layout"
+import { AdminPageActions } from "@/features/admin/admin-page"
 import { DiagnosticsExportButton } from "@/features/platform/platform-diagnostics-export"
 import { runtimeRefreshInterval } from "@/features/platform/platform-runtime-tab"
-import { PlatformTabsActions } from "@/features/platform/platform-tabs"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useDateTime } from "@/hooks/use-date-time"
-import { usePagedResource } from "@/hooks/use-resource"
+import { useAdminPageQuery } from "@/hooks/use-admin-page-query"
 
 /** 侧栏展示的后台任务错误详情。 */
 type ErrorDetail = {
@@ -28,15 +26,10 @@ export function PlatformErrorListTab() {
   const { formatDateTime } = useDateTime()
   const [selected, setSelected] = useState<ErrorDetail | null>(null)
   const trigger = useRef<HTMLElement | null>(null)
-  const failed = usePagedResource(
-    resourceKeys.platformFailedTasks({ pageSize: 50 }),
-    (page, signal) => listPlatformFailedTasks({ page, pageSize: 50 }, signal),
-    {
-      select: (data) => ({ items: data.tasks, page: data.page }),
-      itemKey: (item) => item.id,
-      staleTime: 0,
-      refetchInterval: () => runtimeRefreshInterval,
-    },
+  const failed = useAdminPageQuery(
+    resourceKeys.platformFailedTasks(),
+    ({ page, pageSize }, signal) => listPlatformFailedTasks({ page, pageSize }, signal),
+    { staleTime: 0, refetchInterval: runtimeRefreshInterval },
   )
 
   /** 记录打开侧栏的行并展示错误详情，关闭后把焦点还给该行。 */
@@ -47,39 +40,65 @@ export function PlatformErrorListTab() {
 
   return (
     <>
-      <PlatformTabsActions>
+      <AdminPageActions>
         <DiagnosticsExportButton />
-      </PlatformTabsActions>
-      <ResourceListLayout resources={failed} errorMessage={t("runtime.loadError")} more={failed.more}>
+      </AdminPageActions>
+      <AdminListLayout
+        resources={failed}
+        errorMessage={t("runtime.loadError")}
+        pagination={{
+          page: failed.data?.page,
+          onPageChange: failed.setPage,
+          onPageSizeChange: failed.setPageSize,
+          busy: failed.isPlaceholderData,
+        }}
+      >
+        <AdminTableFrame>
         <ResourceTable<PlatformFailedTask>
           columns={[
             {
               key: "task",
               header: t("runtime.taskColumn"),
-              cellClassName: "min-w-0",
+              cellClassName: "min-w-[10rem] max-w-[16rem] font-mono text-sm",
+              cell: (task) => <span className="break-all">{task.action}</span>,
+            },
+            {
+              key: "workspace",
+              header: t("runtime.workspaceColumn"),
+              cellClassName: "w-px whitespace-nowrap text-muted-foreground",
+              cell: (task) => task.workspaceName ?? t("runtime.platformTask"),
+            },
+            {
+              key: "queue",
+              header: t("runtime.queueColumn"),
+              cellClassName: "w-px whitespace-nowrap font-mono text-sm text-muted-foreground",
+              cell: (task) => task.queue,
+            },
+            {
+              key: "error",
+              header: t("runtime.errorColumn"),
+              cellClassName: "min-w-[12rem] max-w-[24rem]",
               cell: (task) => (
-                <ResourceRowIdentity
-                  icon={CircleAlertIcon}
-                  name={task.action}
-                  secondary={task.workspaceName ?? t("runtime.platformTask")}
-                  description={task.error}
-                />
+                <span className="line-clamp-2 text-muted-foreground" title={task.error}>
+                  {task.error}
+                </span>
               ),
             },
             {
               key: "attempts",
               header: t("runtime.attemptsColumn"),
-              cellClassName: "hidden w-px whitespace-nowrap text-right text-muted-foreground tabular-nums sm:table-cell",
-              cell: (task) => t("runtime.attempts", { attempt: task.attempt }),
+              cellClassName: "w-px whitespace-nowrap text-right tabular-nums text-muted-foreground",
+              cell: (task) => task.attempt,
             },
             {
               key: "failedAt",
               header: t("runtime.failedAtColumn"),
-              cellClassName: "w-px whitespace-nowrap text-right text-muted-foreground",
-              cell: (task) => t("runtime.failedAt", { time: formatDateTime(task.failedAt) }),
+              cellClassName: "w-px whitespace-nowrap text-muted-foreground",
+              cell: (task) => formatDateTime(task.failedAt),
             },
           ]}
-          rows={failed.data?.items ?? []}
+          rows={failed.data?.tasks ?? []}
+          showHeader
           rowKey={(task) => task.id}
           empty={t("runtime.noFailedTasks")}
           onRowActivate={(task) =>
@@ -95,7 +114,8 @@ export function PlatformErrorListTab() {
             })
           }
         />
-      </ResourceListLayout>
+        </AdminTableFrame>
+      </AdminListLayout>
 
       <Sheet open={selected !== null} onOpenChange={(open) => (open ? undefined : setSelected(null))}>
         <SheetContent

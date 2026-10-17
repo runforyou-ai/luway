@@ -11,6 +11,7 @@ import {
   type ConversationMessage,
   type ConversationSystemEventParticipant,
 } from "@/api"
+import { formatPersonalAgentDisplayName } from "@/lib/format-display-name"
 import { handoffReasonKey } from "@/lib/handoff-reason-labels"
 
 type TimelineSystemEvent = NonNullable<ConversationMessage["systemEvent"]>
@@ -157,9 +158,11 @@ export function formatSystemEvent(
   ) =>
     participant.identityId === currentIdentityID
       ? t("messageSenderYou")
-      : participant.personalResponsibleName
-        ? t("personalAgentDisplayName", { responsible: participant.personalResponsibleName, name: participant.displayName })
-        : participant.displayName
+      : formatPersonalAgentDisplayName(
+          participant.displayName,
+          participant.personalResponsibleName,
+          (args) => t("personalAgentDisplayName", args),
+        )
   const actor = participantName(event.actor)
   const targets = formatGroupParticipantNames(
     event.targets.map(participantName),

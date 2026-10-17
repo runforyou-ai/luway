@@ -22,6 +22,7 @@ export type {
     ComputerAttachment,
     ComputerIdentity,
     ConversationWindowInput,
+    FileInput,
     ImageFile,
     LocalComputer,
     LocalEnvironment,
@@ -32,6 +33,5 @@ export type {
     LocalToolchain,
     LocalToolchainUpdate,
     MessageNotificationInput,
-    TextFileInput,
     UnreadIndicatorState
 } from "./models.js";

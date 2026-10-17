@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
@@ -17,10 +18,11 @@ import (
 
 // AccountListInput 定义平台账号列表的筛选与分页条件。
 type AccountListInput struct {
-	Query    string
-	Status   domain.AccountStatus
-	Page     int
-	PageSize int
+	WorkspaceID string
+	Query       string
+	Status      domain.AccountStatus
+	Page        int
+	PageSize    int
 }
 
 // AccountRecord 定义平台账号列表中的一个账号。
@@ -37,7 +39,7 @@ type AccountRecord struct {
 // AccountListOutput 定义平台账号分页结果。
 type AccountListOutput struct {
 	Accounts []AccountRecord
-	Page     common.PageInfo
+	Page     apptypes.PageInfo
 }
 
 // accountColumns 选出账号列表字段，工作区数只计有效成员身份。
@@ -57,7 +59,7 @@ func NewListAccountsQuery(db *bun.DB) *ListAccountsQuery {
 	return &ListAccountsQuery{db: db}
 }
 
-// Execute 按状态和关键词返回平台账号分页列表，新注册的账号在前。
+// Execute 按工作区、状态和关键词返回平台账号分页列表，新注册的账号在前。
 func (q *ListAccountsQuery) Execute(ctx context.Context, input AccountListInput) (AccountListOutput, error) {
 	input.Query = strings.TrimSpace(input.Query)
 	var pageValid bool
@@ -67,6 +69,9 @@ func (q *ListAccountsQuery) Execute(ctx context.Context, input AccountListInput)
 	}
 	apply := func(query *bun.SelectQuery) *bun.SelectQuery {
 		query = query.Where("acc.status = ?", input.Status)
+		if input.WorkspaceID != "" {
+			query = query.Where("EXISTS (SELECT 1 FROM users AS u WHERE u.account_id = acc.id AND u.workspace_id = ? AND u.status = ?)", input.WorkspaceID, domain.IdentityStatusActive)
+		}
 		if input.Query != "" {
 			pattern := common.ContainsPattern(input.Query)
 			query = query.Where("(acc.email ILIKE ? OR acc.display_name ILIKE ?)", pattern, pattern)
@@ -85,7 +90,7 @@ func (q *ListAccountsQuery) Execute(ctx context.Context, input AccountListInput)
 		Scan(ctx, &accounts); err != nil {
 		return AccountListOutput{}, fmt.Errorf("list platform accounts: %w", err)
 	}
-	return AccountListOutput{Accounts: accounts, Page: common.PageInfo{Number: input.Page, Size: input.PageSize, Total: int(total)}}, nil
+	return AccountListOutput{Accounts: accounts, Page: apptypes.PageInfo{Number: input.Page, Size: input.PageSize, Total: int(total)}}, nil
 }
 
 // UpdateAccountAction 修改平台内其他账号的状态或平台管理员身份。
@@ -128,27 +133,9 @@ func (a *UpdateAccountAction) SetStatus(ctx context.Context, operator *servermod
 	})
 }
 
-// SetPlatformAdmin 授予或撤销其他账号的平台管理员身份；授予时目标账号须至少有一个有效的工作区成员身份。
+// SetPlatformAdmin 授予或撤销其他账号的平台管理员身份。
 func (a *UpdateAccountAction) SetPlatformAdmin(ctx context.Context, operator *servermodels.AccountIdentity, accountID string, admin bool) (AccountRecord, error) {
 	return a.update(ctx, operator, accountID, func(ctx context.Context, tx bun.Tx) error {
-		// 授予时检查目标账号在正常状态工作区中的有效成员身份；目标账号行已锁定，与成员停用串行，共享锁定所在工作区，与工作区暂停串行。
-		if admin {
-			var workspaceIDs []string
-			if err := tx.NewSelect().TableExpr("users AS u").
-				Join("JOIN workspaces AS o ON o.id = u.workspace_id").
-				ColumnExpr("o.id::text").
-				Where("u.account_id = ?", accountID).
-				Where("u.status = ?", domain.IdentityStatusActive).
-				Where("o.lifecycle_status = ?", domain.WorkspaceLifecycleActive).
-				OrderExpr("o.id ASC").
-				For("SHARE OF o").
-				Scan(ctx, &workspaceIDs); err != nil {
-				return err
-			}
-			if len(workspaceIDs) == 0 {
-				return ErrNoActiveMembership
-			}
-		}
 		_, err := tx.NewUpdate().Model((*servermodels.Account)(nil)).
 			Set("is_platform_admin = ?", admin).
 			Where("id = ?", accountID).

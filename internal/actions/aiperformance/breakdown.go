@@ -34,9 +34,12 @@ func NewBreakdownQuery(db *bun.DB) *BreakdownQuery { return &BreakdownQuery{db: 
 
 // Execute 返回一页拆分结果，按已关闭周期数从多到少排列，未分类排在同数量的最后。
 func (q *BreakdownQuery) Execute(ctx context.Context, identity *servermodels.Identity, input BreakdownInput) (*BreakdownList, error) {
+	if err := reportpage.ValidateServiceScope(ctx, q.db, identity.Workspace.ID, input.Audience, input.ServiceSource, input.ChannelID); err != nil {
+		return nil, err
+	}
 	page, pageSize, valid := common.NormalizePagination(input.Page, input.PageSize)
 	if !valid {
-		return nil, ErrPageSizeInvalid
+		return nil, common.ErrPageSizeInvalid
 	}
 	grouped, ok := breakdownSQL[input.Dimension]
 	if !ok {

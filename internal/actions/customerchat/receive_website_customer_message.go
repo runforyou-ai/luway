@@ -17,6 +17,7 @@ import (
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
@@ -43,7 +44,7 @@ func NewReceiveWebsiteCustomerMessageAction(db *bun.DB, agentScheduler conversat
 func (a *ReceiveWebsiteCustomerMessageAction) Execute(ctx context.Context, input WebsiteCustomerTextMessageInput) (ReceiveWebsiteCustomerMessageResult, error) {
 	normalized, fields := normalizeWebsiteMessageInput(input)
 	if len(fields) > 0 {
-		return ReceiveWebsiteCustomerMessageResult{}, &conversationaction.ValidationError{Fields: fields}
+		return ReceiveWebsiteCustomerMessageResult{}, &common.FieldError{Fields: fields}
 	}
 	return a.receive(ctx, normalized.ChannelID, websiteInboundInput(normalized.Customer, normalized.VisitorContext, channelinbound.Input{
 		ExternalID: normalized.ExternalID, RequestedConversationID: normalized.ConversationID,
@@ -55,7 +56,7 @@ func (a *ReceiveWebsiteCustomerMessageAction) Execute(ctx context.Context, input
 func (a *ReceiveWebsiteCustomerMessageAction) ExecuteAttachment(ctx context.Context, input WebsiteCustomerAttachmentMessageInput) (ReceiveWebsiteCustomerMessageResult, error) {
 	normalized, fields := normalizeWebsiteAttachmentMessageInput(input)
 	if len(fields) > 0 {
-		return ReceiveWebsiteCustomerMessageResult{}, &conversationaction.ValidationError{Fields: fields}
+		return ReceiveWebsiteCustomerMessageResult{}, &common.FieldError{Fields: fields}
 	}
 	return a.receive(ctx, normalized.ChannelID, websiteInboundInput(normalized.Customer, normalized.VisitorContext, channelinbound.Input{
 		ExternalID: normalized.ExternalID, RequestedConversationID: normalized.ConversationID,
@@ -89,7 +90,7 @@ func (a *ReceiveWebsiteCustomerMessageAction) receive(ctx context.Context, chann
 		return ReceiveWebsiteCustomerMessageResult{}, err
 	}
 	// 事务提交后解析会话当前的接待状态；解析失败时消息已保存，接待状态留空，由访客端后续读取目录补齐。
-	resolver := serviceroute.NewReceptionResolver(a.db, result.WorkspaceID)
+	resolver := serviceroute.NewReceptionResolver(a.db, result.WorkspaceID, domain.ServiceAudienceCustomer)
 	if err := resolveSummaryReception(ctx, resolver, &result.Conversation); err != nil {
 		slog.WarnContext(ctx, "解析网站访客会话接待状态失败", "channel_id", channelID, "conversation_id", result.Conversation.ID, "error", err)
 	}
@@ -143,8 +144,8 @@ func (a *ReceiveWebsiteCustomerMessageAction) executeTransaction(ctx context.Con
 }
 
 // normalizeWebsiteMessageInput 规范化并校验网站消息输入。
-func normalizeWebsiteMessageInput(input WebsiteCustomerTextMessageInput) (WebsiteCustomerTextMessageInput, map[string]conversationaction.ValidationCode) {
-	fields := map[string]conversationaction.ValidationCode{}
+func normalizeWebsiteMessageInput(input WebsiteCustomerTextMessageInput) (WebsiteCustomerTextMessageInput, map[string]common.FieldCode) {
+	fields := map[string]common.FieldCode{}
 	input.Body = strings.TrimSpace(input.Body)
 	if !str.IsUUID(input.ChannelID) {
 		fields["channelId"] = ValidationChannelIDInvalid
@@ -176,7 +177,7 @@ func normalizeWebsiteMessageInput(input WebsiteCustomerTextMessageInput) (Websit
 }
 
 // normalizeWebsiteAttachmentMessageInput 规范化并校验网站访客附件消息输入。
-func normalizeWebsiteAttachmentMessageInput(input WebsiteCustomerAttachmentMessageInput) (WebsiteCustomerAttachmentMessageInput, map[string]conversationaction.ValidationCode) {
+func normalizeWebsiteAttachmentMessageInput(input WebsiteCustomerAttachmentMessageInput) (WebsiteCustomerAttachmentMessageInput, map[string]common.FieldCode) {
 	text, fields := normalizeWebsiteMessageInput(WebsiteCustomerTextMessageInput{
 		ChannelID: input.ChannelID, ExternalID: input.ExternalID, ConversationID: input.ConversationID,
 		ClientMessageID: input.ClientMessageID, Body: input.Body, ReplyToMessageID: input.ReplyToMessageID,

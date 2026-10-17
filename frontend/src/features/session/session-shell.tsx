@@ -1,4 +1,4 @@
-/** 登录外壳：读取登录身份并分流会话入口，建立本窗口的实时连接，装配登录期共享上下文；会话资源只在挂载于本外壳内的页面中随实时事件刷新。 */
+/** 登录外壳：读取登录身份并分流会话入口，建立本窗口的实时连接，装配登录期共享偏好；会话资源只在挂载于本外壳内的页面中随实时事件刷新。 */
 import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 import { Navigate } from "react-router"
@@ -7,9 +7,7 @@ import type { Identity } from "@/api"
 import { PageLoading } from "@/components/page-loading"
 import { PageLoadError } from "@/components/page-load-error"
 import { UserPreferencesProvider } from "@/contexts/user-preferences"
-import { AttachmentQueueProvider } from "@/features/inbox/state/attachment-queue-context"
-import { OutgoingMessageProvider } from "@/features/inbox/state/outgoing-message-context"
-import { ComposerDraftProvider } from "@/features/inbox/state/composer-draft-context"
+import { SupportBanner } from "@/features/admin/support-banner"
 import { useIdentityLoader } from "@/features/session/use-identity-loader"
 import { useRealtimeConnection } from "@/features/session/use-realtime-connection"
 
@@ -40,13 +38,8 @@ export function SessionShell({
 
   return (
     <UserPreferencesProvider user={identity.user}>
-      <OutgoingMessageProvider key={identity.user.id}>
-        <ComposerDraftProvider key={identity.user.id}>
-          <AttachmentQueueProvider key={identity.user.id}>
-            {children(identity)}
-          </AttachmentQueueProvider>
-        </ComposerDraftProvider>
-      </OutgoingMessageProvider>
+      {identity.supportMode ? <SupportBanner /> : null}
+      {children(identity)}
     </UserPreferencesProvider>
   )
 }

@@ -15,9 +15,8 @@ import (
 	"github.com/runforyou-ai/einorun/provider"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
-	servicecategoryaction "github.com/runforyou-ai/luway/internal/actions/servicecategory"
+	servicepolicyaction "github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -96,11 +95,11 @@ func TestServiceSessionSummaryLifecycle(t *testing.T) {
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
 	tasks := servertest.NewTasks()
-	coordinator := newGroupAgentCoordinator(f.db)
+	coordinator := newGroupAgentCanceller(f.db)
 	providerID := seedSummaryModels(t, f.db, f.owner)
-	category, err := servicecategoryaction.NewCreateAction(f.db).Execute(ctx, f.owner, servicecategoryaction.Input{Name: "订单查询", Description: "查询订单状态"})
+	category, err := servicepolicyaction.NewCreateAction(f.db).Execute(ctx, f.owner, domain.ServiceAudienceCustomer, servicepolicyaction.Input{Name: "订单查询", Description: "查询订单状态"})
 	require.NoError(t, err)
-	_, err = customerservice.NewUpdateServiceSummarySettingsAction(f.db).Execute(ctx, f.owner, domain.ServiceSummarySettings{
+	_, err = servicepolicyaction.NewUpdateServiceSummarySettingsAction(f.db).Execute(ctx, f.owner, domain.ServiceAudienceCustomer, domain.ServiceSummarySettings{
 		DecisionModelID: new(aiModelID(t, f.db, providerID, "decision-model")),
 		SummaryModelID:  new(aiModelID(t, f.db, providerID, "chat-model")),
 		Locale:          domain.LocaleChineseSimplified,
@@ -138,7 +137,7 @@ func TestServiceSessionSummaryLifecycle(t *testing.T) {
 	require.Contains(t, decider.questions, "resolved", "人工关闭的周期应判断是否解决")
 
 	// 分类归档后客服保留原分类修改小结；重开再关闭时小结保持客服填写的结果，不再投递任务。
-	require.NoError(t, servicecategoryaction.NewArchiveAction(f.db).Execute(ctx, f.owner, category.ID))
+	require.NoError(t, servicepolicyaction.NewArchiveAction(f.db).Execute(ctx, f.owner, domain.ServiceAudienceCustomer, category.ID))
 	edited, err := servicesessionaction.NewUpdateServiceSessionSummaryAction(f.db).Execute(ctx, f.member, servicesessionaction.UpdateServiceSessionSummaryInput{
 		ServiceSessionID: session.ID, Summary: "  客服修改后的小结  ", Resolved: new(false), CategoryID: &category.ID,
 	})
@@ -202,7 +201,7 @@ func TestHandoffSummary(t *testing.T) {
 	ctx := context.Background()
 	tasks := servertest.NewTasks()
 	providerID := seedSummaryModels(t, f.db, f.owner)
-	_, err := customerservice.NewUpdateServiceSummarySettingsAction(f.db).Execute(ctx, f.owner, domain.ServiceSummarySettings{
+	_, err := servicepolicyaction.NewUpdateServiceSummarySettingsAction(f.db).Execute(ctx, f.owner, domain.ServiceAudienceCustomer, domain.ServiceSummarySettings{
 		SummaryModelID: new(aiModelID(t, f.db, providerID, "chat-model")), Locale: domain.LocaleEnglishUnitedStates,
 	})
 	require.NoError(t, err)
@@ -254,7 +253,7 @@ func TestHandoffSummary(t *testing.T) {
 	require.NotContains(t, caller.input, "转人工之后的新消息")
 
 	// 周期关闭后不再返回交接摘要。
-	coordinator := newGroupAgentCoordinator(f.db)
+	coordinator := newGroupAgentCanceller(f.db)
 	_, err = servicesessionaction.NewClaimServiceSessionAction(f.db, coordinator, tasks).Execute(ctx, f.owner, f.conversationID)
 	require.NoError(t, err)
 	_, err = servicesessionaction.NewCloseServiceSessionAction(f.db, coordinator, tasks).Execute(ctx, f.owner, f.conversationID)

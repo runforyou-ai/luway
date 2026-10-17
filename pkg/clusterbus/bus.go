@@ -37,8 +37,6 @@ const (
 
 // 传输层驱动名称。
 const (
-	// DriverPostgres 表示经 PostgreSQL LISTEN/NOTIFY 传输。
-	DriverPostgres = "postgres"
 	// DriverNATS 表示经 Core NATS 传输。
 	DriverNATS = "nats"
 )

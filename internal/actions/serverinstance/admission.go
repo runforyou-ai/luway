@@ -65,8 +65,14 @@ func AdmitInstance(ctx context.Context, db *bun.DB, admission Admission) (*Insta
 		if err := waitForOtherVersions(ctx, conn, admission.Instance.Version); err != nil {
 			return nil, err
 		}
-		if err := checkMultiServer(ctx, conn); err != nil {
+		instances, err := liveInstances(ctx, conn)
+		if err != nil {
 			return nil, err
+		}
+		for _, instance := range instances {
+			if admission.Instance.Config.NATS.URL == "" || instance.Config.NATS.URL == "" {
+				return nil, fmt.Errorf("%w: messaging owner is still online", ErrMultiServerUnsupported)
+			}
 		}
 	}
 	if err := admission.Migrate(ctx); err != nil {
@@ -81,6 +87,20 @@ func AdmitInstance(ctx context.Context, db *bun.DB, admission Admission) (*Insta
 	if err != nil {
 		return nil, err
 	}
+	// 同一数据库中的外部实例共享消息模式锁，内嵌实例独占。
+	lockFn, unlockFn := "pg_try_advisory_lock_shared", "pg_advisory_unlock_shared"
+	if admission.Instance.Config.NATS.URL == "" {
+		lockFn, unlockFn = "pg_try_advisory_lock", "pg_advisory_unlock"
+	}
+	var acquired bool
+	if err := lease.conn.NewRaw("SELECT "+lockFn+"(hashtextextended('app.messaging.mode', 0))").Scan(ctx, &acquired); err != nil || !acquired {
+		lease.Release()
+		if err != nil {
+			return nil, err
+		}
+		return nil, ErrMultiServerUnsupported
+	}
+	lease.messagingUnlock = unlockFn
 	if err := ReportInstance(ctx, conn, admission.Instance); err != nil {
 		lease.Release()
 		return nil, err
@@ -241,25 +261,6 @@ func waitForOtherVersions(ctx context.Context, conn bun.Conn, version string) er
 	}
 }
 
-// checkMultiServer 在有其他服务端进程运行时校验部署约束：部署配置开启了对象存储。
-func checkMultiServer(ctx context.Context, conn bun.Conn) error {
-	instances, err := runningInstances(ctx, conn)
-	if err != nil {
-		return err
-	}
-	if len(instances) == 0 {
-		return nil
-	}
-	var s3Enabled []bool
-	if err := conn.NewSelect().Model((*servermodels.Platform)(nil)).Column("s3_enabled").Limit(1).Scan(ctx, &s3Enabled); err != nil {
-		return fmt.Errorf("load deployment storage: %w", err)
-	}
-	if len(s3Enabled) == 0 || !s3Enabled[0] {
-		return fmt.Errorf("%w: files are stored on local disk, multiple servers require object storage in platform settings", ErrMultiServerUnsupported)
-	}
-	return nil
-}
-
 // liveInstances 返回心跳在线或仍持有实例锁的服务端进程记录。
 func liveInstances(ctx context.Context, conn bun.Conn) ([]ServerInstance, error) {
 	running, err := runningInstances(ctx, conn)
@@ -300,8 +301,9 @@ func runningInstances(ctx context.Context, conn bun.Conn) ([]ServerInstance, err
 
 // InstanceLease 是服务端进程运行期间在专用数据库连接上持有的实例锁，连接断开时由 PostgreSQL 释放；Check 与 Release 由同一调用方串行调用。
 type InstanceLease struct {
-	id   string
-	conn bun.Conn
+	id              string
+	conn            bun.Conn
+	messagingUnlock string
 }
 
 // holdInstance 在新的专用连接上取得服务端进程的实例锁。
@@ -331,6 +333,9 @@ func (l *InstanceLease) Check(ctx context.Context) error {
 
 // Release 释放实例锁并归还连接，释放失败时丢弃连接。
 func (l *InstanceLease) Release() {
+	if l.messagingUnlock != "" {
+		_, _ = l.conn.ExecContext(context.Background(), "SELECT "+l.messagingUnlock+"(hashtextextended('app.messaging.mode', 0))")
+	}
 	_ = serverstorage.SessionUnlock(context.Background(), l.conn, serverstorage.LockServerInstance, l.id)
 	_ = l.conn.Close()
 }

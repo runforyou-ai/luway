@@ -12,7 +12,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	contactprofileaction "github.com/runforyou-ai/luway/internal/actions/contactprofile"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -29,10 +29,10 @@ func TestWebsiteContactProfile(t *testing.T) {
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
 	scheduler := agentrunaction.NewScheduler(testEnqueuer)
-	visitorService := direct.NewWebsiteVisitorBackend(f.db, scheduler, testEnqueuer, nil, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
-	application := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	visitorService := direct.NewWebsiteVisitorBackend(f.db, scheduler, testEnqueuer, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
+	application := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	service := api.ClientOriginMiddleware("", "CF-IPCountry")(api.NewService(application, api.WithWebsiteVisitor(visitorService, func() bool { return false })))
-	secret, err := customerserviceaction.NewRegenerateCustomerIdentitySecretAction(f.db).Execute(ctx, f.owner)
+	secret, err := customerchataction.RegenerateCustomerIdentitySecret(ctx, f.db, f.owner)
 	require.NoError(t, err)
 	createField := contactprofileaction.NewCreateFieldAction(f.db)
 	plan, err := createField.Execute(ctx, f.owner, contactprofileaction.FieldInput{

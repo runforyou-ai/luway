@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/runforyou-ai/luway/internal/agentcontract"
@@ -18,6 +19,8 @@ import (
 const (
 	// historyLimit 是注入 AI 上下文的客户历史小结条数上限。
 	historyLimit = 5
+	// historyListLimit 是默认列出的历史消息条数上限。
+	historyListLimit = 30
 	// historyHitLimit 是客户历史检索返回的命中消息条数上限。
 	historyHitLimit = 6
 	// historyContextMessages 是命中消息前后各带出的对客消息条数。
@@ -65,35 +68,40 @@ func RecentHistory(ctx context.Context, db bun.IDB, workspaceID, serviceSessionI
 	return history, nil
 }
 
-// SearchHistory 在与指定周期同一发起人的其他已关闭周期中检索对客消息，按命中相关度列出周期小结与命中消息前后的对客消息；closedBefore 非空时只检索在该时间之前关闭的周期。
+// SearchHistory 列出同一发起人其他已关闭周期的最近消息，text 非空时按关键词检索并带出相邻消息；closedBefore 限定周期关闭时间。
 func SearchHistory(ctx context.Context, db bun.IDB, workspaceID, serviceSessionID string, closedBefore *time.Time, text string) (agentcontract.CustomerHistoryResult, error) {
 	result := agentcontract.CustomerHistoryResult{Sessions: []agentcontract.CustomerHistorySession{}}
 	query, searchable := searchtext.ParseKeywords(text)
-	if !searchable {
+	if strings.TrimSpace(text) != "" && !searchable {
 		result.Message = "检索词没有可检索的内容，请改用订单号、商品名或问题关键词。"
 		return result, nil
 	}
-	tsquery := query.TSQuery()
 	var hits []struct {
 		SessionID string `bun:"session_id"`
 		MessageID string `bun:"message_id"`
 	}
-	if err := closedCustomerSessions(db, workspaceID, serviceSessionID, closedBefore).
+	hitsQuery := closedCustomerSessions(db, workspaceID, serviceSessionID, closedBefore).
 		ColumnExpr("ss.id::text AS session_id, msg.id::text AS message_id").
 		Join("JOIN messages AS msg ON msg.workspace_id = ss.workspace_id AND msg.conversation_id = ss.conversation_id AND msg.service_session_id = ss.id").
 		Where("msg.deleted_at IS NULL AND msg.visibility = ?", domain.MessageVisibilityShared).
-		Where("msg.type IN (?)", bun.List([]domain.MessageType{domain.MessageTypeText, domain.MessageTypeAttachment})).
-		Where("msg.search_vector @@ ?::tsquery", tsquery).
-		OrderExpr("ts_rank_cd(msg.search_vector, ?::tsquery) DESC, msg.originated_at DESC, msg.id", tsquery).
-		Limit(historyHitLimit).
-		Scan(ctx, &hits); err != nil {
+		Where("msg.type IN (?)", bun.List([]domain.MessageType{domain.MessageTypeText, domain.MessageTypeAttachment}))
+	contextMessages := 0
+	if searchable {
+		tsquery := query.TSQuery()
+		hitsQuery = hitsQuery.Where("msg.search_vector @@ ?::tsquery", tsquery).
+			OrderExpr("ts_rank_cd(msg.search_vector, ?::tsquery) DESC, msg.originated_at DESC, msg.id DESC", tsquery).Limit(historyHitLimit)
+		contextMessages = historyContextMessages
+	} else {
+		hitsQuery = hitsQuery.OrderExpr("msg.originated_at DESC, msg.id DESC").Limit(historyListLimit)
+	}
+	if err := hitsQuery.Scan(ctx, &hits); err != nil {
 		return result, fmt.Errorf("search customer history messages: %w", err)
 	}
 	if len(hits) == 0 {
 		result.Message = "没有找到相关的以往沟通记录。"
 		return result, nil
 	}
-	// 周期按其最相关命中的顺序排列。
+	// 周期按最近消息或最相关命中的顺序排列。
 	var sessionIDs, hitIDs []string
 	for _, hit := range hits {
 		hitIDs = append(hitIDs, hit.MessageID)
@@ -132,15 +140,16 @@ func SearchHistory(ctx context.Context, db bun.IDB, workspaceID, serviceSessionI
 		Where("msg.type IN (?)", bun.List([]domain.MessageType{domain.MessageTypeText, domain.MessageTypeAttachment}))
 	if err := db.NewSelect().With("timeline", timeline).TableExpr("timeline AS t").
 		ColumnExpr("t.service_session_id::text AS session_id, msg.originated_at, msg.body, ma.name AS attachment").
-		ColumnExpr("CASE WHEN cs.kind = ? THEN 'customer' WHEN oi.type = ? THEN 'agent' ELSE 'member' END AS sender",
-			domain.ChatSubjectKindContact, domain.WorkspaceIdentityTypeAgent).
+		ColumnExpr("CASE WHEN cp.subject_id = svc.requester_subject_id THEN 'customer' WHEN oi.type = ? THEN 'agent' ELSE 'member' END AS sender",
+			domain.WorkspaceIdentityTypeAgent).
 		Join("JOIN messages AS msg ON msg.id = t.id AND msg.workspace_id = ?", workspaceID).
+		Join("JOIN service_conversations AS svc ON svc.workspace_id = msg.workspace_id AND svc.conversation_id = msg.conversation_id").
 		Join("LEFT JOIN message_attachments AS ma ON ma.workspace_id = msg.workspace_id AND ma.message_id = msg.id").
 		Join("LEFT JOIN conversation_participants AS cp ON cp.id = msg.sender_participant_id AND cp.workspace_id = msg.workspace_id AND cp.conversation_id = msg.conversation_id").
 		Join("LEFT JOIN chat_subjects AS cs ON cs.id = cp.subject_id AND cs.workspace_id = cp.workspace_id").
 		Join("LEFT JOIN workspace_identities AS oi ON oi.id = cs.source_id AND oi.workspace_id = cs.workspace_id AND cs.kind = ?", domain.ChatSubjectKindWorkspaceIdentity).
 		Where("EXISTS (SELECT 1 FROM timeline AS hit WHERE hit.service_session_id = t.service_session_id AND hit.id IN (?) AND t.position BETWEEN hit.position - ? AND hit.position + ?)",
-			bun.List(hitIDs), historyContextMessages, historyContextMessages).
+			bun.List(hitIDs), contextMessages, contextMessages).
 		OrderExpr("t.message_seq").
 		Scan(ctx, &messages); err != nil {
 		return result, fmt.Errorf("load customer history messages: %w", err)

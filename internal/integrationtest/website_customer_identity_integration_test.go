@@ -18,12 +18,13 @@ import (
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	contactaction "github.com/runforyou-ai/luway/internal/actions/contact"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	"github.com/runforyou-ai/luway/internal/api"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
+	filecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/stretchr/testify/require"
 )
@@ -58,8 +59,9 @@ func TestWebsiteCustomerIdentityHTTP(t *testing.T) {
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
 	scheduler := agentrunaction.NewScheduler(testEnqueuer)
-	visitorService := direct.NewWebsiteVisitorBackend(f.db, scheduler, testEnqueuer, nil, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
-	application := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	storage := servertest.NewFiles(t)
+	visitorService := direct.NewWebsiteVisitorBackend(f.db, scheduler, testEnqueuer, func() filecontent.S3Config { return storage.Config }, servertest.DisabledMail{}, nil)
+	application := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	service := api.ClientOriginMiddleware("", "CF-IPCountry")(api.NewService(application, api.WithWebsiteVisitor(visitorService, func() bool { return false })))
 	messengerPath := "/public/website-channels/" + f.channelID + "/messenger"
 	messagesPath := "/public/website-channels/" + f.channelID + "/messages"
@@ -70,7 +72,7 @@ func TestWebsiteCustomerIdentityHTTP(t *testing.T) {
 	status, payload, _ := customerRequest(t, service, http.MethodGet, messengerPath, signCustomer(t, "unused", claims), "")
 	require.Equal(t, http.StatusUnauthorized, status, "未生成密钥 payload=%+v", payload)
 	require.Equal(t, appservice.WebsiteCustomerIdentityInvalidReason, payload["error"].(map[string]any)["reason"], "未生成密钥 payload=%+v", payload)
-	secret, err := customerserviceaction.NewRegenerateCustomerIdentitySecretAction(f.db).Execute(ctx, f.owner)
+	secret, err := customerchataction.RegenerateCustomerIdentitySecret(ctx, f.db, f.owner)
 	require.NoError(t, err)
 	token := signCustomer(t, secret, claims)
 
@@ -147,7 +149,8 @@ func TestWebsiteCustomerIdentityHTTP(t *testing.T) {
 	upload := `{"fileName":"订单截图.png","contentType":"image/png","byteSize":128}`
 	status, result, _ = customerRequest(t, service, http.MethodPost, "/public/website-channels/"+f.channelID+"/attachments", attachmentToken, upload)
 	require.Equal(t, http.StatusOK, status, "登录用户创建上传 payload=%+v", result)
-	require.Equal(t, attachmentToken, result["request"].(map[string]any)["headers"].(map[string]any)["X-Customer-Token"], "登录用户创建上传 payload=%+v", result)
+	require.NotContains(t, result["request"].(map[string]any)["headers"].(map[string]any), "X-Customer-Token")
+	require.Contains(t, result["request"].(map[string]any)["url"], "X-Amz-Signature=")
 	attachmentContact := &servermodels.Contact{}
 	require.NoError(t, f.db.NewSelect().Model(attachmentContact).
 		Join("JOIN channel_identities AS ci ON ci.contact_id = ct.id AND ci.workspace_id = ct.workspace_id").
@@ -158,7 +161,7 @@ func TestWebsiteCustomerIdentityHTTP(t *testing.T) {
 	require.Equal(t, attachmentUserID, *attachmentContact.ExternalUserID, "附件先行的联系人")
 
 	// 重新生成密钥后旧签名立即失效。
-	secret, err = customerserviceaction.NewRegenerateCustomerIdentitySecretAction(f.db).Execute(ctx, f.owner)
+	secret, err = customerchataction.RegenerateCustomerIdentitySecret(ctx, f.db, f.owner)
 	require.NoError(t, err)
 	directoryPath := "/public/website-channels/" + f.channelID + "/conversations"
 	status, payload, _ = customerRequest(t, service, http.MethodGet, directoryPath, token, "")

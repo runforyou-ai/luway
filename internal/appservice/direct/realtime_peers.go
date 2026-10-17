@@ -5,6 +5,7 @@ package direct
 import (
 	"context"
 	"errors"
+
 	computeraction "github.com/runforyou-ai/luway/internal/actions/computer"
 	"github.com/runforyou-ai/luway/internal/actions/realtimeauth"
 	"github.com/runforyou-ai/luway/internal/appservice"
@@ -14,9 +15,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/realtime"
 	"github.com/runforyou-ai/support/random"
 )
-
-// SetRealtimePrefix 设置部署的实时主题前缀。
-func (b *WebsiteVisitorBackend) SetRealtimePrefix(prefix string) { b.realtimePrefix = prefix }
 
 // GetVisitorRealtimeConnection 以已认证访客身份签发短期实时凭据。
 func (b *WebsiteVisitorBackend) GetVisitorRealtimeConnection(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID, externalID string) (_ appservice.RealtimePeerConnection, err error) {
@@ -32,7 +30,7 @@ func (b *WebsiteVisitorBackend) GetVisitorRealtimeConnection(ctx context.Context
 	}
 	token, err := realtimeauth.Issue(ctx, b.db, "v", identity, meta.CustomerToken)
 	channel := realtime.VisitorChannel(identity.WorkspaceID, identity.ID)
-	return appservice.RealtimePeerConnection{Token: token, UserID: "v_" + identity.ID, Channel: channel, TypingChannel: channel + ".typing", ReceptionChannel: "w." + identity.WorkspaceID + ".visitors", Prefix: b.realtimePrefix, Path: "/nats"}, err
+	return appservice.RealtimePeerConnection{Token: token, UserID: "v_" + identity.ID, Channel: channel, TypingChannel: channel + ".typing", ReceptionChannel: "w." + identity.WorkspaceID + ".visitors", Path: "/realtime"}, err
 }
 
 // GetComputerRealtimeConnection 以当前电脑凭据签发短期工作通知授权。
@@ -51,7 +49,7 @@ func (o *computerOps) GetComputerRealtimeConnection(ctx context.Context, meta ap
 	if err != nil {
 		return appservice.RealtimePeerConnection{}, computerRequestError(meta, err)
 	}
-	return appservice.RealtimePeerConnection{Token: token, UserID: "c_" + identity.ID, Channel: realtime.ComputerChannel(identity.WorkspaceID, identity.ID), Prefix: o.realtimePrefix, Path: "/nats"}, nil
+	return appservice.RealtimePeerConnection{Token: token, UserID: "c_" + identity.ID, Channel: realtime.ComputerChannel(identity.WorkspaceID, identity.ID), Path: "/realtime"}, nil
 }
 
 // HeartbeatComputer 按数据库时钟记录已认证电脑的最近在线时间。

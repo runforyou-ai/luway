@@ -11,8 +11,6 @@ var (
 	ErrQAUnsupported = errors.New("knowledge QA unsupported")
 	// ErrBaseHasContent 表示知识库类型受已有内容限制。
 	ErrBaseHasContent = errors.New("knowledge base has content")
-	// ErrPageSizeInvalid 表示列表每页数量超出上限。
-	ErrPageSizeInvalid = errors.New("knowledge list page size invalid")
 	// ErrNotFound 表示当前企业中不存在指定知识库。
 	ErrNotFound = errors.New("knowledge base not found")
 )

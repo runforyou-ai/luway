@@ -24,7 +24,7 @@ const websiteVisitorExternalID = "web-session:0123456789abcdef0123456789abcdef"
 func visitorUploadedAttachment(t *testing.T, f customerReadFixture, name, contentType string, byteSize int64) *servermodels.File {
 	t.Helper()
 	ctx := context.Background()
-	create := customerchataction.NewCreateWebsiteVisitorUploadAction(f.db, testEnqueuer, localStorage)
+	create := customerchataction.NewCreateWebsiteVisitorUploadAction(f.db, testEnqueuer)
 	record, err := create.Execute(ctx, customerchataction.WebsiteVisitorUploadInput{
 		ChannelID: f.channelID, ExternalID: websiteVisitorExternalID,
 		FileName: name, ContentType: contentType, ByteSize: byteSize,
@@ -64,7 +64,7 @@ func TestWebsiteVisitorAttachmentUpload(t *testing.T) {
 			return uploadedTestObject(file, ""), nil
 		})
 	require.Error(t, err, "foreign visitor completed upload")
-	create := customerchataction.NewCreateWebsiteVisitorUploadAction(f.db, testEnqueuer, localStorage)
+	create := customerchataction.NewCreateWebsiteVisitorUploadAction(f.db, testEnqueuer)
 	var conflict *conversationaction.ConflictError
 	_, err = create.Execute(ctx, customerchataction.WebsiteVisitorUploadInput{
 		ChannelID: f.channelID, ExternalID: websiteVisitorExternalID, FileName: "超大附件.bin",
@@ -123,7 +123,6 @@ func TestWebsiteVisitorAttachmentMessage(t *testing.T) {
 	require.Equal(t, result.Message.ID, last.ID)
 	require.NotNil(t, last.Attachment)
 	require.Equal(t, "问题截图.png", last.Attachment.Name)
-	require.Equal(t, domain.FileStorageBackendLocal, last.Attachment.StorageBackend)
 	require.NotEmpty(t, last.Attachment.StorageKey)
 	require.Equal(t, f.owner.Workspace.ID, history.WorkspaceID)
 	// 会话列表以文件名作为只含附件消息的预览。

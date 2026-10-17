@@ -14,6 +14,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess/processquery"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
 	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
@@ -187,7 +188,7 @@ func stopRunningAgentReply(t *testing.T, db *bun.DB, identity *servermodels.Iden
 	require.NoError(t, waitChatResult(t, ctx, finished))
 	assertStoppedAgentReply(t, ctx, db, run.ID, 1, 1)
 	// 主动停止的运行保留中断前的过程，成员可按运行编号读取。
-	process, err := processquery.NewGetRunProcessQuery(db).Execute(ctx, identity, run.ID)
+	process, err := processquery.NewGetRunProcessQuery(db, conversationaccess.Guard{}).Execute(ctx, identity, run.ID)
 	require.NoError(t, err)
 	require.Len(t, process.Blocks, 1)
 	require.Equal(t, "停止前的思考", process.Blocks[0].Payload.Text)

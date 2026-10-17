@@ -274,7 +274,7 @@ func TestMemberSendPipelinePermissions(t *testing.T) {
 		left := f.groupConversation(f.colleague)
 		dissolved := f.groupConversation(f.colleague)
 		archived := f.groupConversation(f.colleague)
-		coordinator := newGroupAgentCoordinator(f.db)
+		coordinator := newGroupAgentCanceller(f.db)
 		runPipelineCases(t, f, kinds["group"], []pipelineCase{
 			{"群主发送", pipelineIdentity(f.owner), pipelineValue(groupID), pipelineAccepted, pipelineAccepted},
 			{"群成员发送", pipelineIdentity(f.colleague), pipelineValue(groupID), pipelineAccepted, pipelineAccepted},
@@ -415,7 +415,7 @@ func TestMemberSendPipelineReplayAfterRevocation(t *testing.T) {
 		{"群已解散", "group", func(t *testing.T) (*servermodels.Identity, string) {
 			return f.owner, f.groupConversation(f.colleague)
 		}, func(t *testing.T, conversationID string) {
-			_, err := groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCoordinator(f.db)).Execute(f.ctx, f.owner, conversationID)
+			_, err := groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCanceller(f.db)).Execute(f.ctx, f.owner, conversationID)
 			require.NoError(t, err)
 		}},
 		{"服务周期已关闭", "service", func(t *testing.T) (*servermodels.Identity, string) {

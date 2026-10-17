@@ -71,8 +71,8 @@ func requireTeam(ctx context.Context, db bun.IDB, workspaceID, teamID string) er
 }
 
 // loadTeam 读取当前企业中的团队。
-func loadTeam(ctx context.Context, db bun.IDB, workspaceID, teamID string) (*TeamRecord, error) {
-	record := &TeamRecord{}
+func loadTeam(ctx context.Context, db bun.IDB, workspaceID, teamID string) (*Record, error) {
+	record := &Record{}
 	query := db.NewSelect().
 		TableExpr("teams AS t").
 		ColumnExpr("t.id::text AS id").

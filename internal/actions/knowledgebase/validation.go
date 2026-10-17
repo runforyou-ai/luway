@@ -5,9 +5,9 @@ package knowledgebase
 import (
 	"strings"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/support/str"
 )
 
 const (
@@ -26,8 +26,8 @@ const (
 func normalizeInput(input Input) (Input, map[string]common.FieldCode) {
 	input.Name = strings.TrimSpace(input.Name)
 	input.Description = strings.TrimSpace(input.Description)
-	input.EmbeddingModelID, _ = str.NormalizeUUID(input.EmbeddingModelID)
-	input.RerankModelID, _ = str.NormalizeUUID(input.RerankModelID)
+	input.EmbeddingModelID, _ = aimodel.NormalizeRef(input.EmbeddingModelID)
+	input.RerankModelID, _ = aimodel.NormalizeRef(input.RerankModelID)
 	fields := make(map[string]common.FieldCode)
 	if input.Category == domain.KnowledgeBaseCategoryQA {
 		input.ChunkLength, input.ChunkOverlap = nil, nil

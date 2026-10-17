@@ -68,7 +68,7 @@ func parsePermissionCodes(path string) (map[string]string, error) {
 func resolvePermissions(methods []method, permissionConsts map[string]string) error {
 	for index := range methods {
 		item := &methods[index]
-		member := !item.route.public && !item.route.account && !item.route.admin
+		member := !item.route.public && !item.route.account && !item.route.admin && !item.route.bearer
 		switch {
 		case !member && item.route.permission != "":
 			return fmt.Errorf("method %s: perm option requires auth=member", item.name)

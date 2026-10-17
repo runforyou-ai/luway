@@ -19,6 +19,8 @@ const (
 
 // NATSOptions 是 NATS 传输层的连接参数。
 type NATSOptions struct {
+	// Connection 是调用方管理的共享 NATS 连接。
+	Connection *nats.Conn
 	// URL 是 NATS 服务器地址。
 	URL string
 	// Namespace 是全部主题的前缀，同一部署的实例使用相同命名空间。
@@ -39,33 +41,42 @@ type natsTransport struct {
 	mu         sync.Mutex
 	connection *nats.Conn
 	topics     map[string]*nats.Subscription
+	directSub  *nats.Subscription
 }
 
 // start 建立 NATS 连接并订阅本实例主题；NATS 暂不可用时后台重连，不阻塞启动。
 func (t *natsTransport) start(receive func([]byte), _ func(int)) error {
 	t.receive = receive
-	connection, err := nats.Connect(
-		t.options.URL,
-		nats.Name("server-bus-"+t.options.Namespace),
-		nats.NoEcho(),
-		nats.RetryOnFailedConnect(true),
-		nats.MaxReconnects(-1),
-		// 断连后发送立即返回错误。
-		nats.ReconnectBufSize(-1),
-		nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
-			if err != nil {
-				slog.WarnContext(context.Background(), "总线 NATS 连接断开", "namespace", t.options.Namespace, "error", err)
-			}
-		}),
-		nats.ReconnectHandler(func(_ *nats.Conn) {
-			slog.InfoContext(context.Background(), "总线 NATS 已重新连接", "namespace", t.options.Namespace)
-		}),
-	)
-	if err != nil {
-		return fmt.Errorf("connect bus NATS: %w", err)
+	connection := t.options.Connection
+	var err error
+	if connection == nil {
+		connection, err = nats.Connect(
+			t.options.URL,
+			nats.Name("server-bus-"+t.options.Namespace),
+			nats.NoEcho(),
+			nats.RetryOnFailedConnect(true),
+			nats.MaxReconnects(-1),
+			// 断连后发送立即返回错误。
+			nats.ReconnectBufSize(-1),
+			nats.DisconnectErrHandler(func(_ *nats.Conn, err error) {
+				if err != nil {
+					slog.WarnContext(context.Background(), "总线 NATS 连接断开", "namespace", t.options.Namespace, "error", err)
+				}
+			}),
+			nats.ReconnectHandler(func(_ *nats.Conn) {
+				slog.InfoContext(context.Background(), "总线 NATS 已重新连接", "namespace", t.options.Namespace)
+			}),
+		)
+		if err != nil {
+			return fmt.Errorf("connect bus NATS: %w", err)
+		}
 	}
-	if _, err := connection.Subscribe(t.directSubject(t.instanceID), t.handle); err != nil {
-		connection.Close()
+
+	t.directSub, err = connection.Subscribe(t.directSubject(t.instanceID), t.handle)
+	if err != nil {
+		if t.options.Connection == nil {
+			connection.Close()
+		}
 		return fmt.Errorf("subscribe bus instance subject: %w", err)
 	}
 	// 已连上时等待本实例主题订阅生效；尚未连上时订阅在连上后登记。
@@ -190,10 +201,18 @@ func (t *natsTransport) close() error {
 	t.mu.Lock()
 	connection := t.connection
 	t.connection = nil
+	for _, sub := range t.topics {
+		_ = sub.Unsubscribe()
+	}
+	if t.directSub != nil {
+		_ = t.directSub.Unsubscribe()
+	}
 	t.topics = map[string]*nats.Subscription{}
 	t.mu.Unlock()
 	if connection != nil {
-		connection.Close()
+		if t.options.Connection == nil {
+			connection.Close()
+		}
 	}
 	return nil
 }

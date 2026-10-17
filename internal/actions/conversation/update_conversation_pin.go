@@ -10,6 +10,7 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -101,7 +102,7 @@ func (a *UpdateConversationPinAction) Execute(ctx context.Context, identity *ser
 
 // normalizeConversationPinInput 校验目标会话、邻居会话与顺序版本。
 func normalizeConversationPinInput(input ConversationPinInput) (ConversationPinInput, error) {
-	fields := make(map[string]ValidationCode)
+	fields := make(map[string]common.FieldCode)
 	conversationID, valid := str.NormalizeUUID(input.ConversationID)
 	if !valid {
 		fields["conversationId"] = ValidationConversationIDInvalid
@@ -134,7 +135,7 @@ func normalizeConversationPinInput(input ConversationPinInput) (ConversationPinI
 		fields["position"] = ValidationPinPositionInvalid
 	}
 	if len(fields) > 0 {
-		return ConversationPinInput{}, &ValidationError{Fields: fields}
+		return ConversationPinInput{}, &common.FieldError{Fields: fields}
 	}
 	return input, nil
 }

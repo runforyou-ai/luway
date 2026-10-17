@@ -13,21 +13,18 @@ import (
 	"github.com/runforyou-ai/support/str"
 )
 
-// ValidationCode 标识模型服务供应商字段校验结果。
-type ValidationCode = common.FieldCode
-
 const (
-	ValidationBrandInvalid          ValidationCode = "AI_PROVIDER_BRAND_INVALID"
-	ValidationCredentialTypeInvalid ValidationCode = "AI_PROVIDER_CREDENTIAL_TYPE_INVALID"
-	ValidationNameRequired          ValidationCode = "AI_PROVIDER_NAME_REQUIRED"
-	ValidationNameTooLong           ValidationCode = "AI_PROVIDER_NAME_TOO_LONG"
-	ValidationNameDuplicate         ValidationCode = "AI_PROVIDER_NAME_DUPLICATE"
-	ValidationAPIKeyRequired        ValidationCode = "AI_PROVIDER_API_KEY_REQUIRED"
-	ValidationAPIKeyTooLong         ValidationCode = "AI_PROVIDER_API_KEY_TOO_LONG"
-	ValidationAPIURLRequired        ValidationCode = "AI_PROVIDER_API_URL_REQUIRED"
-	ValidationAPIURLInvalid         ValidationCode = "AI_PROVIDER_API_URL_INVALID"
-	ValidationModelsInvalid         ValidationCode = "AI_PROVIDER_MODELS_INVALID"
-	ValidationModelsInUse           ValidationCode = "AI_PROVIDER_MODELS_IN_USE"
+	ValidationBrandInvalid          common.FieldCode = "AI_PROVIDER_BRAND_INVALID"
+	ValidationCredentialTypeInvalid common.FieldCode = "AI_PROVIDER_CREDENTIAL_TYPE_INVALID"
+	ValidationNameRequired          common.FieldCode = "AI_PROVIDER_NAME_REQUIRED"
+	ValidationNameTooLong           common.FieldCode = "AI_PROVIDER_NAME_TOO_LONG"
+	ValidationNameDuplicate         common.FieldCode = "AI_PROVIDER_NAME_DUPLICATE"
+	ValidationAPIKeyRequired        common.FieldCode = "AI_PROVIDER_API_KEY_REQUIRED"
+	ValidationAPIKeyTooLong         common.FieldCode = "AI_PROVIDER_API_KEY_TOO_LONG"
+	ValidationAPIURLRequired        common.FieldCode = "AI_PROVIDER_API_URL_REQUIRED"
+	ValidationAPIURLInvalid         common.FieldCode = "AI_PROVIDER_API_URL_INVALID"
+	ValidationModelsInvalid         common.FieldCode = "AI_PROVIDER_MODELS_INVALID"
+	ValidationModelsInUse           common.FieldCode = "AI_PROVIDER_MODELS_IN_USE"
 )
 
 const (
@@ -37,11 +34,8 @@ const (
 	maxAPIKeyBytes = 2048
 )
 
-// ValidationError 表示模型服务供应商字段校验失败。
-type ValidationError = common.FieldError
-
 // normalizeInput 规范化模型服务供应商输入并校验模型目录。
-func normalizeInput(input Input) (Input, map[string]ValidationCode) {
+func normalizeInput(input Input) (Input, map[string]common.FieldCode) {
 	name, connection, fields := NormalizeProvider(input.Name, ConnectionInput{
 		Brand: input.Brand, CredentialType: input.CredentialType, APIKey: input.APIKey, APIURL: input.APIURL,
 	})
@@ -83,7 +77,7 @@ func normalizeInput(input Input) (Input, map[string]ValidationCode) {
 }
 
 // NormalizeProvider 规范化并校验供应商名称与连接配置。
-func NormalizeProvider(name string, connection ConnectionInput) (string, ConnectionInput, map[string]ValidationCode) {
+func NormalizeProvider(name string, connection ConnectionInput) (string, ConnectionInput, map[string]common.FieldCode) {
 	name = strings.TrimSpace(name)
 	connection, fields := normalizeConnectionInput(connection)
 	if name == "" {
@@ -95,8 +89,8 @@ func NormalizeProvider(name string, connection ConnectionInput) (string, Connect
 }
 
 // normalizeConnectionInput 规范化并校验模型服务连接草稿。
-func normalizeConnectionInput(input ConnectionInput) (ConnectionInput, map[string]ValidationCode) {
-	fields := make(map[string]ValidationCode)
+func normalizeConnectionInput(input ConnectionInput) (ConnectionInput, map[string]common.FieldCode) {
+	fields := make(map[string]common.FieldCode)
 	input.APIKey = strings.TrimSpace(input.APIKey)
 	input.APIURL = strings.TrimSpace(input.APIURL)
 	if !domain.ValidAIProviderBrand(input.Brand) {

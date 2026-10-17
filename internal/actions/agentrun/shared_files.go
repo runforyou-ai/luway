@@ -9,7 +9,7 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/runforyou-ai/luway/internal/actions/conversationfile"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/common/textfile"
@@ -26,8 +26,8 @@ type DocumentConverter interface {
 }
 
 // loadRunSharedFiles 按运行所属会话确定共享文件区，以 AI 员工的聊天主体为修改人，以配置版本的创建人为内容文件的上传用户。
-func loadRunSharedFiles(ctx context.Context, db bun.IDB, store *conversationfile.Store, documents DocumentConverter, run *servermodels.AgentRun) (*runSharedFiles, error) {
-	author, err := conversationfile.LoadRunAuthor(ctx, db, run)
+func loadRunSharedFiles(ctx context.Context, db bun.IDB, store *conversationaction.Store, documents DocumentConverter, run *servermodels.AgentRun) (*runSharedFiles, error) {
+	author, err := conversationaction.LoadRunAuthor(ctx, db, run)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +37,7 @@ func loadRunSharedFiles(ctx context.Context, db bun.IDB, store *conversationfile
 
 // runSharedFiles 是一次运行使用的会话共享文件区：area 是文件区所属会话，conversationID 是运行所属会话，附件从运行所属会话中读取。
 type runSharedFiles struct {
-	store          *conversationfile.Store
+	store          *conversationaction.Store
 	documents      DocumentConverter
 	workspaceID    string
 	area           string
@@ -51,11 +51,11 @@ var sharedFileErrors = []struct {
 	err     error
 	message string
 }{
-	{conversationfile.ErrNotFound, "共享文件区中没有这个文件，用 list_shared_files 查看已有文件。"},
-	{conversationfile.ErrInvalidPath, "路径不合法：使用 shared/ 下的相对路径，不能包含 .. 越出共享文件区。"},
-	{conversationfile.ErrExists, "共享文件区中已有同名文件，换一个路径。"},
-	{conversationfile.ErrNotRead, "文件已存在，覆盖或修改前先用 read_file 读取。"},
-	{conversationfile.ErrModified, "文件在读取后已被改动，请重新用 read_file 读取后再改。"},
+	{conversationaction.ErrFileNotFound, "共享文件区中没有这个文件，用 list_shared_files 查看已有文件。"},
+	{conversationaction.ErrInvalidPath, "路径不合法：使用 shared/ 下的相对路径，不能包含 .. 越出共享文件区。"},
+	{conversationaction.ErrExists, "共享文件区中已有同名文件，换一个路径。"},
+	{conversationaction.ErrNotRead, "文件已存在，覆盖或修改前先用 read_file 读取。"},
+	{conversationaction.ErrModified, "文件在读取后已被改动，请重新用 read_file 读取后再改。"},
 }
 
 // modelError 返回交给模型的原因，未预期的错误原样返回。
@@ -69,7 +69,7 @@ func modelError(err error) error {
 }
 
 // sharedFile 把文件区中的文件转换为运行期的共享文件。
-func sharedFile(entry conversationfile.Entry) agentruntime.SharedFile {
+func sharedFile(entry conversationaction.Entry) agentruntime.SharedFile {
 	return agentruntime.SharedFile{Path: entry.Path, ContentType: entry.ContentType, ByteSize: entry.ByteSize, Hash: entry.ContentHash, UpdatedAt: entry.UpdatedAt, UpdatedBy: support.Deref(entry.UpdatedByName)}
 }
 
@@ -103,9 +103,9 @@ func (f *runSharedFiles) Read(ctx context.Context, filePath string) (agentruntim
 
 // Write 以完整内容创建或覆盖文件。
 func (f *runSharedFiles) Write(ctx context.Context, path string, content []byte, baseHash string) (agentruntime.SharedFile, error) {
-	entry, err := f.store.Write(ctx, conversationfile.WriteInput{
+	entry, err := f.store.Write(ctx, conversationaction.WriteInput{
 		WorkspaceID: f.workspaceID, ConversationID: f.area, Path: path, Data: content,
-		Mode: conversationfile.WriteReplace, BaseHash: baseHash, SubjectID: f.subjectID, UserID: f.userID,
+		Mode: conversationaction.WriteReplace, BaseHash: baseHash, SubjectID: f.subjectID, UserID: f.userID,
 	})
 	if err != nil {
 		return agentruntime.SharedFile{}, modelError(err)
@@ -115,8 +115,8 @@ func (f *runSharedFiles) Write(ctx context.Context, path string, content []byte,
 
 // SaveAttachment 把运行所属会话中的附件保存为文件区中的新文件。
 func (f *runSharedFiles) SaveAttachment(ctx context.Context, messageID, path string) (agentruntime.SharedFile, error) {
-	entry, err := f.store.SaveAttachment(ctx, conversationfile.WriteInput{
-		WorkspaceID: f.workspaceID, ConversationID: f.area, Path: path, Mode: conversationfile.WriteNew, SubjectID: f.subjectID, UserID: f.userID,
+	entry, err := f.store.SaveAttachment(ctx, conversationaction.WriteInput{
+		WorkspaceID: f.workspaceID, ConversationID: f.area, Path: path, Mode: conversationaction.WriteNew, SubjectID: f.subjectID, UserID: f.userID,
 	}, f.conversationID, messageID)
 	if err != nil {
 		return agentruntime.SharedFile{}, modelError(err)

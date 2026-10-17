@@ -11,7 +11,7 @@ import (
 	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
-	websearchaction "github.com/runforyou-ai/luway/internal/actions/websearch"
+	"github.com/runforyou-ai/luway/internal/actions/webtools"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -26,21 +26,19 @@ func TestWebSearchSettingsAndAgentTools(t *testing.T) {
 	t.Parallel()
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
-	update := websearchaction.NewUpdateSettingsAction(f.db)
-
 	// 云端服务商缺少 API Key、自托管服务缺少或填错实例地址时逐字段报错。
 	for _, invalid := range []struct {
 		config websearch.Config
 		field  string
 		code   common.FieldCode
 	}{
-		{websearch.Config{Provider: "unknown", APIKey: "key"}, "provider", websearchaction.ValidationProviderInvalid},
-		{websearch.Config{Provider: domain.WebSearchProviderTavily, APIKey: "  "}, "apiKey", websearchaction.ValidationAPIKeyRequired},
-		{websearch.Config{Provider: domain.WebSearchProviderSearXNG}, "baseUrl", websearchaction.ValidationBaseURLRequired},
-		{websearch.Config{Provider: domain.WebSearchProviderSearXNG, BaseURL: "ftp://search.example.com"}, "baseUrl", websearchaction.ValidationBaseURLInvalid},
+		{websearch.Config{Provider: "unknown", APIKey: "key"}, "provider", webtools.ValidationSearchProviderInvalid},
+		{websearch.Config{Provider: domain.WebSearchProviderTavily, APIKey: "  "}, "apiKey", webtools.ValidationSearchAPIKeyRequired},
+		{websearch.Config{Provider: domain.WebSearchProviderSearXNG}, "baseUrl", webtools.ValidationSearchBaseURLRequired},
+		{websearch.Config{Provider: domain.WebSearchProviderSearXNG, BaseURL: "ftp://search.example.com"}, "baseUrl", webtools.ValidationSearchBaseURLInvalid},
 	} {
 		config := invalid.config
-		_, err := update.Execute(ctx, f.owner, &config)
+		_, err := webtools.UpdateSearchSettings(ctx, f.db, f.owner, &config)
 		var fieldError *common.FieldError
 		require.ErrorAs(t, err, &fieldError, "config=%+v", invalid.config)
 		require.Equal(t, invalid.code, fieldError.Fields[invalid.field], "config=%+v", invalid.config)
@@ -91,10 +89,10 @@ func TestWebSearchSettingsAndAgentTools(t *testing.T) {
 	require.NotNil(t, captured.WebFetch)
 
 	// 保存时去掉云端服务商的实例地址与首尾空白，内部对话随后获得联网搜索。
-	saved, err := update.Execute(ctx, f.owner, &websearch.Config{Provider: domain.WebSearchProviderTavily, APIKey: " tvly-key ", BaseURL: "https://ignored.example.com"})
+	saved, err := webtools.UpdateSearchSettings(ctx, f.db, f.owner, &websearch.Config{Provider: domain.WebSearchProviderTavily, APIKey: " tvly-key ", BaseURL: "https://ignored.example.com"})
 	require.NoError(t, err)
 	require.Equal(t, websearch.Config{Provider: domain.WebSearchProviderTavily, APIKey: "tvly-key"}, *saved)
-	loaded, err := websearchaction.LoadConfig(ctx, f.db, f.owner.Workspace.ID)
+	loaded, err := webtools.LoadSearchConfig(ctx, f.db, f.owner.Workspace.ID)
 	require.NoError(t, err)
 	require.NotNil(t, loaded)
 	require.Equal(t, *saved, *loaded)
@@ -104,14 +102,14 @@ func TestWebSearchSettingsAndAgentTools(t *testing.T) {
 	require.NotNil(t, captured.WebFetch)
 
 	// 自托管服务保存去掉末尾斜杠的实例地址，不保存 API Key。
-	selfHosted, err := update.Execute(ctx, f.owner, &websearch.Config{Provider: domain.WebSearchProviderSearXNG, APIKey: "unused", BaseURL: "https://search.example.com/"})
+	selfHosted, err := webtools.UpdateSearchSettings(ctx, f.db, f.owner, &websearch.Config{Provider: domain.WebSearchProviderSearXNG, APIKey: "unused", BaseURL: "https://search.example.com/"})
 	require.NoError(t, err)
 	require.Equal(t, websearch.Config{Provider: domain.WebSearchProviderSearXNG, BaseURL: "https://search.example.com"}, *selfHosted)
 
 	// 关闭联网搜索后删除设置。
-	_, err = update.Execute(ctx, f.owner, nil)
+	_, err = webtools.UpdateSearchSettings(ctx, f.db, f.owner, nil)
 	require.NoError(t, err)
-	loaded, err = websearchaction.LoadConfig(ctx, f.db, f.owner.Workspace.ID)
+	loaded, err = webtools.LoadSearchConfig(ctx, f.db, f.owner.Workspace.ID)
 	require.NoError(t, err)
 	require.Nil(t, loaded, "loaded after disable")
 }

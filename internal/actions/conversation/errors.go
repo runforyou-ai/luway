@@ -7,7 +7,6 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/servicestate"
-	"github.com/runforyou-ai/luway/internal/common"
 )
 
 var (
@@ -38,6 +37,3 @@ type ConflictError struct {
 
 // Error 返回稳定冲突原因。
 func (e *ConflictError) Error() string { return "conversation conflict: " + e.Reason }
-
-// ValidationError 表示会话业务输入不合法。
-type ValidationError = common.FieldError

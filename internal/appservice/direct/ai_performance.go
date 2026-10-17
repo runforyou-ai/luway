@@ -9,6 +9,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/reportpage"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support"
@@ -43,7 +44,7 @@ func newAIPerformanceOps(db *bun.DB, files *fileOps, serviceIssues *serviceIssue
 // GetAIPerformanceReport 返回当前企业指定范围内的 AI 客服表现概览。
 func (o *aiPerformanceOps) GetAIPerformanceReport(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.AIPerformanceReportInput) (appservice.AIPerformanceReport, error) {
 	agents := reportAgentScope(identity, input.AgentID, input.Mine)
-	overview, err := o.aiPerformanceOverview.Execute(ctx, identity, aiperformanceaction.Input{Days: input.Days, ChannelID: input.ChannelID, Agents: agents})
+	overview, err := o.aiPerformanceOverview.Execute(ctx, identity, aiperformanceaction.Input{Days: input.Days, Audience: input.Audience, ServiceSource: input.ServiceSource, ChannelID: input.ChannelID, Agents: agents})
 	if err != nil {
 		return appservice.AIPerformanceReport{}, aiPerformanceError(meta, err)
 	}
@@ -60,7 +61,7 @@ func (o *aiPerformanceOps) GetAIPerformanceReport(ctx context.Context, meta apps
 func (o *aiPerformanceOps) ListAIPerformanceBreakdowns(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.AIPerformanceBreakdownInput) (appservice.AIPerformanceBreakdownList, error) {
 	agents := reportAgentScope(identity, input.AgentID, input.Mine)
 	list, err := o.aiPerformanceBreakdowns.Execute(ctx, identity, aiperformanceaction.BreakdownInput{
-		Input:     aiperformanceaction.Input{Days: input.Days, ChannelID: input.ChannelID, Agents: agents},
+		Input:     aiperformanceaction.Input{Days: input.Days, Audience: input.Audience, ServiceSource: input.ServiceSource, ChannelID: input.ChannelID, Agents: agents},
 		Dimension: input.Dimension, Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
@@ -76,7 +77,7 @@ func (o *aiPerformanceOps) ListAIPerformanceBreakdowns(ctx context.Context, meta
 func (o *aiPerformanceOps) ListAIPerformanceIssues(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.AIPerformanceIssueListInput) (appservice.ServiceIssueList, error) {
 	agents := reportAgentScope(identity, input.AgentID, input.Mine)
 	list, err := o.aiPerformanceIssues.Execute(ctx, identity, aiperformanceaction.IssueListInput{
-		Input: aiperformanceaction.Input{Days: input.Days, ChannelID: input.ChannelID, Agents: agents},
+		Input: aiperformanceaction.Input{Days: input.Days, Audience: input.Audience, ServiceSource: input.ServiceSource, ChannelID: input.ChannelID, Agents: agents},
 		Issue: input.Issue, Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
@@ -125,13 +126,15 @@ func reportAgentScope(identity *servermodels.Identity, agentID string, mine bool
 // agentServiceSessionsError 把服务记录查询错误转换为结构化、本地化错误。
 func agentServiceSessionsError(meta appservice.RequestMeta, err error) error {
 	return dispatch.Catalog{
-		dispatch.Is(aiperformanceaction.ErrPageSizeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
+		dispatch.Is(reportpage.ErrServiceScopeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
+		dispatch.Is(common.ErrPageSizeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
 	}.Translate(meta, err, i18n.ErrorAgentServiceSessionsLoadFailed)
 }
 
 // aiPerformanceErrors 是 AI 表现报表查询的错误转换规则。
 var aiPerformanceErrors = dispatch.Catalog{
-	dispatch.Is(aiperformanceaction.ErrPageSizeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
+	dispatch.Is(reportpage.ErrServiceScopeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
+	dispatch.Is(common.ErrPageSizeInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
 	dispatch.Is(aiperformanceaction.ErrDimensionInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
 	dispatch.Is(aiperformanceaction.ErrIssueInvalid, dispatch.Invalid(i18n.ErrorValidationFailed)),
 }

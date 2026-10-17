@@ -3,11 +3,11 @@ title: Accounts and workspaces
 order: 2
 ---
 
-Manage accounts, workspaces, and sign-up and creation policies for the platform.
+Manage accounts, workspaces, sign-up policy, and self-created workspace quota for the platform.
 
-## Account management
+## User management
 
-The **Accounts** tab of **Workspaces & accounts** lists the platform's accounts. Search by email or name, and filter by active or deactivated. Each account shows how many workspaces it has joined and when it signed up.
+Open **Operations → User management** in the sidebar to view all platform accounts. Search by email or name, and filter by account status. Each account shows how many workspaces it has joined and when it signed up.
 
 From an account's menu you can:
 
@@ -20,7 +20,7 @@ Platform administrators can't change their own account status or administrator a
 
 ## Workspace management
 
-The **Workspaces** tab of **Workspaces & accounts** lists the platform's workspaces. Search by name or the identifier in its access address, filter by status, and sort by newest, recently active, most members, or most storage. Each workspace shows its members, AI employees, channels, computers, storage, and last activity.
+**Workspace management** lists the platform's workspaces. Search by name or the identifier in its access address, filter by status, and sort by newest, recently active, most members, or most storage. Each workspace shows its members, AI employees, channels, computers, storage, and last activity.
 
 Creating a workspace only requires a name; the server generates its access address. Names must be unique within the deployment. Creating and renaming trim surrounding whitespace and compare existing names without regard to case. General settings let you rename a workspace and view or copy its address. Existing links continue working after renaming. Workspace management dialogs also show the address to identify the workspace being managed.
 
@@ -41,11 +41,15 @@ After resuming, members can enter again, channels serve customers again, and tas
 
 ## Sign-up policy
 
-On the **Sign-up & creation** tab of **Workspaces & accounts**, choose how accounts sign up:
+In platform admin sidebar **System → Site settings**, choose how accounts sign up:
 
 - Open sign-up: anyone can create an account from the sign-in page;
-- Invitation only: only people invited to a workspace can create an account.
+- Invitation only: only people with a valid workspace invitation can create an account.
 
-## Workspace creation policy
+Workspace member invitations always work: existing accounts only join the workspace; new users may register along the way. Joining by invitation does not consume self-create quota.
 
-On the **Sign-up & creation** tab, choose who can create workspaces: any account, or platform administrators only. When the platform has a workspace limit, the tab shows it, and no more workspaces can be created once it is reached.
+## Self-created workspace quota
+
+On **Site settings**, set how many workspaces each account may create. Workspaces joined by invitation do not count. Without a license the quota is locked to 0 (the platform keeps the default workspace from setup). After activation you may raise the quota; once set, it can only stay the same or increase.
+
+With open sign-up and quota 0, self-serve registrations join the default workspace. With quota greater than 0, self-serve registration creates a personal workspace and consumes one quota slot.

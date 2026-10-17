@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/luway/internal/storage/server/pgerr"
@@ -28,7 +29,7 @@ func NewCreateBusinessSystemAction(db *bun.DB, test *TestConnectionAction) *Crea
 func (a *CreateBusinessSystemAction) Execute(ctx context.Context, identity *servermodels.Identity, input Input) (*Record, error) {
 	input, fields := normalizeInput(input)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	// 网络探测在写事务外执行，失败时不保存配置。
 	connection, tools, err := a.test.Execute(ctx, input.Connection)
@@ -55,7 +56,7 @@ func (a *CreateBusinessSystemAction) Execute(ctx context.Context, identity *serv
 	})
 	// 工作区内名称不区分大小写且保持唯一。
 	if pgerr.UniqueViolationOn(err, "business_systems_workspace_name_unique") {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"name": ValidationNameDuplicate}}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("create business system: %w", err)

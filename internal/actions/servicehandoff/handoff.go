@@ -11,12 +11,11 @@ import (
 	"strings"
 	"uuid"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/channeldelivery"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
-	"github.com/runforyou-ai/luway/internal/actions/servicecategory"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
 	"github.com/runforyou-ai/luway/internal/actions/servicestate"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
@@ -53,7 +52,7 @@ type Handoff struct {
 // Apply 在调用方持有会话锁的事务中写入转人工事件，渠道来源追加按承接结果生成的对客通知，其他来源追加发起人可见的服务进度，按去向更新负责人与团队；返回的对客通知或服务进度已推进会话版本并通知全部受众。
 func Apply(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, emailSender customernotify.Sender, handoff Handoff) (*servermodels.Message, error) {
 	session := handoff.Session
-	participantID, err := agentmessage.EnsureCustomerParticipant(ctx, db, session.WorkspaceID, session.ConversationID, handoff.AgentIdentityID)
+	participantID, err := chatstate.EnsureCustomerParticipant(ctx, db, session.WorkspaceID, session.ConversationID, handoff.AgentIdentityID)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +88,7 @@ func Apply(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, emai
 	}
 	eventType := string(domain.ConversationSystemEventServiceSessionHandedOff)
 	// 系统事件先于对客通知写入，会话最后消息保持为对客文本；首次写入事件时准备交接摘要。
-	event, inserted, err := agentmessage.Append(ctx, db, enqueuer, handoff.Conversation, &servermodels.Message{
+	event, inserted, err := chatstate.Append(ctx, db, enqueuer, handoff.Conversation, &servermodels.Message{
 		ID: uuid.NewV7().String(), WorkspaceID: session.WorkspaceID, ConversationID: session.ConversationID,
 		ServiceSessionID: &session.ID, Type: string(domain.MessageTypeSystem), Visibility: string(domain.MessageVisibilityInternal),
 		SystemEventType: &eventType, SystemEventPayload: payload, IdempotencyKey: &handoff.EventKey,
@@ -110,7 +109,7 @@ func Apply(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, emai
 		if err != nil {
 			return nil, err
 		}
-		message, err = agentmessage.AppendCustomer(ctx, db, enqueuer, handoff.Conversation, session, handoff.DeliveryRoute, &servermodels.Message{
+		message, err = chatstate.AppendCustomer(ctx, db, enqueuer, handoff.Conversation, session, handoff.DeliveryRoute, &servermodels.Message{
 			ID: uuid.NewV7().String(), WorkspaceID: session.WorkspaceID, ConversationID: session.ConversationID,
 			ServiceSessionID: &session.ID, SenderParticipantID: &participantID,
 			Type: string(domain.MessageTypeText), Body: notice, IdempotencyKey: &handoff.NoticeKey,
@@ -188,7 +187,7 @@ func resolveAgentHandoffQueue(ctx context.Context, db bun.IDB, workspaceID, conv
 	// 分类在模型选择后被归档时按未选择分类处理。
 	var categoryTeamID *string
 	if categoryID != "" {
-		if resolved.Category, err = servicecategory.FindActive(ctx, db, workspaceID, categoryID); err != nil {
+		if resolved.Category, err = servicepolicy.FindActive(ctx, db, workspaceID, domain.ServiceAudience(service.Audience), categoryID); err != nil {
 			return resolved, err
 		}
 		if resolved.Category != nil {

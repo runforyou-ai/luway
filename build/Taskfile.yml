@@ -26,7 +26,7 @@ tasks:
       - sh: npm version
         msg: "Looks like npm isn't installed. Npm is part of the Node installer: https://nodejs.org/en/download/"
     cmds:
-      - npm install --no-audit
+      - '{{if eq .CI_FRONTEND_DEPS_READY "true"}}node ../build/scripts/ci-frontend-deps.mjs . --check{{else}}npm install --no-audit{{end}}'
 
   install:frontend:deps:bun:
     dir: frontend
@@ -231,7 +231,7 @@ tasks:
       GOOS: linux
       GOARCH: '{{.TARGET_ARCH}}'
     preconditions:
-      - sh: test -f frontend/dist/index.html && test -f internal/publicweb/dist/markdown.js && test -d internal/productdocs/dist/site
+      - sh: test -f frontend/dist/index.html && test -f internal/web/messenger/dist/markdown.js && test -d internal/web/docs/dist/site
         msg: "请先构建前端、Messenger 与文档资源"
     cmds:
       - mkdir -p "{{.BIN_DIR}}/server-image"

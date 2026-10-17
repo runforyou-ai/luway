@@ -111,7 +111,7 @@ func newEmployeeChannelFixture(t *testing.T) *employeeChannelFixture {
 	adapters.Register(domain.ChannelTypeWeComBot, outbound)
 	return &employeeChannelFixture{
 		db: db, identity: identity, modelID: modelID, agentID: agent.IdentityID, channel: channel, botID: botID, outbound: outbound, tasks: tasks,
-		receiver: channelinboundaction.NewReceiveEventAction(db, adapters, agentrunaction.NewScheduler(tasks), localStorage, tasks, nil, func() string { return "https://luway.test" }),
+		receiver: channelinboundaction.NewReceiveEventAction(db, adapters, agentrunaction.NewScheduler(tasks), tasks, nil, func() string { return "https://luway.test" }),
 	}
 }
 

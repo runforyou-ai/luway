@@ -26,39 +26,39 @@ func TestPlatformOperationsData(t *testing.T) {
 	db := servertest.OpenEmptyDatabase(t, serverstorage.CoreMigrations())
 	tasks := servertest.NewTasks()
 	aggregate := platformaction.NewAggregateStatsAction(db)
-	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db)}, nil, nil, nil, tasks, nil, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db)}, nil, nil, tasks, nil, nil, nil)
 	service := backend
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}
 
-	installed, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
+	admin := servertest.InstallPlatform(t, service, appservice.InstallPlatformInput{
 		PublicURL: servertest.PublicURL, WorkspaceName: "运营数据", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: domain.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
-	admin := installed.Auth
+	adminMeta := servertest.AdminMeta(admin.AdminToken)
+	userAuth, err := backend.Login(ctx, meta, appservice.LoginInput{Email: "admin@example.test", Password: "password123"})
 	require.NoError(t, err)
-	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: domain.LocaleChineseSimplified}
-	settings, err := backend.GetPlatformSettings(ctx, adminMeta)
+	userMeta := appservice.RequestMeta{Token: userAuth.Token, Locale: domain.LocaleChineseSimplified}
+	site, err := backend.GetPlatformSite(ctx, adminMeta)
 	require.NoError(t, err)
-	deployment, err := backend.GetPlatformDeployment(ctx, adminMeta)
-	require.NoError(t, err)
-	require.Equal(t, "Asia/Shanghai", deployment.TimeZone)
-	_, err = backend.UpdatePlatformDeploymentBasics(ctx, adminMeta, appservice.PlatformDeploymentBasicsInput{
-		Name: deployment.Name, TimeZone: "Mars/Olympus", TelemetryEnabled: deployment.TelemetryEnabled,
-	})
+	require.Equal(t, "Asia/Shanghai", site.TimeZone)
+	input := platformSiteInputFrom(site)
+	input.TimeZone = "Mars/Olympus"
+	_, err = backend.UpdatePlatformSite(ctx, adminMeta, input)
 	servertest.RequireFieldError(t, err, "timeZone", i18n.FieldTimeZoneInvalid)
 
-	workspaces, err := backend.ListWorkspaces(ctx, adminMeta)
+	workspaces, err := backend.ListWorkspaces(ctx, userMeta)
 	require.NoError(t, err)
 	require.Len(t, workspaces.Items, 1)
-	require.Equal(t, appservice.WorkspaceStatusActive, workspaces.Items[0].Status)
-	workspaceID := workspaces.Items[0].ID
-	owner := servertest.ResolveMemberSession(t, db, workspaceID, admin.Token).Identity
+	created := workspaces.Items[0]
+	require.Equal(t, appservice.WorkspaceStatusActive, created.Status)
+	workspaceID := created.ID
+	owner := servertest.ResolveMemberSession(t, db, workspaceID, userAuth.Token).Identity
 	memberEmail := servertest.UniqueEmail("member")
 	_, err = newTestMemberCreator(db, testEnqueuer).Execute(ctx, owner, memberSpec{DisplayName: "成员", Email: memberEmail, Password: "password123", RoleID: owner.User.RoleID})
 	require.NoError(t, err)
 	member := servertest.LoginMember(t, db, workspaceID, memberEmail, "password123")
-	idle := servertest.AddAccountWorkspace(t, db, admin.Token, "空闲工作区")
+	idle := servertest.AddAccountWorkspace(t, db, userAuth.Token, "空闲工作区")
 
 	// 平台管理员在运营数据工作区发送单聊消息，成员只收到消息。
 	_, err = directchataction.NewSendFirstDirectTextMessageAction(db, testEnqueuer).Execute(ctx, owner, directchataction.FirstDirectTextMessageInput{
@@ -121,19 +121,16 @@ func TestPlatformOperationsData(t *testing.T) {
 	require.NoError(t, err)
 	_, err = db.NewRaw("UPDATE platforms SET created_at = now() - interval '20 days'").Exec(ctx)
 	require.NoError(t, err)
-	// 修改平台时区只更新部署基本配置，注册策略保持不变。
-	_, err = backend.UpdatePlatformSettings(ctx, adminMeta, appservice.PlatformPoliciesInput{
-		RegistrationPolicy: domain.RegistrationPolicyOpen, WorkspaceCreationPolicy: settings.WorkspaceCreationPolicy,
-	})
-	require.NoError(t, err)
-	updated, err := backend.UpdatePlatformDeploymentBasics(ctx, adminMeta, appservice.PlatformDeploymentBasicsInput{
-		Name: deployment.Name, TimeZone: "Pacific/Pago_Pago", TelemetryEnabled: deployment.TelemetryEnabled,
-	})
+	// 修改平台时区时一并保存注册策略，注册策略保持为开放。
+	input = loadPlatformSiteInput(t, backend, ctx, adminMeta)
+	input.RegistrationPolicy = domain.RegistrationPolicyOpen
+	input.WorkspaceCreationQuota = site.WorkspaceCreationQuota
+	input.Name = site.Name
+	input.TimeZone = "Pacific/Pago_Pago"
+	updated, err := backend.UpdatePlatformSite(ctx, adminMeta, input)
 	require.NoError(t, err)
 	require.Equal(t, "Pacific/Pago_Pago", updated.TimeZone)
-	policies, err := backend.GetPlatformSettings(ctx, adminMeta)
-	require.NoError(t, err)
-	require.Equal(t, domain.RegistrationPolicyOpen, policies.RegistrationPolicy)
+	require.Equal(t, domain.RegistrationPolicyOpen, updated.RegistrationPolicy)
 	require.Len(t, tasks.Queued(platformaction.AggregateStatsActionName, ""), 1, "stats rebuild tasks")
 	rebuilding, err := backend.GetPlatformOverview(ctx, adminMeta)
 	require.NoError(t, err)
@@ -160,18 +157,20 @@ func TestPlatformWorkspaceSuspension(t *testing.T) {
 	ctx := context.Background()
 	meta := appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}
 
-	installed, err := service.InstallWorkspace(ctx, meta, appservice.InstallWorkspaceInput{
+	admin := servertest.InstallPlatform(t, service, appservice.InstallPlatformInput{
 		PublicURL: servertest.PublicURL, WorkspaceName: "暂停验证", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: domain.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
-	admin := installed.Auth
+	adminMeta := servertest.AdminMeta(admin.AdminToken)
+	userAuth, err := backend.Login(ctx, meta, appservice.LoginInput{Email: "admin@example.test", Password: "password123"})
 	require.NoError(t, err)
-	adminMeta := appservice.RequestMeta{Token: admin.Token, Locale: domain.LocaleChineseSimplified}
-	workspaces, err := backend.ListWorkspaces(ctx, adminMeta)
+	userMeta := appservice.RequestMeta{Token: userAuth.Token, Locale: domain.LocaleChineseSimplified}
+	workspaces, err := backend.ListWorkspaces(ctx, userMeta)
 	require.NoError(t, err)
 	require.Len(t, workspaces.Items, 1)
-	adminWorkspaceID := workspaces.Items[0].ID
-	owner := servertest.ResolveMemberSession(t, db, adminWorkspaceID, admin.Token).Identity
+	created := workspaces.Items[0]
+	adminWorkspaceID := created.ID
+	owner := servertest.ResolveMemberSession(t, db, adminWorkspaceID, userAuth.Token).Identity
 	memberEmail := servertest.UniqueEmail("member")
 	_, err = newTestMemberCreator(db, testEnqueuer).Execute(ctx, owner, memberSpec{DisplayName: "成员", Email: memberEmail, Password: "password123", RoleID: owner.User.RoleID})
 	require.NoError(t, err)
@@ -189,7 +188,7 @@ func TestPlatformWorkspaceSuspension(t *testing.T) {
 	publicChannel := channelaction.NewGetPublicWebsiteChannelQuery(db)
 
 	_, err = backend.SuspendPlatformWorkspace(ctx, memberMeta, workspaceID)
-	servertest.RequireErrorKind(t, err, appservice.ErrorKindForbidden)
+	require.Equal(t, appservice.SessionStateLogin, appservice.SessionStateOf(err))
 	_, err = backend.SuspendPlatformWorkspace(ctx, adminMeta, uuid.NewV7().String())
 	servertest.RequireErrorKind(t, err, appservice.ErrorKindNotFound)
 	_, err = backend.SuspendPlatformWorkspace(ctx, adminMeta, adminWorkspaceID)

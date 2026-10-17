@@ -6,13 +6,13 @@ package groupchat
 import (
 	"time"
 
-	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 const (
-	ValidationGroupMembersTooMany   conversationaction.ValidationCode = "group_members_too_many"
-	ValidationGroupMemberIDsInvalid conversationaction.ValidationCode = "group_member_ids_invalid"
+	ValidationGroupMembersTooMany   common.FieldCode = "group_members_too_many"
+	ValidationGroupMemberIDsInvalid common.FieldCode = "group_member_ids_invalid"
 )
 
 const (

@@ -1,5 +1,7 @@
 package common
 
+import "errors"
+
 // 分页的默认页码、默认页大小与最大页大小。
 const (
 	defaultPage     = 1
@@ -7,12 +9,8 @@ const (
 	maximumPageSize = 100
 )
 
-// PageInfo 描述一页列表结果的页码、页大小和总数。
-type PageInfo struct {
-	Number int
-	Size   int
-	Total  int
-}
+// ErrPageSizeInvalid 表示每页数量超出上限。
+var ErrPageSizeInvalid = errors.New("page size invalid")
 
 // NormalizePagination 补齐分页默认值并判断每页数量是否有效。
 func NormalizePagination(page, pageSize int) (int, int, bool) {

@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -37,7 +37,7 @@ func (q *ListContactsQuery) Execute(ctx context.Context, identity *servermodels.
 	query := applyContactFilters(q.db.NewSelect().TableExpr("contacts AS c"), identity.Workspace.ID, input).
 		ColumnExpr("c.id::text AS id").
 		ColumnExpr("c.number").
-		ColumnExpr(contactname.Expr("c", contactname.LatestIdentityName("c")) + " AS display_name").
+		ColumnExpr(contactprofile.ResolvedColumn("c") + " AS display_name").
 		ColumnExpr(contactAvatarFileIDColumn).
 		ColumnExpr("c.stage").
 		ColumnExpr("c.created_at").
@@ -50,7 +50,7 @@ func (q *ListContactsQuery) Execute(ctx context.Context, identity *servermodels.
 	case domain.ContactSortCreatedAtDescending:
 		query = query.OrderExpr("c.created_at DESC, c.id DESC")
 	case domain.ContactSortDisplayNameAscending:
-		query = query.OrderExpr("lower(coalesce(" + contactname.Expr("c", contactname.LatestIdentityName("c")) + ", '')) ASC, c.id ASC")
+		query = query.OrderExpr("lower(coalesce("+contactprofile.ResolvedColumn("c")+", '')) ASC, c.id ASC")
 	default:
 		query = query.OrderExpr("c.updated_at DESC, c.id DESC")
 	}
@@ -90,14 +90,7 @@ func applyContactFilters(query *bun.SelectQuery, workspaceID string, input ListI
 		query = query.Where("EXISTS (SELECT 1 FROM contact_methods AS cm WHERE cm.workspace_id = c.workspace_id AND cm.contact_id = c.id AND cm.type = ?)", input.MethodType)
 	}
 	if input.Query != "" {
-		pattern := common.ContainsPattern(input.Query)
-		query = query.WhereGroup(" AND ", func(group *bun.SelectQuery) *bun.SelectQuery {
-			return group.
-				Where("coalesce(c.display_name, '') ILIKE ?", pattern).
-				WhereOr("EXISTS (SELECT 1 FROM contact_methods AS cm WHERE cm.workspace_id = c.workspace_id AND cm.contact_id = c.id AND cm.normalized_value ILIKE ?)", pattern).
-				WhereOr("EXISTS (SELECT 1 FROM channel_identities AS ci WHERE ci.workspace_id = c.workspace_id AND ci.contact_id = c.id AND coalesce(ci.display_name, '') ILIKE ?)", pattern).
-				WhereOr("c.number = ?", contactname.Number(input.Query))
-		})
+		query = contactprofile.ApplyNameMatch(query, "c", common.ContainsPattern(input.Query), Number(input.Query))
 	}
 	return query
 }

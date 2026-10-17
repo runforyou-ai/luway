@@ -64,8 +64,8 @@ export const setNativeLocale = nativeCall(Native.SetLocale)
 /** 使用原生文件对话框选择图片，用户取消时返回空文件。 */
 export const selectImage = nativeCall(Native.SelectImage)
 
-/** 在原生端打开保存对话框并写入文本文件，用户取消时返回 false。 */
-export const saveNativeTextFile = nativeCall(Native.SaveTextFile)
+/** 在原生端打开保存对话框并写入文件，用户取消时返回 false。 */
+export const saveNativeFile = nativeCall(Native.SaveFile)
 
 /** 在桌面端独立窗口打开指定会话，同一会话已打开时聚焦现有窗口。 */
 export const openConversationWindow = nativeCall(Native.OpenConversationWindow)

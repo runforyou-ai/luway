@@ -1,10 +1,9 @@
 /** 简体中文·初始化文案。 */
 const setup = {
   title: "开启协作",
-  description: "创建首个工作区和平台管理员账号，开始使用。",
-  publicURLLabel: "部署地址",
-  publicURLHelp: "成员和客户访问本服务器使用的地址，邀请、通知等链接以它开头，之后可在平台设置中修改。",
-  workspaceNameLabel: "工作区名称",
+  description: "创建平台管理员账号，进入平台管理后台。",
+  publicURLLabel: "访问地址",
+  workspaceNameLabel: "默认工作区名称",
   displayNameLabel: "你的姓名",
   emailLabel: "邮箱",
   passwordLabel: "密码（至少 8 个字符）",

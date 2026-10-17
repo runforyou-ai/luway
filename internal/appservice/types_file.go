@@ -7,7 +7,7 @@ import (
 )
 
 // FilePurpose 表示文件上传用途。
-type FilePurpose string
+type FilePurpose = domain.FilePurpose
 
 const (
 	FilePurposeMessageAttachment FilePurpose = FilePurpose(domain.FilePurposeMessageAttachment)
@@ -44,14 +44,18 @@ type FileUploadRequest struct {
 
 // FileUpload 包含待上传文件和内容上传请求。
 type FileUpload struct {
+	Key      string            `json:"key"`
+	UploadID string            `json:"uploadId"`
 	PartSize int64             `json:"partSize"`
 	File     File              `json:"file"`
 	Request  FileUploadRequest `json:"request"`
 }
 
-// FilePartUploadInput 定义待上传分片的序号。
-type FilePartUploadInput struct {
-	PartNumber int32 `json:"partNumber"`
+// FileUploadSignInput 定义 Uppy 请求的受限 S3 操作。
+type FileUploadSignInput struct {
+	Method     string `json:"method" validate:"required,oneof=PUT GET POST DELETE" msg:"error.validation_failed"`
+	UploadID   string `json:"uploadId" validate:"max=2048" msg:"error.validation_failed"`
+	PartNumber int32  `json:"partNumber" validate:"min=0,max=10000" msg:"error.validation_failed"`
 }
 
 // FileDownload 定义附件的即时下载地址。

@@ -69,7 +69,7 @@ func (a *UpdateKnowledgeBaseAction) Execute(ctx context.Context, identity *serve
 		// 向量模型、维度，或标准库的分段长度、重叠变化时重新索引。
 		reindexed = stored.EmbeddingModelID != input.EmbeddingModelID || stored.EmbeddingDimension != input.EmbeddingDimension ||
 			input.Category == domain.KnowledgeBaseCategoryStandard && (stored.ChunkLength == nil || stored.ChunkOverlap == nil || *stored.ChunkLength != *input.ChunkLength || *stored.ChunkOverlap != *input.ChunkOverlap)
-		result, err := tx.NewUpdate().Model((*servermodels.KnowledgeBase)(nil)).
+		update := tx.NewUpdate().Model((*servermodels.KnowledgeBase)(nil)).
 			Set("name = ?", input.Name).
 			Set("category = ?", input.Category).
 			Set("description = ?", input.Description).
@@ -79,7 +79,12 @@ func (a *UpdateKnowledgeBaseAction) Execute(ctx context.Context, identity *serve
 			Set("chunk_overlap = ?", input.ChunkOverlap).
 			Set("retrieval_count = ?", input.RetrievalCount).
 			Set("retrieval_score_threshold = ?", input.RetrievalScoreThreshold).
-			Set("rerank_model_id = ?", input.RerankModelID).
+			Set("rerank_model_id = ?", input.RerankModelID)
+		// embedding 引用或维度变化时清空 Auto 钉住成员，避免沿用旧选型或旧向量空间。
+		if stored.EmbeddingModelID != input.EmbeddingModelID || stored.EmbeddingDimension != input.EmbeddingDimension {
+			update = update.Set("embedding_sticky_member_id = NULL")
+		}
+		result, err := update.
 			Where("workspace_id = ?", identity.Workspace.ID).
 			Where("id = ?", knowledgeBaseID).
 			Exec(ctx)

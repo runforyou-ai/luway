@@ -3,7 +3,99 @@ version: '3'
 dotenv:
   - .env
 
+vars:
+  APP_NAME: "luway"
+  APP_DISPLAY_NAME: "Luway"
+  APP_DESCRIPTION: "Luway is an open-source AI customer support teammate platform."
+  BIN_DIR: "bin"
+  CGO_ENABLED: '{{.CGO_ENABLED | default "1"}}'
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.VITE_PORT | default (.WAILS_VITE_PORT | default 9245)}}'
+  GOOS: '{{.GOOS | default OS}}'
+
 includes:
-  app:
-    taskfile: ./build/tasks.yml
+  common: ./build/Taskfile.yml
+  windows: ./build/windows/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+  ios: ./build/ios/Taskfile.yml
+  android: ./build/android/Taskfile.yml
+  project:
+    taskfile: ./build/Taskfile.project.yml
     flatten: true
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{.GOOS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{.GOOS}}:package"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{.GOOS}}:run"
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  dev:mcp:
+    summary: Runs the application in development mode with desktop MCP enabled
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+    env:
+      WAILS_MCP: "1"
+
+  setup:docker:
+    summary: Builds Docker image for cross-compilation (~800MB download)
+    cmds:
+      - task: common:setup:docker
+
+  build:server:
+    summary: Builds the application in server mode (no GUI, HTTP server only)
+    cmds:
+      - task: common:build:server
+
+  run:server:
+    summary: Runs the application in server mode
+    deps:
+      - env:check:server
+    cmds:
+      - task: common:run:server
+
+  build:executor:
+    summary: 构建无界面执行器，目标架构用 ARCH 指定
+    cmds:
+      - task: common:build:executor
+        vars:
+          ARCH: '{{.ARCH}}'
+
+  build:docker:executor:
+    summary: 构建无界面执行器的 Linux 容器镜像
+    cmds:
+      - task: common:build:docker:executor
+        vars:
+          TAG: '{{.TAG}}'
+          VERSION: '{{.VERSION}}'
+
+  build:docker:
+    summary: Builds a Docker image for server mode deployment
+    cmds:
+      - task: common:build:docker
+        vars:
+          # 服务端镜像为纯静态二进制。
+          CGO_ENABLED: "0"
+
+  run:docker:
+    summary: Builds and runs the Docker image
+    cmds:
+      - task: common:run:docker
+        vars:
+          # 服务端镜像为纯静态二进制。
+          CGO_ENABLED: "0"

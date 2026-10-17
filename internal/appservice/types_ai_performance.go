@@ -4,6 +4,9 @@ import "time"
 
 // AIPerformanceReportInput 定义 AI 表现报表的统计范围：最近 Days 天内结束、由 AI 员工接待过的会话，ChannelID 为空表示全部渠道；AgentID 限定周期的接待 AI 员工，Mine 限定为当前成员负责的 AI 员工。
 type AIPerformanceReportInput struct {
+	Audience      ServiceAudience `json:"audience,omitempty" query:"audience" validate:"omitempty,oneof=customer employee" msg:"field.service_audience_invalid"`
+	ServiceSource ServiceSource   `json:"serviceSource,omitempty" query:"serviceSource" validate:"omitempty,oneof=channel direct" msg:"error.validation_failed"`
+
 	Days      int    `json:"days" query:"days,default=30"`
 	ChannelID string `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
 	AgentID   string `json:"agentId" query:"agentId" validate:"omitempty,uuid" msg:"error.agent_not_found"`
@@ -50,13 +53,15 @@ type AIPerformanceReport struct {
 
 // AIPerformanceBreakdownInput 定义按维度拆分的统计范围与分页。
 type AIPerformanceBreakdownInput struct {
-	Days      int                    `json:"days" query:"days,default=30"`
-	ChannelID string                 `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
-	AgentID   string                 `json:"agentId" query:"agentId" validate:"omitempty,uuid" msg:"error.agent_not_found"`
-	Mine      bool                   `json:"mine" query:"mine"`
-	Dimension ServiceReportDimension `json:"dimension" query:"dimension"`
-	Page      int                    `json:"page" query:"page,default=1"`
-	PageSize  int                    `json:"pageSize" query:"pageSize,default=50"`
+	Audience      ServiceAudience        `json:"audience,omitempty" query:"audience" validate:"omitempty,oneof=customer employee" msg:"field.service_audience_invalid"`
+	ServiceSource ServiceSource          `json:"serviceSource,omitempty" query:"serviceSource" validate:"omitempty,oneof=channel direct" msg:"error.validation_failed"`
+	Days          int                    `json:"days" query:"days,default=30"`
+	ChannelID     string                 `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
+	AgentID       string                 `json:"agentId" query:"agentId" validate:"omitempty,uuid" msg:"error.agent_not_found"`
+	Mine          bool                   `json:"mine" query:"mine"`
+	Dimension     ServiceReportDimension `json:"dimension" query:"dimension"`
+	Page          int                    `json:"page" query:"page,default=1"`
+	PageSize      int                    `json:"pageSize" query:"pageSize,default=50"`
 }
 
 // AIPerformanceBreakdown 定义按渠道或咨询分类拆分的已关闭周期数、已解决数与 AI 独立解决数；ID 为空表示未分类。
@@ -76,13 +81,15 @@ type AIPerformanceBreakdownList struct {
 
 // AIPerformanceIssueListInput 定义问题会话的统计范围、问题类型与分页。
 type AIPerformanceIssueListInput struct {
-	Days      int              `json:"days" query:"days,default=30"`
-	ChannelID string           `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
-	AgentID   string           `json:"agentId" query:"agentId" validate:"omitempty,uuid" msg:"error.agent_not_found"`
-	Mine      bool             `json:"mine" query:"mine"`
-	Issue     ServiceIssueType `json:"issue" query:"issue,default=all"`
-	Page      int              `json:"page" query:"page,default=1"`
-	PageSize  int              `json:"pageSize" query:"pageSize,default=50"`
+	Audience      ServiceAudience  `json:"audience,omitempty" query:"audience" validate:"omitempty,oneof=customer employee" msg:"field.service_audience_invalid"`
+	ServiceSource ServiceSource    `json:"serviceSource,omitempty" query:"serviceSource" validate:"omitempty,oneof=channel direct" msg:"error.validation_failed"`
+	Days          int              `json:"days" query:"days,default=30"`
+	ChannelID     string           `json:"channelId" query:"channelId" validate:"omitempty,uuid" msg:"error.channel_not_found"`
+	AgentID       string           `json:"agentId" query:"agentId" validate:"omitempty,uuid" msg:"error.agent_not_found"`
+	Mine          bool             `json:"mine" query:"mine"`
+	Issue         ServiceIssueType `json:"issue" query:"issue,default=all"`
+	Page          int              `json:"page" query:"page,default=1"`
+	PageSize      int              `json:"pageSize" query:"pageSize,default=50"`
 }
 
 // AgentServiceSessionListInput 定义 AI 员工服务记录的分页。

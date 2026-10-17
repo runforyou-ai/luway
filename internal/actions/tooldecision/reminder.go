@@ -10,7 +10,6 @@ import (
 	"strings"
 	"uuid"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/channeldelivery"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
@@ -120,14 +119,14 @@ func (a *ReminderAction) Execute(ctx context.Context, input agentprocess.ToolCal
 			Where("oi.workspace_id = ? AND oi.id = ?", input.WorkspaceID, call.AgentID).Scan(ctx, &agentName); err != nil {
 			return fmt.Errorf("load agent name for tool call reminder: %w", err)
 		}
-		participantID, err := agentmessage.EnsureCustomerParticipant(ctx, tx, input.WorkspaceID, call.Conversation, call.AgentID)
+		participantID, err := chatstate.EnsureCustomerParticipant(ctx, tx, input.WorkspaceID, call.Conversation, call.AgentID)
 		if err != nil {
 			return err
 		}
 		body := i18n.LocalizeCustomerTemplate(domain.CustomerLocale(channel.DefaultLocale), i18n.EmployeeChannelDecisionReminder, map[string]any{
 			"Agent": agentName, "Link": ToolDecisionLink(a.publicURL(), call.Workspace, input.ToolCallID),
 		})
-		if _, err := agentmessage.AppendCustomer(ctx, tx, a.enqueuer, locked.Conversation, session, route, &servermodels.Message{
+		if _, err := chatstate.AppendCustomer(ctx, tx, a.enqueuer, locked.Conversation, session, route, &servermodels.Message{
 			ID: uuid.NewV7().String(), WorkspaceID: input.WorkspaceID, ConversationID: call.Conversation,
 			ServiceSessionID: &session.ID, SenderParticipantID: &participantID,
 			Type: string(domain.MessageTypeText), Body: body, IdempotencyKey: new("agent_tool_call_reminder:" + input.ToolCallID),

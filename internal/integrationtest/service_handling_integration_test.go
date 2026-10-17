@@ -11,6 +11,7 @@ import (
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	useraction "github.com/runforyou-ai/luway/internal/actions/user"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +21,7 @@ func TestServiceHandlingAuthorization(t *testing.T) {
 	t.Parallel()
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
-	coordinator := newGroupAgentCoordinator(f.db)
+	coordinator := newGroupAgentCanceller(f.db)
 	// 群主恢复管理员角色，修改成员需要工作区保留有效管理员。
 	_, err := f.db.NewUpdate().Table("users").
 		Set("role_id = (SELECT id FROM roles WHERE workspace_id = ? AND kind = ?)", f.owner.Workspace.ID, domain.RoleKindAdmin).
@@ -64,7 +65,7 @@ func TestServiceHandlingAuthorization(t *testing.T) {
 	_, err = transfer.Execute(ctx, f.owner, servicesessionaction.TransferServiceSessionInput{
 		ConversationID: f.conversationID, TargetKind: domain.ServiceSessionTargetMember, IdentityID: f.member.WorkspaceIdentity.ID,
 	})
-	var validation *conversationaction.ValidationError
+	var validation *common.FieldError
 	require.ErrorAs(t, err, &validation, "转交给未开启接待的成员")
 	require.Equal(t, conversationaction.ValidationTargetIdentityIDInvalid, validation.Fields["identityId"], "转交给未开启接待的成员")
 

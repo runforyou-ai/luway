@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"uuid"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/servicehandoff"
@@ -159,13 +158,13 @@ func (a *ExecuteAction) failCustomerRun(ctx context.Context, initial *servermode
 		if int64(len(failedSeqs)) != failureEnd-lane.ProcessedSeq {
 			return errors.New("failed agent input sequence is not contiguous")
 		}
-		participantID, err := agentmessage.EnsureCustomerParticipant(ctx, tx, run.WorkspaceID, run.ConversationID, run.AgentIdentityID)
+		participantID, err := chatstate.EnsureCustomerParticipant(ctx, tx, run.WorkspaceID, run.ConversationID, run.AgentIdentityID)
 		if err != nil {
 			return err
 		}
 		// 运行错误只作为成员可见的内部消息写入，不投递、不计入首响。
 		errorKey := "agent:" + run.ID + ":error"
-		if _, _, err := agentmessage.Append(ctx, tx, a.enqueuer, policyContext.Conversation, &servermodels.Message{
+		if _, _, err := chatstate.Append(ctx, tx, a.enqueuer, policyContext.Conversation, &servermodels.Message{
 			ID: uuid.NewV7().String(), WorkspaceID: run.WorkspaceID, ConversationID: run.ConversationID,
 			ServiceSessionID: &policyContext.ServiceSession.ID, SenderParticipantID: &participantID,
 			Type: string(domain.MessageTypeAgentError), Visibility: string(domain.MessageVisibilityInternal), IdempotencyKey: &errorKey,

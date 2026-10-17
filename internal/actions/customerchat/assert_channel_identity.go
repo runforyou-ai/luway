@@ -12,12 +12,14 @@ import (
 	"unicode/utf8"
 	"uuid"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	"github.com/runforyou-ai/luway/internal/actions/channelinbound"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	contactaction "github.com/runforyou-ai/luway/internal/actions/contact"
 	contactprofileaction "github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -61,7 +63,7 @@ func (a *AssertChannelIdentityAction) Verify(ctx context.Context, channelID, ext
 		if err != nil {
 			return err
 		}
-		if ensured, err = contactaction.SyncChannelIdentity(ctx, tx, a.enqueuer, input, ensured); err != nil {
+		if ensured, err = contactaction.SyncChannelIdentity(ctx, tx, a.enqueuer, agentrun.CancelChannelIdentityRuns, input, ensured); err != nil {
 			return err
 		}
 		if err := contactprofileaction.ApplySignedProfile(ctx, tx, channel.WorkspaceID, ensured.Contact.ID, customer.Profile); err != nil {
@@ -73,6 +75,9 @@ func (a *AssertChannelIdentityAction) Verify(ctx context.Context, channelID, ext
 			if _, err := tx.NewUpdate().Model(contact).Set("display_name = ?", customer.Name).
 				WherePK().Where("workspace_id = ?", channel.WorkspaceID).Exec(ctx); err != nil {
 				return fmt.Errorf("update asserted contact display name: %w", err)
+			}
+			if _, err := contactaction.RefreshResolvedDisplayName(ctx, tx, channel.WorkspaceID, contact.ID); err != nil {
+				return err
 			}
 			return chatstate.TouchContactProfileConversations(ctx, tx, channel.WorkspaceID, contact.ID)
 		}
@@ -114,7 +119,7 @@ func (a *AssertChannelIdentityAction) Revoke(ctx context.Context, channelID, ext
 			return fmt.Errorf("load asserted channel identity contact: %w", err)
 		}
 		input := contactaction.EnsureChannelIdentityInput{WorkspaceID: channel.WorkspaceID, ChannelID: channel.ID, ExternalID: externalID}
-		if _, err := contactaction.SyncChannelIdentity(ctx, tx, a.enqueuer, input, contactaction.EnsuredChannelIdentity{Contact: contact, Identity: identity}); err != nil {
+		if _, err := contactaction.SyncChannelIdentity(ctx, tx, a.enqueuer, agentrun.CancelChannelIdentityRuns, input, contactaction.EnsuredChannelIdentity{Contact: contact, Identity: identity}); err != nil {
 			return err
 		}
 		revoked = true
@@ -131,7 +136,7 @@ func (a *AssertChannelIdentityAction) Revoke(ctx context.Context, channelID, ext
 
 // validateAssertionTarget 校验断言路径中的渠道编号与外部编号格式。
 func validateAssertionTarget(channelID, externalID string) error {
-	fields := map[string]conversationaction.ValidationCode{}
+	fields := map[string]common.FieldCode{}
 	if !str.IsUUID(channelID) {
 		fields["channelId"] = ValidationChannelIDInvalid
 	}
@@ -139,7 +144,7 @@ func validateAssertionTarget(channelID, externalID string) error {
 		fields["externalId"] = ValidationExternalIDInvalid
 	}
 	if len(fields) > 0 {
-		return &conversationaction.ValidationError{Fields: fields}
+		return &common.FieldError{Fields: fields}
 	}
 	return nil
 }

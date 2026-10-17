@@ -8,7 +8,7 @@ import { useMobileWorkspace } from "@/apps/mobile/shared/mobile-workspace-layout
 import { LoadingIndicator } from "@/components/loading-indicator"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { Button } from "@/components/ui/button"
-import { WorkStatusBadge } from "@/components/work-status"
+import { WorkStatusBadge } from "@/features/contacts/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource } from "@/hooks/use-resource"
 

@@ -4,6 +4,7 @@ import setup from "./setup"
 import auth from "./auth"
 import account from "./account"
 import platform from "./platform"
+import admin from "./admin"
 import connection from "./connection"
 import mobile from "./mobile"
 import workspace from "./workspace"
@@ -23,6 +24,7 @@ const enUS = {
   auth,
   account,
   platform,
+  admin,
   connection,
   mobile,
   workspace,

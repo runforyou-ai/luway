@@ -13,6 +13,7 @@ import (
 
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -142,7 +143,7 @@ func TestGroupMentionNavigation(t *testing.T) {
 	_, err = conversationaction.NewUpdateConversationNotificationSettingsAction(f.db).Execute(ctx, f.member, f.groupID, true)
 	require.NoError(t, err)
 	f.send(t, f.owner, "离群前未查看", true)
-	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 	require.NoError(t, err)
 	for _, readQuery := range []func() error{
 		func() error { _, err := pending.Execute(ctx, f.member, f.groupID); return err },
@@ -312,7 +313,7 @@ func TestConversationMessageWindowRange(t *testing.T) {
 	require.Len(t, window.Messages, 57)
 	require.False(t, window.HasEarlier)
 	require.False(t, window.HasLater)
-	var validation *conversationaction.ValidationError
+	var validation *common.FieldError
 	for name, input := range map[string]conversationaction.ConversationMessageHistoryInput{
 		"reversed":  {ConversationID: f.groupID, Start: point(messages[40]), End: point(messages[10])},
 		"open end":  {ConversationID: f.groupID, Start: point(messages[10])},
@@ -486,7 +487,7 @@ func TestVisibleMentionsCanBeReviewedOutOfOrder(t *testing.T) {
 	last := f.send(t, f.owner, "离群前已看到", true)
 	_, err = review.Execute(ctx, f.member, f.groupID, last.ID)
 	require.NoError(t, err)
-	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 	require.NoError(t, err)
 	_, err = groupchataction.NewAddGroupConversationMembersAction(f.db).Execute(ctx, f.owner, groupchataction.GroupConversationMembersInput{ConversationID: f.groupID, MemberIdentityIDs: []string{f.member.WorkspaceIdentity.ID}})
 	require.NoError(t, err)

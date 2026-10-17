@@ -1,20 +1,31 @@
-/** 平台管理调用：平台概览、授权、平台设置、部署配置、平台账号、平台工作区、业务使用和运行状态。 */
+/** 平台管理调用：平台概览、授权、站点设置、部署配置、平台账号、平台工作区、业务使用和运行状态。 */
 import {
   AccountStatus,
   PlatformUsageSort,
   PlatformWorkspaceSort,
   type PlatformAccountListInput,
   type PlatformFailedTaskListInput,
-  type PlatformServerLogListInput,
   type PlatformWorkspaceUsageListInput,
   type PlatformWorkspaceListInput,
 } from "@/api/generated/contract"
 import * as ops from "@/api/generated/operations"
 
+/** 读取平台后台登录账号。 */
+export const loadAdminAccount = ops.loadAdminAccount
+
+/** 修改当前平台管理员密码。 */
+export const changeAdminPassword = ops.changeAdminPassword
+
+/** 签发进入指定工作区的短期支援凭证。 */
+export const createSupportAccess = ops.createSupportAccess
+
+/** 撤销当前支援会话。 */
+export const revokeSupportAccess = ops.revokeSupportAccess
+
 /** 读取平台规模与活跃趋势。 */
 export const getPlatformOverview = ops.getPlatformOverview
 
-/** 读取服务器标识、授权状态与当前生效的能力。 */
+/** 读取部署标识、授权状态与当前生效的能力。 */
 export const getLicense = ops.getLicense
 
 /** 用授权码离线激活或替换授权。 */
@@ -23,35 +34,23 @@ export const activateLicense = ops.activateLicense
 /** 用激活码在线激活授权。 */
 export const activateLicenseOnline = ops.activateLicenseOnline
 
-/** 立即向授权服务登记服务器并拉取最新授权。 */
-export const syncLicense = ops.syncLicense
+/** 读取站点设置。 */
+export const getPlatformSite = ops.getPlatformSite
 
-/** 读取平台注册策略与工作区创建策略。 */
-export const getPlatformSettings = ops.getPlatformSettings
+/** 一次保存站点设置。 */
+export const updatePlatformSite = ops.updatePlatformSite
 
-/** 修改平台注册策略和工作区创建策略。 */
-export const updatePlatformSettings = ops.updatePlatformSettings
-
-/** 读取部署名称、部署地址与证书、平台时区、上报开关、对象存储、邮件发送、部署品牌与产品首页配置。 */
+/** 读取对象存储与邮件发送配置。 */
 export const getPlatformDeployment = ops.getPlatformDeployment
-
-/** 修改部署名称、平台时区与上报开关。 */
-export const updatePlatformDeploymentBasics = ops.updatePlatformDeploymentBasics
-
-/** 修改部署地址与证书，HTTPS 部署地址需要自动签发证书时服务端先签发再保存。 */
-export const updatePlatformAddress = ops.updatePlatformAddress
 
 /** 修改对象存储配置，开启时服务端先确认能访问存储桶。 */
 export const updatePlatformStorage = ops.updatePlatformStorage
 
-/** 修改 SMTP 邮件发送配置，主机为空时关闭邮件发送。 */
+/** 修改当前邮件接入方式与发件人配置。 */
 export const updatePlatformEmail = ops.updatePlatformEmail
 
-/** 修改部署品牌，图标为 PNG 的 Base64 内容，空字符串表示沿用构建图标。 */
-export const updatePlatformBranding = ops.updatePlatformBranding
-
-/** 修改产品首页配置，首页提供价格区块时生效。 */
-export const updatePlatformHome = ops.updatePlatformHome
+/** 使用已保存的配置发送测试邮件。 */
+export const testPlatformEmail = ops.testPlatformEmail
 
 /** 停用其他账号并使其登录会话失效。 */
 export const deactivatePlatformAccount = ops.deactivatePlatformAccount
@@ -70,6 +69,7 @@ export function listPlatformAccounts(query: Partial<PlatformAccountListInput>, s
   return ops.listPlatformAccounts(
     {
       query: query.query ?? "",
+      workspaceId: query.workspaceId ?? "",
       status: query.status ?? AccountStatus.Active,
       page: query.page ?? 1,
       pageSize: query.pageSize ?? 50,
@@ -125,18 +125,8 @@ export function listPlatformFailedTasks(query: Partial<PlatformFailedTaskListInp
   return ops.listPlatformFailedTasks({ page: query.page ?? 1, pageSize: query.pageSize ?? 50 }, signal)
 }
 
-/** 按筛选条件以时间倒序读取近 30 天的服务端日志，cursor 为空时从最新的日志读起。 */
-export function listPlatformServerLogs(query: Partial<PlatformServerLogListInput>, signal?: AbortSignal) {
-  return ops.listPlatformServerLogs(
-    {
-      cursor: query.cursor ?? "",
-      pageSize: query.pageSize ?? 50,
-      minLevel: query.minLevel,
-      instanceId: query.instanceId ?? "",
-      workspaceId: query.workspaceId ?? "",
-      entry: query.entry ?? "",
-      traceId: query.traceId ?? "",
-    },
-    signal,
-  )
-}
+/** 生成当前服务端的诊断包。 */
+export const exportDiagnosticBundle = ops.exportDiagnosticBundle
+
+/** 主动上传诊断包到支持会话。 */
+export const uploadDiagnosticBundle = ops.uploadDiagnosticBundle

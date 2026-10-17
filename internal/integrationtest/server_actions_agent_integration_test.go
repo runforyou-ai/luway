@@ -19,6 +19,7 @@ import (
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
 	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
@@ -579,21 +580,21 @@ func (s *serverActionsFixture) testAgents(t *testing.T) {
 		require.True(t, foundProcess, "reply process missing from message window")
 	}
 	// 过程内容按运行编号单独读取，未知运行不返回详情。
-	runProcess, err := processquery.NewGetRunProcessQuery(db).Execute(context.Background(), loggedIn.Identity, run.ID)
+	runProcess, err := processquery.NewGetRunProcessQuery(db, conversationaccess.Guard{}).Execute(context.Background(), loggedIn.Identity, run.ID)
 	require.NoError(t, err)
 	require.Equal(t, run.ID, runProcess.ID, "agent run process")
 	require.Len(t, runProcess.Blocks, 1, "agent run process")
 	require.Equal(t, "计算过程", runProcess.Blocks[0].Payload.Text, "agent run process")
 	require.Equal(t, 12, runProcess.Usage.TotalTokens, "agent run process")
 	require.GreaterOrEqual(t, runProcess.DurationMilliseconds, int64(0), "agent run process")
-	_, err = processquery.NewGetRunProcessQuery(db).Execute(context.Background(), loggedIn.Identity, uuid.NewV7().String())
+	_, err = processquery.NewGetRunProcessQuery(db, conversationaccess.Guard{}).Execute(context.Background(), loggedIn.Identity, uuid.NewV7().String())
 	require.ErrorIs(t, err, processquery.ErrRunProcessUnavailable, "unknown agent run process error")
 	// 同企业其他成员没有这条 AI 会话的阅读资格，读不到运行过程。
 	outsiderLogin := servertest.LoginMember(t, db, loggedIn.Identity.Workspace.ID, s.createdMember.Email, "password123")
-	_, err = processquery.NewGetRunProcessQuery(db).Execute(context.Background(), outsiderLogin.Identity, run.ID)
+	_, err = processquery.NewGetRunProcessQuery(db, conversationaccess.Guard{}).Execute(context.Background(), outsiderLogin.Identity, run.ID)
 	require.ErrorIs(t, err, processquery.ErrRunProcessUnavailable, "outsider agent run process error")
 	// 运行过程流按同一阅读资格授权，本人取得运行所属会话，未知运行与无资格成员均不返回。
-	authorizeRunStream := processquery.NewAuthorizeRunStreamQuery(db)
+	authorizeRunStream := processquery.NewAuthorizeRunStreamQuery(db, conversationaccess.Guard{})
 	streamConversationID, err := authorizeRunStream.Execute(context.Background(), loggedIn.Identity, run.ID)
 	require.NoError(t, err)
 	require.Equal(t, agentConversation.ID, streamConversationID, "agent run stream conversation")
@@ -642,7 +643,7 @@ func (s *serverActionsFixture) testAgents(t *testing.T) {
 	require.NotNil(t, failedRun.LastError, "failed run last error")
 	require.Empty(t, failedHistory.AgentRuns, "failed run message state")
 	// 失败运行的过程内容同样按运行编号读取。
-	failedRunProcess, err := processquery.NewGetRunProcessQuery(db).Execute(context.Background(), loggedIn.Identity, failedRun.ID)
+	failedRunProcess, err := processquery.NewGetRunProcessQuery(db, conversationaccess.Guard{}).Execute(context.Background(), loggedIn.Identity, failedRun.ID)
 	require.NoError(t, err)
 	require.Len(t, failedRunProcess.Blocks, 1, "failed agent run process")
 	require.Equal(t, "中断前的思考", failedRunProcess.Blocks[0].Payload.Text, "failed agent run process")

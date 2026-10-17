@@ -8,6 +8,7 @@ import (
 
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	channelbindingaction "github.com/runforyou-ai/luway/internal/actions/channelbinding"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -69,7 +70,11 @@ func newChannelOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, statusUpdater
 
 // ListMessageChannelTypes 返回当前支持的消息渠道类型及其能力。
 func (o *channelOps) ListMessageChannelTypes(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.MessageChannelTypeList, error) {
-	types := arr.Map(domain.MessageChannelTypes(), func(channelType domain.ChannelType) appservice.MessageChannelTypeInfo {
+	available := channelaction.ManageableTypes(identity)
+	if len(available) == 0 {
+		return appservice.MessageChannelTypeList{}, servicePolicyError(meta, servicepolicy.ErrForbidden)
+	}
+	types := arr.Map(available, func(channelType domain.ChannelType) appservice.MessageChannelTypeInfo {
 		return appservice.MessageChannelTypeInfo{Type: channelType, Capabilities: appservice.NewChannelCapabilities(channelType)}
 	})
 	return appservice.MessageChannelTypeList{Types: types}, nil
@@ -242,6 +247,7 @@ func channelMutationError(meta appservice.RequestMeta, err error, failureKey i18
 
 // channelErrors 是渠道读取和状态修改的错误转换规则。
 var channelErrors = dispatch.Catalogs(dispatch.CommonErrors, dispatch.Catalog{
+	dispatch.Is(servicepolicy.ErrForbidden, dispatch.Forbidden(i18n.ErrorPermissionDenied)),
 	dispatch.Is(channelaction.ErrNotFound, dispatch.NotFound(i18n.ErrorChannelNotFound)),
 	dispatch.Is(channelaction.ErrWechatAccountEnabledElsewhere, dispatch.Conflict(i18n.ErrorWechatAccountEnabledElsewhere, "wechat_account_enabled_elsewhere")),
 })

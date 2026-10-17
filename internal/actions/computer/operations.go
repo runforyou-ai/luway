@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"slices"
 
-	"github.com/runforyou-ai/einorun"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
@@ -62,7 +61,7 @@ func (a *OperationsAction) Claim(ctx context.Context, computer Identity, input C
 			Join("LEFT JOIN local_agent_sessions AS las ON las.workspace_id = atc.workspace_id AND las.id = atc.local_agent_session_id").
 			Where("atc.workspace_id = ? AND atc.computer_id = ? AND atc.id IN (?) AND atc.status = ?", computer.WorkspaceID, computer.ComputerID, bun.List(held), domain.AgentToolCallRunning).
 			Where("CASE WHEN las.id IS NOT NULL THEN las.status = ? ELSE atc.handover = ? OR agr.status IN (?) END",
-				domain.LocalAgentSessionActive, einorun.HandoverSubmitted, bun.List(domain.AgentRunActiveStatuses)).
+				domain.LocalAgentSessionActive, agentcontract.HandoverSubmitted, bun.List(domain.AgentRunActiveStatuses)).
 			Scan(ctx, &active); err != nil {
 			return ClaimResult{}, fmt.Errorf("list active computer operations: %w", err)
 		}

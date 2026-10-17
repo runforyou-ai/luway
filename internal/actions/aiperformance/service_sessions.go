@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	"github.com/runforyou-ai/luway/internal/actions/reportpage"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -64,24 +64,20 @@ func NewServiceSessionListQuery(db *bun.DB) *ServiceSessionListQuery {
 func (q *ServiceSessionListQuery) Execute(ctx context.Context, identity *servermodels.Identity, input ServiceSessionListInput) (*ServiceSessionList, error) {
 	page, pageSize, valid := common.NormalizePagination(input.Page, input.PageSize)
 	if !valid {
-		return nil, ErrPageSizeInvalid
+		return nil, common.ErrPageSizeInvalid
 	}
 	workspaceID := identity.Workspace.ID
 	condition, args := reportpage.AgentScope{AgentID: input.AgentID}.Condition("ss.agent_identity_id", workspaceID)
+	requesterJoins, requesterArgs := contactprofile.RequesterChannelJoins()
 	list := &ServiceSessionList{Sessions: []ServiceSession{}, Page: page, PageSize: pageSize}
 	total, err := q.db.NewSelect().TableExpr("service_sessions AS ss").
 		Join("JOIN service_conversations AS svc ON svc.id = ss.service_conversation_id AND svc.workspace_id = ss.workspace_id").
-		Join("JOIN chat_subjects AS requester_cs ON requester_cs.id = svc.requester_subject_id AND requester_cs.workspace_id = svc.workspace_id").
-		Join("LEFT JOIN contacts AS c ON c.id = requester_cs.source_id AND c.workspace_id = requester_cs.workspace_id AND requester_cs.kind = ?", domain.ChatSubjectKindContact).
-		Join("LEFT JOIN workspace_identities AS requester_oi ON requester_oi.id = requester_cs.source_id AND requester_oi.workspace_id = requester_cs.workspace_id AND requester_cs.kind = ?", domain.ChatSubjectKindWorkspaceIdentity).
-		Join("LEFT JOIN channel_conversations AS cc ON cc.conversation_id = svc.conversation_id AND cc.workspace_id = svc.workspace_id").
-		Join("LEFT JOIN channel_identities AS ci ON ci.id = cc.channel_identity_id AND ci.workspace_id = cc.workspace_id").
-		Join("LEFT JOIN channels AS ch ON ch.id = ci.channel_id AND ch.workspace_id = ci.workspace_id").
+		Join(requesterJoins, requesterArgs...).
 		Join("LEFT JOIN messages AS opening ON opening.id = ss.opening_message_id AND opening.workspace_id = ss.workspace_id AND opening.deleted_at IS NULL").
 		ColumnExpr("ss.id, ss.conversation_id, ss.opening_message_id, svc.source, svc.audience, ch.type AS channel_type, ch.name AS channel_name").
-		ColumnExpr("COALESCE("+contactname.Expr("c", "ci.display_name")+", requester_oi.display_name) AS requester_name").
+		ColumnExpr(contactprofile.RequesterNameExpr("c", "ci.display_name", "requester_oi")+" AS requester_name").
 		ColumnExpr("c.number AS requester_contact_number").
-		ColumnExpr("COALESCE(ci.avatar_file_id, requester_oi.avatar_file_id)::text AS requester_avatar_file_id").
+		ColumnExpr(contactprofile.RequesterAvatarExpr("ci", "requester_oi")+" AS requester_avatar_file_id").
 		ColumnExpr("ss.status, ss.created_at AS opened_at, ss.closed_at, ss.close_reason, ss.resolved").
 		ColumnExpr("COALESCE(?, '') AS preview", messagequery.Summary("opening")).
 		ColumnExpr("CASE WHEN ss.summary_status = ? THEN ss.summary END AS summary", domain.ServiceSessionSummaryReady).

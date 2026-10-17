@@ -10,8 +10,9 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/actions/servicestate"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
@@ -35,7 +36,7 @@ func MarkHandedOff(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueu
 	if err := servicestate.SaveSummary(ctx, db, session, servicestate.HandoffMessageColumn, servicestate.HandoffSummaryColumn); err != nil {
 		return err
 	}
-	settings, err := customerservice.LoadServiceSummarySettings(ctx, db, session.WorkspaceID)
+	settings, err := servicepolicy.SummaryForSession(ctx, db, session.WorkspaceID, session.ID)
 	if err != nil {
 		return err
 	}
@@ -60,11 +61,11 @@ func (w *Worker) HandoffSummary(ctx context.Context, input HandoffSummaryInput) 
 	if err := json.Unmarshal(event.SystemEventPayload, &handedOff); err != nil {
 		return fmt.Errorf("decode service session handoff event: %w", err)
 	}
-	settings, err := customerservice.LoadServiceSummarySettings(ctx, w.db, input.WorkspaceID)
+	settings, err := servicepolicy.SummaryForSession(ctx, w.db, input.WorkspaceID, input.ServiceSessionID)
 	if err != nil {
 		return err
 	}
-	model, err := customerservice.LoadModel(ctx, w.db, input.WorkspaceID, settings.SummaryModelID, domain.AIModelUsageSummary)
+	model, err := aimodel.LoadOptional(ctx, w.db, input.WorkspaceID, settings.SummaryModelID, domain.AIModelUsageSummary)
 	if err != nil || model == nil {
 		return err
 	}
@@ -80,10 +81,10 @@ func (w *Worker) HandoffSummary(ctx context.Context, input HandoffSummaryInput) 
 		Reason     domain.AgentHandoffReason `json:"reason"`
 		ReasonText string                    `json:"reasonText,omitempty"`
 	}{Reason: handedOff.Reason, ReasonText: handedOff.ReasonText})
-	instruction := "AI 客服刚把这次客户咨询转交给真人客服，你负责为承接的真人客服写交接摘要，让对方不必翻看记录就能接手。\n" +
-		"- request：客户要什么，一句话写明诉求和关键事实，例如订单号、产品或时间。\n" +
-		"- progress：AI 已经做了什么、告诉了客户什么；没有做任何处理时写明尚未处理。\n" +
-		"- blocker：卡在哪里、需要真人做什么；参考转人工原因，其中 knowledge_gap 表示知识不足，customer_requested 表示客户要求真人，needs_human_judgment 表示需要人工判断，complaint 表示投诉，其余为系统原因。\n" +
+	instruction := "AI 员工刚把这次发起人咨询转交给处理同事，你负责为承接的处理同事写交接摘要，让对方不必翻看记录就能接手。\n" +
+		"- request：发起人要什么，一句话写明诉求和关键事实，例如订单号、产品或时间。\n" +
+		"- progress：AI 已经做了什么、告诉了发起人什么；没有做任何处理时写明尚未处理。\n" +
+		"- blocker：卡在哪里、需要真人做什么；参考转人工原因，其中 knowledge_gap 表示知识不足，customer_requested 表示发起人要求真人，needs_human_judgment 表示需要人工判断，complaint 表示投诉，其余为系统原因。\n" +
 		"- 只依据沟通记录和转人工原因，不编造信息；每项一到两句话。\n" +
 		"- 使用" + localeLanguage(settings.Locale) + "书写。\n" +
 		`- 只输出一个 JSON 对象，格式为 {"request":"","progress":"","blocker":""}，不输出 JSON 以外的任何内容。`

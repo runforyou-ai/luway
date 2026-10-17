@@ -5,8 +5,6 @@ package integrationtest
 import (
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -16,7 +14,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/filemaintenance"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/integration/telegram"
-	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	models "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/luway/pkg/connectiontest"
@@ -57,20 +54,19 @@ type telegramMediaFixture struct {
 	downloader *mediaDownloaderStub
 	receiver   *telegramWebhook
 	retrieve   *channelinboundaction.RetrieveMediaAction
-	local      *serverfilecontent.LocalStore
+	files      *servertest.Files
 	directory  string
 	tasks      *servertest.Tasks
 	nextUpdate int64
 }
 
-// newTelegramMediaFixture 建立带本地存储、取回任务和计数调度器的 Telegram 私聊。
+// newTelegramMediaFixture 建立带 S3 存储、取回任务和计数调度器的 Telegram 私聊。
 func newTelegramMediaFixture(t *testing.T) *telegramMediaFixture {
 	t.Helper()
 	base := newChannelDeliveryFixture(t)
 	directory := t.TempDir()
-	local, err := serverfilecontent.NewLocalStore(directory)
-	require.NoError(t, err)
-	writer := serverfilecontent.NewWriter(local, func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} })
+	files := servertest.NewFiles(t)
+	writer := files.Store
 	scheduler := &countingAgentScheduler{}
 	downloader := &mediaDownloaderStub{data: []byte("JPEGDATA")}
 	tasks := servertest.NewTasks()
@@ -79,7 +75,7 @@ func newTelegramMediaFixture(t *testing.T) *telegramMediaFixture {
 	unreachable := &mediaDownloaderStub{err: connectiontest.NewError(connectiontest.StageConnect, connectiontest.FailureTimeout, errors.New("timeout"))}
 	webhookAdapters := telegramAdapters(base.db, nil, unreachable)
 	receiver := newTelegramWebhookWith(base.db, webhookAdapters, scheduler, tasks, channelinboundaction.NewRetrieveMediaAction(base.db, webhookAdapters, writer, scheduler))
-	return &telegramMediaFixture{channelDeliveryFixture: base, scheduler: scheduler, downloader: downloader, receiver: receiver, retrieve: retrieve, local: local, directory: directory, nextUpdate: 10, tasks: tasks}
+	return &telegramMediaFixture{channelDeliveryFixture: base, scheduler: scheduler, downloader: downloader, receiver: receiver, retrieve: retrieve, files: files, directory: directory, nextUpdate: 10, tasks: tasks}
 }
 
 // receiveMedia 以下一条平台消息编号送入一条媒体消息，返回写入的附件消息。
@@ -167,7 +163,7 @@ func TestTelegramInboundMediaRetrieval(t *testing.T) {
 	require.Equal(t, string(domain.FileStatusActive), file.Status, "ready file")
 	require.Nil(t, file.ExpiresAt, "ready file")
 	require.Equal(t, int64(8), file.ByteSize, "ready file")
-	content, err := os.ReadFile(filepath.Join(f.directory, "objects", filepath.FromSlash(file.StorageKey)))
+	content, err := f.files.Read(ctx, file.StorageKey)
 	require.NoError(t, err)
 	require.Equal(t, "JPEGDATA", string(content))
 	require.Equal(t, 1, f.scheduler.calls, "schedules")
@@ -244,7 +240,7 @@ func TestTelegramInboundMediaFailure(t *testing.T) {
 	require.NoError(t, f.retrieve.FinalizeFailure(ctx, input, err))
 	require.Equal(t, 1, f.scheduler.calls, "schedules")
 	// 过期清理删除已回收的文件记录。
-	require.NoError(t, filemaintenance.NewDeleteExpiredAction(f.db, serverfilecontent.NewDeleter(f.local, func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} })).Execute(ctx, filemaintenance.DeleteExpiredInput{FileID: file.ID}))
+	require.NoError(t, filemaintenance.NewDeleteExpiredAction(f.db, f.files.Store).Execute(ctx, filemaintenance.DeleteExpiredInput{FileID: file.ID}))
 	exists, err := f.db.NewSelect().Table("files").Where("id = ?", file.ID).Exists(ctx)
 	require.NoError(t, err)
 	require.False(t, exists, "file exists")
@@ -259,7 +255,7 @@ func TestTelegramInboundMediaExpiredCleanup(t *testing.T) {
 	_, file, _ := f.attachmentState(t, message.ID)
 	_, err := f.db.ExecContext(ctx, "UPDATE files SET expires_at = now() - interval '1 minute' WHERE id = ?", file.ID)
 	require.NoError(t, err)
-	cleanup := filemaintenance.NewDeleteExpiredAction(f.db, serverfilecontent.NewDeleter(f.local, func() serverfilecontent.S3Config { return serverfilecontent.S3Config{} }))
+	cleanup := filemaintenance.NewDeleteExpiredAction(f.db, f.files.Store)
 	require.NoError(t, cleanup.Execute(ctx, filemaintenance.DeleteExpiredInput{FileID: file.ID}))
 	attachment, kept, _ := f.attachmentState(t, message.ID)
 	require.Equal(t, string(domain.MessageAttachmentTransferPending), attachment.TransferStatus, "cleanup touched pending media: attachment")

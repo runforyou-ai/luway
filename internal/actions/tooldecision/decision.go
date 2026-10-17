@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"uuid"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/notificationtask"
@@ -120,7 +119,7 @@ func appendToolCallEvent(ctx context.Context, db bun.IDB, enqueuer servertask.Tx
 			message.Visibility = string(domain.MessageVisibilityInternal)
 		}
 	}
-	return agentmessage.Append(ctx, db, enqueuer, conversation, message)
+	return chatstate.Append(ctx, db, enqueuer, conversation, message)
 }
 
 // lockedToolCall 是在会话锁内锁定的工具调用、其所属运行与按运行策略锁定的会话上下文。

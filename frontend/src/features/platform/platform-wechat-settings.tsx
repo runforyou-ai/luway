@@ -1,4 +1,4 @@
-/** 部署配置的微信开放平台页签：维护第三方平台凭据，展示平台凭据状态、需要填写到微信的接入信息与各服务器出口 IP。 */
+/** 系统设置的微信开放平台页签：维护第三方平台凭据，展示平台凭据状态、需要填写到微信的接入信息。 */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { LoaderCircleIcon } from "lucide-react"
 import { Controller, useForm } from "react-hook-form"
@@ -20,7 +20,6 @@ import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { WechatServerEgressList } from "@/components/wechat/server-egress-list"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useCopyFeedback } from "@/hooks/use-copy-feedback"
 import { useDateTime } from "@/hooks/use-date-time"
@@ -36,7 +35,7 @@ const pendingRefreshInterval = 15000
 /** 常规刷新状态的间隔毫秒数。 */
 const idleRefreshInterval = 60000
 
-/** 每次进入页签读取最新配置，等待票据或凭据期间短间隔刷新，依次渲染平台状态、平台凭据、保存后的接入信息与 IP 白名单。 */
+/** 每次进入页签读取最新配置，等待票据或凭据期间短间隔刷新，依次渲染平台状态、平台凭据、保存后的接入信息。 */
 export function PlatformWechatSettings() {
   const { t } = useTranslation("platform")
   const platform = useResource(resourceKeys.wechatPlatform(), (signal) => getWechatPlatform(signal), {
@@ -54,7 +53,6 @@ export function PlatformWechatSettings() {
           {platform.data.configured ? <PlatformStatus platform={platform.data} /> : null}
           <CredentialsForm platform={platform.data} />
           {platform.data.configured ? <AccessSettings platform={platform.data} /> : null}
-          <ServerWhitelist platform={platform.data} />
         </div>
       ) : null}
     </ResourceContent>
@@ -336,17 +334,6 @@ function AccessSettings({ platform }: { platform: WechatPlatform }) {
           </Field>
         ))}
       </FieldGroup>
-    </Section>
-  )
-}
-
-/** IP 白名单分组：列出各服务器的出口 IP。 */
-function ServerWhitelist({ platform }: { platform: WechatPlatform }) {
-  const { t } = useTranslation("platform")
-
-  return (
-    <Section title={t("wechat.whitelistTitle")} description={t("wechat.whitelistHelp")}>
-      <WechatServerEgressList servers={platform.servers} />
     </Section>
   )
 }

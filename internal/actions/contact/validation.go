@@ -14,16 +14,13 @@ import (
 	"github.com/runforyou-ai/support/validate"
 )
 
-// ValidationCode 标识联系人字段校验结果。
-type ValidationCode = common.FieldCode
-
 const (
-	ValidationIdentityRequired ValidationCode = "CONTACT_IDENTITY_REQUIRED"
-	ValidationChannelInvalid   ValidationCode = "CONTACT_CHANNEL_INVALID"
-	ValidationChannelImmutable ValidationCode = "CONTACT_CHANNEL_IMMUTABLE"
-	ValidationMethodInvalid    ValidationCode = "CONTACT_METHOD_INVALID"
-	ValidationMethodDuplicate  ValidationCode = "CONTACT_METHOD_DUPLICATE"
-	ValidationPrimaryDuplicate ValidationCode = "CONTACT_PRIMARY_DUPLICATE"
+	ValidationIdentityRequired common.FieldCode = "CONTACT_IDENTITY_REQUIRED"
+	ValidationChannelInvalid   common.FieldCode = "CONTACT_CHANNEL_INVALID"
+	ValidationChannelImmutable common.FieldCode = "CONTACT_CHANNEL_IMMUTABLE"
+	ValidationMethodInvalid    common.FieldCode = "CONTACT_METHOD_INVALID"
+	ValidationMethodDuplicate  common.FieldCode = "CONTACT_METHOD_DUPLICATE"
+	ValidationPrimaryDuplicate common.FieldCode = "CONTACT_PRIMARY_DUPLICATE"
 )
 
 const (
@@ -31,18 +28,15 @@ const (
 	maxMethodLabelLength = 100
 )
 
-// ValidationError 表示联系人字段校验失败。
-type ValidationError = common.FieldError
-
 // normalizeContactInput 规范化联系人写入字段，并校验联系方式的取值、重复与首选项。
-func normalizeContactInput(input ContactInput) (ContactInput, map[string]ValidationCode) {
+func normalizeContactInput(input ContactInput) (ContactInput, map[string]common.FieldCode) {
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	input.ChannelID, _ = str.NormalizeUUID(input.ChannelID)
 	input.Stage = domain.ContactStage(strings.TrimSpace(string(input.Stage)))
 	input.Notes = strings.TrimSpace(input.Notes)
 
-	fields := make(map[string]ValidationCode)
-	var methodCode ValidationCode
+	fields := make(map[string]common.FieldCode)
+	var methodCode common.FieldCode
 	input.Methods, methodCode = normalizeMethods(input.Methods)
 	if methodCode != "" {
 		fields["methods"] = methodCode
@@ -51,7 +45,7 @@ func normalizeContactInput(input ContactInput) (ContactInput, map[string]Validat
 }
 
 // normalizeNewContactInput 规范化手动新建的联系人输入；手动新建的联系人没有渠道身份，至少需要姓名或一项联系方式。
-func normalizeNewContactInput(input ContactInput) (ContactInput, map[string]ValidationCode) {
+func normalizeNewContactInput(input ContactInput) (ContactInput, map[string]common.FieldCode) {
 	input, fields := normalizeContactInput(input)
 	if input.DisplayName == "" && len(input.Methods) == 0 {
 		fields["displayName"] = ValidationIdentityRequired
@@ -60,7 +54,7 @@ func normalizeNewContactInput(input ContactInput) (ContactInput, map[string]Vali
 }
 
 // normalizeMethods 规范化联系方式并返回优先级最高的错误码。
-func normalizeMethods(methods []MethodInput) ([]MethodInput, ValidationCode) {
+func normalizeMethods(methods []MethodInput) ([]MethodInput, common.FieldCode) {
 	type methodKey struct {
 		typeName string
 		value    string
@@ -68,7 +62,7 @@ func normalizeMethods(methods []MethodInput) ([]MethodInput, ValidationCode) {
 	var seen set.Set[methodKey]
 	var primarySeen set.Set[string]
 	firstByType := make(map[string]int)
-	var code ValidationCode
+	var code common.FieldCode
 	for index := range methods {
 		method := &methods[index]
 		method.Type = domain.ContactMethodType(strings.TrimSpace(string(method.Type)))

@@ -10,6 +10,8 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -31,13 +33,11 @@ func NewUpdateMessageChannelAction(db *bun.DB) *UpdateMessageChannelAction {
 func (a *UpdateMessageChannelAction) ExecuteReception(ctx context.Context, identity *servermodels.Identity, channelID string, input MessageChannelReceptionInput) (*MessageChannelRecord, error) {
 	input, fields := normalizeMessageChannelReception(input)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 
 	channel := &servermodels.Channel{}
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
-		// 渠道路由变化后通知企业全部网站访客重新读取接待状态。
-		realtime.Notify(ctx, realtime.WebsiteReceptionChanged(identity.Workspace.ID))
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
 		}
@@ -52,7 +52,13 @@ func (a *UpdateMessageChannelAction) ExecuteReception(ctx context.Context, ident
 		} else if err != nil {
 			return err
 		}
+		if err := servicepolicy.RequireManage(identity, domain.ChannelCapabilitiesOf(domain.ChannelType(channel.Type)).Audience); err != nil {
+			return err
+		}
 		channelType := domain.ChannelType(channel.Type)
+		if channelType == domain.ChannelTypeWebsite {
+			realtime.Notify(ctx, realtime.WebsiteReceptionChanged(identity.Workspace.ID))
+		}
 		if err := validateRoutingTarget(ctx, tx, identity.Workspace.ID, channelType, "newConversationTarget", input.NewConversationTarget); err != nil {
 			return err
 		}
@@ -90,7 +96,7 @@ func (a *UpdateMessageChannelAction) ExecuteBasics(ctx context.Context, identity
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err
 		}
-		err := tx.NewSelect().Model(channel).Column("id", "name").
+		err := tx.NewSelect().Model(channel).Column("id", "name", "type").
 			Where("c.id = ?", channelID).
 			Where("c.workspace_id = ?", identity.Workspace.ID).
 			Where("c.type IN (?)", bun.List(domain.MessageChannelTypes())).
@@ -99,6 +105,9 @@ func (a *UpdateMessageChannelAction) ExecuteBasics(ctx context.Context, identity
 			return ErrNotFound
 		}
 		if err != nil {
+			return err
+		}
+		if err := servicepolicy.RequireManage(identity, domain.ChannelCapabilitiesOf(domain.ChannelType(channel.Type)).Audience); err != nil {
 			return err
 		}
 		previousName := channel.Name

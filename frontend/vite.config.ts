@@ -11,7 +11,7 @@ export default defineConfig(mergeConfig(appBuildConfig("node_modules"), {
     fs: {
       allow: [
         searchForWorkspaceRoot(process.cwd()),
-        path.resolve(import.meta.dirname, "../internal/publicweb/composer-emojis.json"),
+        path.resolve(import.meta.dirname, "../internal/web/messenger/composer-emojis.json"),
       ],
     },
   },

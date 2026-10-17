@@ -12,6 +12,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
 	"github.com/runforyou-ai/luway/internal/actions/reportpage"
 	"github.com/runforyou-ai/luway/internal/actions/teamperformance"
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/uptrace/bun"
@@ -80,7 +81,7 @@ type WorkspaceUsage struct {
 // UsageListOutput 定义一页工作区业务使用指标。
 type UsageListOutput struct {
 	Workspaces []WorkspaceUsage
-	Page       common.PageInfo
+	Page       apptypes.PageInfo
 }
 
 // UsageQuery 读取平台内计入平台规模的工作区的业务使用。
@@ -148,7 +149,7 @@ usage AS (
 	if err != nil {
 		return UsageListOutput{}, err
 	}
-	return UsageListOutput{Workspaces: workspaces, Page: common.PageInfo{Number: input.Page, Size: input.PageSize, Total: total}}, nil
+	return UsageListOutput{Workspaces: workspaces, Page: apptypes.PageInfo{Number: input.Page, Size: input.PageSize, Total: total}}, nil
 }
 
 // usageSources 返回定义 ai、team、gaps 与 models 四个公共集合的 WITH 子句与参数，各集合按工作区分组并含 workspace_id 为空的合计行，只统计计入平台规模的工作区。

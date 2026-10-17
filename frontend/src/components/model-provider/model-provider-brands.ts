@@ -58,7 +58,7 @@ export const aiProviderBrandConfigs: Record<
   [AIProviderBrand.Alibaba]: {
     nameKey: "modelServices.brands.alibaba",
     icon: alibabaIcon,
-    defaultAPIURL: "https://dashscope.aliyuncs.com",
+    defaultAPIURL: "",
   },
   [AIProviderBrand.OpenAI]: {
     nameKey: "modelServices.brands.openai",

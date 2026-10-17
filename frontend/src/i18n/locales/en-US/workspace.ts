@@ -13,6 +13,7 @@ const workspace = {
   responsibleGapCount: "Knowledge gaps to handle: {{count}}",
   contacts: "Contacts",
   settings: "Settings",
+  openAdmin: "Admin console",
   appVersion: "Version {{version}}",
   openUserMenu: "Open the user menu for {{name}}",
   openUserMenuWithUnread: "Open the user menu for {{name}}, {{count}} unread in other workspaces",

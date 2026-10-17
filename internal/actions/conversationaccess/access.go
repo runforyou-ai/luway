@@ -144,7 +144,20 @@ func participant(viewer Viewer, alias string, set bool) schema.QueryWithArgs {
 
 // RequireReadable 以一次 EXISTS 查询确认成员可阅读会话，会话不存在或不可阅读时返回 chatstate.ErrConversationNotFound。
 func RequireReadable(ctx context.Context, db bun.IDB, identity *servermodels.Identity, conversationID string, kinds ...Kind) error {
+	return requireReadable(ctx, db, identity, conversationID, kinds...)
+}
+
+// requireReadable 是 RequireReadable 与 Guard 共用的实现，避免方法与同名包函数互相遮蔽。
+func requireReadable(ctx context.Context, db bun.IDB, identity *servermodels.Identity, conversationID string, kinds ...Kind) error {
 	return requireCondition(ctx, db, identity, conversationID, Readable(ViewerOf(identity), "cv", kinds...))
+}
+
+// Guard 实现过程查询注入的阅读资格校验，不限制会话类别。
+type Guard struct{}
+
+// RequireReadable 判定成员可阅读指定会话，委托 RequireReadable 的默认类别规则。
+func (Guard) RequireReadable(ctx context.Context, db bun.IDB, identity *servermodels.Identity, conversationID string) error {
+	return requireReadable(ctx, db, identity, conversationID)
 }
 
 // LockManageable 在调用方事务中对会话取共享锁，再以新的语句复核成员的管理资格，写入本人会话状态的操作借此与成员关系变更串行。

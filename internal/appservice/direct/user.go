@@ -10,7 +10,6 @@ import (
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
-	memberaction "github.com/runforyou-ai/luway/internal/actions/member"
 	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
 	seataction "github.com/runforyou-ai/luway/internal/actions/seat"
 	servicehandoffaction "github.com/runforyou-ai/luway/internal/actions/servicehandoff"
@@ -31,8 +30,8 @@ import (
 
 // directoryOps 持有企业成员、团队、角色与工作区的 Action 和 Query。
 type directoryOps struct {
-	listMemberOptions        *memberaction.ListOptionsQuery
-	listColleagues           *memberaction.ListColleaguesQuery
+	listMemberOptions        *teamaction.ListOptionsQuery
+	listColleagues           *teamaction.ListColleaguesQuery
 	listUsers                *useraction.ListUsersQuery
 	getUser                  *useraction.GetUserQuery
 	updateUser               *useraction.UpdateUserAction
@@ -64,8 +63,8 @@ type directoryOps struct {
 // newDirectoryOps 创建企业成员、团队、角色与工作区的业务实现依赖。
 func newDirectoryOps(db *bun.DB, returner *servicehandoffaction.Returner, runCancellation *agentrunaction.RunCancellation, taskEnqueuer servertask.TxEnqueuer, seats seataction.Seats, files *fileOps) *directoryOps {
 	return &directoryOps{
-		listMemberOptions:        memberaction.NewListOptionsQuery(db),
-		listColleagues:           memberaction.NewListColleaguesQuery(db),
+		listMemberOptions:        teamaction.NewListOptionsQuery(db),
+		listColleagues:           teamaction.NewListColleaguesQuery(db),
 		listUsers:                useraction.NewListUsersQuery(db),
 		getUser:                  useraction.NewGetUserQuery(db),
 		updateUser:               useraction.NewUpdateUserAction(db, returner, taskEnqueuer),

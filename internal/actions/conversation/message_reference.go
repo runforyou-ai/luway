@@ -8,7 +8,7 @@ import (
 	"errors"
 
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/contact"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
 	"github.com/uptrace/bun"
@@ -57,7 +57,7 @@ func LoadMessageReference(ctx context.Context, db bun.IDB, workspaceID, conversa
 		ColumnExpr("cs.id AS chat_subject_id").
 		ColumnExpr("cs.kind AS kind").
 		ColumnExpr("cs.source_id AS source_id").
-		ColumnExpr("CASE WHEN cs.kind = ? THEN "+contactname.Expr("c", "ci.display_name")+" ELSE oi.display_name END AS display_name", domain.ChatSubjectKindContact).
+		ColumnExpr("CASE WHEN cs.kind = ? THEN "+contact.Expr("c", "ci.display_name")+" ELSE oi.display_name END AS display_name", domain.ChatSubjectKindContact).
 		ColumnExpr("c.number AS contact_number").
 		ColumnExpr("CASE WHEN cs.kind = ? THEN ci.avatar_file_id ELSE oi.avatar_file_id END AS avatar_file_id", domain.ChatSubjectKindContact).
 		ColumnExpr("oi.type AS identity_type").

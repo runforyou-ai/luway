@@ -19,17 +19,17 @@ import { mobileConversationPath, useMobileNavigation } from "@/apps/mobile/share
 import { MobilePageHeader, MobilePageState } from "@/apps/mobile/shared/mobile-page"
 import { useMobileWorkspace } from "@/apps/mobile/shared/mobile-workspace-layout"
 import { Button } from "@/components/ui/button"
-import { ConversationListMenu, useConversationListActions } from "@/features/inbox/list/conversation-list-menu"
-import { ConversationRowContent } from "@/features/inbox/list/conversation-row-content"
-import { InboxListPanel } from "@/features/inbox/list/inbox-list-panel"
+import { ConversationListMenu, useConversationListActions } from "@/features/inbox/public"
+import { ConversationRowContent } from "@/features/inbox/public"
+import { InboxListPanel } from "@/features/inbox/public"
 import {
   PinnedConversationList,
   pinMoveCommand,
   pinSortableStyle,
   usePinSortable,
   type PinSortable,
-} from "@/features/inbox/list/pinned-sort"
-import type { InboxList, InboxListViewport, PartitionedInboxList } from "@/features/inbox/list/use-inbox-list"
+} from "@/features/inbox/public"
+import type { InboxList, InboxListViewport, PartitionedInboxList } from "@/features/inbox/public"
 import { useConversationName } from "@/hooks/use-conversation-name"
 import { cn } from "@/lib/utils"
 

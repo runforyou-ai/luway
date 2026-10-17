@@ -34,7 +34,8 @@ var (
 
 // 平台管理查询与设置的字段校验码。
 const (
-	ValidationQueryInvalid common.FieldCode = "PLATFORM_QUERY_INVALID"
+	ValidationQueryInvalid                   common.FieldCode = "PLATFORM_QUERY_INVALID"
+	ValidationWorkspaceCreationQuotaDecrease common.FieldCode = "WORKSPACE_CREATION_QUOTA_DECREASE"
 )
 
 // DeploymentReloader 刷新本进程缓存的部署状态，本实例修改平台行或授权后调用。
@@ -42,17 +43,17 @@ type DeploymentReloader interface {
 	Reload(ctx context.Context) error
 }
 
-// Create 在首次安装事务内写入平台行，服务器标识与签名私钥由数据库生成，注册仅限受邀邮箱，工作区仅平台管理员可创建，平台时区取平台管理员的时区，部署地址取首次安装时填写的地址。
+// Create 在首次安装事务内写入平台行，部署标识与签名私钥由数据库生成，注册仅限受邀，自建额度 0，平台时区取平台管理员的时区，部署地址取首次安装时填写的地址。
 func Create(ctx context.Context, tx bun.Tx, timeZone, publicURL string) (*servermodels.Platform, error) {
 	platform := &servermodels.Platform{
-		RegistrationPolicy:      string(domain.RegistrationPolicyInvitationOnly),
-		WorkspaceCreationPolicy: string(domain.WorkspaceCreationPolicyPlatformAdmin),
-		TimeZone:                timeZone,
-		PublicURL:               publicURL,
+		RegistrationPolicy:     string(domain.RegistrationPolicyInvitationOnly),
+		WorkspaceCreationQuota: 0,
+		TimeZone:               timeZone,
+		PublicURL:              publicURL,
 	}
 	if _, err := tx.NewInsert().Model(platform).
-		Column("registration_policy", "workspace_creation_policy", "time_zone", "public_url").
-		Returning("server_id, created_at, updated_at, server_private_key, telemetry_enabled").
+		Column("registration_policy", "workspace_creation_quota", "time_zone", "public_url").
+		Returning("deployment_id, created_at, updated_at, deployment_private_key").
 		Exec(ctx); err != nil {
 		return nil, err
 	}

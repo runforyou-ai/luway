@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	"github.com/runforyou-ai/luway/pkg/connectiontest"
@@ -38,7 +39,7 @@ func (a *UpdateToolsAction) Execute(ctx context.Context, input RefreshToolsInput
 	}
 	discovery, err := a.connector.Discover(ctx, ConnectionInput{Transport: record.Transport, Connection: record.Connection, Credential: record.Credential})
 	// 文档无效或没有可调用接口按服务未返回可用工具目录处理。
-	if _, invalid := errors.AsType[*ValidationError](err); invalid {
+	if _, invalid := errors.AsType[*common.FieldError](err); invalid {
 		err = connectiontest.NewError(connectiontest.StageCapability, connectiontest.FailureProtocol, err)
 	}
 	if err != nil {

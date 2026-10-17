@@ -9,7 +9,6 @@ const agents = {
     agents: "AI 员工",
     channels: "渠道",
     knowledgeBases: "知识库",
-    businessSystems: "业务系统",
     computers: "工作区电脑",
   },
   search: "搜索 AI 员工",
@@ -41,7 +40,7 @@ const agents = {
     summaryErrors: "{{count}} 异常",
     summaryPrevious: "上次 {{passed}} / {{total}}",
     configurationChanged: "配置已变更，建议重新评测",
-    decisionModelRequired: "请先在客服设置的会话小结中设置判断模型",
+    decisionModelRequired: "请先在工作区设置的 AI 评测中设置判断模型",
     createCase: "新建用例",
     noCases: "还没有评测用例",
     loadError: "评测加载失败。",
@@ -71,9 +70,9 @@ const agents = {
       service_session: "来自问题会话",
     },
     senders: {
-      customer: "客户",
+      customer: "发起人",
       ai: "AI 员工",
-      staff: "真人客服",
+      staff: "处理人",
     },
     errors: {
       runtime_failed: "AI 运行出错",
@@ -171,7 +170,7 @@ const agents = {
   },
   validation: {
     nameInvalid: "AI 员工名称只能包含文字、数字、空格和 · - _ . 符号。",
-    instructionTooLong: "工作区指令不能超过 20000 个字符。",
+    instructionTooLong: "提示词不能超过 20000 个字符。",
   },
   businessSystems: {
     label: "业务系统",
@@ -180,7 +179,9 @@ const agents = {
     selected: "已授权 {{count}} 个业务系统",
     selectedOne: "已授权{{names}}",
     selectedNames: "已授权{{names}}等 {{count}} 个业务系统",
-    empty: "暂无业务系统",
+    empty: "暂无业务系统，请联系工作区管理员接入。",
+    emptyManage: "暂无业务系统，请在设置 → 集成 → 业务系统中添加。",
+    manage: "管理业务系统",
     loadError: "业务系统列表加载失败，请重试。",
     tools: "{{count}} 个工具",
     maxLevel: "{{name}} 的最高级别",
@@ -199,9 +200,9 @@ const agents = {
     knowledgeLoadError: "知识库列表加载失败，请重试。",
 
     model: "对话模型",
-    instruction: "工作区指令",
+    instruction: "提示词",
     instructionHelp:
-      "内置工作规则已包含通用要求，这里只写本工作区特有的业务背景、语气称呼、特殊政策和禁止事项。",
+      "内置工作规则已包含通用要求，这里只写特有的业务背景、语气称呼、特殊政策和禁止事项。",
     behavior: "内置工作规则",
     saveError: "保存运行配置失败，请重试。",
     modelSelect: "选择对话模型",
@@ -304,8 +305,17 @@ const agents = {
     },
   },
   performance: {
+    audience: "服务对象",
+    allServices: "全部服务",
+    customerService: "客户服务",
+    employeeService: "员工服务",
+    serviceSource: "服务来源",
+    allSources: "全部来源",
+    channelSource: "渠道",
+    directSource: "员工单聊",
+
     title: "AI 表现",
-    description: "查看 AI 客服解决了多少、客户是否满意、为什么转人工、缺哪些资料",
+    description: "查看 AI 处理结果、服务满意度、转人工原因和待补知识",
     loadError: "AI 表现报表加载失败。",
     tabs: {
       overview: "概览",
@@ -314,7 +324,7 @@ const agents = {
       channels: "渠道",
       categories: "咨询分类",
     },
-    gapQuestion: "客户提问",
+    gapQuestion: "发起人提问",
     gapTime: "时间",
     gapStatus: "状态",
     gapStatuses: {
@@ -359,7 +369,7 @@ const agents = {
     undetermined: "未判定",
     closeReasons: "结束方式",
     closeAIResolved: "AI 解决",
-    closeCustomerUnresponsive: "客户失联",
+    closeCustomerUnresponsive: "发起人未回复",
     closeManual: "人工关闭",
     satisfaction: "满意度",
     satisfactionLevels: {
@@ -383,8 +393,8 @@ const agents = {
     noIssues: "这段时间没有问题会话",
     issueSheet: {
       addToEvaluation: "加入评测",
-      evaluationDescription: "选择 AI 应当转人工的那条客户消息，之前的往来作为前文。",
-      evaluationQuestion: "应当转人工的客户消息",
+      evaluationDescription: "选择 AI 应当转人工的那条发起人消息，之前的往来作为前文。",
+      evaluationQuestion: "应当转人工的发起人消息",
       evaluationAdded: "已加入评测",
       evaluationError: "加入评测失败，请重试。",
       title: "问题会话",
@@ -440,7 +450,7 @@ const agents = {
   },
   teamPerformance: {
     title: "团队表现",
-    description: "查看转人工后真人多快回复、处理多久、客户是否满意",
+    description: "查看真人回复速度、处理时长和服务满意度",
     loadError: "团队表现报表加载失败。",
     tabs: {
       overview: "概览",

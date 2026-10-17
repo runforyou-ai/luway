@@ -18,6 +18,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/serviceassignment"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -45,7 +46,7 @@ func NewUpdateUserAction(db *bun.DB, returner ServiceSessionReturner, enqueuer s
 
 // Execute 修改工作区成员头像、显示名称、角色、接待开关、最大接待量和所属团队，成员当前或调整后是管理员时只有管理员可以修改；关闭接待开关时重置其渠道路由并把负责的开放客服周期退回原队列，开启接待时为其补分配。
 func (a *UpdateUserAction) Execute(ctx context.Context, identity *servermodels.Identity, userID string, input UpdateInput) (*User, error) {
-	fields := make(map[string]ValidationCode)
+	fields := make(map[string]common.FieldCode)
 	input.DisplayName = strings.TrimSpace(input.DisplayName)
 	if input.DisplayName == "" {
 		fields["displayName"] = ValidationDisplayNameRequired
@@ -57,7 +58,7 @@ func (a *UpdateUserAction) Execute(ctx context.Context, identity *servermodels.I
 		fields["maxServiceSessions"] = ValidationMaxServiceSessionsInvalid
 	}
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	var output *User
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {

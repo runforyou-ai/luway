@@ -6,16 +6,16 @@ package servicesession
 import (
 	"time"
 
-	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 // 客服服务周期操作的字段校验码。
 const (
-	ValidationTargetTeamIDInvalid       conversationaction.ValidationCode = "target_team_id_invalid"
-	ValidationTransferTargetKindInvalid conversationaction.ValidationCode = "transfer_target_kind_invalid"
-	ValidationMentionIdentityIDsInvalid conversationaction.ValidationCode = "mention_identity_ids_invalid"
-	ValidationTranslationInvalid        conversationaction.ValidationCode = "translation_invalid"
+	ValidationTargetTeamIDInvalid       common.FieldCode = "target_team_id_invalid"
+	ValidationTransferTargetKindInvalid common.FieldCode = "transfer_target_kind_invalid"
+	ValidationMentionIdentityIDsInvalid common.FieldCode = "mention_identity_ids_invalid"
+	ValidationTranslationInvalid        common.FieldCode = "translation_invalid"
 )
 
 const (

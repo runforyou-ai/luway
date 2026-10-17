@@ -16,7 +16,7 @@ import (
 type Service struct {
 	backend                  appservice.Backend
 	computers                appservice.ComputerBackend
-	websiteVisitor           appservice.WebsiteVisitorService
+	websiteVisitor           appservice.WebsiteVisitorBackend
 	telegramWebhook          TelegramWebhookReceiver
 	channelIdentityAssertion ChannelIdentityAsserter
 	wechatPlatformEvents     WechatPlatformEventReceiver
@@ -34,7 +34,7 @@ type Service struct {
 type ServiceOption func(*Service)
 
 // WithWebsiteVisitor 注入网站访客应用服务与访客 Cookie 是否带 Secure 属性的判断；secureCookie 在部署地址为 HTTPS 时返回真。
-func WithWebsiteVisitor(visitor appservice.WebsiteVisitorService, secureCookie func() bool) ServiceOption {
+func WithWebsiteVisitor(visitor appservice.WebsiteVisitorBackend, secureCookie func() bool) ServiceOption {
 	return func(service *Service) {
 		service.websiteVisitor = visitor
 		service.secureVisitorCookie = secureCookie
@@ -98,6 +98,7 @@ func NewService(backend appservice.Backend, options ...ServiceOption) *Service {
 		option(service)
 	}
 	service.registerGeneratedRoutes(service.handle)
+	service.registerAdminAuthRoutes()
 	for _, register := range service.routes {
 		register(service.handle)
 	}

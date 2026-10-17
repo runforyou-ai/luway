@@ -30,7 +30,7 @@ func TestInboxSearch(t *testing.T) {
 	query := inboxaction.NewLoadInboxQuery(f.db)
 	trip := f.send(t, f.owner, "明天去长春出差，型号E-731需要带上", false)
 	invoice := f.send(t, f.member, "报销发票已经提交", false)
-	file, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.owner, domain.FileStorageBackendLocal, fileaction.UploadInput{
+	file, err := fileaction.NewCreateUploadAction(f.db).Execute(ctx, f.owner, fileaction.UploadInput{
 		Purpose: domain.FilePurposeMessageAttachment, FileName: "季度合同.pdf", ContentType: "application/pdf", ByteSize: 10,
 	})
 	require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestInboxSearch(t *testing.T) {
 	_, err = query.Search(ctx, f.owner, inboxaction.SearchInput{Text: "发票", Range: inboxaction.SearchRangeConversation, ConversationID: uuid.NewV7().String()})
 	require.ErrorIs(t, err, inboxaction.ErrConversationUnavailable, "不可读会话")
 
-	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.member, f.groupID))
+	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.member, f.groupID))
 	require.Empty(t, search(f.member, inboxaction.SearchInput{Text: "changchun", Range: inboxaction.SearchRangeReadable}).Messages, "退群成员仍能检索群消息")
 	_, err = query.Search(ctx, f.member, inboxaction.SearchInput{Text: "发票", Range: inboxaction.SearchRangeConversation, ConversationID: f.groupID})
 	require.ErrorIs(t, err, inboxaction.ErrConversationUnavailable, "退群成员会话范围")

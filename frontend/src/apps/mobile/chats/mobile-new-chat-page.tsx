@@ -16,13 +16,13 @@ import {
 } from "@/apps/mobile/shared/mobile-page"
 import { useMobileWorkspace } from "@/apps/mobile/shared/mobile-workspace-layout"
 import { LoadingIndicator } from "@/components/loading-indicator"
-import { DirectConversationDraftAvatar } from "@/features/inbox/conversation/direct-conversation-draft-header"
-import { InboxConversationTarget } from "@/features/inbox/conversation/inbox-conversation-target"
+import { DirectConversationDraftAvatar } from "@/features/inbox/public"
+import { InboxConversationTarget } from "@/features/inbox/public"
 import {
   filterChatTargets,
   listChatTargets,
   orderChatTargets,
-} from "@/features/inbox/shared/list-all-member-options"
+} from "@/features/inbox/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResource } from "@/hooks/use-resource"
 

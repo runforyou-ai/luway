@@ -14,9 +14,9 @@ import {
   type InboxConversation,
   type InboxScope,
 } from "@/api"
-import type { ConversationLocateTarget } from "@/features/inbox/timeline/conversation-timeline"
-import type { InboxListBookmark } from "@/features/inbox/list/inbox-list-controller"
-import type { ScopedInboxQuery } from "@/features/inbox/list/inbox-query"
+import type { ConversationLocateTarget } from "@/features/inbox/public"
+import type { InboxListBookmark } from "@/features/inbox/public"
+import type { ScopedInboxQuery } from "@/features/inbox/public"
 import type { NotificationTarget } from "@/lib/workspace-paths"
 import { useLocation, useNavigate } from "react-router"
 

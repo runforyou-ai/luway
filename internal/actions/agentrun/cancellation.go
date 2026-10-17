@@ -5,7 +5,6 @@ package agentrun
 import (
 	"context"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentcancel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
@@ -25,12 +24,12 @@ func NewRunCancellation(db *bun.DB, enqueuer servertask.TxEnqueuer) *RunCancella
 
 // CancelForServiceSession 在客服事务内取消原负责人尚未结束的运行。
 func (c *RunCancellation) CancelForServiceSession(ctx context.Context, db bun.IDB, workspaceID, serviceSessionID, agentIdentityID string, reason domain.AgentRunErrorCode) ([]string, error) {
-	return agentcancel.CancelServiceSessionRuns(ctx, db, workspaceID, serviceSessionID, agentIdentityID, reason)
+	return CancelServiceSessionRuns(ctx, db, workspaceID, serviceSessionID, agentIdentityID, reason)
 }
 
 // CancelForGroupAgent 在成员变化事务内取消群内指定 Agent 的在途运行、结算其输入队列并轮转到下一位。
 func (c *RunCancellation) CancelForGroupAgent(ctx context.Context, db bun.IDB, workspaceID, conversationID, agentIdentityID string) error {
-	if err := agentcancel.CancelGroupAgentRuns(ctx, db, workspaceID, conversationID, agentIdentityID); err != nil {
+	if err := CancelGroupAgentRuns(ctx, db, workspaceID, conversationID, agentIdentityID); err != nil {
 		return err
 	}
 	return c.rotateGroupScope(ctx, db, workspaceID, conversationID)
@@ -49,5 +48,5 @@ func (c *RunCancellation) rotateGroupScope(ctx context.Context, db bun.IDB, work
 
 // CancelForGroupConversation 在群解散事务内取消群内全部 Agent 的在途运行。
 func (c *RunCancellation) CancelForGroupConversation(ctx context.Context, db bun.IDB, workspaceID, conversationID string) error {
-	return agentcancel.CancelGroupRuns(ctx, db, workspaceID, conversationID)
+	return CancelGroupRuns(ctx, db, workspaceID, conversationID)
 }

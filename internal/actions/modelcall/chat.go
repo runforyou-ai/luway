@@ -17,6 +17,8 @@ import (
 	"github.com/runforyou-ai/einorun/provider"
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
+	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
+	"github.com/uptrace/bun"
 )
 
 // errStreamClosed 表示调用方在流式输出结束前关闭了读取端。
@@ -100,6 +102,29 @@ func (m *chatModel) Stream(ctx context.Context, input []*schema.AgenticMessage, 
 	}
 	err = errors.New("AI model has no route")
 	for _, route := range record.routes {
+		if authorizer, ok := m.invoker.lifecycle.(RouteAuthorizer); ok {
+			authErr := serverstorage.RunInTx(context.WithoutCancel(ctx), m.invoker.db, func(ctx context.Context, tx bun.Tx) error {
+				parent, err := lockRunning(ctx, tx, record.id)
+				if err != nil {
+					return err
+				}
+				if parent == nil {
+					return errCallFinished
+				}
+				return authorizer.AuthorizeRoute(ctx, tx, Facts{
+					CallID: record.id, WorkspaceID: m.scope.WorkspaceID, ModelID: m.target.ID,
+					PrimaryRouteID: route.ID, Scope: m.target.Scope, Usage: record.estimate,
+				})
+			})
+			if errors.Is(authErr, aimodel.ErrUnavailable) {
+				slog.WarnContext(ctx, "模型来源当前不可用，跳过", "ai_model_call_id", record.id, "route_id", route.ID, "provider_id", route.ProviderID)
+				continue
+			}
+			if authErr != nil {
+				err = authErr
+				break
+			}
+		}
 		attemptID, beginErr := record.beginAttempt(ctx, route)
 		if beginErr != nil {
 			err = beginErr

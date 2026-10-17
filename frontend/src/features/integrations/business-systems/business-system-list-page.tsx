@@ -18,6 +18,7 @@ import { ResourceTable } from "@/components/resource-table"
 import { Button } from "@/components/ui/button"
 import { BusinessSystemToolsCell } from "@/features/integrations/business-systems/business-system-tools-cell"
 import { useBusinessSystemConnectionTest } from "@/features/integrations/business-systems/use-business-system-connection-test"
+import { businessSystemsPath } from "@/lib/workspace-paths"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
 import { useRequestErrorReporter } from "@/hooks/use-request-error-reporter"
@@ -82,7 +83,7 @@ export function BusinessSystemListPage() {
         </Button>
         <Button variant="subtle" size="icon-sm" asChild>
           <Link
-            to="/business-systems/new"
+            to={`${businessSystemsPath}/new`}
             aria-label={t("businessSystem.list.create")}
             title={t("businessSystem.list.create")}
           >
@@ -113,7 +114,7 @@ export function BusinessSystemListPage() {
           rowKey={(system) => system.id}
           empty={t("businessSystem.list.empty")}
           onRowActivate={(system) =>
-            navigate(`/business-systems/${system.id}`)
+            navigate(`${businessSystemsPath}/${system.id}`)
           }
           rowActions={(system) => {
             const testing = connectionTest.testingIds.has(system.id)

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/runforyou-ai/luway/internal/clientrelease"
+	releaseclients "github.com/runforyou-ai/luway/internal/release/clients"
 	"golang.org/x/mod/semver"
 )
 
@@ -39,7 +39,7 @@ func readOfferedUpdate(ctx context.Context, address string, current string) (off
 		return offeredUpdate{}, nil
 	}
 	query := url.Values{"platform": {runtime.GOOS}, "arch": {runtime.GOARCH}, "version": {current}}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(address, "/")+clientrelease.UpdatePath+"?"+query.Encode(), nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, strings.TrimRight(address, "/")+releaseclients.UpdatePath+"?"+query.Encode(), nil)
 	if err != nil {
 		return offeredUpdate{}, err
 	}

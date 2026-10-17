@@ -13,8 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/knowledgegap"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -27,7 +28,7 @@ import (
 // draftSimilarQuestionLimit 是起草问答保留的相似问题条数上限。
 const draftSimilarQuestionLimit = 5
 
-// knowledgeDraft 是模型起草的问答；QuestionIndex 为沟通记录中表达核心问题的客户消息下标。
+// knowledgeDraft 是模型起草的问答；QuestionIndex 为沟通记录中表达核心问题的发起人消息下标。
 type knowledgeDraft struct {
 	Question         string   `json:"question"`
 	SimilarQuestions []string `json:"similarQuestions"`
@@ -35,17 +36,17 @@ type knowledgeDraft struct {
 	QuestionIndex    *int     `json:"questionIndex" jsonschema:"nullable"`
 }
 
-// DraftKnowledgeGap 用小结模型按周期沟通记录为待补知识起草问答；未设置小结模型时记为无法起草，复核来源另按 AI 判断更新客户提问消息。
+// DraftKnowledgeGap 用小结模型按周期沟通记录为待补知识起草问答；未设置小结模型时记为无法起草，复核来源另按 AI 判断更新发起人提问消息。
 func (w *Worker) DraftKnowledgeGap(ctx context.Context, input knowledgegap.DraftInput) error {
 	gap, err := w.loadDraftingGap(ctx, input)
 	if err != nil || gap == nil {
 		return err
 	}
-	settings, err := customerservice.LoadServiceSummarySettings(ctx, w.db, input.WorkspaceID)
+	settings, err := servicepolicy.SummaryForSession(ctx, w.db, input.WorkspaceID, gap.ServiceSessionID)
 	if err != nil {
 		return err
 	}
-	model, err := customerservice.LoadModel(ctx, w.db, input.WorkspaceID, settings.SummaryModelID, domain.AIModelUsageSummary)
+	model, err := aimodel.LoadOptional(ctx, w.db, input.WorkspaceID, settings.SummaryModelID, domain.AIModelUsageSummary)
 	if err != nil {
 		return err
 	}
@@ -63,12 +64,12 @@ func (w *Worker) DraftKnowledgeGap(ctx context.Context, input knowledgegap.Draft
 	if err != nil {
 		return err
 	}
-	instruction := "你负责把客服沟通整理成一条知识库问答，供 AI 客服日后回答同类问题。\n" +
-		"- question 写客户想解决的核心问题，用一句通用的提问表达，去掉寒暄、个人信息和订单号等一次性细节。\n" +
-		"- questionIndex 写沟通记录数组中最能表达这个核心问题的客户消息的下标，从 0 开始；没有合适的客户消息时为 null。\n" +
+	instruction := "把本次服务的沟通记录整理成一条知识库问答，供 AI 员工日后回答同类问题。\n" +
+		"- question 写发起人想解决的核心问题，用一句通用的提问表达，去掉寒暄、个人信息和订单号等一次性细节。\n" +
+		"- questionIndex 写沟通记录数组中最能表达这个核心问题的发起人消息的下标，从 0 开始；没有合适的发起人消息时为 null。\n" +
 		"- similarQuestions 写 0 到 5 个同一问题的其他常见问法，不重复 question。\n" +
-		"- answer 只依据真人客服（staff）的答复写成可直接回复任何客户的标准答案，去掉只适用于这位客户的细节；真人客服没有给出实质答复时 answer 为空字符串，不采用 AI 客服的答复，不编造内容。\n" +
-		"- 使用真人客服答复的语言书写；没有真人客服答复时使用客户提问的语言。\n" +
+		"- answer 只依据处理同事（staff）的答复写成可直接回复任何发起人的标准答案，去掉只适用于这位发起人的细节；处理同事没有给出实质答复时 answer 为空字符串，不采用 AI 员工的答复，不编造内容。\n" +
+		"- 使用处理同事答复的语言书写；没有处理同事答复时使用发起人提问的语言。\n" +
 		`- 只输出一个 JSON 对象，格式为 {"question":"问题","questionIndex":0,"similarQuestions":["相似问题"],"answer":"答案"}，不输出 JSON 以外的任何内容。`
 	generateCtx, cancel := context.WithTimeout(ctx, summaryTimeout)
 	defer cancel()
@@ -88,7 +89,7 @@ func (w *Worker) DraftKnowledgeGap(ctx context.Context, input knowledgegap.Draft
 		return fmt.Errorf("encode knowledge gap similar questions: %w", err)
 	}
 	answer := strings.TrimSpace(draft.Answer)
-	// 复核来源没有转人工前的提问可依，采用 AI 判断的客户消息。
+	// 复核来源没有转人工前的提问可依，采用 AI 判断的发起人消息。
 	var questionMessageID *string
 	source := domain.KnowledgeGapSource(gap.Source)
 	if (source == domain.KnowledgeGapSourceRatedUnresolved || source == domain.KnowledgeGapSourcePossiblyWrong) &&
@@ -139,7 +140,7 @@ func (w *Worker) loadDraftingGap(ctx context.Context, input knowledgegap.DraftIn
 	return gap, nil
 }
 
-// saveDraft 只在条目仍待处理且仍在等待本次起草请求时写入起草结果，写入后通知企业客服受众。
+// saveDraft 只在条目仍待处理且仍在等待本次起草请求时写入起草结果，写入后通知企业处理人受众。
 func (w *Worker) saveDraft(ctx context.Context, input knowledgegap.DraftInput, apply func(*bun.UpdateQuery) *bun.UpdateQuery) error {
 	return realtime.RunInTx(ctx, w.db, func(ctx context.Context, tx bun.Tx) error {
 		query := tx.NewUpdate().Model((*servermodels.KnowledgeGap)(nil)).

@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -24,9 +25,13 @@ var (
 	ErrMembershipNotFound = errors.New("account is not an active member of the workspace")
 	// ErrWorkspaceSuspended 表示目标工作区已被平台管理员暂停。
 	ErrWorkspaceSuspended = errors.New("workspace is suspended")
+	// ErrSessionKindMismatch 表示会话种类与当前认证入口不匹配。
+	ErrSessionKindMismatch = errors.New("session kind mismatch")
+	// ErrSupportWorkspaceMismatch 表示支援会话绑定的工作区与请求目标不一致。
+	ErrSupportWorkspaceMismatch = errors.New("support session workspace mismatch")
 )
 
-// ResolveAccountQuery 解析登录会话令牌对应的账号。
+// ResolveAccountQuery 解析用户端登录会话令牌对应的账号。
 type ResolveAccountQuery struct {
 	db *bun.DB
 }
@@ -36,9 +41,39 @@ func NewResolveAccountQuery(db *bun.DB) *ResolveAccountQuery {
 	return &ResolveAccountQuery{db: db}
 }
 
-// Execute 返回有效会话令牌对应的账号和会话。
+// Execute 返回有效用户端会话令牌对应的账号和会话；支援会话不可用于账号级接口。
 func (q *ResolveAccountQuery) Execute(ctx context.Context, value string) (*servermodels.AccountIdentity, error) {
-	return resolveAccount(ctx, q.db, value)
+	return resolveAccountByKinds(ctx, q.db, value, domain.SessionKindUser)
+}
+
+// ResolveAdminQuery 解析平台后台 Cookie 会话对应的账号。
+type ResolveAdminQuery struct {
+	db *bun.DB
+}
+
+// NewResolveAdminQuery 创建平台后台账号查询。
+func NewResolveAdminQuery(db *bun.DB) *ResolveAdminQuery {
+	return &ResolveAdminQuery{db: db}
+}
+
+// Execute 返回有效平台后台会话对应的账号；是否仍为平台管理员由调用方校验。
+func (q *ResolveAdminQuery) Execute(ctx context.Context, value string) (*servermodels.AccountIdentity, error) {
+	return resolveAccountByKinds(ctx, q.db, value, domain.SessionKindAdmin)
+}
+
+// ResolveBearerQuery 解析用户端或支援 Bearer 会话对应的账号。
+type ResolveBearerQuery struct {
+	db *bun.DB
+}
+
+// NewResolveBearerQuery 创建用户端与支援会话查询。
+func NewResolveBearerQuery(db *bun.DB) *ResolveBearerQuery {
+	return &ResolveBearerQuery{db: db}
+}
+
+// Execute 返回有效用户端或支援会话对应的账号。
+func (q *ResolveBearerQuery) Execute(ctx context.Context, value string) (*servermodels.AccountIdentity, error) {
+	return resolveAccountByKinds(ctx, q.db, value, domain.SessionKindUser, domain.SessionKindSupport)
 }
 
 // ResolveIdentityQuery 解析登录会话在目标工作区中的成员身份。
@@ -51,7 +86,7 @@ func NewResolveIdentityQuery(db *bun.DB) *ResolveIdentityQuery {
 	return &ResolveIdentityQuery{db: db}
 }
 
-// Execute 用一次查询返回会话令牌对应账号在目标工作区中的有效成员身份。
+// Execute 用一次查询返回用户端或支援会话在目标工作区中的有效成员身份。
 func (q *ResolveIdentityQuery) Execute(ctx context.Context, workspaceID string, value string) (*servermodels.Identity, error) {
 	if value == "" {
 		return nil, ErrIdentityNotFound
@@ -69,7 +104,8 @@ func (q *ResolveIdentityQuery) Execute(ctx context.Context, workspaceID string, 
 		LEFT JOIN (`+memberTables+`) ON u.account_id = acc.id AND u.workspace_id = ?
 		WHERE acs.token_hash = ?
 		  AND acs.expires_at > now()
-	`, domain.WorkspaceIdentityTypeUser, workspaceArg, random.HashToken(value)).Scan(ctx,
+		  AND acs.kind IN (?, ?)
+	`, domain.WorkspaceIdentityTypeUser, workspaceArg, random.HashToken(value), domain.SessionKindUser, domain.SessionKindSupport).Scan(ctx,
 		append(accountSessionTargets(&identity.Account, &identity.Session), memberTargets(identity)...)...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrIdentityNotFound
@@ -79,6 +115,11 @@ func (q *ResolveIdentityQuery) Execute(ctx context.Context, workspaceID string, 
 	}
 	if identity.Account.Status != string(domain.AccountStatusActive) {
 		return nil, ErrIdentityNotFound
+	}
+	if identity.Session.Kind == string(domain.SessionKindSupport) {
+		if identity.Session.WorkspaceID == nil || *identity.Session.WorkspaceID != workspaceID {
+			return nil, ErrSupportWorkspaceMismatch
+		}
 	}
 	// 成员行缺失时各成员字段为空值。
 	if identity.User.ID == "" || identity.User.Status != string(domain.IdentityStatusActive) {
@@ -92,7 +133,7 @@ func (q *ResolveIdentityQuery) Execute(ctx context.Context, workspaceID string, 
 
 // accountSessionColumns 是账号与登录会话的查询列，扫描目标由 accountSessionTargets 给出。
 const accountSessionColumns = identityaction.AccountColumns + `,
-	acs.id::text, acs.account_id::text, acs.expires_at, (extract(epoch FROM acs.expires_at - now()) * 1000000000)::bigint`
+	acs.id::text, acs.account_id::text, acs.kind, acs.workspace_id::text, acs.expires_at, (extract(epoch FROM acs.expires_at - now()) * 1000000000)::bigint`
 
 // memberTables 是成员用户、成员身份与工作区的关联，成员身份类型取第一个查询参数。
 const memberTables = `
@@ -109,7 +150,7 @@ const memberColumns = `
 // accountSessionTargets 返回与 accountSessionColumns 顺序一致的扫描目标。
 func accountSessionTargets(account *servermodels.Account, session *servermodels.AccountSession) []any {
 	return append(identityaction.AccountTargets(account),
-		&session.ID, &session.AccountID, &session.ExpiresAt, (*int64)(&session.Remaining))
+		&session.ID, &session.AccountID, &session.Kind, &session.WorkspaceID, &session.ExpiresAt, (*int64)(&session.Remaining))
 }
 
 // memberTargets 返回与 memberColumns 顺序一致的扫描目标。
@@ -119,10 +160,16 @@ func memberTargets(identity *servermodels.Identity) []any {
 	return append(targets, &identity.Role.Kind, pgdialect.Array(&identity.Role.Permissions))
 }
 
-// resolveAccount 返回有效会话令牌对应的账号；令牌无效、已过期或账号停用时返回 ErrIdentityNotFound。
-func resolveAccount(ctx context.Context, db bun.IDB, value string) (*servermodels.AccountIdentity, error) {
-	if value == "" {
+// resolveAccountByKinds 返回指定种类的有效会话对应账号。
+func resolveAccountByKinds(ctx context.Context, db bun.IDB, value string, kinds ...domain.SessionKind) (*servermodels.AccountIdentity, error) {
+	if value == "" || len(kinds) == 0 {
 		return nil, ErrIdentityNotFound
+	}
+	placeholders := make([]string, len(kinds))
+	args := []any{random.HashToken(value)}
+	for i, kind := range kinds {
+		placeholders[i] = "?"
+		args = append(args, string(kind))
 	}
 	identity := &servermodels.AccountIdentity{}
 	err := db.NewRaw(`
@@ -131,7 +178,8 @@ func resolveAccount(ctx context.Context, db bun.IDB, value string) (*servermodel
 		JOIN accounts AS acc ON acc.id = acs.account_id
 		WHERE acs.token_hash = ?
 		  AND acs.expires_at > now()
-	`, random.HashToken(value)).Scan(ctx, accountSessionTargets(&identity.Account, &identity.Session)...)
+		  AND acs.kind IN (`+strings.Join(placeholders, ", ")+`)
+	`, args...).Scan(ctx, accountSessionTargets(&identity.Account, &identity.Session)...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrIdentityNotFound
 	}
@@ -202,7 +250,8 @@ func ResolveAccountSession(ctx context.Context, db bun.IDB, accountID, sessionID
 	identity := &servermodels.AccountIdentity{}
 	err := db.NewRaw(`SELECT `+accountSessionColumns+` FROM account_sessions AS acs
  JOIN accounts AS acc ON acc.id = acs.account_id
- WHERE acs.id = ? AND acs.account_id = ? AND acs.expires_at > now()`, sessionID, accountID).
+ WHERE acs.id = ? AND acs.account_id = ? AND acs.expires_at > now() AND acs.kind IN (?, ?)`,
+		sessionID, accountID, domain.SessionKindUser, domain.SessionKindSupport).
 		Scan(ctx, accountSessionTargets(&identity.Account, &identity.Session)...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrIdentityNotFound

@@ -146,7 +146,7 @@ func TestServiceCopilotThreads(t *testing.T) {
 		}
 		// Copilot 可检索同一客户的已关闭周期，当前进行中的周期不在检索范围内。
 		if assert.NotNil(t, request.CustomerHistorySearch) && assert.Contains(t, request.Assignment.Tools, agentruntime.CustomerHistoryToolName) &&
-			assert.Contains(t, request.Assignment.Instruction, "- search_customer_history：需要了解该客户") {
+			assert.Contains(t, request.Assignment.Instruction, "- search_customer_history：需要了解该发起人") {
 			found, err := request.CustomerHistorySearch(ctx, "签收")
 			assert.NoError(t, err)
 			assert.Empty(t, found.Sessions)

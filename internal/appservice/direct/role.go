@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"slices"
 
 	roleaction "github.com/runforyou-ai/luway/internal/actions/role"
 	"github.com/runforyou-ai/luway/internal/appservice"
@@ -23,9 +24,7 @@ func (o *directoryOps) ListRoleOptions(ctx context.Context, meta appservice.Requ
 	if err != nil {
 		return appservice.RoleOptionList{}, roleError(meta, err, i18n.ErrorRoleListFailed)
 	}
-	return appservice.RoleOptionList{Roles: arr.Map(options, func(option roleaction.Option) appservice.RoleOption {
-		return appservice.RoleOption{ID: option.ID, Kind: option.Kind, Name: option.Name, Assignable: option.Assignable}
-	})}, nil
+	return appservice.RoleOptionList{Roles: options}, nil
 }
 
 // ListRoles 返回当前企业的角色和预定义权限目录。
@@ -34,7 +33,7 @@ func (o *directoryOps) ListRoles(ctx context.Context, meta appservice.RequestMet
 	if err != nil {
 		return appservice.RoleList{}, roleError(meta, err, i18n.ErrorRoleListFailed)
 	}
-	roles := arr.Map(output.Roles, roleFromAction)
+	roles := arr.Map(output.Roles, func(role roleaction.Record) appservice.Role { return role.ToRole() })
 	permissions := arr.Map(output.Permissions, func(permission domain.PermissionDefinition) appservice.PermissionCode {
 		return appservice.PermissionCode(permission.Code)
 	})
@@ -47,27 +46,27 @@ func (o *directoryOps) GetRole(ctx context.Context, meta appservice.RequestMeta,
 	if err != nil {
 		return appservice.Role{}, roleError(meta, err, i18n.ErrorRoleReadFailed)
 	}
-	return roleFromAction(*role), nil
+	return role.ToRole(), nil
 }
 
 // CreateRole 创建自定义角色。
 func (o *directoryOps) CreateRole(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.RoleInput) (appservice.Role, error) {
-	role, err := o.createRole.Execute(ctx, identity, roleInput(input))
+	role, err := o.createRole.Execute(ctx, identity, input)
 	if err != nil {
 		return appservice.Role{}, roleMutationError(meta, err, i18n.ErrorRoleCreateFailed)
 	}
 	slog.InfoContext(ctx, "角色创建成功", "role_id", role.ID, "permission_count", len(role.Permissions))
-	return roleFromAction(*role), nil
+	return role.ToRole(), nil
 }
 
 // UpdateRole 修改角色信息和权限。
 func (o *directoryOps) UpdateRole(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, roleID string, input appservice.RoleInput) (appservice.Role, error) {
-	role, err := o.updateRole.Execute(ctx, identity, roleID, roleInput(input))
+	role, err := o.updateRole.Execute(ctx, identity, roleID, input)
 	if err != nil {
 		return appservice.Role{}, roleMutationError(meta, err, i18n.ErrorRoleUpdateFailed)
 	}
 	slog.InfoContext(ctx, "角色保存成功", "role_id", role.ID, "role_kind", role.Kind, "permission_count", len(role.Permissions))
-	return roleFromAction(*role), nil
+	return role.ToRole(), nil
 }
 
 // DeleteRole 删除自定义角色。
@@ -84,9 +83,8 @@ func (o *directoryOps) DeleteRole(ctx context.Context, meta appservice.RequestMe
 
 // UpdateRoleAssignments 在一个事务中批量调整成员角色。
 func (o *directoryOps) UpdateRoleAssignments(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, input appservice.RoleAssignmentsInput) error {
-	assignments := arr.Map(input.Assignments, func(assignment appservice.RoleAssignmentInput) roleaction.AssignmentInput {
-		return roleaction.AssignmentInput{IdentityID: assignment.IdentityID, RoleID: assignment.RoleID}
-	})
+	// Action 会原地规范化 UUID，这里先拷贝，避免改写调用方输入。
+	assignments := slices.Clone(input.Assignments)
 	if err := o.updateRoleAssignments.Execute(ctx, identity, assignments); err != nil {
 		if errors.Is(err, roleaction.ErrAssignmentInvalid) {
 			return appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
@@ -130,20 +128,4 @@ var roleMutationErrors = dispatch.Catalogs(dispatch.Catalog{
 // roleError 转换角色通用操作错误。
 func roleError(meta appservice.RequestMeta, err error, failureKey i18n.Key) error {
 	return roleErrors.Translate(meta, err, failureKey)
-}
-
-// roleInput 转换角色输入。
-func roleInput(input appservice.RoleInput) roleaction.Input {
-	permissions := append(make([]domain.PermissionCode, 0, len(input.Permissions)), input.Permissions...)
-	return roleaction.Input{Name: input.Name, Description: input.Description, Permissions: permissions}
-}
-
-// roleFromAction 转换角色输出。
-func roleFromAction(input roleaction.Record) appservice.Role {
-	permissions := append(make([]appservice.PermissionCode, 0, len(input.Permissions)), input.Permissions...)
-	return appservice.Role{
-		ID: input.ID, Kind: input.Kind, Name: input.Name, Description: input.Description,
-		Permissions: permissions, MemberCount: input.MemberCount,
-		CreatedAt: input.CreatedAt, UpdatedAt: input.UpdatedAt,
-	}
 }

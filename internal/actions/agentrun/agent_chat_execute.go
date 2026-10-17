@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
@@ -58,7 +57,7 @@ func (p agentChatRunPolicy) loadMessages(ctx context.Context, db bun.IDB, run *s
 
 // persistMessage 追加独立 AI 会话的结果消息，新写入的文本回复是 AI 员工首条文本回复时投递标题任务，运行的 Agent 是个人 AI 员工时投递记忆提取任务。
 func (p agentChatRunPolicy) persistMessage(ctx context.Context, db bun.IDB, policyContext agentRunPolicyContext, run *servermodels.AgentRun, messageID string, messageType domain.MessageType, content string) error {
-	_, inserted, err := agentmessage.Append(ctx, db, p.enqueuer, policyContext.Conversation, agentResultMessage(run, messageID, policyContext.AgentParticipantID, messageType, content, nil))
+	_, inserted, err := chatstate.Append(ctx, db, p.enqueuer, policyContext.Conversation, agentResultMessage(run, messageID, policyContext.AgentParticipantID, messageType, content, nil))
 	if err != nil || !inserted || messageType != domain.MessageTypeText {
 		return err
 	}

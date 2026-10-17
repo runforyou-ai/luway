@@ -22,7 +22,7 @@ type WechatBackend interface {
 	// CheckWechatAuthorizationChannelConnection 立即重新获取授权接入公众号的接口调用凭据并返回渠道详情。
 	//appservice:route POST /channels/{channelID:uuid}/wechat-authorization/connection/check perm=customer_service.manage
 	CheckWechatAuthorizationChannelConnection(context.Context, RequestMeta, string) (WechatAuthorizationChannel, error)
-	// GetWechatPlatform 返回微信第三方平台配置、可用状态、接入地址、各服务器出口 IP 与平台凭据状态。
+	// GetWechatPlatform 返回微信第三方平台配置、可用状态、接入地址与平台凭据状态。
 	//appservice:route GET /platform/wechat auth=admin
 	GetWechatPlatform(context.Context, RequestMeta) (WechatPlatform, error)
 	// SaveWechatPlatform 保存微信第三方平台凭据，已收到验证票据时立即获取平台凭据；更换 Component AppID 时清空验证票据。

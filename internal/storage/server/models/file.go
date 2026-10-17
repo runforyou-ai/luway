@@ -23,7 +23,6 @@ type File struct {
 	UploaderChannelIdentityID *string `bun:"uploader_channel_identity_id"`
 	// UploaderComputerID 在电脑同步会话共享文件时上传的内容文件上保存电脑编号，其他上传为空。
 	UploaderComputerID *string    `bun:"uploader_computer_id"`
-	StorageBackend     string     `bun:"storage_backend"`
 	StorageKey         string     `bun:"storage_key"`
 	OriginalName       string     `bun:"original_name"`
 	ContentType        string     `bun:"content_type"`

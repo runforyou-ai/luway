@@ -9,7 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/contact"
+	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -206,7 +207,7 @@ func (q *LoadInboxQuery) searchMessages(ctx context.Context, identity *servermod
 	messages := q.db.NewSelect().TableExpr("messages AS msg").
 		ColumnExpr("msg.id::text AS id, msg.conversation_id::text AS conversation_id, msg.type, msg.body, msg.originated_at").
 		ColumnExpr("ma.name AS attachment_name").
-		ColumnExpr("CASE WHEN cs.kind = ? THEN "+contactname.Expr("c", "ci.display_name")+" WHEN cs.kind = ? THEN oi.display_name END AS sender_name", domain.ChatSubjectKindContact, domain.ChatSubjectKindWorkspaceIdentity).
+		ColumnExpr("CASE WHEN cs.kind = ? THEN "+contact.Expr("c", "ci.display_name")+" WHEN cs.kind = ? THEN oi.display_name END AS sender_name", domain.ChatSubjectKindContact, domain.ChatSubjectKindWorkspaceIdentity).
 		ColumnExpr("c.number AS sender_contact_number").
 		Join("LEFT JOIN message_attachments AS ma ON ma.workspace_id = msg.workspace_id AND ma.message_id = msg.id").
 		Join("LEFT JOIN conversation_participants AS cp ON cp.workspace_id = msg.workspace_id AND cp.conversation_id = msg.conversation_id AND cp.id = msg.sender_participant_id").
@@ -295,10 +296,11 @@ func (q *LoadInboxQuery) searchPeople(ctx context.Context, identity *servermodel
 	}
 	// 外部联系人关联最近一次客户会话，关联条件与客户会话阅读范围一致；有会话的联系人排在前面。
 	var contacts []SearchPerson
-	if err := q.db.NewSelect().TableExpr("contacts AS c").
-		ColumnExpr("? AS kind, c.id::text AS id, c.number AS contact_number, latest.avatar_file_id, latest.conversation_id", SearchPersonContact).
-		ColumnExpr("COALESCE("+contactname.Expr("c", contactname.LatestIdentityName("c"))+", '') AS display_name").
-		Join(`LEFT JOIN LATERAL (
+	contactQuery := contactprofile.ApplyNameMatch(
+		q.db.NewSelect().TableExpr("contacts AS c").
+			ColumnExpr("? AS kind, c.id::text AS id, c.number AS contact_number, latest.avatar_file_id, latest.conversation_id", SearchPersonContact).
+			ColumnExpr("COALESCE("+contactprofile.ResolvedColumn("c")+", '') AS display_name").
+			Join(`LEFT JOIN LATERAL (
 			SELECT cv.id::text AS conversation_id, ci.display_name AS channel_display_name, ci.avatar_file_id::text AS avatar_file_id
 			FROM channel_conversations AS cc
 			JOIN channel_identities AS ci ON ci.workspace_id = cc.workspace_id AND ci.id = cc.channel_identity_id
@@ -309,14 +311,12 @@ func (q *LoadInboxQuery) searchPeople(ctx context.Context, identity *servermodel
 			ORDER BY cv.last_activity_at DESC NULLS LAST, cv.id DESC
 			LIMIT 1
 		) AS latest ON TRUE`).
-		Where("c.workspace_id = ? AND c.deleted_at IS NULL", identity.Workspace.ID).
-		Where(`(COALESCE(c.display_name, '') ILIKE ?
-			OR EXISTS (SELECT 1 FROM contact_methods AS cm WHERE cm.workspace_id = c.workspace_id AND cm.contact_id = c.id AND cm.normalized_value ILIKE ?)
-			OR EXISTS (SELECT 1 FROM channel_identities AS name_cci WHERE name_cci.workspace_id = c.workspace_id AND name_cci.contact_id = c.id AND COALESCE(name_cci.display_name, '') ILIKE ?)
-			OR c.number = ?)`, pattern, pattern, pattern, contactname.Number(text)).
-		OrderExpr("latest.conversation_id IS NULL, lower(COALESCE("+contactname.Expr("c", contactname.LatestIdentityName("c"))+", '')), c.id").
-		Limit(int64(remaining)).
-		Scan(ctx, &contacts); err != nil {
+			Where("c.workspace_id = ? AND c.deleted_at IS NULL", identity.Workspace.ID),
+		"c", pattern, contact.Number(text),
+	).
+		OrderExpr("latest.conversation_id IS NULL, lower(COALESCE("+contactprofile.ResolvedColumn("c")+", '')), c.id").
+		Limit(int64(remaining))
+	if err := contactQuery.Scan(ctx, &contacts); err != nil {
 		return nil, err
 	}
 	return append(people, contacts...), nil

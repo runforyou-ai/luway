@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { Events, Window } from "@wailsio/runtime"
 
 import { SharedAppRoutes } from "@/apps/shared-app-routes"
-import { useClientUpdatePrompt } from "@/features/server-connection/use-client-update-prompt"
+import { useClientUpdatePrompt } from "@/features/server-connection/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useResourceInvalidator } from "@/hooks/use-resource"
 import { subscribeSessionBoundary } from "@/lib/resource-client"

@@ -85,7 +85,7 @@ func (r *EinoRuntime) GenerateReplyCandidates(ctx context.Context, request Reply
 	output, used, err := llm.GenerateObject[replyCandidates](ctx, request.Model.New, llm.GenerateRequest{
 		Instruction: request.Instruction, Input: input, MaxOutputTokens: request.Model.MaxOutputTokens, Language: llm.Chinese,
 	})
-	usage := agentcontract.UsageFrom(used)
+	usage := usageFrom(used)
 	if err != nil {
 		return ReplyCandidatesResult{Usage: usage}, err
 	}

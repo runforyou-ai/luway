@@ -41,9 +41,8 @@ const (
 	postgresCancelDeadline = 5 * time.Second
 )
 
-// Store 管理业务连接池、租约续期连接池、本进程的 PostgreSQL 连接配置与程序的数据库迁移。
+// Store 管理业务连接池、租约续期连接池与程序的数据库迁移。
 type Store struct {
-	config     *pgx.ConnConfig
 	db         *bun.DB
 	lease      *bun.DB
 	migrations Migrations
@@ -95,7 +94,7 @@ func Connect(ctx context.Context, config serverconfig.DatabaseConfig, migrations
 		"max_idle_connections", maxIdle,
 		"lease_max_open_connections", postgresLeaseMaxOpenConnections,
 	)
-	return &Store{config: connConfig, db: db, lease: lease, migrations: migrations}, nil
+	return &Store{db: db, lease: lease, migrations: migrations}, nil
 }
 
 // openDB 按驱动配置创建 Bun 连接池，连接把 timestamptz 读取为 UTC 时间。
@@ -163,11 +162,6 @@ func postgresDSN(config serverconfig.DatabaseConfig) string {
 // Close 关闭业务与租约续期连接池。
 func (s *Store) Close() error {
 	return errors.Join(s.db.Close(), s.lease.Close())
-}
-
-// ConnConfig 返回本进程连接 PostgreSQL 的驱动配置副本，供 LISTEN 等独占连接使用。
-func (s *Store) ConnConfig() *pgx.ConnConfig {
-	return s.config.Copy()
 }
 
 // LeaseDB 返回路由租约续期专用的连接池，与业务连接池相互隔离。

@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -38,7 +39,7 @@ func (a *UpdateToolSettingAction) Execute(ctx context.Context, identity *serverm
 			return ErrToolNotFound
 		}
 		if fields := validateToolSetting(current.Tools[index], input.Setting); len(fields) > 0 {
-			return &ValidationError{Fields: fields}
+			return &common.FieldError{Fields: fields}
 		}
 		if current.ToolSettings == nil {
 			current.ToolSettings = make(map[string]domain.BusinessToolSetting)

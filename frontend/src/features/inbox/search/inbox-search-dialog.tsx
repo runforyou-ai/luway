@@ -18,6 +18,7 @@ import { useConversationName } from "@/hooks/use-conversation-name"
 import { useConversationSummary } from "@/features/inbox/shared/use-conversation-summary"
 import { useInboxSearch, type InboxSearchItem } from "@/features/inbox/search/use-inbox-search"
 import { useRecentConversations } from "@/features/inbox/shared/use-recent-conversations"
+import { useSearchQueries } from "@/features/inbox/search/use-search-queries"
 import { chatPath, inboxPath } from "@/lib/workspace-paths"
 
 /** 按检索范围、结果类型和结果列表渲染全局搜索模态。 */
@@ -36,20 +37,23 @@ export function InboxSearchDialog({
   const navigate = useNavigate()
   const location = useLocation()
   const recent = useRecentConversations(identity.user.identityId)
+  const searchQueries = useSearchQueries(identity.user.identityId)
   const onInbox = location.pathname === "/inbox"
   // 从会话进入时限定该会话，可随时退出改为检索全部可读消息。
   const [scopedConversationId, setScopedConversationId] = useState(conversationId)
   const search = useInboxSearch({
     conversationId: scopedConversationId,
     recentConversationIds: recent.ids,
+    recentQueries: searchQueries.queries,
     onOpen: openItem,
+    onRecordQuery: searchQueries.record,
   })
   const scopedConversation = useConversationSummary(scopedConversationId)
   const conversationName = useConversationName()
   const scopedName = scopedConversation.data ? conversationName(scopedConversation.data) : ""
 
   /** 打开搜索结果：服务会话在收件箱打开，聊天在聊天页打开；消息定位到原消息，成员和 AI 按身份进入聊天。 */
-  function openItem(item: InboxSearchItem) {
+  function openItem(item: Exclude<InboxSearchItem, { kind: "query" }>) {
     const conversation =
       item.kind === "message" ? item.message.conversation : item.kind === "conversation" ? item.conversation : null
     let conversationId = conversation?.id ?? ""
@@ -113,7 +117,12 @@ export function InboxSearchDialog({
             </Button>
           </div>
         ) : null}
-        <InboxSearchPanel search={search} identity={identity} />
+        <InboxSearchPanel
+          search={search}
+          identity={identity}
+          onRemoveQuery={searchQueries.remove}
+          onClearQueries={searchQueries.clear}
+        />
       </DialogContent>
     </Dialog>
   )

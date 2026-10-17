@@ -3,7 +3,6 @@
 package knowledgebase
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"errors"
@@ -16,6 +15,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/integration/documentconvert"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
+	"github.com/runforyou-ai/luway/pkg/connectiontest"
 	"github.com/runforyou-ai/luway/pkg/webfetch"
 	"github.com/uptrace/bun"
 )
@@ -30,9 +30,9 @@ type documentFileReader interface {
 	Open(context.Context, *servermodels.File) (io.ReadCloser, error)
 }
 
-// pageFetcher 抓取网页内容。
+// pageFetcher 按工作区设置读取网页 Markdown 正文。
 type pageFetcher interface {
-	Fetch(context.Context, string) (webfetch.Page, error)
+	Fetch(context.Context, string, string) (webfetch.Document, error)
 }
 
 // ProcessDocumentAction 按内容来源取得正文，并执行分段、向量化与批次发布。
@@ -144,7 +144,26 @@ func (a *ProcessDocumentAction) storedContent(ctx context.Context, documentID st
 	return content.Content, true, nil
 }
 
-// convertPage 抓取网页并转换为 Markdown，任务仍有效时保存本次快照。
+// pageFetchError 把网页读取失败整理为索引失败原因：读取器错误码映射为知识库既有失败码，外部服务连接失败归为无法访问。
+func pageFetchError(err error) error {
+	var failure *webfetch.Error
+	if errors.As(err, &failure) {
+		code := failure.Code
+		switch code {
+		case "content_empty":
+			code = "empty_content"
+		case "content_unreadable":
+			code = "parse_failed"
+		}
+		return &ProcessError{Code: code, Stage: domain.KnowledgeIndexFetching}
+	}
+	if _, _, ok := connectiontest.Details(err); ok {
+		return &ProcessError{Code: "url_unreachable", Stage: domain.KnowledgeIndexFetching}
+	}
+	return err
+}
+
+// convertPage 按工作区网页读取设置取得 Markdown 正文，任务仍有效时保存本次快照。
 func (a *ProcessDocumentAction) convertPage(ctx context.Context, input ProcessInput) (string, bool, error) {
 	document := &servermodels.KnowledgeDocument{}
 	err := a.db.NewSelect().Model(document).Where("kd.id = ?", input.DocumentID).Scan(ctx)
@@ -154,35 +173,15 @@ func (a *ProcessDocumentAction) convertPage(ctx context.Context, input ProcessIn
 	if err != nil {
 		return "", false, err
 	}
-	page, err := a.pages.Fetch(ctx, document.SourceURL)
+	page, err := a.pages.Fetch(ctx, input.WorkspaceID, document.SourceURL)
 	if err != nil {
-		var failure *webfetch.Error
-		if errors.As(err, &failure) {
-			return "", false, &ProcessError{Code: failure.Code, Stage: domain.KnowledgeIndexFetching}
-		}
-		return "", false, err
+		return "", false, pageFetchError(err)
 	}
-	if current, err := a.setStage(ctx, input, domain.KnowledgeIndexConverting); err != nil || !current {
-		return "", false, err
-	}
-	// 原件转换器按文件扩展名选择转换方式，抓取结果已转为 UTF-8。
-	name := "page.txt"
-	if page.ContentType == webfetch.ContentTypeHTML {
-		name = "page.html"
-	}
-	markdown, err := a.converter.Convert(ctx, name, "utf-8", bytes.NewReader(page.Body))
-	if err != nil {
-		var failure *documentconvert.Error
-		if errors.As(err, &failure) {
-			return "", false, &ProcessError{Code: failure.Code, Stage: domain.KnowledgeIndexConverting}
-		}
-		return "", false, err
-	}
-	saved, err := a.saveSnapshot(ctx, input, markdown)
+	saved, err := a.saveSnapshot(ctx, input, page.Content)
 	if err != nil || !saved {
 		return "", false, err
 	}
-	return markdown, true, nil
+	return page.Content, true, nil
 }
 
 // saveSnapshot 持文档行锁核验当前任务后写入网页快照，任务已被替代或文档已删除时放弃写入。

@@ -278,12 +278,12 @@ func (o *inboxOps) ReadInboxConversations(ctx context.Context, meta appservice.R
 
 // ListInboxChannels 返回按渠道类型与名称排列的渠道筛选候选，包含已停用渠道。
 func (o *inboxOps) ListInboxChannels(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity) (appservice.InboxChannelList, error) {
-	records, err := o.listMessageChannels.ExecuteByType(ctx, identity)
+	records, err := o.listMessageChannels.ExecuteForMembers(ctx, identity)
 	if err != nil {
 		return appservice.InboxChannelList{}, appservice.FailedError(meta, i18n.ErrorChannelListFailed, err)
 	}
 	channels := arr.Map(records, func(record channelaction.MessageChannelRecord) appservice.InboxChannel {
-		return appservice.InboxChannel{ID: record.ID, Type: appservice.ChannelType(record.Type), Name: record.Name, Enabled: record.Enabled}
+		return appservice.InboxChannel{Audience: domain.ChannelCapabilitiesOf(domain.ChannelType(record.Type)).Audience, ID: record.ID, Type: appservice.ChannelType(record.Type), Name: record.Name, Enabled: record.Enabled}
 	})
 	return appservice.InboxChannelList{Channels: channels}, nil
 }

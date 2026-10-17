@@ -6,50 +6,71 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"maps"
 
 	certificateaction "github.com/runforyou-ai/luway/internal/actions/certificate"
 	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	"github.com/runforyou-ai/luway/internal/appservice"
+	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
-	"github.com/runforyou-ai/luway/pkg/mail"
 	"github.com/runforyou-ai/support/mapx"
 )
 
-// GetPlatformDeployment 返回部署名称、部署地址与证书、平台时区、上报开关、对象存储、邮件发送与部署品牌。
+// GetPlatformSite 返回站点设置；未授权时品牌为构建默认值、额度为 0。
+func (o *platformOps) GetPlatformSite(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformSite, error) {
+	settings, err := o.deploymentRead.Execute(ctx)
+	if err != nil {
+		return appservice.PlatformSite{}, platformError(meta, err, i18n.ErrorPlatformSettingsReadFailed)
+	}
+	policies, err := o.platformSettingsRead.Execute(ctx)
+	if err != nil {
+		return appservice.PlatformSite{}, platformError(meta, err, i18n.ErrorPlatformSettingsReadFailed)
+	}
+	return o.platformSite(ctx, meta, settings, policies.RegistrationPolicy, policies.WorkspaceCreationQuota)
+}
+
+// UpdatePlatformSite 一次保存站点设置。
+func (o *platformOps) UpdatePlatformSite(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformSiteInput) (appservice.PlatformSite, error) {
+	settings, err := o.updateDeployment.UpdateSite(ctx, account, deploymentaction.SiteInput{
+		Name:                   input.Name,
+		TimeZone:               input.TimeZone,
+		RegistrationPolicy:     input.RegistrationPolicy,
+		WorkspaceCreationQuota: input.WorkspaceCreationQuota,
+		PublicURL:              input.PublicURL,
+		CertificateSource:      string(input.Certificate.Source),
+		Certificate:            input.Certificate.Certificate,
+		PrivateKey:             input.Certificate.PrivateKey,
+		Branding: deploymentaction.DeploymentBranding{
+			Names: input.Branding.Names, SDKName: input.Branding.SDKName, Icon: input.Branding.Icon,
+		},
+	})
+	if issueErr, ok := certificateIssueError(ctx, meta, err); ok {
+		return appservice.PlatformSite{}, issueErr
+	}
+	if err != nil {
+		return appservice.PlatformSite{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
+	}
+	policies, err := o.platformSettingsRead.Execute(ctx)
+	if err != nil {
+		return appservice.PlatformSite{}, platformError(meta, err, i18n.ErrorPlatformSettingsReadFailed)
+	}
+	slog.InfoContext(ctx, "站点设置已修改", "public_url", settings.PublicURL, "time_zone", settings.TimeZone,
+		"registration_policy", policies.RegistrationPolicy, "workspace_creation_quota", policies.WorkspaceCreationQuota)
+	return o.platformSite(ctx, meta, settings, policies.RegistrationPolicy, policies.WorkspaceCreationQuota)
+}
+
+// GetPlatformDeployment 返回对象存储与邮件发送配置。
 func (o *platformOps) GetPlatformDeployment(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformDeployment, error) {
 	settings, err := o.deploymentRead.Execute(ctx)
 	if err != nil {
 		return appservice.PlatformDeployment{}, platformError(meta, err, i18n.ErrorPlatformSettingsReadFailed)
 	}
-	return o.platformDeployment(ctx, meta, settings)
-}
-
-// UpdatePlatformDeploymentBasics 修改部署名称、平台时区与上报开关，时区变化时在后台按新时区重建运营数据。
-func (o *platformOps) UpdatePlatformDeploymentBasics(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformDeploymentBasicsInput) (appservice.PlatformDeployment, error) {
-	settings, err := o.updateDeployment.UpdateBasics(ctx, account, deploymentaction.DeploymentBasics(input))
-	if err != nil {
-		return appservice.PlatformDeployment{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
-	}
-	slog.InfoContext(ctx, "部署基本配置已修改", "time_zone", settings.TimeZone, "telemetry_enabled", settings.TelemetryEnabled)
-	return o.platformDeployment(ctx, meta, settings)
-}
-
-// UpdatePlatformAddress 修改部署地址与证书，自动签发失败时返回带失败原因的错误。
-func (o *platformOps) UpdatePlatformAddress(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformAddressInput) (appservice.PlatformDeployment, error) {
-	settings, err := o.updateDeployment.UpdateAddress(ctx, account, deploymentaction.DeploymentAddress{
-		PublicURL: input.PublicURL, CertificateSource: string(input.Certificate.Source),
-		Certificate: input.Certificate.Certificate, PrivateKey: input.Certificate.PrivateKey,
-	})
-	if issueErr, ok := certificateIssueError(ctx, meta, err); ok {
-		return appservice.PlatformDeployment{}, issueErr
-	}
-	if err != nil {
-		return appservice.PlatformDeployment{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
-	}
-	slog.InfoContext(ctx, "部署地址已修改", "public_url", settings.PublicURL, "certificate_source", settings.Certificate.Source)
-	return o.platformDeployment(ctx, meta, settings)
+	return appservice.PlatformDeployment{
+		Storage: appservice.PlatformStorageSettings(settings.S3),
+		Email:   emailSettingsFromConfig(settings.Email),
+	}, nil
 }
 
 // certificateIssueError 把正在签发、签发超时与自动签发失败转换为业务错误，签发失败的文案带失败原因；其他错误时 ok 为假。
@@ -69,76 +90,73 @@ func certificateIssueError(ctx context.Context, meta appservice.RequestMeta, err
 	return appservice.InvalidTemplateError(meta, i18n.ErrorCertificateIssueFailed, map[string]any{"Reason": issueErr.Reason}), true
 }
 
-// UpdatePlatformStorage 修改对象存储配置：开启时先确认能访问存储桶，部署中有其他服务器运行时不能关闭。
-func (o *platformOps) UpdatePlatformStorage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformStorageSettings) (appservice.PlatformDeployment, error) {
-	settings, err := o.updateDeployment.UpdateStorage(ctx, account, serverfilecontent.S3Config(input))
-	if errors.Is(err, deploymentaction.ErrStorageUnreachable) {
-		slog.WarnContext(ctx, "对象存储不可访问", "error", err)
-		return appservice.PlatformDeployment{}, appservice.InvalidError(meta, i18n.ErrorStorageUnreachable, nil)
+// UpdatePlatformStorage 校验真实读写和访问地址后保存对象存储配置。
+func (o *platformOps) UpdatePlatformStorage(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformStorageSettings) (appservice.PlatformStorageCheck, error) {
+	access, err := o.updateDeployment.UpdateStorage(ctx, account, serverfilecontent.S3Config(input))
+	if check, ok := errors.AsType[*serverfilecontent.CheckError](err); ok {
+		slog.WarnContext(ctx, "对象存储连接测试失败", "stage", check.Stage, "error", err)
+		key := i18n.ErrorStorageUnreachable
+		switch check.Stage {
+		case "write":
+			key = i18n.ErrorStorageWriteFailed
+		case "read":
+			key = i18n.ErrorStorageReadFailed
+		case "public":
+			key = i18n.ErrorStoragePublicReadFailed
+		case "delete":
+			key = i18n.ErrorStorageDeleteFailed
+		}
+		return appservice.PlatformStorageCheck{}, appservice.InvalidError(meta, key, nil)
 	}
-	if errors.Is(err, deploymentaction.ErrStorageRequiredByServers) {
-		return appservice.PlatformDeployment{}, appservice.InvalidError(meta, i18n.ErrorStorageRequiredByServers, nil)
+	if err != nil {
+		return appservice.PlatformStorageCheck{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
 	}
+	slog.InfoContext(ctx, "对象存储配置已修改", "origin_access", access)
+	return appservice.PlatformStorageCheck{OriginAccess: access}, nil
+}
+
+// UpdatePlatformEmail 修改当前邮件接入方式与发件人配置。
+func (o *platformOps) UpdatePlatformEmail(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformEmailInput) (appservice.PlatformDeployment, error) {
+	settings, err := o.updateDeployment.UpdateEmail(ctx, account, emailConfigFromInput(input))
 	if err != nil {
 		return appservice.PlatformDeployment{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
 	}
-	slog.InfoContext(ctx, "对象存储配置已修改", "enabled", settings.S3.Enabled)
-	return o.platformDeployment(ctx, meta, settings)
+	slog.InfoContext(ctx, "邮件发送配置已修改", "enabled", settings.Email.Enabled)
+	return appservice.PlatformDeployment{
+		Storage: appservice.PlatformStorageSettings(settings.S3),
+		Email:   emailSettingsFromConfig(settings.Email),
+	}, nil
 }
 
-// UpdatePlatformEmail 修改 SMTP 邮件发送配置，主机为空时关闭邮件发送。
-func (o *platformOps) UpdatePlatformEmail(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformEmailSettings) (appservice.PlatformDeployment, error) {
-	settings, err := o.updateDeployment.UpdateEmail(ctx, account, mail.Config(input))
-	if err != nil {
-		return appservice.PlatformDeployment{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
-	}
-	slog.InfoContext(ctx, "邮件发送配置已修改", "enabled", settings.SMTP.Host != "")
-	return o.platformDeployment(ctx, meta, settings)
-}
-
-// UpdatePlatformBranding 修改部署品牌，授权授予自定义品牌期间生效。
-func (o *platformOps) UpdatePlatformBranding(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformBrandingSettings) (appservice.PlatformDeployment, error) {
-	settings, err := o.updateDeployment.UpdateBranding(ctx, account, deploymentaction.DeploymentBranding(input))
-	if err != nil {
-		return appservice.PlatformDeployment{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
-	}
-	slog.InfoContext(ctx, "部署品牌已修改")
-	return o.platformDeployment(ctx, meta, settings)
-}
-
-// UpdatePlatformHome 修改产品首页配置，首页提供价格区块时生效。
-func (o *platformOps) UpdatePlatformHome(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformHomeSettings) (appservice.PlatformDeployment, error) {
-	settings, err := o.updateDeployment.UpdateHome(ctx, account, input.SelfHost)
-	if err != nil {
-		return appservice.PlatformDeployment{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
-	}
-	slog.InfoContext(ctx, "产品首页配置已修改", "self_host", settings.HomeSelfHost)
-	return o.platformDeployment(ctx, meta, settings)
-}
-
-// platformDeployment 把部署配置与授权当前授予的能力转换为应用契约。
-func (o *platformOps) platformDeployment(ctx context.Context, meta appservice.RequestMeta, settings deploymentaction.DeploymentSettings) (appservice.PlatformDeployment, error) {
-	capabilities, err := o.deploymentRead.Capabilities(ctx)
-	if err != nil {
-		return appservice.PlatformDeployment{}, appservice.FailedError(meta, i18n.ErrorPlatformSettingsReadFailed, err)
-	}
+// platformSite 把部署配置、策略与授权能力转换为站点设置契约；未授权时品牌填构建默认值。
+func (o *platformOps) platformSite(ctx context.Context, meta appservice.RequestMeta, settings deploymentaction.DeploymentSettings, registrationPolicy appservice.RegistrationPolicy, workspaceCreationQuota int) (appservice.PlatformSite, error) {
 	httpsServers, err := o.deploymentRead.HTTPSServersOnline(ctx)
 	if err != nil {
-		return appservice.PlatformDeployment{}, appservice.FailedError(meta, i18n.ErrorPlatformSettingsReadFailed, err)
+		return appservice.PlatformSite{}, appservice.FailedError(meta, i18n.ErrorPlatformSettingsReadFailed, err)
 	}
+	license, err := o.licenseRead.Execute(ctx)
+	if err != nil {
+		return appservice.PlatformSite{}, platformError(meta, err, i18n.ErrorPlatformSettingsReadFailed)
+	}
+	licensed := license.Licensed()
 	certificate := appservice.PlatformCertificate{Source: appservice.PlatformCertificateSource(settings.Certificate.Source)}
 	if certificate.Source == appservice.PlatformCertificateSourceUpload {
 		certificate.Certificate, certificate.PrivateKey = settings.Certificate.Chain, settings.Certificate.PrivateKey
 	}
-	return appservice.PlatformDeployment{
-		Name: settings.Name, PublicURL: settings.PublicURL, TimeZone: settings.TimeZone, TelemetryEnabled: settings.TelemetryEnabled,
-		Certificate: certificate, CertificateStatus: platformCertificateStatus(settings.Certificate), HTTPSServers: httpsServers,
-		Storage:          appservice.PlatformStorageSettings(settings.S3),
-		Email:            appservice.PlatformEmailSettings(settings.SMTP),
-		Branding:         appservice.PlatformBrandingSettings{Names: mapx.OrEmpty(settings.Branding.Names), SDKName: settings.Branding.SDKName, Icon: settings.Branding.Icon},
-		Home:             appservice.PlatformHomeSettings{SelfHost: settings.HomeSelfHost},
-		BrandingLicensed: capabilities.CustomBranding,
-		HomePricing:      o.homePricing,
+	branding := appservice.PlatformBrandingSettings{
+		Names: mapx.OrEmpty(settings.Branding.Names), SDKName: settings.Branding.SDKName, Icon: settings.Branding.Icon,
+	}
+	if !licensed {
+		built := brand.Build()
+		branding = appservice.PlatformBrandingSettings{
+			Names: maps.Clone(built.Names), SDKName: built.SDKName, Icon: nil,
+		}
+	}
+	return appservice.PlatformSite{
+		Name: settings.Name, TimeZone: settings.TimeZone,
+		RegistrationPolicy: registrationPolicy, WorkspaceCreationQuota: workspaceCreationQuota,
+		PublicURL: settings.PublicURL, Certificate: certificate, CertificateStatus: platformCertificateStatus(settings.Certificate),
+		HTTPSServers: httpsServers, Branding: branding, BrandingLicensed: licensed,
 	}, nil
 }
 
@@ -160,14 +178,12 @@ func platformDeploymentSummaryFromAction(settings deploymentaction.DeploymentSet
 		Name: settings.Name, PublicURL: settings.PublicURL,
 		CertificateSource: appservice.PlatformCertificateSource(settings.Certificate.Source), CertificateStatus: platformCertificateStatus(settings.Certificate),
 		Storage: appservice.PlatformStorageSummary{
-			Enabled: settings.S3.Enabled, Endpoint: settings.S3.Endpoint, PublicBaseURL: settings.S3.PublicBaseURL,
+			Endpoint: settings.S3.Endpoint, PublicBaseURL: settings.S3.PublicBaseURL,
 			Region: settings.S3.Region, Bucket: settings.S3.Bucket, ForcePathStyle: settings.S3.ForcePathStyle,
 		},
 		Email: appservice.PlatformEmailSummary{
-			Enabled: settings.SMTP.Host != "", Host: settings.SMTP.Host, Port: settings.SMTP.Port,
-			Security: settings.SMTP.Security, FromAddress: settings.SMTP.FromAddress,
+			Enabled: settings.Email.Enabled, Provider: appservice.EmailProvider(settings.Email.Provider), FromAddress: settings.Email.FromAddress, FromName: settings.Email.FromName,
 		},
 		Branding: appservice.PlatformBrandingSummary{Names: mapx.OrEmpty(settings.Branding.Names), SDKName: settings.Branding.SDKName, HasIcon: len(settings.Branding.Icon) > 0},
-		Home:     appservice.PlatformHomeSettings{SelfHost: settings.HomeSelfHost},
 	}
 }

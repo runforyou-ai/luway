@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
-	"github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/uptrace/bun"
@@ -29,6 +30,8 @@ type Transition struct {
 	session             *servermodels.ServiceSession
 	columns             []string
 	cancelToolDecisions bool
+	// computeAIOnly 表示 Save 在写入关闭字段后按消息事实计算并落库 ai_only。
+	computeAIOnly bool
 }
 
 // Begin 在调用方持有周期锁的事务中开始对该周期的一次流转。
@@ -114,7 +117,7 @@ func (t *Transition) Handoff(teamID *string, awaitingReplySince *time.Time, cate
 	return t
 }
 
-// Close 关闭开放周期：记录关闭时间、关闭人与结束方式，清空客户等待、排队、提醒与确认请求时间，负责人与所属队列保持不变，撤销待确认的工具调用。
+// Close 关闭开放周期：记录关闭时间、关闭人与结束方式，清空客户等待、排队、提醒与确认请求时间，负责人与所属队列保持不变，撤销待确认的工具调用；Save 时写入 ai_only。
 func (t *Transition) Close(closedByIdentityID string, reason domain.ServiceSessionCloseReason, now time.Time) *Transition {
 	s := t.session
 	closeReason := string(reason)
@@ -124,15 +127,16 @@ func (t *Transition) Close(closedByIdentityID string, reason domain.ServiceSessi
 	t.set("status", "status_changed_at", "closed_at", "closed_by_identity_id", "close_reason",
 		"awaiting_reply_since", "queued_at", "reminded_at", "resolution_requested_at")
 	t.cancelToolDecisions = true
+	t.computeAIOnly = true
 	return t
 }
 
-// Reopen 重新打开已关闭的周期并清空关闭记录，所属队列保持不变，客户等待起点由客户下一条消息设置；调用方随后指定负责人。
+// Reopen 重新打开已关闭的周期并清空关闭记录与 ai_only，所属队列保持不变，客户等待起点由客户下一条消息设置；调用方随后指定负责人。
 func (t *Transition) Reopen(now time.Time) *Transition {
 	s := t.session
 	s.Status, s.StatusChangedAt = string(domain.ServiceSessionStatusOpen), now
-	s.ClosedAt, s.ClosedByIdentityID, s.CloseReason = nil, nil, nil
-	t.set("status", "status_changed_at", "closed_at", "closed_by_identity_id", "close_reason")
+	s.ClosedAt, s.ClosedByIdentityID, s.CloseReason, s.AIOnly = nil, nil, nil, nil
+	t.set("status", "status_changed_at", "closed_at", "closed_by_identity_id", "close_reason", "ai_only")
 	return t
 }
 
@@ -209,11 +213,24 @@ func (t *Transition) Remind(now time.Time) *Transition {
 	return t
 }
 
-// Save 在调用方持有周期锁的事务中以一条 UPDATE 写入本次流转变化的列并推进 updated_at，随后撤销流转要求撤销的待确认工具调用；没有变化时不写入。
+// Save 在调用方持有周期锁的事务中以一条 UPDATE 写入本次流转变化的列并推进 updated_at，关闭时再按消息事实写入 ai_only，随后撤销流转要求撤销的待确认工具调用；没有变化时不写入。
 func (t *Transition) Save(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer) error {
 	if len(t.columns) > 0 {
 		if err := update(ctx, db, t.session, t.columns...); err != nil {
 			return fmt.Errorf("save service session transition: %w", err)
+		}
+	}
+	if t.computeAIOnly {
+		var aiOnly bool
+		if err := db.NewSelect().TableExpr("service_sessions AS ss").
+			ColumnExpr("(?)", messagequery.AIOnly("ss")).
+			Where("ss.workspace_id = ? AND ss.id = ?", t.session.WorkspaceID, t.session.ID).
+			Scan(ctx, &aiOnly); err != nil {
+			return fmt.Errorf("compute service session ai_only: %w", err)
+		}
+		t.session.AIOnly = &aiOnly
+		if err := update(ctx, db, t.session, "ai_only"); err != nil {
+			return fmt.Errorf("save service session ai_only: %w", err)
 		}
 	}
 	if t.cancelToolDecisions {
@@ -236,7 +253,11 @@ func update(ctx context.Context, db bun.IDB, session *servermodels.ServiceSessio
 func RecordStaffReply(ctx context.Context, db bun.IDB, session *servermodels.ServiceSession, repliedAt time.Time) error {
 	var hours domain.BusinessHours
 	if session.HumanFirstResponseAt == nil {
-		loaded, err := customerservice.LoadBusinessHours(ctx, db, session.WorkspaceID)
+		policy, err := servicepolicy.ForSession(ctx, db, session.WorkspaceID, session.ID)
+		if err != nil {
+			return err
+		}
+		loaded, err := servicepolicy.LoadBusinessHours(ctx, db, session.WorkspaceID, policy.Audience)
 		if err != nil {
 			return err
 		}

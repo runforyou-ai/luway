@@ -1,4 +1,4 @@
-/** 移动端收件箱检索：与桌面端全局搜索一致的检索范围、分组结果、会话分页列表、最近打开和结果跳转。 */
+/** 移动端收件箱检索：与桌面端全局搜索一致的检索范围、分组结果、会话分页列表、恢复建议和结果跳转。 */
 import { SearchIcon, XIcon } from "lucide-react"
 import { useRef, useState, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
@@ -12,18 +12,19 @@ import { LoadingIndicator } from "@/components/loading-indicator"
 import { ProfileAvatar } from "@/components/profile-avatar"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { ConversationAvatar } from "@/features/inbox/shared/conversation-avatar"
-import { readableInboxQuery } from "@/features/inbox/list/inbox-query"
-import { InboxSearchConversationList } from "@/features/inbox/search/inbox-search-conversation-list"
-import { highlightName, InboxSearchExcerpt } from "@/features/inbox/search/inbox-search-panel"
-import { useConversationSummary } from "@/features/inbox/shared/use-conversation-summary"
-import { useConversationTime } from "@/features/inbox/shared/use-conversation-time"
+import { ConversationAvatar } from "@/features/inbox/public"
+import { readableInboxQuery } from "@/features/inbox/public"
+import { InboxSearchConversationList } from "@/features/inbox/public"
+import { highlightName, InboxSearchExcerpt } from "@/features/inbox/public"
+import { useConversationSummary } from "@/features/inbox/public"
+import { useConversationTime } from "@/features/inbox/public"
 import {
   useInboxSearchResults,
   type InboxSearchPersonData,
   type InboxSearchType,
-} from "@/features/inbox/search/use-inbox-search"
-import { useRecentConversations } from "@/features/inbox/shared/use-recent-conversations"
+} from "@/features/inbox/public"
+import { useRecentConversations } from "@/features/inbox/public"
+import { useSearchQueries } from "@/features/inbox/public"
 import { useContactName } from "@/hooks/use-contact-name"
 import { useConversationName } from "@/hooks/use-conversation-name"
 import { isAIIdentityType } from "@/lib/identity-type"
@@ -39,6 +40,7 @@ function MobileSearchRow({
   detail,
   time,
   disabled = false,
+  action,
   onOpen,
 }: {
   inboxId?: string
@@ -47,14 +49,15 @@ function MobileSearchRow({
   detail?: ReactNode
   time?: string
   disabled?: boolean
+  action?: ReactNode
   onOpen: () => void
 }) {
   return (
-    <li data-inbox-id={inboxId}>
+    <li data-inbox-id={inboxId} className="flex items-center gap-1">
       <button
         type="button"
         disabled={disabled}
-        className="flex min-h-14 w-full min-w-0 items-center gap-3 px-4 py-2.5 text-left outline-none select-none active:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50"
+        className="flex min-h-14 min-w-0 flex-1 items-center gap-3 px-4 py-2.5 text-left outline-none select-none active:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-50"
         onClick={onOpen}
       >
         <span className="shrink-0">{avatar}</span>
@@ -66,6 +69,7 @@ function MobileSearchRow({
         </span>
         {time ? <span className="shrink-0 self-start pt-0.5 text-xs text-muted-foreground">{time}</span> : null}
       </button>
+      {action ? <span className="shrink-0 pr-2">{action}</span> : null}
     </li>
   )
 }
@@ -75,18 +79,29 @@ function MobileSearchGroup({
   title,
   count,
   onViewAll,
+  clearLabel,
+  onClear,
   children,
 }: {
   title: string
   count: number
   onViewAll?: () => void
+  clearLabel?: string
+  onClear?: () => void
   children: ReactNode
 }) {
   const { t } = useTranslation("inbox")
   if (count === 0) return null
   return (
     <section>
-      <h2 className="px-4 pt-4 pb-1 text-xs font-medium text-muted-foreground">{title}</h2>
+      <div className="flex items-center gap-2 px-4 pt-4 pb-1">
+        <h2 className="min-w-0 flex-1 text-xs font-medium text-muted-foreground">{title}</h2>
+        {clearLabel && onClear ? (
+          <Button type="button" variant="ghost" size="sm" className="min-h-8 px-1.5 text-xs text-muted-foreground" onClick={onClear}>
+            {clearLabel}
+          </Button>
+        ) : null}
+      </div>
       <ul>{children}</ul>
       {onViewAll && count >= searchGroupLimit ? (
         <Button type="button" variant="ghost" size="sm" className="ml-2 text-primary" onClick={onViewAll}>
@@ -119,16 +134,22 @@ function MobileConversationRows({
   ))
 }
 
-/** 按检索状态渲染最近打开、加载、失败、无结果或分组结果。 */
+/** 按检索状态渲染恢复建议、加载、失败、无结果或分组结果。 */
 function MobileSearchResults({
   search,
   query,
+  onSelectQuery,
+  onRemoveQuery,
+  onClearQueries,
   onOpenConversation,
   onOpenPerson,
   onViewAllConversations,
 }: {
   search: ReturnType<typeof useInboxSearchResults>
   query: string
+  onSelectQuery: (text: string) => void
+  onRemoveQuery: (text: string) => void
+  onClearQueries: () => void
   onOpenConversation: (conversation: InboxConversation, messageId?: string) => void
   onOpenPerson: (person: InboxSearchPersonData) => void
   onViewAllConversations: () => void
@@ -138,11 +159,40 @@ function MobileSearchResults({
   const conversationName = useConversationName()
   const formatTime = useConversationTime()
 
-  if (search.showRecent) {
+  if (search.showSuggestions) {
     return (
-      <MobileSearchGroup title={t("searchRecent")} count={search.recentConversations.length}>
-        <MobileConversationRows conversations={search.recentConversations} highlight="" onOpen={onOpenConversation} />
-      </MobileSearchGroup>
+      <>
+        <MobileSearchGroup
+          title={t("searchRecentQueries")}
+          count={search.querySuggestions.length}
+          clearLabel={t("searchClearRecentQueries")}
+          onClear={onClearQueries}
+        >
+          {search.querySuggestions.map((item) => (
+            <MobileSearchRow
+              key={`query:${item.text}`}
+              avatar={<SearchIcon className="size-5 text-muted-foreground" />}
+              title={highlightName(item.text, query)}
+              action={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-9 text-muted-foreground"
+                  aria-label={t("searchRemoveRecentQuery")}
+                  onClick={() => onRemoveQuery(item.text)}
+                >
+                  <XIcon />
+                </Button>
+              }
+              onOpen={() => onSelectQuery(item.text)}
+            />
+          ))}
+        </MobileSearchGroup>
+        <MobileSearchGroup title={t("searchRecent")} count={search.recentConversations.length}>
+          <MobileConversationRows conversations={search.recentConversations} highlight="" onOpen={onOpenConversation} />
+        </MobileSearchGroup>
+      </>
     )
   }
   if (!query) return null
@@ -216,6 +266,7 @@ export function MobileInboxSearchPage() {
   const { identity } = useMobileWorkspace()
   const back = useMobileBack(listURL)
   const { ids: recentConversationIds } = useRecentConversations(identity.user.identityId)
+  const searchQueries = useSearchQueries(identity.user.identityId)
   const inputRef = useRef<HTMLInputElement>(null)
   const [text, setText] = useState(() => params.get("q") ?? "")
   const conversationId = params.get("conversation") ?? ""
@@ -232,6 +283,7 @@ export function MobileInboxSearchPage() {
     type,
     query: readableInboxQuery,
     recentConversationIds,
+    recentQueries: searchQueries.queries,
   })
   const query = text.trim()
   const scopedConversation = useConversationSummary(conversationId)
@@ -248,8 +300,16 @@ export function MobileInboxSearchPage() {
     setParams(next, { replace: true, state: location.state })
   }
 
-  /** 打开会话详情，消息结果同时定位原消息。 */
+  /** 把建议搜索词填入输入框并开始检索，同时刷新该词的使用时间。 */
+  function selectQuery(next: string) {
+    setText(next)
+    updateParams({ q: next, ...(type === "conversations" ? { type: "" } : {}) })
+    if (next.trim()) searchQueries.record(next, conversationId)
+  }
+
+  /** 打开会话详情，消息结果同时定位原消息；有检索词时记入最近搜索。 */
   function openConversation(conversation: InboxConversation, messageId = "") {
+    if (query) searchQueries.record(query, conversationId)
     void navigate(mobileConversationPath(conversation), {
       state: {
         conversation,
@@ -261,6 +321,7 @@ export function MobileInboxSearchPage() {
 
   /** 打开人员结果：外部联系人进入客户会话，真人成员进入单聊，AI 员工开始新对话。 */
   function openPerson(person: InboxSearchPersonData) {
+    if (query) searchQueries.record(query, conversationId)
     if (person.kind === InboxSearchPersonKind.InboxSearchPersonContact) {
       if (person.conversationId)
         void navigate(`/inbox/customer/${person.conversationId}`, { state: { mobileBack: true } })
@@ -356,6 +417,9 @@ export function MobileInboxSearchPage() {
           <MobileSearchResults
             search={search}
             query={query}
+            onSelectQuery={selectQuery}
+            onRemoveQuery={searchQueries.remove}
+            onClearQueries={searchQueries.clear}
             onOpenConversation={openConversation}
             onOpenPerson={openPerson}
             onViewAllConversations={() => updateParams({ type: "conversations" })}

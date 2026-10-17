@@ -15,7 +15,6 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
@@ -89,7 +88,7 @@ func (p groupMentionRunPolicy) loadMessages(ctx context.Context, db bun.IDB, run
 
 // persistMessage 以 Agent 成员身份追加群聊结果消息。
 func (p groupMentionRunPolicy) persistMessage(ctx context.Context, db bun.IDB, policyContext agentRunPolicyContext, run *servermodels.AgentRun, messageID string, messageType domain.MessageType, content string) error {
-	_, _, err := agentmessage.Append(ctx, db, p.scheduler.enqueuer, policyContext.Conversation, agentResultMessage(run, messageID, policyContext.AgentParticipantID, messageType, content, nil))
+	_, _, err := chatstate.Append(ctx, db, p.scheduler.enqueuer, policyContext.Conversation, agentResultMessage(run, messageID, policyContext.AgentParticipantID, messageType, content, nil))
 	return err
 }
 

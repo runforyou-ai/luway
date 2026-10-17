@@ -6,7 +6,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/runforyou-ai/luway/internal/actions/contactname"
+	"github.com/runforyou-ai/luway/internal/actions/contact"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/storage/server/messagequery"
 	"github.com/runforyou-ai/support/str"
@@ -83,6 +83,98 @@ func unreadCountsQuery(db bun.IDB, identityID sqlArg) *bun.SelectQuery {
 	return unreadMessagesQuery(db, identityID).
 		ColumnExpr("count(*) AS unread_count").
 		ColumnExpr("count(*) FILTER (WHERE ?) AS mentioned_unread_count", mentionsIdentity(db, identityID))
+}
+
+// withLateralUnreadCount 为已关联个人状态 state 的查询追加按会话 cv 的未读条数。
+func withLateralUnreadCount(query *bun.SelectQuery, identityID sqlArg) *bun.SelectQuery {
+	return query.
+		ColumnExpr("unread.unread_count AS unread_count").
+		Join("JOIN LATERAL (?) AS unread ON TRUE", unreadCountsQuery(query.DB(), identityID))
+}
+
+// withLateralUnreadCounts 为已关联个人状态 state 的查询追加未读条数与提醒本人的未读条数。
+func withLateralUnreadCounts(query *bun.SelectQuery, identityID sqlArg) *bun.SelectQuery {
+	return query.
+		ColumnExpr("unread.unread_count AS unread_count").
+		ColumnExpr("unread.mentioned_unread_count AS mentioned_unread_count").
+		Join("JOIN LATERAL (?) AS unread ON TRUE", unreadCountsQuery(query.DB(), identityID))
+}
+
+// conversationUnreadCounts 是按会话聚合的未读与提醒未读。
+type conversationUnreadCounts struct {
+	ConversationID       string `bun:"conversation_id"`
+	UnreadCount          int    `bun:"unread_count"`
+	MentionedUnreadCount int    `bun:"mentioned_unread_count"`
+}
+
+// batchUnreadCountsQuery 按会话编号批量统计本人未读数与提醒本人的未读数，口径同 unreadCountsQuery。
+func batchUnreadCountsQuery(db bun.IDB, workspaceID, identityID, userID string, conversationIDs []string) *bun.SelectQuery {
+	return db.NewSelect().TableExpr("messages AS unread_msg").
+		ColumnExpr("unread_msg.conversation_id AS conversation_id").
+		ColumnExpr("count(*) AS unread_count").
+		ColumnExpr("count(*) FILTER (WHERE ?) AS mentioned_unread_count", mentionsIdentity(db, identityID)).
+		Join("LEFT JOIN conversation_participants AS sender_cp ON sender_cp.workspace_id = unread_msg.workspace_id AND sender_cp.conversation_id = unread_msg.conversation_id AND sender_cp.id = unread_msg.sender_participant_id").
+		Join("LEFT JOIN chat_subjects AS sender_cs ON sender_cs.workspace_id = sender_cp.workspace_id AND sender_cs.id = sender_cp.subject_id").
+		Join("LEFT JOIN conversation_user_states AS state ON state.workspace_id = unread_msg.workspace_id AND state.conversation_id = unread_msg.conversation_id AND state.user_id = ?", userID).
+		Where("unread_msg.workspace_id = ?", workspaceID).
+		Where("unread_msg.conversation_id IN (?)", bun.List(conversationIDs)).
+		Where("(unread_msg.type IN (?) OR (unread_msg.type = ? AND unread_msg.visibility = ?)) AND unread_msg.deleted_at IS NULL", bun.List(domain.UnreadMessageTypes), domain.MessageTypeSystem, domain.MessageVisibilityRequester).
+		Where("(sender_cs.kind IS DISTINCT FROM ? OR sender_cs.source_id IS DISTINCT FROM ?)", domain.ChatSubjectKindWorkspaceIdentity, identityID).
+		Where("unread_msg.message_seq > COALESCE(state.read_seq, 0)").
+		Where("?", messagequery.VisibleTo("unread_msg", identityID)).
+		GroupExpr("unread_msg.conversation_id")
+}
+
+// loadConversationUnreadCounts 批量读取指定会话的未读数，无未读的会话不出现在结果中。
+func (q *LoadInboxQuery) loadConversationUnreadCounts(ctx context.Context, workspaceID, identityID, userID string, conversationIDs []string) (map[string]conversationUnreadCounts, error) {
+	counts := make(map[string]conversationUnreadCounts, len(conversationIDs))
+	if len(conversationIDs) == 0 {
+		return counts, nil
+	}
+	var rows []conversationUnreadCounts
+	if err := batchUnreadCountsQuery(q.db, workspaceID, identityID, userID, conversationIDs).Scan(ctx, &rows); err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		counts[row.ConversationID] = row
+	}
+	return counts, nil
+}
+
+// loadUnansweredMentionCounts 批量统计当前客服周期内被提醒成员尚未在会话中发言的提醒数，仅供摘要展示。
+func (q *LoadInboxQuery) loadUnansweredMentionCounts(ctx context.Context, workspaceID string, conversationIDs []string) (map[string]int, error) {
+	counts := make(map[string]int, len(conversationIDs))
+	if len(conversationIDs) == 0 {
+		return counts, nil
+	}
+	var rows []struct {
+		ConversationID         string `bun:"conversation_id"`
+		UnansweredMentionCount int    `bun:"unanswered_mention_count"`
+	}
+	err := q.db.NewSelect().TableExpr("message_mentions AS note_mention").
+		ColumnExpr("note.conversation_id AS conversation_id").
+		ColumnExpr("count(*) AS unanswered_mention_count").
+		Join("JOIN messages AS note ON note.workspace_id = note_mention.workspace_id AND note.id = note_mention.message_id").
+		Join("JOIN service_conversations AS svc ON svc.workspace_id = note.workspace_id AND svc.conversation_id = note.conversation_id").
+		Join("JOIN service_sessions AS current ON current.workspace_id = svc.workspace_id AND current.id = svc.current_service_session_id").
+		Where("note.workspace_id = ?", workspaceID).
+		Where("note.conversation_id IN (?)", bun.List(conversationIDs)).
+		Where("note.service_session_id = current.id AND note.deleted_at IS NULL").
+		Where(`NOT EXISTS (
+			SELECT 1 FROM messages AS answer
+			JOIN conversation_participants AS answer_cp ON answer_cp.workspace_id = answer.workspace_id AND answer_cp.conversation_id = answer.conversation_id AND answer_cp.id = answer.sender_participant_id
+			WHERE answer.workspace_id = note.workspace_id AND answer.conversation_id = note.conversation_id
+				AND answer.message_seq > note.message_seq AND answer.deleted_at IS NULL AND answer_cp.subject_id = note_mention.subject_id
+		)`).
+		GroupExpr("note.conversation_id").
+		Scan(ctx, &rows)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		counts[row.ConversationID] = row.UnansweredMentionCount
+	}
+	return counts, nil
 }
 
 // attentionBatchSize 是批量读取消息提醒时每批查询共用的查看者数上限。
@@ -183,7 +275,7 @@ func (q *LoadInboxQuery) readAttentionBatch(ctx context.Context, viewers []Viewe
 	query := unreadMessagesQuery(q.db, viewerIdentityColumn).
 		ColumnExpr("unread_msg.id::text AS id, unread_msg.type, unread_msg.visibility, unread_msg.body").
 		ColumnExpr("(SELECT ma.name FROM message_attachments AS ma WHERE ma.workspace_id = unread_msg.workspace_id AND ma.message_id = unread_msg.id) AS attachment_name").
-		ColumnExpr("CASE WHEN sender_cs.kind = ? THEN "+contactname.Expr("sender_c", "sender_cci.display_name")+" ELSE sender_oi.display_name END AS sender_name", domain.ChatSubjectKindContact).
+		ColumnExpr("CASE WHEN sender_cs.kind = ? THEN "+contact.Expr("sender_c", "sender_cci.display_name")+" ELSE sender_oi.display_name END AS sender_name", domain.ChatSubjectKindContact).
 		ColumnExpr("sender_oi.type AS sender_identity_type").
 		ColumnExpr("? AS mentioned", mentionsIdentity(q.db, viewerIdentityColumn)).
 		Join("JOIN conversations AS cv ON cv.workspace_id = ? AND cv.id = ?", viewerWorkspaceColumn, conversationID).
@@ -212,32 +304,48 @@ func (q *LoadInboxQuery) readViewerSummaries(ctx context.Context, viewers []View
 	workspaceID, identityID, userID := viewerWorkspaceColumn, viewerIdentityColumn, viewerUserColumn
 	rows := make([]summaryRows, len(viewers))
 	var services []viewerServiceRow
-	if err := viewersQuery(q.db, viewers, q.serviceConversationDetailsQuery(workspaceID, identityID, userID).Where("cv.id = ?", conversationID)).Scan(ctx, &services); err != nil {
+	if err := viewersQuery(q.db, viewers, withLateralUnreadCounts(q.serviceConversationDetailsQuery(workspaceID, identityID, userID), identityID).Where("cv.id = ?", conversationID)).Scan(ctx, &services); err != nil {
 		return nil, err
 	}
 	for _, row := range services {
 		rows[row.ViewerPosition-1].services = append(rows[row.ViewerPosition-1].services, row.serviceConversationRow)
 	}
 	var directs []viewerDirectRow
-	if err := viewersQuery(q.db, viewers, q.directConversationDetailsQuery(workspaceID, identityID, userID).Where("cv.id = ?", conversationID)).Scan(ctx, &directs); err != nil {
+	if err := viewersQuery(q.db, viewers, withLateralUnreadCount(q.directConversationDetailsQuery(workspaceID, identityID, userID), identityID).Where("cv.id = ?", conversationID)).Scan(ctx, &directs); err != nil {
 		return nil, err
 	}
 	for _, row := range directs {
 		rows[row.ViewerPosition-1].directs = append(rows[row.ViewerPosition-1].directs, row.directConversationRow)
 	}
 	var agents []viewerAgentRow
-	if err := viewersQuery(q.db, viewers, q.agentConversationDetailsQuery(workspaceID, identityID, userID).Where("cv.id = ?", conversationID)).Scan(ctx, &agents); err != nil {
+	if err := viewersQuery(q.db, viewers, withLateralUnreadCount(q.agentConversationDetailsQuery(workspaceID, identityID, userID), identityID).Where("cv.id = ?", conversationID)).Scan(ctx, &agents); err != nil {
 		return nil, err
 	}
 	for _, row := range agents {
 		rows[row.ViewerPosition-1].agents = append(rows[row.ViewerPosition-1].agents, row.agentConversationRow)
 	}
 	var groups []viewerGroupRow
-	if err := viewersQuery(q.db, viewers, q.groupConversationsQuery(workspaceID, identityID, userID).Where("cv.id = ?", conversationID)).Scan(ctx, &groups); err != nil {
+	if err := viewersQuery(q.db, viewers, withLateralUnreadCounts(q.groupConversationsQuery(workspaceID, identityID, userID), identityID).Where("cv.id = ?", conversationID)).Scan(ctx, &groups); err != nil {
 		return nil, err
 	}
 	for _, row := range groups {
 		rows[row.ViewerPosition-1].groups = append(rows[row.ViewerPosition-1].groups, row.groupConversationRow)
+	}
+	unansweredByWorkspace := make(map[string]int, len(viewers))
+	for _, viewer := range viewers {
+		if _, ok := unansweredByWorkspace[viewer.WorkspaceID]; ok {
+			continue
+		}
+		counts, err := q.loadUnansweredMentionCounts(ctx, viewer.WorkspaceID, []string{conversationID})
+		if err != nil {
+			return nil, err
+		}
+		unansweredByWorkspace[viewer.WorkspaceID] = counts[conversationID]
+	}
+	for index := range rows {
+		for i := range rows[index].services {
+			rows[index].services[i].UnansweredMentionCount = unansweredByWorkspace[viewers[index].WorkspaceID]
+		}
 	}
 	var pendings []viewerPendingRow
 	if err := viewersQuery(q.db, viewers, q.pendingCandidates(workspaceID, identityID, LoadInput{Scope: domain.InboxScopePending}).Where("items.id = ?", conversationID)).Scan(ctx, &pendings); err != nil {

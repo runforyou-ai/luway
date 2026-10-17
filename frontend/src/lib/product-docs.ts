@@ -10,11 +10,6 @@ export const productDocsPages = {
   computers: "integrations/computers",
   wechatOpenPlatform: "deployment/manage/wechat-open-platform",
   wecomBotChannel: "integrations/im/wecom",
-  deploymentSettings: "deployment/configure/address",
-  deploymentHTTPS: "deployment/configure/https",
-  deploymentStorage: "deployment/configure/storage",
-  deploymentEmail: "deployment/configure/email",
-  deploymentBranding: "deployment/configure/branding",
 } as const
 
 /** 应用内帮助入口可打开的文档页面。 */

@@ -23,12 +23,12 @@ func TestMigrationSources(t *testing.T) {
 	_, err := serverstorage.NewMigrations(serverstorage.MigrationSource{Files: serverstorage.CoreMigrationFiles()}, serverstorage.MigrationSource{Files: probe("99990101000000_first.sql")}, serverstorage.MigrationSource{Files: probe("99990101000000_second.sql")})
 	require.ErrorContains(t, err, "99990101000000")
 
-	// 共享模型可用性扩展点只能由声明覆盖的一个来源、在核心默认实现之后重新定义，核心不能在第二个文件中改动它。
+	// Auto 池成员可用性扩展点只能由声明覆盖的一个来源、在核心默认实现之后重新定义，核心不能在第二个文件中改动它。
 	core := serverstorage.MigrationSource{Files: serverstorage.CoreMigrationFiles()}
 	override := func(name string) fstest.MapFS {
-		return fstest.MapFS{name: &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE OR REPLACE FUNCTION shared_model_allowed(workspace_id uuid, model_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;\n\n-- +goose Down\nSELECT 1;\n")}}
+		return fstest.MapFS{name: &fstest.MapFile{Data: []byte("-- +goose Up\nCREATE OR REPLACE FUNCTION auto_pool_member_allowed(workspace_id uuid, member_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;\n\n-- +goose Down\nSELECT 1;\n")}}
 	}
-	declared := []string{serverstorage.SharedModelAllowedFunction}
+	declared := []string{serverstorage.AutoPoolMemberAllowedFunction}
 	_, err = serverstorage.NewMigrations(core, serverstorage.MigrationSource{Files: override("99990101000001_override.sql")})
 	require.ErrorContains(t, err, "without declaring the override")
 	_, err = serverstorage.NewMigrations(core, serverstorage.MigrationSource{Files: override("20000101000000_override.sql"), Overrides: declared})
@@ -44,23 +44,23 @@ func TestMigrationSources(t *testing.T) {
 		return fstest.MapFS{name: &fstest.MapFile{Data: []byte("-- +goose Up\n" + up + "\n\n-- +goose Down\n" + down + "\n")}}
 	}
 	for _, statement := range []string{
-		"CREATE OR REPLACE FUNCTION public.shared_model_allowed(workspace_id uuid, model_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;",
-		`CREATE OR REPLACE FUNCTION "shared_model_allowed"(workspace_id uuid, model_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;`,
-		`DO $$ BEGIN EXECUTE format('CREATE OR REPLACE FUNCTION %I(w uuid, m uuid) RETURNS boolean LANGUAGE sql AS ''SELECT true''', 'SHARED_MODEL_ALLOWED'); END $$;`,
+		"CREATE OR REPLACE FUNCTION public.auto_pool_member_allowed(workspace_id uuid, member_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;",
+		`CREATE OR REPLACE FUNCTION "auto_pool_member_allowed"(workspace_id uuid, member_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;`,
+		`DO $$ BEGIN EXECUTE format('CREATE OR REPLACE FUNCTION %I(w uuid, m uuid) RETURNS boolean LANGUAGE sql AS ''SELECT true''', 'AUTO_POOL_MEMBER_ALLOWED'); END $$;`,
 	} {
 		_, err = serverstorage.NewMigrations(core, serverstorage.MigrationSource{Files: migration("99990101000001_override.sql", statement, "SELECT 1;")})
 		require.ErrorContains(t, err, "without declaring the override", statement)
 	}
 	_, err = serverstorage.NewMigrations(core, serverstorage.MigrationSource{Files: migration("99990101000001_unrelated.sql",
 		"SELECT 1;",
-		"CREATE OR REPLACE FUNCTION shared_model_allowed(workspace_id uuid, model_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT false $$;")})
+		"CREATE OR REPLACE FUNCTION auto_pool_member_allowed(workspace_id uuid, member_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT false $$;")})
 	require.NoError(t, err)
 	// Up 段中的注释、伪装成注释或 Down 指令的字符串都不能藏住改动。
 	for _, statement := range []string{
-		"-- shared_model_allowed\nSELECT 1;",
-		"SELECT '--'; CREATE OR REPLACE FUNCTION shared_model_allowed(workspace_id uuid, model_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;",
-		"SELECT '-- +goose Down';\nCREATE OR REPLACE FUNCTION shared_model_allowed(workspace_id uuid, model_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;",
-		"-- +GOOSE Down\nCREATE OR REPLACE FUNCTION shared_model_allowed(workspace_id uuid, model_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;",
+		"-- auto_pool_member_allowed\nSELECT 1;",
+		"SELECT '--'; CREATE OR REPLACE FUNCTION auto_pool_member_allowed(workspace_id uuid, member_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;",
+		"SELECT '-- +goose Down';\nCREATE OR REPLACE FUNCTION auto_pool_member_allowed(workspace_id uuid, member_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;",
+		"-- +GOOSE Down\nCREATE OR REPLACE FUNCTION auto_pool_member_allowed(workspace_id uuid, member_id uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;",
 	} {
 		_, err = serverstorage.NewMigrations(core, serverstorage.MigrationSource{Files: migration("99990101000001_override.sql", statement, "SELECT 1;")})
 		require.ErrorContains(t, err, "without declaring the override", statement)

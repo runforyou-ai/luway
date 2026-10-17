@@ -22,19 +22,13 @@ const (
 	maxFileNameLength = 255
 )
 
-// ValidationCode 标识文件字段校验结果。
-type ValidationCode = common.FieldCode
-
 const (
-	ValidationFileNameRequired   ValidationCode = "FILE_NAME_REQUIRED"
-	ValidationContentTypeInvalid ValidationCode = "CONTENT_TYPE_INVALID"
-	ValidationByteSizeInvalid    ValidationCode = "BYTE_SIZE_INVALID"
-	ValidationDocumentTooLarge   ValidationCode = "DOCUMENT_TOO_LARGE"
-	ValidationPurposeInvalid     ValidationCode = "PURPOSE_INVALID"
+	ValidationFileNameRequired   common.FieldCode = "FILE_NAME_REQUIRED"
+	ValidationContentTypeInvalid common.FieldCode = "CONTENT_TYPE_INVALID"
+	ValidationByteSizeInvalid    common.FieldCode = "BYTE_SIZE_INVALID"
+	ValidationDocumentTooLarge   common.FieldCode = "DOCUMENT_TOO_LARGE"
+	ValidationPurposeInvalid     common.FieldCode = "PURPOSE_INVALID"
 )
-
-// ValidationError 表示文件字段校验失败。
-type ValidationError = common.FieldError
 
 // imageFileExtensions 列出图片用途接受的内容类型及其扩展名。
 var imageFileExtensions = map[string]string{
@@ -52,7 +46,7 @@ type UploadInput struct {
 }
 
 // NormalizeUploadInput 规范化并校验待上传文件元数据。
-func NormalizeUploadInput(input UploadInput) (UploadInput, map[string]ValidationCode) {
+func NormalizeUploadInput(input UploadInput) (UploadInput, map[string]common.FieldCode) {
 	switch input.Purpose {
 	case domain.FilePurposeKnowledgeDocument:
 		normalized, fields := normalizeFileInput(input, domain.FilePurposeKnowledgeDocument)
@@ -79,7 +73,7 @@ func NormalizeUploadInput(input UploadInput) (UploadInput, map[string]Validation
 }
 
 // normalizeFileInput 按指定的单一用途规范化文件元数据。
-func normalizeFileInput(input UploadInput, purpose domain.FilePurpose) (UploadInput, map[string]ValidationCode) {
+func normalizeFileInput(input UploadInput, purpose domain.FilePurpose) (UploadInput, map[string]common.FieldCode) {
 	input.FileName = strings.TrimSpace(filepath.Base(strings.ReplaceAll(input.FileName, "\\", "/")))
 	mediaType, _, err := mime.ParseMediaType(strings.TrimSpace(input.ContentType))
 	if err == nil {
@@ -87,7 +81,7 @@ func normalizeFileInput(input UploadInput, purpose domain.FilePurpose) (UploadIn
 	} else {
 		input.ContentType = "application/octet-stream"
 	}
-	fields := make(map[string]ValidationCode)
+	fields := make(map[string]common.FieldCode)
 	if input.FileName == "" || input.FileName == "." || utf8.RuneCountInString(input.FileName) > maxFileNameLength {
 		fields["fileName"] = ValidationFileNameRequired
 	}

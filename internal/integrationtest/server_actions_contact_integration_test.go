@@ -29,7 +29,7 @@ func (s *serverActionsFixture) testContacts(t *testing.T) {
 		ChannelID:   "00000000-0000-0000-0000-000000000099",
 		Stage:       domain.ContactStageVisitor,
 	})
-	var channelValidation *contactaction.ValidationError
+	var channelValidation *common.FieldError
 	require.ErrorAs(t, err, &channelValidation, "invalid channel")
 	require.Equal(t, contactaction.ValidationChannelInvalid, channelValidation.Fields["channelId"], "invalid channel")
 
@@ -122,7 +122,7 @@ func (s *serverActionsFixture) testContacts(t *testing.T) {
 		Stage:       domain.ContactStageLead,
 		Methods:     []contactaction.MethodInput{{Type: domain.ContactMethodTypeEmail, Value: "lin@example.com"}},
 	})
-	var immutableChannelValidation *contactaction.ValidationError
+	var immutableChannelValidation *common.FieldError
 	require.ErrorAs(t, err, &immutableChannelValidation, "immutable channel")
 	require.Equal(t, contactaction.ValidationChannelImmutable, immutableChannelValidation.Fields["channelId"], "immutable channel")
 

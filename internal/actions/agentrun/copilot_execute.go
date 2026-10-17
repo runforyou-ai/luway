@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/runforyou-ai/einorun/llm"
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
@@ -99,7 +99,7 @@ func (p copilotRunPolicy) loadMessages(ctx context.Context, db bun.IDB, run *ser
 
 // persistMessage 以 AI 员工参与者身份追加线程回复。
 func (p copilotRunPolicy) persistMessage(ctx context.Context, db bun.IDB, policyContext agentRunPolicyContext, run *servermodels.AgentRun, messageID string, messageType domain.MessageType, content string) error {
-	_, _, err := agentmessage.Append(ctx, db, p.enqueuer, policyContext.Conversation, agentResultMessage(run, messageID, policyContext.AgentParticipantID, messageType, content, nil))
+	_, _, err := chatstate.Append(ctx, db, p.enqueuer, policyContext.Conversation, agentResultMessage(run, messageID, policyContext.AgentParticipantID, messageType, content, nil))
 	return err
 }
 
@@ -186,9 +186,9 @@ func loadCopilotBackground(ctx context.Context, db bun.IDB, run *servermodels.Ag
 		AssigneeType         *string `bun:"assignee_type"`
 		ContextWindow        int64   `bun:"context_window"`
 	}
-	if err := db.NewSelect().TableExpr("service_copilot_threads AS sct").
+	query := db.NewSelect().TableExpr("service_copilot_threads AS sct").
 		ColumnExpr("svc.conversation_id::text AS served_conversation_id, svc.current_service_session_id::text AS service_session_id, cv.version").
-		ColumnExpr("COALESCE(ci.display_name, c.display_name, requester_oi.display_name, '') AS contact_name").
+		ColumnExpr("COALESCE("+contactprofile.ResolvedColumn("c")+", requester_oi.display_name, '') AS contact_name").
 		ColumnExpr("c.id::text AS contact_id").
 		ColumnExpr("c.primary_email AS contact_email").
 		ColumnExpr("(SELECT cm.value FROM contact_methods AS cm WHERE cm.workspace_id = c.workspace_id AND cm.contact_id = c.id AND cm.type = ? ORDER BY cm.is_primary DESC, cm.created_at ASC LIMIT 1) AS contact_phone", domain.ContactMethodTypePhone).
@@ -202,11 +202,12 @@ func loadCopilotBackground(ctx context.Context, db bun.IDB, run *servermodels.Ag
 		Join("LEFT JOIN workspace_identities AS requester_oi ON requester_oi.id = requester_cs.source_id AND requester_oi.workspace_id = requester_cs.workspace_id AND requester_cs.kind = ?", domain.ChatSubjectKindWorkspaceIdentity).
 		Join("LEFT JOIN channel_conversations AS cc ON cc.workspace_id = svc.workspace_id AND cc.conversation_id = svc.conversation_id").
 		Join("LEFT JOIN channel_identities AS ci ON ci.id = cc.channel_identity_id AND ci.workspace_id = cc.workspace_id").
-		Join("LEFT JOIN channels AS ch ON ch.id = ci.channel_id AND ch.workspace_id = ci.workspace_id").
 		Join("JOIN service_sessions AS ss ON ss.id = svc.current_service_session_id AND ss.workspace_id = svc.workspace_id AND ss.service_conversation_id = svc.id").
+		Join("LEFT JOIN channels AS ch ON ch.id = COALESCE(ss.channel_id, ci.channel_id) AND ch.workspace_id = ss.workspace_id").
 		Join("LEFT JOIN workspace_identities AS assignee ON assignee.workspace_id = ss.workspace_id AND assignee.id = ss.assignee_identity_id").
-		Join("LEFT JOIN agent_revisions AS ar ON ar.workspace_id = sct.workspace_id AND ar.id = ?", run.AgentRevisionID).
-		Join("LEFT JOIN ai_models AS aim ON aim.id = ar.model_id").
+		Join("LEFT JOIN agent_revisions AS ar ON ar.workspace_id = sct.workspace_id AND ar.id = ?", run.AgentRevisionID)
+	query = aimodel.Join(query, "ar.model_id", "sct.workspace_id", domain.AIModelUsageAgent)
+	if err := query.
 		Where("sct.workspace_id = ? AND sct.conversation_id = ?", run.WorkspaceID, run.ConversationID).
 		Scan(ctx, &header); err != nil {
 		return agentcontract.Message{}, fmt.Errorf("load copilot customer conversation background: %w", err)
@@ -214,16 +215,14 @@ func loadCopilotBackground(ctx context.Context, db bun.IDB, run *servermodels.Ag
 	rows := make([]copilotBackgroundRow, 0, agentHistoryLimit)
 	if err := db.NewSelect().TableExpr("messages AS msg").
 		ColumnExpr("msg.id, msg.visibility, msg.body, msg.originated_at, cs.kind AS sender_kind, COALESCE(oi.type, '') AS sender_identity_type").
-		ColumnExpr("COALESCE(CASE WHEN cs.kind = ? THEN COALESCE(ci.display_name, c.display_name) ELSE oi.display_name END, '') AS sender_name", domain.ChatSubjectKindContact).
+		ColumnExpr("COALESCE("+contactprofile.KindResolvedName("cs.kind", "c", "oi")+", '') AS sender_name").
 		ColumnExpr("msg.reply_to_message_id").
 		ColumnExpr("? AS reply_body", messagequery.Summary("reply")).
-		ColumnExpr("COALESCE(reply_oi.display_name, reply_c.display_name, '') AS reply_sender_name").
+		ColumnExpr("COALESCE(reply_oi.display_name, "+contactprofile.ResolvedColumn("reply_c")+", '') AS reply_sender_name").
 		ColumnExpr("reply.deleted_at IS NOT NULL AS reply_deleted").
 		Join("JOIN conversation_participants AS cp ON cp.id = msg.sender_participant_id AND cp.workspace_id = msg.workspace_id AND cp.conversation_id = msg.conversation_id").
 		Join("JOIN chat_subjects AS cs ON cs.id = cp.subject_id AND cs.workspace_id = cp.workspace_id").
 		Join("LEFT JOIN workspace_identities AS oi ON oi.id = cs.source_id AND oi.workspace_id = cs.workspace_id AND cs.kind = ?", domain.ChatSubjectKindWorkspaceIdentity).
-		Join("LEFT JOIN channel_conversations AS cc ON cc.conversation_id = msg.conversation_id AND cc.workspace_id = msg.workspace_id").
-		Join("LEFT JOIN channel_identities AS ci ON ci.id = cc.channel_identity_id AND ci.workspace_id = cc.workspace_id AND ci.contact_id = cs.source_id AND cs.kind = ?", domain.ChatSubjectKindContact).
 		Join("LEFT JOIN contacts AS c ON c.id = cs.source_id AND c.workspace_id = cs.workspace_id AND cs.kind = ?", domain.ChatSubjectKindContact).
 		Join("LEFT JOIN messages AS reply ON reply.id = msg.reply_to_message_id AND reply.workspace_id = msg.workspace_id AND reply.conversation_id = msg.conversation_id AND reply.type IN (?, ?)", domain.MessageTypeText, domain.MessageTypeAttachment).
 		Join("LEFT JOIN conversation_participants AS reply_cp ON reply_cp.id = reply.sender_participant_id AND reply_cp.workspace_id = reply.workspace_id AND reply_cp.conversation_id = reply.conversation_id").

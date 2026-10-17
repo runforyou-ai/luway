@@ -12,5 +12,5 @@ func GenerateObject[T any](ctx context.Context, model ModelConfig, instruction, 
 	value, used, err := llm.GenerateObject[T](ctx, model.New, llm.GenerateRequest{
 		Instruction: instruction, Input: input, MaxOutputTokens: model.MaxOutputTokens, Language: llm.Chinese,
 	})
-	return value, agentcontract.UsageFrom(used), err
+	return value, usageFrom(used), err
 }

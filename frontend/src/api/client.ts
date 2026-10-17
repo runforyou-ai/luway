@@ -1,6 +1,4 @@
 /** 连接服务端：经凭据存储保存服务器地址与登录令牌，注入认证、工作区与语言后请求服务端接口，并把错误转换为前端错误。 */
-import { CancelError } from "@wailsio/runtime"
-
 import {
   APIVersion,
   ClientAPIVersionHeader,
@@ -15,9 +13,6 @@ import { markSessionExpired } from "@/lib/login-return"
 import { beginSessionBoundary } from "@/lib/resource-client"
 import { resolveAppPlatform } from "@/platform/app-platform"
 import { credentials } from "@/platform/credentials"
-
-// 服务端返回的本地存储文件相对路径前缀，原生端补全为服务器地址下的完整地址。
-const localFilePrefix = "/storage/"
 
 type ErrorCause = {
   kind?: string
@@ -82,6 +77,11 @@ export function isNotFoundApiError(error: unknown): error is ApiError {
   return isApiError(error) && error.kind === "not_found"
 }
 
+/** 平台后台 Cookie 鉴权的接口路径：首次安装、后台登录与 /platform、/admin 管理接口。 */
+function needsAdminCookie(path: string) {
+  return path === "/install" || path.startsWith("/admin/") || path.startsWith("/platform/")
+}
+
 /** 返回当前连接的服务器地址：Web 端为页面来源，原生端为已保存的地址，尚未保存时为构建品牌的部署地址。 */
 export const serverURL = credentials.serverURL
 
@@ -138,6 +138,8 @@ export async function invoke<T>(
       method: spec.method,
       headers,
       body: spec.body === undefined ? undefined : JSON.stringify(spec.body),
+      // 平台后台 Cookie 仅用于 Web 同源请求；用户端 Bearer 不携带 Cookie，避免跨源客户端受 CORS 凭据约束。
+      credentials: needsAdminCookie(spec.path) ? "include" : "omit",
       signal,
     })
   } catch (error) {
@@ -152,27 +154,7 @@ export async function invoke<T>(
     return undefined as T
   }
   const result: unknown = await response.json()
-  if (resolveAppPlatform() !== "web") {
-    resolveFileURLs(result, server)
-  }
   return result as T
-}
-
-/** 把结果中字段名以 url 结尾、值为本地存储相对路径的字段就地补全为服务器地址下的完整地址。 */
-function resolveFileURLs(value: unknown, server: string) {
-  if (Array.isArray(value)) {
-    for (const item of value) resolveFileURLs(item, server)
-    return
-  }
-  if (typeof value !== "object" || value === null) return
-  const record = value as Record<string, unknown>
-  for (const [key, field] of Object.entries(record)) {
-    if (typeof field === "string" && key.toLowerCase().endsWith("url") && field.startsWith(localFilePrefix)) {
-      record[key] = server + field
-    } else {
-      resolveFileURLs(field, server)
-    }
-  }
 }
 
 /** 组装当前请求的令牌、目标工作区和语言，读取时清除已过期令牌并让登录页提示登录已过期。 */
@@ -259,7 +241,8 @@ export function normalizeError(error: unknown) {
   if (error instanceof ApiError) return error
   if (error instanceof Error) {
     const cause = (error as Error & { cause?: unknown }).cause
-    if (error instanceof CancelError && cause instanceof Error) return cause
+    // 不导入 @wailsio/runtime 的 CancelError，避免 Web 构建打进会注册右键拦截的整包。
+    if (error.name === "CancelError" && cause instanceof Error) return cause
     if (isErrorCause(cause)) {
       return apiErrorFromCause(cause)
     }

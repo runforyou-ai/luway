@@ -274,6 +274,7 @@ const integrations = {
         image: "图片",
         audio: "音频",
         video: "视频",
+        file: "文件",
       },
       columns: {
         type: "模型类型",
@@ -298,6 +299,14 @@ const integrations = {
         "最大输出 token 数必须是正数，例如 8192、64K 或 1M。",
       modelIdentifierDuplicate: "模型标识不能重复。",
       modelsRequired: "请至少添加一个模型。",
+    },
+  },
+  web: {
+    title: "互联网",
+    description: "选择 AI 搜索互联网与读取网页时使用的服务",
+    tabs: {
+      search: "联网搜索",
+      fetch: "网页读取",
     },
   },
   webSearch: {
@@ -336,6 +345,27 @@ const integrations = {
     },
     validation: {
       baseUrlRequired: "请输入服务地址。",
+      baseUrlInvalid: "请输入完整有效的 HTTP 或 HTTPS 服务地址。",
+    },
+  },
+  webFetch: {
+    title: "网页读取",
+    description: "选择知识库导入与 AI 读取网页时使用的服务，可支持 JavaScript 渲染页面",
+    formLabel: "网页读取设置表单",
+    loadError: "网页读取设置加载失败。",
+    saveError: "保存网页读取设置失败，请重试。",
+    provider: "读取服务",
+    providerDescription: "知识库网页导入与 AI 员工读取网页正文时使用",
+    baseUrl: "服务地址",
+    baseUrlDescription: "可选。自建 Jina Reader 或 Firecrawl 实例地址，留空使用官方服务",
+    testSuccess: "网页读取服务可用。",
+    testError: "网页读取服务测试失败，请重试。",
+    providers: {
+      direct: "内置直连",
+      jina: "Jina Reader",
+      firecrawl: "Firecrawl",
+    },
+    validation: {
       baseUrlInvalid: "请输入完整有效的 HTTP 或 HTTPS 服务地址。",
     },
   },

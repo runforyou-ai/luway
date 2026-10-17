@@ -10,10 +10,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/runforyou-ai/einorun/stream"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
-	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -36,17 +34,18 @@ type RunProcess struct {
 	Outcome              *domain.AgentRunOutcome
 	OutcomeReason        *domain.AgentHandoffReason
 	Blocks               []agentcontract.Block
-	Plan                 []stream.PlanTask
+	Plan                 []agentcontract.PlanTask
 }
 
 // GetRunProcessQuery 按运行编号读取一次已完成运行的有序过程内容。
 type GetRunProcessQuery struct {
-	db *bun.DB
+	db    *bun.DB
+	guard ConversationGuard
 }
 
-// NewGetRunProcessQuery 创建运行过程详情查询。
-func NewGetRunProcessQuery(db *bun.DB) *GetRunProcessQuery {
-	return &GetRunProcessQuery{db: db}
+// NewGetRunProcessQuery 创建运行过程详情查询；guard 在事务内复核会话阅读资格。
+func NewGetRunProcessQuery(db *bun.DB, guard ConversationGuard) *GetRunProcessQuery {
+	return &GetRunProcessQuery{db: db, guard: guard}
 }
 
 // Execute 校验运行所属会话的阅读资格后返回过程内容、任务清单和模型用量，已结束和挂起等待的运行一律按已持久化的内容返回。
@@ -69,7 +68,7 @@ func (q *GetRunProcessQuery) Execute(ctx context.Context, identity *servermodels
 			return fmt.Errorf("load agent run: %w", err)
 		}
 		// 会话不可读与运行不存在对外是同一结果，不暴露运行是否存在。
-		if err := conversationaccess.RequireReadable(ctx, tx, identity, run.ConversationID); err != nil {
+		if err := q.guard.RequireReadable(ctx, tx, identity, run.ConversationID); err != nil {
 			if errors.Is(err, chatstate.ErrConversationNotFound) {
 				return ErrRunProcessUnavailable
 			}

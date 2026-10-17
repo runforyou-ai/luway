@@ -9,7 +9,7 @@ import (
 	"errors"
 	"fmt"
 
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -21,16 +21,10 @@ import (
 	"golang.org/x/text/language/display"
 )
 
-// ValidationCode 标识翻译请求的校验结果。
-type ValidationCode = common.FieldCode
-
 // 翻译请求的字段校验码。
 const (
-	ValidationLanguageInvalid ValidationCode = "TRANSLATION_LANGUAGE_INVALID"
+	ValidationLanguageInvalid common.FieldCode = "TRANSLATION_LANGUAGE_INVALID"
 )
-
-// ValidationError 表示翻译请求校验失败。
-type ValidationError = common.FieldError
 
 var (
 	// ErrDisabled 表示企业未设置翻译模型。
@@ -76,12 +70,15 @@ func LanguageName(tag string) string {
 
 // loadModel 读取企业翻译模型的调用配置，调用由成员在会话中发起；未设置或模型已不可用时返回 ErrDisabled。
 func (t *Translator) loadModel(ctx context.Context, identity *servermodels.Identity, conversationID string) (agentruntime.ModelConfig, error) {
+	if err := authorizeConversation(ctx, t.db, identity.Workspace.ID, conversationID); err != nil {
+		return agentruntime.ModelConfig{}, err
+	}
 	workspaceID := identity.Workspace.ID
-	modelID, err := customerserviceaction.LoadTranslationModelID(ctx, t.db, workspaceID)
+	modelID, err := LoadTranslationModelID(ctx, t.db, workspaceID)
 	if err != nil {
 		return agentruntime.ModelConfig{}, err
 	}
-	model, err := customerserviceaction.LoadModel(ctx, t.db, workspaceID, modelID, domain.AIModelUsageTranslation)
+	model, err := aimodel.LoadOptional(ctx, t.db, workspaceID, modelID, domain.AIModelUsageTranslation)
 	if err != nil {
 		return agentruntime.ModelConfig{}, fmt.Errorf("load translation model: %w", err)
 	}
@@ -116,7 +113,8 @@ func normalizedLanguage(value string) string {
 // authorizeConversation 确认客户会话属于当前企业。
 func authorizeConversation(ctx context.Context, db bun.IDB, workspaceID, conversationID string) error {
 	exists, err := db.NewSelect().Model((*servermodels.ChannelConversation)(nil)).
-		Where("workspace_id = ? AND conversation_id = ?", workspaceID, conversationID).
+		Join("JOIN service_conversations AS svc ON svc.workspace_id = cc.workspace_id AND svc.conversation_id = cc.conversation_id").
+		Where("cc.workspace_id = ? AND cc.conversation_id = ? AND svc.audience = ?", workspaceID, conversationID, domain.ServiceAudienceCustomer).
 		Exists(ctx)
 	if err != nil {
 		return fmt.Errorf("check customer conversation: %w", err)

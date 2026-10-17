@@ -4,11 +4,8 @@ package file
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-	"fmt"
 
-	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/common"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
@@ -22,33 +19,15 @@ type VisitorUploadInput struct {
 }
 
 // CreateVisitorPending 在业务事务中创建渠道访客上传的临时文件，访客不使用分片上传。
-func CreateVisitorPending(ctx context.Context, db bun.IDB, backend domain.FileStorageBackend, input VisitorUploadInput) (*servermodels.File, error) {
+func CreateVisitorPending(ctx context.Context, db bun.IDB, input VisitorUploadInput) (*servermodels.File, error) {
 	upload, fields := NormalizeUploadInput(input.Upload)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
-	record, err := pendingFile(input.WorkspaceID, input.CreatedByUserID, backend, upload, 0)
+	record, err := pendingFile(input.WorkspaceID, input.CreatedByUserID, upload, 0)
 	if err != nil {
 		return nil, err
 	}
 	record.UploaderChannelIdentityID = &input.ChannelIdentityID
 	return record, insertPendingFile(ctx, db, record)
-}
-
-// VisitorPendingByStorageKey 按存储键读取指定渠道访客待写入内容的本地文件，企业由文件及其上传渠道身份确定。
-func (q *GetQuery) VisitorPendingByStorageKey(ctx context.Context, externalID, storageKey string) (*servermodels.File, error) {
-	record := &servermodels.File{}
-	err := selectFile(q.db, record).
-		Join("JOIN channel_identities AS ci ON ci.id = f.uploader_channel_identity_id AND ci.workspace_id = f.workspace_id").
-		Where("f.storage_key = ?", storageKey).
-		Where("f.purpose = ? AND f.storage_backend = ?", domain.FilePurposeMessageAttachment, domain.FileStorageBackendLocal).
-		Where("ci.external_id = ?", externalID).
-		Scan(ctx)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, ErrFileNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get visitor upload by storage key: %w", err)
-	}
-	return record, nil
 }

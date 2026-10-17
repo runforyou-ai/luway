@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -26,7 +27,7 @@ type ArchivedInput struct {
 // ArchivedPage 保存一页已归档的聊天及分页信息。
 type ArchivedPage struct {
 	Conversations []ConversationSummary
-	Page          common.PageInfo
+	Page          apptypes.PageInfo
 }
 
 // ListArchived 在同一只读快照中按最近活动倒序读取本人已归档的群聊、单聊与 AI 聊天。
@@ -39,7 +40,7 @@ func (q *LoadInboxQuery) ListArchived(ctx context.Context, identity *servermodel
 	if err != nil {
 		return ArchivedPage{}, err
 	}
-	result := ArchivedPage{Conversations: make([]ConversationSummary, 0), Page: common.PageInfo{Number: page, Size: pageSize}}
+	result := ArchivedPage{Conversations: make([]ConversationSummary, 0), Page: apptypes.PageInfo{Number: page, Size: pageSize}}
 	err = q.db.RunInTx(ctx, &sql.TxOptions{Isolation: sql.LevelRepeatableRead, ReadOnly: true}, func(ctx context.Context, tx bun.Tx) error {
 		snapshot := NewLoadInboxQuery(tx)
 		total, err := tx.NewSelect().TableExpr("(?) AS archived", snapshot.candidatePointsQuery(identity, load)).Count(ctx)

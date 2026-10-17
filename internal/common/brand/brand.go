@@ -2,9 +2,7 @@
 package brand
 
 import (
-	"crypto/ed25519"
 	_ "embed"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"maps"
@@ -51,8 +49,6 @@ type Brand struct {
 	SDKName string `json:"sdkName"`
 	// ServerURL 是原生端内置的部署地址，本机没有保存过服务器地址时直接使用该地址；为空时进入连接页。
 	ServerURL string `json:"serverURL,omitempty"`
-	// UpdatePublicKey 是验证桌面端更新包签名的 Ed25519 公钥，取原始公钥的标准 Base64 编码。
-	UpdatePublicKey string `json:"updatePublicKey"`
 	// ReleaseURL 是一个版本的发布文件所在地址，{version} 替换为版本号；为空时服务端只能从本地目录读取客户端文件。
 	ReleaseURL string `json:"releaseURL,omitempty"`
 }
@@ -148,6 +144,21 @@ func (b Brand) Validate() error {
 		if name != strings.TrimSpace(name) || name == "" || len([]rune(name)) > nameMaxLength {
 			return fmt.Errorf("names 中 %s 的名称不能为空、不能以空白开头或结尾，且不超过 %d 个字符", locale, nameMaxLength)
 		}
+		if err := rejectUnsafeText("names."+locale, name); err != nil {
+			return err
+		}
+	}
+	for _, item := range []struct {
+		name  string
+		value string
+	}{
+		{"company", b.Company},
+		{"copyright", b.Copyright},
+		{"description", b.Description},
+	} {
+		if err := rejectUnsafeText(item.name, item.value); err != nil {
+			return err
+		}
 	}
 	if !sdkNamePattern.MatchString(b.SDKName) {
 		return fmt.Errorf("sdkName 必须以字母开头，只含字母和数字")
@@ -165,16 +176,7 @@ func (b Brand) Validate() error {
 	if b.ReleaseURL != "" && !strings.Contains(b.ReleaseURL, "{version}") {
 		return fmt.Errorf("releaseURL 必须包含 {version}")
 	}
-	if key, err := base64.StdEncoding.DecodeString(b.UpdatePublicKey); err != nil || len(key) != ed25519.PublicKeySize {
-		return fmt.Errorf("updatePublicKey 必须是 Ed25519 公钥的标准 Base64 编码")
-	}
 	return nil
-}
-
-// UpdateKey 返回验证桌面端更新包签名的 Ed25519 公钥。
-func (b Brand) UpdateKey() ed25519.PublicKey {
-	key, _ := base64.StdEncoding.DecodeString(b.UpdatePublicKey)
-	return key
 }
 
 // Name 按界面语言返回产品名称：先精确匹配语言标签，再匹配主语言，都没有时使用 DefaultLocale 名称。
@@ -204,4 +206,17 @@ func (b Brand) clone() Brand {
 		value.Names[locale] = name
 	}
 	return value
+}
+
+// rejectUnsafeText 拒绝会破坏打包脚本或命令行参数的字符：控制字符、引号、反斜杠与 shell 元字符。
+func rejectUnsafeText(field, value string) error {
+	if strings.ContainsAny(value, "$`\\\"';|&<>\n\r\t") {
+		return fmt.Errorf("%s 不能包含引号、反斜杠、控制字符或 shell 元字符", field)
+	}
+	for _, character := range value {
+		if character < 0x20 || character == 0x7f {
+			return fmt.Errorf("%s 不能包含引号、反斜杠、控制字符或 shell 元字符", field)
+		}
+	}
+	return nil
 }

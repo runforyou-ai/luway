@@ -33,12 +33,16 @@ type processingProbe struct {
 	fetchErr   error
 }
 
-// Fetch 返回预设的网页内容，抓取失败时返回预设错误。
-func (p *processingProbe) Fetch(context.Context, string) (webfetch.Page, error) {
+// Fetch 返回预设的网页 Markdown 正文，抓取失败时返回预设错误。
+func (p *processingProbe) Fetch(_ context.Context, _, url string) (webfetch.Document, error) {
 	if p.fetchErr != nil {
-		return webfetch.Page{}, p.fetchErr
+		return webfetch.Document{}, p.fetchErr
 	}
-	return webfetch.Page{ContentType: webfetch.ContentTypeHTML}, nil
+	content := p.markdown
+	if content == "" {
+		content = "正文"
+	}
+	return webfetch.Document{URL: url, Content: content}, nil
 }
 
 // Open 为执行任务提供固定原件。

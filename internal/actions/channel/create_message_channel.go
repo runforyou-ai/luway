@@ -7,6 +7,8 @@ import (
 	"fmt"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -28,7 +30,10 @@ func NewCreateMessageChannelAction(db *bun.DB) *CreateMessageChannelAction {
 func (a *CreateMessageChannelAction) Execute(ctx context.Context, identity *servermodels.Identity, input CreateMessageChannelInput) (*MessageChannelRecord, error) {
 	input, fields := normalizeCreateMessageChannelInput(input)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
+	}
+	if err := servicepolicy.RequireManage(identity, domain.ChannelCapabilitiesOf(input.Type).Audience); err != nil {
+		return nil, err
 	}
 	channel := &servermodels.Channel{
 		WorkspaceID:               identity.Workspace.ID,

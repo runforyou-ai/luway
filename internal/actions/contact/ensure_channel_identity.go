@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"uuid"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentcancel"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
@@ -39,6 +38,9 @@ type EnsuredChannelIdentity struct {
 	Contact  *servermodels.Contact
 	Identity *servermodels.ChannelIdentity
 }
+
+// CancelChannelIdentityRunsFunc 推进渠道身份全部客户会话的版本并取消其中在途运行；由 agentrun 注入，避免本包依赖 agentrun。
+type CancelChannelIdentityRunsFunc func(ctx context.Context, db bun.IDB, workspaceID, channelIdentityID string, reason domain.AgentRunErrorCode) (int, error)
 
 // EnsureChannelIdentity 在调用方事务中取得或创建联系人渠道身份：已有渠道身份原样返回，核验状态与联系方式由 SyncChannelIdentity 在确认写入新消息后同步；新建时按本次签名身份关联联系人、记录核验身份并补充邮箱，已有联系人被恢复或补充邮箱时推进其全部客户会话的版本。
 func EnsureChannelIdentity(ctx context.Context, db bun.IDB, input EnsureChannelIdentityInput) (EnsuredChannelIdentity, error) {
@@ -96,11 +98,14 @@ func EnsureChannelIdentity(ctx context.Context, db bun.IDB, input EnsureChannelI
 		Exec(ctx); err != nil {
 		return EnsuredChannelIdentity{}, fmt.Errorf("create channel identity: %w", err)
 	}
+	if _, err := RefreshResolvedDisplayName(ctx, db, contact.WorkspaceID, contact.ID); err != nil {
+		return EnsuredChannelIdentity{}, err
+	}
 	return EnsuredChannelIdentity{Contact: contact, Identity: identity}, nil
 }
 
 // SyncChannelIdentity 在调用方事务中让已取得的渠道身份与本次签名身份一致：恢复回收站中的联系人，同步核验状态与所属联系人，补充签名邮箱；返回渠道身份当前所属的联系人；核验身份或所属联系人变化时取消该渠道身份会话中按原身份装配的在途运行与等待客户确认的操作；调用方只在确认本次写入新消息后调用。
-func SyncChannelIdentity(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, input EnsureChannelIdentityInput, ensured EnsuredChannelIdentity) (EnsuredChannelIdentity, error) {
+func SyncChannelIdentity(ctx context.Context, db bun.IDB, enqueuer servertask.TxEnqueuer, cancelRuns CancelChannelIdentityRunsFunc, input EnsureChannelIdentityInput, ensured EnsuredChannelIdentity) (EnsuredChannelIdentity, error) {
 	identity := ensured.Identity
 	previousUserID, previousContactID := identity.VerifiedUserID, identity.ContactID
 	contact, restored, err := syncChannelIdentityVerification(ctx, db, input, identity, ensured.Contact)
@@ -109,7 +114,7 @@ func SyncChannelIdentity(ctx context.Context, db bun.IDB, enqueuer servertask.Tx
 	}
 	if *identity.ContactID != *previousContactID || (previousUserID == nil) != (identity.VerifiedUserID == nil) ||
 		(previousUserID != nil && *previousUserID != *identity.VerifiedUserID) {
-		if _, err := agentcancel.CancelChannelIdentityRuns(ctx, db, identity.WorkspaceID, identity.ID, domain.AgentRunErrorCodeCustomerIdentityChanged); err != nil {
+		if _, err := cancelRuns(ctx, db, identity.WorkspaceID, identity.ID, domain.AgentRunErrorCodeCustomerIdentityChanged); err != nil {
 			return EnsuredChannelIdentity{}, err
 		}
 		if err := agentprocess.CancelChannelIdentityToolDecisions(ctx, db, enqueuer, identity.WorkspaceID, identity.ID); err != nil {
@@ -119,6 +124,12 @@ func SyncChannelIdentity(ctx context.Context, db bun.IDB, enqueuer servertask.Tx
 	added, err := contactprofile.AddMethod(ctx, db, contact.WorkspaceID, contact.ID, domain.ContactMethodTypeEmail, input.Email)
 	if err != nil {
 		return EnsuredChannelIdentity{}, err
+	}
+	// 新建联系人或渠道身份归属变化后重写成员界面名称；补充邮箱时 AddMethod 已刷新。
+	if restored || contact.ID != *previousContactID {
+		if _, err := RefreshResolvedDisplayName(ctx, db, contact.WorkspaceID, contact.ID); err != nil {
+			return EnsuredChannelIdentity{}, err
+		}
 	}
 	if restored || added {
 		if err := chatstate.TouchContactProfileConversations(ctx, db, contact.WorkspaceID, contact.ID); err != nil {

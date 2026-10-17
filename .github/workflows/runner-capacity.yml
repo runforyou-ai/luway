@@ -1,0 +1,64 @@
+name: Runner Capacity
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/runner-capacity.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: runner-capacity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  capacity:
+    name: Capacity (${{ matrix.runner }})
+    runs-on: [self-hosted, vmpal-ci, local-capacity, '${{ matrix.runner }}']
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        runner:
+          - ci-windows-arm64-1
+          - ci-windows-arm64-2
+          - ci-windows-arm64-3
+          - ci-windows-arm64-4
+          - ci-linux-arm64-1
+          - ci-linux-arm64-2
+          - ci-linux-arm64-3
+          - ci-linux-arm64-4
+          - ci-macos-1
+          - ci-macos-2
+          - ci-macos-3
+          - ci-macos-4
+    steps:
+      - name: Verify environment and hold execution slot
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ARCH" = ARM64
+          git --version
+          case "$RUNNER_OS" in
+            Linux) docker info >/dev/null ;;
+            macOS) xcodebuild -version; xcrun simctl list runtimes ;;
+            Windows) pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()' ;;
+          esac
+          proof="$RUNNER_TEMP/runner-capacity-$GITHUB_RUN_ID.txt"
+          printf '%s\n' "$RUNNER_NAME" > "$proof"
+          trap 'rm -f "$proof"' EXIT
+          {
+            printf 'Runner: `%s`\n\n' "$RUNNER_NAME"
+            printf 'OS: `%s`, architecture: `%s`\n\n' "$RUNNER_OS" "$RUNNER_ARCH"
+            printf 'Temporary directory: `%s`\n\n' "$RUNNER_TEMP"
+            printf 'GOPATH: `%s`\n\n' "${GOPATH:-default}"
+            printf 'GOCACHE: `%s`\n\n' "${GOCACHE:-default}"
+            printf 'Tool cache: `%s`\n\n' "$RUNNER_TOOL_CACHE"
+            printf 'npm cache: `%s`\n\n' "${npm_config_cache:-default}"
+          } >> "$GITHUB_STEP_SUMMARY"
+          # 保持任务运行以验证各环境同时占用的执行位置。
+          sleep 90
+          test "$(cat "$proof")" = "$RUNNER_NAME"

@@ -13,11 +13,11 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
-// GetRealtimeConnection 返回当前账号的成员实时连接配置。
+// GetRealtimeConnection 返回当前账号的成员实时连接配置；用户端与支援会话均可调用。
 func (b *Backend) GetRealtimeConnection(ctx context.Context, meta appservice.RequestMeta) (_ appservice.RealtimeConnection, err error) {
 	ctx = logscope.WithOperation(ctx, "GetRealtimeConnection")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
-	ctx, account, err := b.ops.AuthenticateAccount(ctx, meta)
+	ctx, account, err := b.ops.AuthenticateBearer(ctx, meta)
 	if err != nil {
 		var zero appservice.RealtimeConnection
 		return zero, err
@@ -32,18 +32,25 @@ func (b *Backend) InstallationStatus(ctx context.Context, meta appservice.Reques
 	return b.ops.InstallationStatus(ctx, meta)
 }
 
-// InstallWorkspace 在平台尚无账号时创建平台管理员和第一个工作区，返回工作区和平台管理员登录会话。
-func (b *Backend) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (_ appservice.InstallWorkspaceResult, err error) {
-	ctx = logscope.WithOperation(ctx, "InstallWorkspace")
+// InstallPlatform 在平台尚无账号时创建平台管理员，返回后台会话（由 HTTP 层写入 Cookie）。
+func (b *Backend) InstallPlatform(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallPlatformInput) (_ appservice.AdminAuth, err error) {
+	ctx = logscope.WithOperation(ctx, "InstallPlatform")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
-	return b.ops.InstallWorkspace(ctx, meta, input)
+	return b.ops.InstallPlatform(ctx, meta, input)
 }
 
-// Login 校验账号密码并建立登录会话。
+// Login 校验账号密码并建立用户端登录会话。
 func (b *Backend) Login(ctx context.Context, meta appservice.RequestMeta, input appservice.LoginInput) (_ appservice.Auth, err error) {
 	ctx = logscope.WithOperation(ctx, "Login")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	return b.ops.Login(ctx, meta, input)
+}
+
+// AdminLogin 校验平台管理员密码并建立后台会话（由 HTTP 层写入 Cookie）。
+func (b *Backend) AdminLogin(ctx context.Context, meta appservice.RequestMeta, input appservice.LoginInput) (_ appservice.AdminAuth, err error) {
+	ctx = logscope.WithOperation(ctx, "AdminLogin")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	return b.ops.AdminLogin(ctx, meta, input)
 }
 
 // Register 在平台开放注册或持有效邀请时注册本地账号并建立登录会话。
@@ -53,7 +60,7 @@ func (b *Backend) Register(ctx context.Context, meta appservice.RequestMeta, inp
 	return b.ops.Register(ctx, meta, input)
 }
 
-// Logout 退出当前登录会话。
+// Logout 退出当前用户端登录会话。
 func (b *Backend) Logout(ctx context.Context, meta appservice.RequestMeta) (err error) {
 	ctx = logscope.WithOperation(ctx, "Logout")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
@@ -64,7 +71,18 @@ func (b *Backend) Logout(ctx context.Context, meta appservice.RequestMeta) (err 
 	return b.ops.Logout(ctx, meta, account)
 }
 
-// LoadAccount 返回当前登录账号。
+// AdminLogout 退出当前平台后台会话（由 HTTP 层清除 Cookie）。
+func (b *Backend) AdminLogout(ctx context.Context, meta appservice.RequestMeta) (err error) {
+	ctx = logscope.WithOperation(ctx, "AdminLogout")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
+	if err != nil {
+		return err
+	}
+	return b.ops.AdminLogout(ctx, meta, account)
+}
+
+// LoadAccount 返回当前用户端登录账号。
 func (b *Backend) LoadAccount(ctx context.Context, meta appservice.RequestMeta) (_ appservice.Account, err error) {
 	ctx = logscope.WithOperation(ctx, "LoadAccount")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
@@ -76,11 +94,34 @@ func (b *Backend) LoadAccount(ctx context.Context, meta appservice.RequestMeta) 
 	return b.ops.LoadAccount(ctx, meta, account)
 }
 
-// ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
+// LoadAdminAccount 返回当前平台后台登录账号。
+func (b *Backend) LoadAdminAccount(ctx context.Context, meta appservice.RequestMeta) (_ appservice.Account, err error) {
+	ctx = logscope.WithOperation(ctx, "LoadAdminAccount")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.Account
+		return zero, err
+	}
+	return b.ops.LoadAdminAccount(ctx, meta, account)
+}
+
+// ChangeAdminPassword 核验当前平台管理员的密码并保存新密码。
+func (b *Backend) ChangeAdminPassword(ctx context.Context, meta appservice.RequestMeta, input appservice.ChangePasswordInput) (err error) {
+	ctx = logscope.WithOperation(ctx, "ChangeAdminPassword")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
+	if err != nil {
+		return err
+	}
+	return b.ops.ChangeAdminPassword(ctx, meta, account, input)
+}
+
+// ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区；支援会话只返回绑定工作区。
 func (b *Backend) ListWorkspaces(ctx context.Context, meta appservice.RequestMeta) (_ appservice.WorkspaceList, err error) {
 	ctx = logscope.WithOperation(ctx, "ListWorkspaces")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
-	ctx, account, err := b.ops.AuthenticateAccount(ctx, meta)
+	ctx, account, err := b.ops.AuthenticateBearer(ctx, meta)
 	if err != nil {
 		var zero appservice.WorkspaceList
 		return zero, err
@@ -88,11 +129,11 @@ func (b *Backend) ListWorkspaces(ctx context.Context, meta appservice.RequestMet
 	return b.ops.ListWorkspaces(ctx, meta, account)
 }
 
-// ListWorkspaceAttention 返回当前账号在各工作区的提醒数量，工作区切换器与应用角标据此提示其他工作区的未读。
+// ListWorkspaceAttention 返回当前账号在各工作区的提醒数量，工作区切换器与应用角标据此提示其他工作区的未读；支援会话只返回绑定工作区。
 func (b *Backend) ListWorkspaceAttention(ctx context.Context, meta appservice.RequestMeta) (_ appservice.WorkspaceAttentionList, err error) {
 	ctx = logscope.WithOperation(ctx, "ListWorkspaceAttention")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
-	ctx, account, err := b.ops.AuthenticateAccount(ctx, meta)
+	ctx, account, err := b.ops.AuthenticateBearer(ctx, meta)
 	if err != nil {
 		var zero appservice.WorkspaceAttentionList
 		return zero, err
@@ -144,6 +185,33 @@ func (b *Backend) SetPushDevice(ctx context.Context, meta appservice.RequestMeta
 		return err
 	}
 	return b.ops.SetPushDevice(ctx, meta, account, input)
+}
+
+// CreateSupportAccess 为平台管理员签发进入指定工作区的短期支援凭证。
+func (b *Backend) CreateSupportAccess(ctx context.Context, meta appservice.RequestMeta, workspaceID string) (_ appservice.SupportAccess, err error) {
+	ctx = logscope.WithOperation(ctx, "CreateSupportAccess")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.SupportAccess
+		return zero, err
+	}
+	if err := dispatch.ValidateRequest(meta, nil, dispatch.PathRule{Value: workspaceID, Rule: "uuid"}); err != nil {
+		var zero appservice.SupportAccess
+		return zero, err
+	}
+	return b.ops.CreateSupportAccess(ctx, meta, account, workspaceID)
+}
+
+// RevokeSupportAccess 撤销当前支援会话。
+func (b *Backend) RevokeSupportAccess(ctx context.Context, meta appservice.RequestMeta) (err error) {
+	ctx = logscope.WithOperation(ctx, "RevokeSupportAccess")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, account, err := b.ops.AuthenticateBearer(ctx, meta)
+	if err != nil {
+		return err
+	}
+	return b.ops.RevokeSupportAccess(ctx, meta, account)
 }
 
 // GetProductDocPage 返回当前平台可见的产品文档页面正文，供应用内帮助显示。
@@ -633,20 +701,20 @@ func (b *Backend) CompleteFileUpload(ctx context.Context, meta appservice.Reques
 	return b.ops.CompleteFileUpload(ctx, meta, identity, fileID)
 }
 
-// CreateFilePartUpload 创建一个分片的直传请求。
-func (b *Backend) CreateFilePartUpload(ctx context.Context, meta appservice.RequestMeta, fileID string, input appservice.FilePartUploadInput) (_ appservice.FileUploadRequest, err error) {
-	ctx = logscope.WithOperation(ctx, "CreateFilePartUpload")
+// SignFileUpload 为当前上传签发 S3 请求。
+func (b *Backend) SignFileUpload(ctx context.Context, meta appservice.RequestMeta, fileID string, input appservice.FileUploadSignInput) (_ appservice.FileUploadRequest, err error) {
+	ctx = logscope.WithOperation(ctx, "SignFileUpload")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
 	if err != nil {
 		var zero appservice.FileUploadRequest
 		return zero, err
 	}
-	if err := dispatch.ValidateRequest(meta, nil, dispatch.PathRule{Value: fileID, Rule: "uuid"}); err != nil {
+	if err := dispatch.ValidateRequest(meta, input, dispatch.PathRule{Value: fileID, Rule: "uuid"}); err != nil {
 		var zero appservice.FileUploadRequest
 		return zero, err
 	}
-	return b.ops.CreateFilePartUpload(ctx, meta, identity, fileID, input)
+	return b.ops.SignFileUpload(ctx, meta, identity, fileID, input)
 }
 
 // CancelFileUpload 将未发送的临时文件交给清理任务。
@@ -1646,7 +1714,7 @@ func (b *Backend) RegenerateCustomerIdentitySecret(ctx context.Context, meta app
 }
 
 // GetBusinessHours 读取当前企业的客服工作时间。
-func (b *Backend) GetBusinessHours(ctx context.Context, meta appservice.RequestMeta) (_ appservice.BusinessHours, err error) {
+func (b *Backend) GetBusinessHours(ctx context.Context, meta appservice.RequestMeta, audience string) (_ appservice.BusinessHours, err error) {
 	ctx = logscope.WithOperation(ctx, "GetBusinessHours")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
@@ -1654,15 +1722,11 @@ func (b *Backend) GetBusinessHours(ctx context.Context, meta appservice.RequestM
 		var zero appservice.BusinessHours
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.BusinessHours
-		return zero, err
-	}
-	return b.ops.GetBusinessHours(ctx, meta, identity)
+	return b.ops.GetBusinessHours(ctx, meta, identity, audience)
 }
 
 // UpdateBusinessHours 修改当前企业的客服工作时间。
-func (b *Backend) UpdateBusinessHours(ctx context.Context, meta appservice.RequestMeta, input appservice.BusinessHours) (_ appservice.BusinessHours, err error) {
+func (b *Backend) UpdateBusinessHours(ctx context.Context, meta appservice.RequestMeta, audience string, input appservice.BusinessHours) (_ appservice.BusinessHours, err error) {
 	ctx = logscope.WithOperation(ctx, "UpdateBusinessHours")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
@@ -1670,19 +1734,15 @@ func (b *Backend) UpdateBusinessHours(ctx context.Context, meta appservice.Reque
 		var zero appservice.BusinessHours
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.BusinessHours
-		return zero, err
-	}
 	if err := dispatch.ValidateRequest(meta, input); err != nil {
 		var zero appservice.BusinessHours
 		return zero, err
 	}
-	return b.ops.UpdateBusinessHours(ctx, meta, identity, input)
+	return b.ops.UpdateBusinessHours(ctx, meta, identity, audience, input)
 }
 
 // GetServiceTimeouts 读取当前企业的客服超时时长。
-func (b *Backend) GetServiceTimeouts(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ServiceTimeouts, err error) {
+func (b *Backend) GetServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, audience string) (_ appservice.ServiceTimeouts, err error) {
 	ctx = logscope.WithOperation(ctx, "GetServiceTimeouts")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
@@ -1690,15 +1750,11 @@ func (b *Backend) GetServiceTimeouts(ctx context.Context, meta appservice.Reques
 		var zero appservice.ServiceTimeouts
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.ServiceTimeouts
-		return zero, err
-	}
-	return b.ops.GetServiceTimeouts(ctx, meta, identity)
+	return b.ops.GetServiceTimeouts(ctx, meta, identity, audience)
 }
 
 // UpdateServiceTimeouts 修改当前企业的客服超时时长。
-func (b *Backend) UpdateServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, input appservice.ServiceTimeouts) (_ appservice.ServiceTimeouts, err error) {
+func (b *Backend) UpdateServiceTimeouts(ctx context.Context, meta appservice.RequestMeta, audience string, input appservice.ServiceTimeouts) (_ appservice.ServiceTimeouts, err error) {
 	ctx = logscope.WithOperation(ctx, "UpdateServiceTimeouts")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
@@ -1706,19 +1762,15 @@ func (b *Backend) UpdateServiceTimeouts(ctx context.Context, meta appservice.Req
 		var zero appservice.ServiceTimeouts
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.ServiceTimeouts
-		return zero, err
-	}
 	if err := dispatch.ValidateRequest(meta, input); err != nil {
 		var zero appservice.ServiceTimeouts
 		return zero, err
 	}
-	return b.ops.UpdateServiceTimeouts(ctx, meta, identity, input)
+	return b.ops.UpdateServiceTimeouts(ctx, meta, identity, audience, input)
 }
 
 // GetServiceSummarySettings 读取当前企业的周期小结设置。
-func (b *Backend) GetServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ServiceSummarySettings, err error) {
+func (b *Backend) GetServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, audience string) (_ appservice.ServiceSummarySettings, err error) {
 	ctx = logscope.WithOperation(ctx, "GetServiceSummarySettings")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
@@ -1726,15 +1778,11 @@ func (b *Backend) GetServiceSummarySettings(ctx context.Context, meta appservice
 		var zero appservice.ServiceSummarySettings
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.ServiceSummarySettings
-		return zero, err
-	}
-	return b.ops.GetServiceSummarySettings(ctx, meta, identity)
+	return b.ops.GetServiceSummarySettings(ctx, meta, identity, audience)
 }
 
 // UpdateServiceSummarySettings 修改当前企业的周期小结设置。
-func (b *Backend) UpdateServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, input appservice.ServiceSummarySettings) (_ appservice.ServiceSummarySettings, err error) {
+func (b *Backend) UpdateServiceSummarySettings(ctx context.Context, meta appservice.RequestMeta, audience string, input appservice.ServiceSummarySettings) (_ appservice.ServiceSummarySettings, err error) {
 	ctx = logscope.WithOperation(ctx, "UpdateServiceSummarySettings")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
@@ -1742,19 +1790,15 @@ func (b *Backend) UpdateServiceSummarySettings(ctx context.Context, meta appserv
 		var zero appservice.ServiceSummarySettings
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.ServiceSummarySettings
-		return zero, err
-	}
 	if err := dispatch.ValidateRequest(meta, input); err != nil {
 		var zero appservice.ServiceSummarySettings
 		return zero, err
 	}
-	return b.ops.UpdateServiceSummarySettings(ctx, meta, identity, input)
+	return b.ops.UpdateServiceSummarySettings(ctx, meta, identity, audience, input)
 }
 
 // ListServiceCategories 返回当前企业的咨询分类目录。
-func (b *Backend) ListServiceCategories(ctx context.Context, meta appservice.RequestMeta) (_ appservice.ServiceCategoryList, err error) {
+func (b *Backend) ListServiceCategories(ctx context.Context, meta appservice.RequestMeta, audience string) (_ appservice.ServiceCategoryList, err error) {
 	ctx = logscope.WithOperation(ctx, "ListServiceCategories")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
@@ -1762,11 +1806,11 @@ func (b *Backend) ListServiceCategories(ctx context.Context, meta appservice.Req
 		var zero appservice.ServiceCategoryList
 		return zero, err
 	}
-	return b.ops.ListServiceCategories(ctx, meta, identity)
+	return b.ops.ListServiceCategories(ctx, meta, identity, audience)
 }
 
 // CreateServiceCategory 新增咨询分类。
-func (b *Backend) CreateServiceCategory(ctx context.Context, meta appservice.RequestMeta, input appservice.ServiceCategoryInput) (_ appservice.ServiceCategory, err error) {
+func (b *Backend) CreateServiceCategory(ctx context.Context, meta appservice.RequestMeta, audience string, input appservice.ServiceCategoryInput) (_ appservice.ServiceCategory, err error) {
 	ctx = logscope.WithOperation(ctx, "CreateServiceCategory")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
@@ -1774,19 +1818,15 @@ func (b *Backend) CreateServiceCategory(ctx context.Context, meta appservice.Req
 		var zero appservice.ServiceCategory
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.ServiceCategory
-		return zero, err
-	}
 	if err := dispatch.ValidateRequest(meta, input); err != nil {
 		var zero appservice.ServiceCategory
 		return zero, err
 	}
-	return b.ops.CreateServiceCategory(ctx, meta, identity, input)
+	return b.ops.CreateServiceCategory(ctx, meta, identity, audience, input)
 }
 
 // UpdateServiceCategory 修改咨询分类。
-func (b *Backend) UpdateServiceCategory(ctx context.Context, meta appservice.RequestMeta, categoryID string, input appservice.ServiceCategoryInput) (_ appservice.ServiceCategory, err error) {
+func (b *Backend) UpdateServiceCategory(ctx context.Context, meta appservice.RequestMeta, audience string, categoryID string, input appservice.ServiceCategoryInput) (_ appservice.ServiceCategory, err error) {
 	ctx = logscope.WithOperation(ctx, "UpdateServiceCategory")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
@@ -1794,32 +1834,25 @@ func (b *Backend) UpdateServiceCategory(ctx context.Context, meta appservice.Req
 		var zero appservice.ServiceCategory
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.ServiceCategory
-		return zero, err
-	}
 	if err := dispatch.ValidateRequest(meta, input, dispatch.PathRule{Value: categoryID, Rule: "uuid"}); err != nil {
 		var zero appservice.ServiceCategory
 		return zero, err
 	}
-	return b.ops.UpdateServiceCategory(ctx, meta, identity, categoryID, input)
+	return b.ops.UpdateServiceCategory(ctx, meta, identity, audience, categoryID, input)
 }
 
 // DeleteServiceCategory 删除咨询分类，历史记录保留分类名称。
-func (b *Backend) DeleteServiceCategory(ctx context.Context, meta appservice.RequestMeta, categoryID string) (err error) {
+func (b *Backend) DeleteServiceCategory(ctx context.Context, meta appservice.RequestMeta, audience string, categoryID string) (err error) {
 	ctx = logscope.WithOperation(ctx, "DeleteServiceCategory")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
 	if err != nil {
 		return err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		return err
-	}
 	if err := dispatch.ValidateRequest(meta, nil, dispatch.PathRule{Value: categoryID, Rule: "uuid"}); err != nil {
 		return err
 	}
-	return b.ops.DeleteServiceCategory(ctx, meta, identity, categoryID)
+	return b.ops.DeleteServiceCategory(ctx, meta, identity, audience, categoryID)
 }
 
 // GetConversationTranslation 返回当前成员在客户会话中的翻译状态。
@@ -2199,10 +2232,6 @@ func (b *Backend) ListMessageChannels(ctx context.Context, meta appservice.Reque
 		var zero appservice.MessageChannelList
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.MessageChannelList
-		return zero, err
-	}
 	return b.ops.ListMessageChannels(ctx, meta, identity)
 }
 
@@ -2235,7 +2264,7 @@ func (b *Backend) GetWeComBotChannel(ctx context.Context, meta appservice.Reques
 		var zero appservice.WeComBotChannel
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionEmployeeServiceManage); err != nil {
 		var zero appservice.WeComBotChannel
 		return zero, err
 	}
@@ -2255,7 +2284,7 @@ func (b *Backend) SaveWeComBotChannelConnection(ctx context.Context, meta appser
 		var zero appservice.WeComBotChannel
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionEmployeeServiceManage); err != nil {
 		var zero appservice.WeComBotChannel
 		return zero, err
 	}
@@ -2275,7 +2304,7 @@ func (b *Backend) ListChannelAccounts(ctx context.Context, meta appservice.Reque
 		var zero appservice.ChannelAccountList
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionEmployeeServiceManage); err != nil {
 		var zero appservice.ChannelAccountList
 		return zero, err
 	}
@@ -2294,7 +2323,7 @@ func (b *Backend) BindChannelAccount(ctx context.Context, meta appservice.Reques
 	if err != nil {
 		return err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionEmployeeServiceManage); err != nil {
 		return err
 	}
 	if err := dispatch.ValidateRequest(meta, input, dispatch.PathRule{Value: channelID, Rule: "uuid"}, dispatch.PathRule{Value: accountID, Rule: "uuid"}); err != nil {
@@ -2311,7 +2340,7 @@ func (b *Backend) UnbindChannelAccount(ctx context.Context, meta appservice.Requ
 	if err != nil {
 		return err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionEmployeeServiceManage); err != nil {
 		return err
 	}
 	if err := dispatch.ValidateRequest(meta, nil, dispatch.PathRule{Value: channelID, Rule: "uuid"}, dispatch.PathRule{Value: accountID, Rule: "uuid"}); err != nil {
@@ -2326,10 +2355,6 @@ func (b *Backend) GetMessageChannel(ctx context.Context, meta appservice.Request
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
 	if err != nil {
-		var zero appservice.MessageChannelSummary
-		return zero, err
-	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
 		var zero appservice.MessageChannelSummary
 		return zero, err
 	}
@@ -2349,10 +2374,6 @@ func (b *Backend) CreateMessageChannel(ctx context.Context, meta appservice.Requ
 		var zero appservice.MessageChannelSummary
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.MessageChannelSummary
-		return zero, err
-	}
 	if err := dispatch.ValidateRequest(meta, input); err != nil {
 		var zero appservice.MessageChannelSummary
 		return zero, err
@@ -2369,10 +2390,6 @@ func (b *Backend) UpdateMessageChannel(ctx context.Context, meta appservice.Requ
 		var zero appservice.MessageChannelSummary
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.MessageChannelSummary
-		return zero, err
-	}
 	if err := dispatch.ValidateRequest(meta, input, dispatch.PathRule{Value: channelID, Rule: "uuid"}); err != nil {
 		var zero appservice.MessageChannelSummary
 		return zero, err
@@ -2386,10 +2403,6 @@ func (b *Backend) UpdateMessageChannelReception(ctx context.Context, meta appser
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
 	if err != nil {
-		var zero appservice.MessageChannelSummary
-		return zero, err
-	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
 		var zero appservice.MessageChannelSummary
 		return zero, err
 	}
@@ -2489,10 +2502,6 @@ func (b *Backend) DeactivateMessageChannel(ctx context.Context, meta appservice.
 		var zero appservice.MessageChannelSummary
 		return zero, err
 	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
-		var zero appservice.MessageChannelSummary
-		return zero, err
-	}
 	if err := dispatch.ValidateRequest(meta, nil, dispatch.PathRule{Value: channelID, Rule: "uuid"}); err != nil {
 		var zero appservice.MessageChannelSummary
 		return zero, err
@@ -2506,10 +2515,6 @@ func (b *Backend) ActivateMessageChannel(ctx context.Context, meta appservice.Re
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
 	if err != nil {
-		var zero appservice.MessageChannelSummary
-		return zero, err
-	}
-	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionCustomerServiceManage); err != nil {
 		var zero appservice.MessageChannelSummary
 		return zero, err
 	}
@@ -2748,7 +2753,7 @@ func (b *Backend) CheckWechatAuthorizationChannelConnection(ctx context.Context,
 	return b.ops.CheckWechatAuthorizationChannelConnection(ctx, meta, identity, channelID)
 }
 
-// GetWechatPlatform 返回微信第三方平台配置、可用状态、接入地址、各服务器出口 IP 与平台凭据状态。
+// GetWechatPlatform 返回微信第三方平台配置、可用状态、接入地址与平台凭据状态。
 func (b *Backend) GetWechatPlatform(ctx context.Context, meta appservice.RequestMeta) (_ appservice.WechatPlatform, err error) {
 	ctx = logscope.WithOperation(ctx, "GetWechatPlatform")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
@@ -2786,6 +2791,42 @@ func (b *Backend) CheckWechatPlatform(ctx context.Context, meta appservice.Reque
 		return zero, err
 	}
 	return b.ops.CheckWechatPlatform(ctx, meta, account)
+}
+
+// GetAgentEvaluationSettings 读取工作区 AI 评测设置。
+func (b *Backend) GetAgentEvaluationSettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.AgentEvaluationSettings, err error) {
+	ctx = logscope.WithOperation(ctx, "GetAgentEvaluationSettings")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
+	if err != nil {
+		var zero appservice.AgentEvaluationSettings
+		return zero, err
+	}
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionAIEmployeesManage); err != nil {
+		var zero appservice.AgentEvaluationSettings
+		return zero, err
+	}
+	return b.ops.GetAgentEvaluationSettings(ctx, meta, identity)
+}
+
+// UpdateAgentEvaluationSettings 修改工作区 AI 评测设置。
+func (b *Backend) UpdateAgentEvaluationSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.AgentEvaluationSettings) (_ appservice.AgentEvaluationSettings, err error) {
+	ctx = logscope.WithOperation(ctx, "UpdateAgentEvaluationSettings")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
+	if err != nil {
+		var zero appservice.AgentEvaluationSettings
+		return zero, err
+	}
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionAIEmployeesManage); err != nil {
+		var zero appservice.AgentEvaluationSettings
+		return zero, err
+	}
+	if err := dispatch.ValidateRequest(meta, input); err != nil {
+		var zero appservice.AgentEvaluationSettings
+		return zero, err
+	}
+	return b.ops.UpdateAgentEvaluationSettings(ctx, meta, identity, input)
 }
 
 // GetAgentEvaluation 返回 AI 员工评测页的最近两次运行与全部用例。
@@ -3229,6 +3270,29 @@ func (b *Backend) AcceptInvitation(ctx context.Context, meta appservice.RequestM
 	return b.ops.AcceptInvitation(ctx, meta, account, input)
 }
 
+// ExportDiagnosticBundle 生成当前服务端的诊断包。
+func (b *Backend) ExportDiagnosticBundle(ctx context.Context, meta appservice.RequestMeta) (_ appservice.DiagnosticBundle, err error) {
+	ctx = logscope.WithOperation(ctx, "ExportDiagnosticBundle")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
+	if err != nil {
+		var zero appservice.DiagnosticBundle
+		return zero, err
+	}
+	return b.ops.ExportDiagnosticBundle(ctx, meta, account)
+}
+
+// UploadDiagnosticBundle 生成并主动上传诊断包。
+func (b *Backend) UploadDiagnosticBundle(ctx context.Context, meta appservice.RequestMeta, input appservice.DiagnosticUploadInput) (err error) {
+	ctx = logscope.WithOperation(ctx, "UploadDiagnosticBundle")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
+	if err != nil {
+		return err
+	}
+	return b.ops.UploadDiagnosticBundle(ctx, meta, account, input)
+}
+
 // GetPlatformOverview 返回平台规模与活跃趋势。
 func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformOverview, err error) {
 	ctx = logscope.WithOperation(ctx, "GetPlatformOverview")
@@ -3241,35 +3305,35 @@ func (b *Backend) GetPlatformOverview(ctx context.Context, meta appservice.Reque
 	return b.ops.GetPlatformOverview(ctx, meta, account)
 }
 
-// GetPlatformSettings 返回平台注册策略与工作区创建策略。
-func (b *Backend) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformSettings, err error) {
-	ctx = logscope.WithOperation(ctx, "GetPlatformSettings")
+// GetPlatformSite 返回站点设置：部署名称与时区、注册与创建、访问地址与证书、部署品牌与产品首页。
+func (b *Backend) GetPlatformSite(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformSite, err error) {
+	ctx = logscope.WithOperation(ctx, "GetPlatformSite")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.PlatformSettings
+		var zero appservice.PlatformSite
 		return zero, err
 	}
-	return b.ops.GetPlatformSettings(ctx, meta, account)
+	return b.ops.GetPlatformSite(ctx, meta, account)
 }
 
-// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
-func (b *Backend) UpdatePlatformSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformPoliciesInput) (_ appservice.PlatformSettings, err error) {
-	ctx = logscope.WithOperation(ctx, "UpdatePlatformSettings")
+// UpdatePlatformSite 一次保存站点设置；上传证书的空证书或私钥保留已存值；未授权时不改写品牌；时区变化时在后台按新时区重建运营数据；HTTPS 需自动签发时先签发再保存。
+func (b *Backend) UpdatePlatformSite(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformSiteInput) (_ appservice.PlatformSite, err error) {
+	ctx = logscope.WithOperation(ctx, "UpdatePlatformSite")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.PlatformSettings
+		var zero appservice.PlatformSite
 		return zero, err
 	}
 	if err := dispatch.ValidateRequest(meta, input); err != nil {
-		var zero appservice.PlatformSettings
+		var zero appservice.PlatformSite
 		return zero, err
 	}
-	return b.ops.UpdatePlatformSettings(ctx, meta, account, input)
+	return b.ops.UpdatePlatformSite(ctx, meta, account, input)
 }
 
-// GetPlatformDeployment 返回部署名称、部署地址、平台时区、上报开关、对象存储、邮件发送、部署品牌与产品首页配置。
+// GetPlatformDeployment 返回对象存储与邮件发送配置。
 func (b *Backend) GetPlatformDeployment(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformDeployment, err error) {
 	ctx = logscope.WithOperation(ctx, "GetPlatformDeployment")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
@@ -3281,44 +3345,20 @@ func (b *Backend) GetPlatformDeployment(ctx context.Context, meta appservice.Req
 	return b.ops.GetPlatformDeployment(ctx, meta, account)
 }
 
-// UpdatePlatformDeploymentBasics 修改部署名称、平台时区与上报开关，时区变化时在后台按新时区重建运营数据。
-func (b *Backend) UpdatePlatformDeploymentBasics(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformDeploymentBasicsInput) (_ appservice.PlatformDeployment, err error) {
-	ctx = logscope.WithOperation(ctx, "UpdatePlatformDeploymentBasics")
-	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
-	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
-	if err != nil {
-		var zero appservice.PlatformDeployment
-		return zero, err
-	}
-	return b.ops.UpdatePlatformDeploymentBasics(ctx, meta, account, input)
-}
-
-// UpdatePlatformAddress 修改部署地址与证书：上传的证书须与私钥匹配、未到期且包含 HTTPS 部署地址的域名；自动签发时，部署中有直接提供 HTTPS 的服务器而 HTTPS 部署地址没有有效证书时先签发证书，成功后一起保存。
-func (b *Backend) UpdatePlatformAddress(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformAddressInput) (_ appservice.PlatformDeployment, err error) {
-	ctx = logscope.WithOperation(ctx, "UpdatePlatformAddress")
-	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
-	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
-	if err != nil {
-		var zero appservice.PlatformDeployment
-		return zero, err
-	}
-	return b.ops.UpdatePlatformAddress(ctx, meta, account, input)
-}
-
 // UpdatePlatformStorage 修改对象存储配置：开启时先确认能访问存储桶，部署中有其他服务器运行时不能关闭。
-func (b *Backend) UpdatePlatformStorage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStorageSettings) (_ appservice.PlatformDeployment, err error) {
+func (b *Backend) UpdatePlatformStorage(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformStorageSettings) (_ appservice.PlatformStorageCheck, err error) {
 	ctx = logscope.WithOperation(ctx, "UpdatePlatformStorage")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.PlatformDeployment
+		var zero appservice.PlatformStorageCheck
 		return zero, err
 	}
 	return b.ops.UpdatePlatformStorage(ctx, meta, account, input)
 }
 
-// UpdatePlatformEmail 修改 SMTP 邮件发送配置，主机为空时关闭邮件发送。
-func (b *Backend) UpdatePlatformEmail(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformEmailSettings) (_ appservice.PlatformDeployment, err error) {
+// UpdatePlatformEmail 修改当前邮件接入方式与发件人配置。
+func (b *Backend) UpdatePlatformEmail(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformEmailInput) (_ appservice.PlatformDeployment, err error) {
 	ctx = logscope.WithOperation(ctx, "UpdatePlatformEmail")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
@@ -3329,28 +3369,18 @@ func (b *Backend) UpdatePlatformEmail(ctx context.Context, meta appservice.Reque
 	return b.ops.UpdatePlatformEmail(ctx, meta, account, input)
 }
 
-// UpdatePlatformBranding 修改部署品牌，授权授予自定义品牌期间生效。
-func (b *Backend) UpdatePlatformBranding(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformBrandingSettings) (_ appservice.PlatformDeployment, err error) {
-	ctx = logscope.WithOperation(ctx, "UpdatePlatformBranding")
+// TestPlatformEmail 使用已保存的配置发送测试邮件。
+func (b *Backend) TestPlatformEmail(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformEmailTestInput) (err error) {
+	ctx = logscope.WithOperation(ctx, "TestPlatformEmail")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
 	if err != nil {
-		var zero appservice.PlatformDeployment
-		return zero, err
+		return err
 	}
-	return b.ops.UpdatePlatformBranding(ctx, meta, account, input)
-}
-
-// UpdatePlatformHome 修改产品首页配置，首页提供价格区块时生效。
-func (b *Backend) UpdatePlatformHome(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformHomeSettings) (_ appservice.PlatformDeployment, err error) {
-	ctx = logscope.WithOperation(ctx, "UpdatePlatformHome")
-	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
-	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
-	if err != nil {
-		var zero appservice.PlatformDeployment
-		return zero, err
+	if err := dispatch.ValidateRequest(meta, input); err != nil {
+		return err
 	}
-	return b.ops.UpdatePlatformHome(ctx, meta, account, input)
+	return b.ops.TestPlatformEmail(ctx, meta, account, input)
 }
 
 // ListPlatformAccounts 返回平台内的账号。
@@ -3449,7 +3479,7 @@ func (b *Backend) ListPlatformWorkspaces(ctx context.Context, meta appservice.Re
 	return b.ops.ListPlatformWorkspaces(ctx, meta, account, input)
 }
 
-// GetLicense 返回服务器标识、授权状态与 control 同步结果。
+// GetLicense 返回部署标识、授权状态。
 func (b *Backend) GetLicense(ctx context.Context, meta appservice.RequestMeta) (_ appservice.License, err error) {
 	ctx = logscope.WithOperation(ctx, "GetLicense")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
@@ -3483,18 +3513,6 @@ func (b *Backend) ActivateLicenseOnline(ctx context.Context, meta appservice.Req
 		return zero, err
 	}
 	return b.ops.ActivateLicenseOnline(ctx, meta, account, input)
-}
-
-// SyncLicense 立即向 control 登记服务器并拉取最新授权。
-func (b *Backend) SyncLicense(ctx context.Context, meta appservice.RequestMeta) (_ appservice.License, err error) {
-	ctx = logscope.WithOperation(ctx, "SyncLicense")
-	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
-	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
-	if err != nil {
-		var zero appservice.License
-		return zero, err
-	}
-	return b.ops.SyncLicense(ctx, meta, account)
 }
 
 // SuspendPlatformWorkspace 暂停没有平台管理员成员的工作区：成员无法进入，渠道停止接待客户，后台任务挂起。
@@ -3585,23 +3603,7 @@ func (b *Backend) ListPlatformFailedTasks(ctx context.Context, meta appservice.R
 	return b.ops.ListPlatformFailedTasks(ctx, meta, account, input)
 }
 
-// ListPlatformServerLogs 按筛选条件以时间倒序返回近 30 天的服务端日志，按游标逐页读取。
-func (b *Backend) ListPlatformServerLogs(ctx context.Context, meta appservice.RequestMeta, input appservice.PlatformServerLogListInput) (_ appservice.PlatformServerLogList, err error) {
-	ctx = logscope.WithOperation(ctx, "ListPlatformServerLogs")
-	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
-	ctx, account, err := b.ops.AuthenticateAdmin(ctx, meta)
-	if err != nil {
-		var zero appservice.PlatformServerLogList
-		return zero, err
-	}
-	if err := dispatch.ValidateRequest(meta, input); err != nil {
-		var zero appservice.PlatformServerLogList
-		return zero, err
-	}
-	return b.ops.ListPlatformServerLogs(ctx, meta, account, input)
-}
-
-// GetPlatformDiagnostics 返回平台概览、授权与 control 同步结果、部署配置与对象存储检查结果、各服务端进程的状态与配置、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+// GetPlatformDiagnostics 返回平台概览、授权、部署配置与对象存储检查结果、各服务端进程的状态与配置、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
 func (b *Backend) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta) (_ appservice.PlatformDiagnostics, err error) {
 	ctx = logscope.WithOperation(ctx, "GetPlatformDiagnostics")
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
@@ -4758,6 +4760,84 @@ func (b *Backend) TestWebSearchService(ctx context.Context, meta appservice.Requ
 		return err
 	}
 	return b.ops.TestWebSearchService(ctx, meta, identity, input)
+}
+
+// GetWebFetchSettings 读取当前企业的网页读取设置。
+func (b *Backend) GetWebFetchSettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.WebFetchSettings, err error) {
+	ctx = logscope.WithOperation(ctx, "GetWebFetchSettings")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
+	if err != nil {
+		var zero appservice.WebFetchSettings
+		return zero, err
+	}
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionWorkspaceManage); err != nil {
+		var zero appservice.WebFetchSettings
+		return zero, err
+	}
+	return b.ops.GetWebFetchSettings(ctx, meta, identity)
+}
+
+// UpdateWebFetchSettings 修改当前企业的网页读取设置。
+func (b *Backend) UpdateWebFetchSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.WebFetchSettings) (_ appservice.WebFetchSettings, err error) {
+	ctx = logscope.WithOperation(ctx, "UpdateWebFetchSettings")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
+	if err != nil {
+		var zero appservice.WebFetchSettings
+		return zero, err
+	}
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionWorkspaceManage); err != nil {
+		var zero appservice.WebFetchSettings
+		return zero, err
+	}
+	return b.ops.UpdateWebFetchSettings(ctx, meta, identity, input)
+}
+
+// TestWebFetchService 用草稿配置读取一次固定页面，验证读取服务可用。
+func (b *Backend) TestWebFetchService(ctx context.Context, meta appservice.RequestMeta, input appservice.WebFetchSettings) (err error) {
+	ctx = logscope.WithOperation(ctx, "TestWebFetchService")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
+	if err != nil {
+		return err
+	}
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionWorkspaceManage); err != nil {
+		return err
+	}
+	return b.ops.TestWebFetchService(ctx, meta, identity, input)
+}
+
+// GetMediaUnderstandingSettings 读取当前企业的媒体理解设置。
+func (b *Backend) GetMediaUnderstandingSettings(ctx context.Context, meta appservice.RequestMeta) (_ appservice.MediaUnderstandingSettings, err error) {
+	ctx = logscope.WithOperation(ctx, "GetMediaUnderstandingSettings")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
+	if err != nil {
+		var zero appservice.MediaUnderstandingSettings
+		return zero, err
+	}
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionWorkspaceManage); err != nil {
+		var zero appservice.MediaUnderstandingSettings
+		return zero, err
+	}
+	return b.ops.GetMediaUnderstandingSettings(ctx, meta, identity)
+}
+
+// UpdateMediaUnderstandingSettings 修改当前企业的媒体理解设置。
+func (b *Backend) UpdateMediaUnderstandingSettings(ctx context.Context, meta appservice.RequestMeta, input appservice.MediaUnderstandingSettings) (_ appservice.MediaUnderstandingSettings, err error) {
+	ctx = logscope.WithOperation(ctx, "UpdateMediaUnderstandingSettings")
+	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
+	ctx, identity, err := b.ops.AuthenticateMember(ctx, meta)
+	if err != nil {
+		var zero appservice.MediaUnderstandingSettings
+		return zero, err
+	}
+	if err := b.ops.Authorize(ctx, meta, identity, domain.PermissionWorkspaceManage); err != nil {
+		var zero appservice.MediaUnderstandingSettings
+		return zero, err
+	}
+	return b.ops.UpdateMediaUnderstandingSettings(ctx, meta, identity, input)
 }
 
 // GetAIPerformanceReport 返回当前企业指定范围内的 AI 客服表现概览。

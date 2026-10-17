@@ -3,7 +3,7 @@ import { defineConfig } from "vite"
 
 export default defineConfig({
   build: {
-    outDir: "../internal/publicweb/dist",
+    outDir: "../internal/web/messenger/dist",
     emptyOutDir: false,
     lib: {
       entry: "src/publicweb/realtime.ts",

@@ -28,19 +28,13 @@ var (
 	ErrAlreadyMember = errors.New("account is already a member of the workspace")
 )
 
-// ValidationCode 标识邀请字段的校验结果。
-type ValidationCode = common.FieldCode
-
 const (
-	ValidationEmailInvalid       ValidationCode = "INVITATION_EMAIL_INVALID"
-	ValidationEmailMember        ValidationCode = "INVITATION_EMAIL_MEMBER"
-	ValidationEmailPending       ValidationCode = "INVITATION_EMAIL_PENDING"
-	ValidationDisplayNameInvalid ValidationCode = "INVITATION_DISPLAY_NAME_INVALID"
-	ValidationRoleInvalid        ValidationCode = "INVITATION_ROLE_INVALID"
+	ValidationEmailInvalid       common.FieldCode = "INVITATION_EMAIL_INVALID"
+	ValidationEmailMember        common.FieldCode = "INVITATION_EMAIL_MEMBER"
+	ValidationEmailPending       common.FieldCode = "INVITATION_EMAIL_PENDING"
+	ValidationDisplayNameInvalid common.FieldCode = "INVITATION_DISPLAY_NAME_INVALID"
+	ValidationRoleInvalid        common.FieldCode = "INVITATION_ROLE_INVALID"
 )
-
-// ValidationError 表示邀请字段校验失败。
-type ValidationError = common.FieldError
 
 // Mailer 发送邀请邮件，Enabled 为假表示部署未配置邮件发送。
 type Mailer interface {

@@ -15,6 +15,7 @@ type afterCommitKey struct{}
 // afterCommitHooks 按登记顺序保存一个顶层事务的提交后回调，tx 是该事务的数据库事务。
 type afterCommitHooks struct {
 	tx        *sql.Tx
+	bunTx     bun.Tx
 	callbacks []func(context.Context) error
 }
 
@@ -48,6 +49,7 @@ func RunInTx(ctx context.Context, db bun.IDB, fn func(context.Context, bun.Tx) e
 	hooks := &afterCommitHooks{}
 	err := db.RunInTx(context.WithValue(ctx, afterCommitKey{}, hooks), nil, func(ctx context.Context, tx bun.Tx) error {
 		hooks.tx = tx.Tx
+		hooks.bunTx = tx
 		return fn(ctx, tx)
 	})
 	if err != nil {
@@ -61,7 +63,7 @@ func RunInTx(ctx context.Context, db bun.IDB, fn func(context.Context, bun.Tx) e
 	return nil
 }
 
-// AfterCommit 在当前 RunInTx 事务内登记提交后回调；调用方必须处于 RunInTx 内。实时通知与任务投递经它在提交后发布，进程在提交后、回调前退出时回调不执行。
+// AfterCommit 在当前 RunInTx 事务内登记提交后回调；调用方必须处于 RunInTx 内。临时信号经它在提交后发布，进程在提交后、回调前退出时回调不执行。
 func AfterCommit(ctx context.Context, callback func(context.Context) error) {
 	hooks, _ := ctx.Value(afterCommitKey{}).(*afterCommitHooks)
 	if hooks == nil {

@@ -7,12 +7,12 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/i18n"
-	"github.com/runforyou-ai/luway/internal/productdocs"
+	"github.com/runforyou-ai/luway/internal/web/docs"
 )
 
 // productDocsOps 持有当前构建的产品文档。
 type productDocsOps struct {
-	site *productdocs.Site
+	site *docs.Site
 }
 
 // GetProductDocPage 返回当前构建的文档页面正文，产品名称已按部署品牌替换。

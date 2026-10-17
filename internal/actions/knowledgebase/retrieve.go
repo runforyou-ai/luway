@@ -154,11 +154,15 @@ func (s *RetrievalService) sources(ctx context.Context, scope modelcall.Scope, k
 				continue
 			}
 			source := &knowledgeSource{service: s, base: base, scope: scope}
-			key := queryEmbeddingKey{modelID: base.EmbeddingModelID, dimension: base.EmbeddingDimension}
+			key := queryEmbeddingKey{modelID: base.EmbeddingModelID, stickyMemberID: base.EmbeddingStickyMemberID, dimension: base.EmbeddingDimension}
 			if source.embeddings = embeddings[key]; source.embeddings == nil {
-				model, err := resolveEmbeddingModel(ctx, s.db, workspaceID, base.EmbeddingModelID)
+				model, err := resolveEmbeddingModel(ctx, s.db, workspaceID, base.ID, base.EmbeddingModelID, base.EmbeddingStickyMemberID)
 				if err != nil {
 					return nil, err
+				}
+				// 选型后钉住成员可能变化，按实际首选成员区分缓存键。
+				if aimodel.IsAuto(base.EmbeddingModelID) && len(model.Routes) > 0 {
+					key.stickyMemberID = model.Routes[0].ID
 				}
 				source.embeddings = newQueryEmbeddings(s.invoker, scope, model, key)
 				embeddings[key] = source.embeddings

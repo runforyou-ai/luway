@@ -7,7 +7,7 @@ A business system is an external system connected to your workspace, such as an 
 
 ## Add a business system
 
-Add business systems under **AI employees → Business systems** with a name, transport, connection details, and authentication. Saving connects to the business system and loads its tools; nothing is saved if the connection fails. The transport can't be changed after creation:
+Add business systems under **Settings → Integrations → Business systems** with a name, transport, connection details, and authentication. Saving connects to the business system and loads its tools; nothing is saved if the connection fails. The transport can't be changed after creation:
 
 - **MCP server**: The business system provides an MCP server. See [MCP connection](/docs/en/integrations/business/mcp/).
 - **HTTP API (OpenAPI)**: Operations are called as described by the business system's OpenAPI document. See [HTTP API connection](/docs/en/integrations/business/openapi/).

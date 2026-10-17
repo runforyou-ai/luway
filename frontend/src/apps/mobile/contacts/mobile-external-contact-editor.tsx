@@ -14,13 +14,13 @@ import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Textarea } from "@/components/ui/textarea"
-import { ContactForm } from "@/features/contacts/external/contact-form"
-import { contactStageOptions } from "@/features/contacts/external/contact-labels"
 import {
+  ContactForm,
+  contactStageOptions,
   contactUpdateInput,
   contactValuesFromDetail,
   useContactSchema,
-} from "@/features/contacts/external/contact-schema"
+} from "@/features/contacts/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormLifetime } from "@/hooks/use-form-lifetime"
 import { useRequestErrorReporter } from "@/hooks/use-request-error-reporter"

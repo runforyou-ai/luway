@@ -12,7 +12,7 @@ import (
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	servicepolicyaction "github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicetimeout"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
@@ -122,7 +122,7 @@ func TestAgentResolution(t *testing.T) {
 	t.Parallel()
 	db, identity, providerID, modelID := newAIWorkspace(t)
 	tasks := servertest.NewTasks()
-	settings, err := customerserviceaction.LoadServiceTimeouts(context.Background(), db, identity.Workspace.ID)
+	settings, err := servicepolicyaction.LoadServiceTimeouts(context.Background(), db, identity.Workspace.ID, domain.ServiceAudienceCustomer)
 	require.NoError(t, err)
 	f := resolutionFixture{
 		handoffFixture: handoffFixture{db: db, identity: identity, tasks: tasks, providerID: providerID, modelID: modelID},

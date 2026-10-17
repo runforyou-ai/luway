@@ -35,7 +35,7 @@ func (q *DocumentQuery) List(ctx context.Context, identity *servermodels.Identit
 	var pageValid bool
 	input.Page, input.PageSize, pageValid = common.NormalizePagination(input.Page, input.PageSize)
 	if !pageValid {
-		return DocumentListOutput{}, ErrPageSizeInvalid
+		return DocumentListOutput{}, common.ErrPageSizeInvalid
 	}
 	records := make([]DocumentRecord, 0)
 	query := documentSelect(q.db).Where("kd.knowledge_base_id = ?", baseID)

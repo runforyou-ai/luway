@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 
-	serviceissueaction "github.com/runforyou-ai/luway/internal/actions/serviceissue"
+	knowledgegapaction "github.com/runforyou-ai/luway/internal/actions/knowledgegap"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -17,20 +17,20 @@ import (
 
 // serviceIssueOps 持有 AI 表现与团队表现共用的问题会话详情查询。
 type serviceIssueOps struct {
-	serviceIssue *serviceissueaction.Query
+	serviceIssue *knowledgegapaction.IssueQuery
 	// files 解析文件地址。
 	files *fileOps
 }
 
 // newServiceIssueOps 创建问题会话详情的业务实现依赖。
 func newServiceIssueOps(db *bun.DB, files *fileOps) *serviceIssueOps {
-	return &serviceIssueOps{serviceIssue: serviceissueaction.NewQuery(db), files: files}
+	return &serviceIssueOps{serviceIssue: knowledgegapaction.NewIssueQuery(db), files: files}
 }
 
 // GetServiceIssue 返回客服周期的质检结论与对客沟通。
 func (o *serviceIssueOps) GetServiceIssue(ctx context.Context, meta appservice.RequestMeta, identity *servermodels.Identity, serviceSessionID string) (appservice.ServiceIssueDetail, error) {
 	detail, err := o.serviceIssue.Execute(ctx, identity, serviceSessionID)
-	if errors.Is(err, serviceissueaction.ErrNotFound) {
+	if errors.Is(err, knowledgegapaction.ErrIssueNotFound) {
 		return appservice.ServiceIssueDetail{}, appservice.NotFoundError(meta, i18n.ErrorServiceIssueNotFound)
 	}
 	if err != nil {
@@ -49,20 +49,20 @@ func serviceIssueError(meta appservice.RequestMeta, err error) error {
 }
 
 // serviceIssueList 把一页问题会话转换为传输结构，并批量生成发起人头像地址。
-func (o *serviceIssueOps) serviceIssueList(ctx context.Context, identity *servermodels.Identity, list *serviceissueaction.List) (appservice.ServiceIssueList, error) {
-	avatarFileIDs := arr.Map(list.Issues, func(issue serviceissueaction.Issue) *string { return issue.RequesterAvatarFileID })
+func (o *serviceIssueOps) serviceIssueList(ctx context.Context, identity *servermodels.Identity, list *knowledgegapaction.IssueList) (appservice.ServiceIssueList, error) {
+	avatarFileIDs := arr.Map(list.Issues, func(issue knowledgegapaction.Issue) *string { return issue.RequesterAvatarFileID })
 	avatarURLs, err := o.files.optionalFileURLs(ctx, identity, avatarFileIDs...)
 	if err != nil {
 		return appservice.ServiceIssueList{}, err
 	}
-	issues := arr.Map(list.Issues, func(issue serviceissueaction.Issue) appservice.ServiceIssue {
+	issues := arr.Map(list.Issues, func(issue knowledgegapaction.Issue) appservice.ServiceIssue {
 		return serviceIssueOutput(issue, avatarURLs)
 	})
 	return appservice.ServiceIssueList{Issues: issues, Page: appservice.PageInfo{Number: list.Page, Size: list.PageSize, Total: list.Total}}, nil
 }
 
 // serviceIssueOutput 把问题会话转换为传输结构，头像地址取自已批量生成的文件地址。
-func serviceIssueOutput(issue serviceissueaction.Issue, avatarURLs map[string]string) appservice.ServiceIssue {
+func serviceIssueOutput(issue knowledgegapaction.Issue, avatarURLs map[string]string) appservice.ServiceIssue {
 	return appservice.ServiceIssue{
 		ServiceSessionID: issue.ServiceSessionID, ConversationID: issue.ConversationID, OpeningMessageID: issue.OpeningMessageID,
 		ChannelType: (*appservice.ChannelType)(issue.ChannelType), ChannelName: issue.ChannelName,

@@ -114,7 +114,7 @@ func (s *serverActionsFixture) testMessageChannels(t *testing.T) {
 		downloaded: telegramintegration.DownloadedPhoto{ContentType: "image/jpeg", Data: []byte{0xff, 0xd8, 0xff}},
 	}
 	importedAvatarWriter := &importedFileWriterStub{}
-	telegramAvatarFiles := fileaction.NewImportAction(db, localStorage, importedAvatarWriter)
+	telegramAvatarFiles := fileaction.NewImportAction(db, importedAvatarWriter)
 	telegramAdapters := channeladapter.NewRegistry()
 	telegramAdapters.Register(domain.ChannelTypeTelegram, telegramaction.NewAdapter(db, nil, nil, telegramAvatarAPI))
 	telegramScheduler := agentrunaction.NewScheduler(testEnqueuer)
@@ -217,7 +217,6 @@ func (s *serverActionsFixture) testMessageChannels(t *testing.T) {
 	require.Equal(t, new("avatar-version-1"), telegramAvatarFilesInDatabase[0].ExternalID)
 	require.Equal(t, *telegramIdentity.AvatarFileID, telegramAvatarFilesInDatabase[1].ID)
 	require.Equal(t, string(domain.FileStatusActive), telegramAvatarFilesInDatabase[1].Status)
-	require.Equal(t, string(domain.FileStorageBackendLocal), telegramAvatarFilesInDatabase[1].StorageBackend)
 	require.Equal(t, "image/jpeg", telegramAvatarFilesInDatabase[1].ContentType)
 	require.Equal(t, new("avatar-version-2"), telegramAvatarFilesInDatabase[1].ExternalID)
 	require.Equal(t, 2, importedAvatarWriter.saved, "imported Telegram avatar writes")

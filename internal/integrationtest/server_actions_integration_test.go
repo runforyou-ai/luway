@@ -12,7 +12,6 @@ import (
 	"github.com/runforyou-ai/einorun"
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
-	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	inboxaction "github.com/runforyou-ai/luway/internal/actions/inbox"
 	installationaction "github.com/runforyou-ai/luway/internal/actions/installation"
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
@@ -22,6 +21,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
+	"github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/stretchr/testify/require"
 	"github.com/uptrace/bun"
@@ -83,7 +83,7 @@ type serverActionsFixture struct {
 	channel                *channelaction.MessageChannelRecord
 	telegramChannel        *channelaction.MessageChannelRecord
 	telegramConversationID string
-	team                   *teamaction.TeamRecord
+	team                   *teamaction.Record
 	memberRole             *servermodels.Role
 	createdMember          *useraction.User
 	resolvedAfterUpdate    *servermodels.Identity
@@ -282,7 +282,7 @@ func (s *importedFileWriterStub) Save(context.Context, *servermodels.File, []byt
 	return "telegram-avatar-etag", nil
 }
 
-var _ fileaction.ContentWriter = (*importedFileWriterStub)(nil)
+var _ filecontent.Writer = (*importedFileWriterStub)(nil)
 
 // testTrigger 是测试运行时中可认领的输入序号。
 type testTrigger struct {

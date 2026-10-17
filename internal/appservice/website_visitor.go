@@ -313,14 +313,14 @@ type WebsiteVisitorHelpSearchResult struct {
 	Articles []WebsiteVisitorHelpArticleSummary `json:"articles"`
 }
 
-// WebsiteVisitorBackend 定义网站 Messenger 公开接口的业务契约。
+// WebsiteVisitorBackend 定义网站 Messenger 公开接口的业务契约，以及 api 包手写调用的辅助方法。
 //
-// 每个方法必须携带一条 appservice:route 指令，格式为：
+// 对外 HTTP 方法携带一条 appservice:route 指令，格式为：
 //
 //	appservice:route <HTTP方法> <路径> [auth=public] [manual]
 //
 // appservicegen 按指令生成 net/http 路由与处理函数，路径相对服务端 /api。方法默认以访客身份调用，名为 externalID 的参数取自已授权访客的外部编号；
-// auth=public 的方法无需访客身份；manual 标记的方法由 api 包手写路由。
+// auth=public 的方法无需访客身份；manual 标记的方法由 api 包手写路由；无 route 指令的方法仅在本访客契约中跳过生成，供手写调用。
 type WebsiteVisitorBackend interface {
 	// GetVisitorRealtimeConnection 换取当前访客的短期实时凭据和精确私有频道。
 	//appservice:route GET /public/website-channels/{channelID}/realtime-connection
@@ -370,11 +370,6 @@ type WebsiteVisitorBackend interface {
 	// SearchHelpCenter 在网站渠道帮助中心检索访客输入的内容，返回相关文章。
 	//appservice:route GET /public/website-channels/{channelID}/help-center/search auth=public
 	SearchHelpCenter(ctx context.Context, meta WebsiteVisitorMeta, channelID string, input WebsiteVisitorHelpSearchInput) (WebsiteVisitorHelpSearchResult, error)
-}
-
-// WebsiteVisitorService 定义网站 Messenger HTTP 适配器使用的业务调用：公开接口契约与签名身份校验。
-type WebsiteVisitorService interface {
-	WebsiteVisitorBackend
-	// VerifyCustomer 按渠道所属企业的客户身份密钥校验签名身份。
+	// VerifyCustomer 按渠道所属企业的客户身份密钥校验签名身份；由 api 包手写调用，不生成 HTTP 路由。
 	VerifyCustomer(ctx context.Context, meta WebsiteVisitorMeta, channelID, token string) (WebsiteVisitorCustomer, error)
 }

@@ -16,6 +16,9 @@ import (
 // internalPrefix 是仓库内部包的导入路径前缀。
 const internalPrefix = "github.com/runforyou-ai/luway/internal/"
 
+// einorunModule 是 Agent 引擎与模型适配的外部模块路径。
+const einorunModule = "github.com/runforyou-ai/einorun"
+
 // dependencyRule 声明来源包允许或禁止依赖的内部包及其子包。
 type dependencyRule struct {
 	sources []string
@@ -26,11 +29,34 @@ type dependencyRule struct {
 // dependencyRules 是后端各层的依赖方向规则。
 var dependencyRules = []dependencyRule{
 	{sources: []string{"domain", "common"}, allowed: []string{"domain", "common"}},
+	{sources: []string{"apptypes"}, allowed: []string{"domain", "common", "apptypes"}},
 	{sources: []string{"agentcontract"}, allowed: []string{"domain", "common", "agentcontract"}},
 	{sources: []string{"integration", "agentruntime", "knowledgeretrieval"}, denied: []string{"actions", "storage", "appservice", "api", "httpcodec", "native", "task", "realtime"}},
 	{sources: []string{"storage"}, denied: []string{"actions", "appservice", "api", "httpcodec", "native"}},
 	{sources: []string{"actions"}, denied: []string{"appservice", "api", "httpcodec", "native"}},
-	{sources: []string{"actions/serverinstance", "actions/serverlog"}, denied: []string{"actions"}},
+	{sources: []string{"actions/serverinstance"}, denied: []string{"actions"}},
+}
+
+// einorunDeniedSources 禁止依赖 einorun 及其子包（含 llm、stream、provider）。
+var einorunDeniedSources = []string{
+	"agentcontract",
+	"appservice",
+	"api",
+	"actions/agentprocess/processquery",
+}
+
+// einorunStreamOnlySources 只允许依赖 einorun/stream（实时投影 Apply/Merge）。
+var einorunStreamOnlySources = []string{"realtime"}
+
+// einorunAllowedSources 允许依赖 einorun 任意子路径：Agent 适配、Feed/Journal 宿主、模型 provider 栈及轻量 llm 工具。
+var einorunAllowedSources = []string{
+	"agentruntime",
+	"actions/agentrun",
+	"actions/agentprocess",
+	"actions/modelcall",
+	"actions/aiprovider",
+	"actions/agentevaluation",
+	"actions/servicesummary",
 }
 
 // listedPackage 接收 go list 输出的包路径及直接生产依赖。
@@ -91,9 +117,47 @@ func checkDependencies(input io.Reader) ([]string, error) {
 				}
 			}
 		}
+		violations = append(violations, checkEinorunImports(pkg)...)
 	}
 	slices.Sort(violations)
 	return slices.Compact(violations), nil
+}
+
+// checkEinorunImports 校验生产包对 einorun 的引用是否落在允许名单内。
+func checkEinorunImports(pkg listedPackage) []string {
+	if !strings.HasPrefix(pkg.ImportPath, internalPrefix) {
+		return nil
+	}
+	var violations []string
+	for _, dependency := range pkg.Imports {
+		if !isEinorunImport(dependency) {
+			continue
+		}
+		switch {
+		case matchesPackage(pkg.ImportPath, einorunDeniedSources):
+			violations = append(violations, pkg.ImportPath+" → "+dependency)
+		case matchesPackage(pkg.ImportPath, einorunStreamOnlySources):
+			if !isEinorunStream(dependency) {
+				violations = append(violations, pkg.ImportPath+" → "+dependency)
+			}
+		case matchesPackage(pkg.ImportPath, einorunAllowedSources):
+			// 允许任意 einorun 子路径。
+		default:
+			violations = append(violations, pkg.ImportPath+" → "+dependency)
+		}
+	}
+	return violations
+}
+
+// isEinorunImport 判断导入是否属于 einorun 模块。
+func isEinorunImport(path string) bool {
+	return path == einorunModule || strings.HasPrefix(path, einorunModule+"/")
+}
+
+// isEinorunStream 判断导入是否为 einorun/stream 或其子路径。
+func isEinorunStream(path string) bool {
+	const stream = einorunModule + "/stream"
+	return path == stream || strings.HasPrefix(path, stream+"/")
 }
 
 // matchesPackage 判断内部包路径是否属于给定包或其子包。

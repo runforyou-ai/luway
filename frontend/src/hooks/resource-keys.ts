@@ -44,8 +44,10 @@ const deploymentKeys = {
 
 /** 账号级数据：属于登录账号，与当前工作区无关，包括平台管理。 */
 const accountKeys = {
-  /** 当前登录账号。 */
+  /** 当前用户端登录账号。 */
   account: () => ["account"],
+  /** 当前平台后台登录账号。 */
+  adminAccount: () => ["admin-account"],
   /** 当前账号可进入的工作区。 */
   workspaces: () => ["workspaces"],
   /** 当前账号在各工作区的提醒数量。 */
@@ -56,9 +58,9 @@ const accountKeys = {
   license: () => ["license"],
   /** 微信第三方平台配置与平台凭据状态。 */
   wechatPlatform: () => ["wechat-platform"],
-  /** 平台注册策略、工作区创建策略、平台时区和运行指标上报开关。 */
-  platformSettings: () => ["platform-settings"],
-  /** 部署名称、部署地址、对象存储、邮件发送与部署品牌。 */
+  /** 站点设置：部署名称、时区、注册与创建、地址与证书、品牌。 */
+  platformSite: () => ["platform-site"],
+  /** 对象存储与邮件发送。 */
   platformDeployment: () => ["platform-deployment"],
   /** 平台账号列表，可带筛选分页参数。 */
   platformAccounts: (parameters?: KeyParameters) => listKey("platform-accounts", parameters),
@@ -72,9 +74,6 @@ const accountKeys = {
   platformRuntime: () => ["platform-runtime"],
   /** 平台失败任务列表，可带分页参数。 */
   platformFailedTasks: (parameters?: KeyParameters) => listKey("platform-failed-tasks", parameters),
-  /** 平台服务端日志列表，可带筛选参数。 */
-  platformServerLogs: (parameters?: KeyParameters) => listKey("platform-server-logs", parameters),
-
 }
 
 /** 工作区数据：属于当前请求的目标工作区。 */
@@ -209,19 +208,22 @@ const workspaceKeys = {
   currentComputer: () => ["current-computer"],
   localEnvironment: () => ["local-environment"],
   /** 当前企业的客服工作时间。 */
-  businessHours: () => ["business-hours"],
+  businessHours: (audience: string) => ["business-hours", audience],
   /** 当前企业的客服超时时长。 */
-  serviceTimeouts: () => ["service-timeouts"],
+  agentEvaluationSettings: () => ["agent-evaluation-settings"],
+  serviceTimeouts: (audience: string) => ["service-timeouts", audience],
   /** 当前企业的会话小结设置。 */
-  serviceSummarySettings: () => ["service-summary-settings"],
+  serviceSummarySettings: (audience: string) => ["service-summary-settings", audience],
   /** 企业翻译设置。 */
   translationSettings: () => ["translation-settings"],
+  mediaUnderstandingSettings: () => ["media-understanding-settings"],
   /** 企业联网搜索设置。 */
   webSearchSettings: () => ["web-search-settings"],
+  webFetchSettings: () => ["web-fetch-settings"],
   /** 当前企业的客户身份密钥。 */
   customerIdentitySecret: () => ["customer-identity-secret"],
   /** 当前企业的咨询分类目录。 */
-  serviceCategories: () => ["service-categories"],
+  serviceCategories: (audience?: string) => itemKey("service-categories", audience),
   /** 企业联系人字段定义。 */
   contactFields: () => ["contact-fields"],
   /** 企业联系人标签定义。 */

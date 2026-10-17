@@ -9,7 +9,6 @@ import (
 	"fmt"
 
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
-	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support/str"
@@ -35,12 +34,13 @@ type ToolCallProcess struct {
 
 // ToolCallProcessQuery 读取电脑执行的工具调用的过程更新。
 type ToolCallProcessQuery struct {
-	db *bun.DB
+	db    *bun.DB
+	guard ConversationGuard
 }
 
-// NewToolCallProcessQuery 创建工具调用过程查询。
-func NewToolCallProcessQuery(db *bun.DB) *ToolCallProcessQuery {
-	return &ToolCallProcessQuery{db: db}
+// NewToolCallProcessQuery 创建工具调用过程查询；guard 在事务内复核会话阅读资格。
+func NewToolCallProcessQuery(db *bun.DB, guard ConversationGuard) *ToolCallProcessQuery {
+	return &ToolCallProcessQuery{db: db, guard: guard}
 }
 
 // Execute 校验调用所属会话的阅读资格后返回调用的状态与序号不小于 fromSeq 的过程更新，最多返回 maxToolCallUpdates 条。
@@ -68,7 +68,7 @@ func (q *ToolCallProcessQuery) Execute(ctx context.Context, identity *servermode
 			return fmt.Errorf("load agent tool call: %w", err)
 		}
 		// 会话不可读与调用不存在对外是同一结果。
-		if err := conversationaccess.RequireReadable(ctx, tx, identity, call.ConversationID); err != nil {
+		if err := q.guard.RequireReadable(ctx, tx, identity, call.ConversationID); err != nil {
 			if errors.Is(err, chatstate.ErrConversationNotFound) {
 				return ErrToolCallProcessUnavailable
 			}

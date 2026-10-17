@@ -90,7 +90,7 @@ func TestRealtimeConversationTyping(t *testing.T) {
 	require.Equal(t, protocol.ConversationTyping{ConversationID: direct.Conversation.ID, SenderSubjectID: f.subjectID, Active: true}, ownerOther.nextTyping())
 
 	// 退出群聊后无法上报，也不再收到该群的输入状态。
-	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.member, f.groupID))
+	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.member, f.groupID))
 	var applicationError *appservice.Error
 	require.ErrorAs(t, report(memberToken, f.groupID, true), &applicationError, "left member report")
 	require.Equal(t, http.StatusNotFound, applicationError.HTTPStatus(), "left member report")

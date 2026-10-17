@@ -121,7 +121,7 @@ func TestWebsiteClientMessageAssociation(t *testing.T) {
 	t.Parallel()
 	f := newCustomerReadFixture(t)
 	ctx := context.Background()
-	visitor := direct.NewWebsiteVisitorBackend(f.db, agentrunaction.NewScheduler(testEnqueuer), testEnqueuer, nil, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
+	visitor := direct.NewWebsiteVisitorBackend(f.db, agentrunaction.NewScheduler(testEnqueuer), testEnqueuer, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
 	const visitorA = "web-session:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	const visitorB = "web-session:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 	clientID := uuid.NewV7().String()
@@ -184,7 +184,7 @@ func TestWebsiteClientMessageAssociation(t *testing.T) {
 // assertClientAssociationHTTP 验证登录会话之间的公开响应隔离且不泄露内部幂等键。
 func assertClientAssociationHTTP(t *testing.T, f navigationFixture, conversationID, visitorMessageID, memberMessageID, clientID string) {
 	t.Helper()
-	service := api.NewService(direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil))
+	service := api.NewService(direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil))
 	// 两次独立登录验证本人关联不绑定某个登录令牌。
 	ownerEmail := f.owner.Account.Email
 	for _, email := range []string{ownerEmail, ownerEmail, f.member.Account.Email} {

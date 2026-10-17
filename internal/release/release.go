@@ -1,11 +1,8 @@
-// Package release 定义发布清单：一个版本的各平台服务端压缩包、客户端安装包、桌面端更新包与无界面执行器及其大小和摘要，清单以品牌私钥签名。
+// Package release 定义发布清单：一个版本的各平台服务端压缩包、客户端安装包、桌面端更新包与无界面执行器及其大小和摘要。
 package release
 
 import (
-	"crypto/ed25519"
-	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -16,12 +13,8 @@ import (
 	"github.com/runforyou-ai/support/set"
 )
 
-const (
-	// ManifestName 是发布清单的文件名。
-	ManifestName = "release.json"
-	// SignatureName 是发布清单签名的文件名，内容是对清单原文的 Ed25519 签名，取标准 Base64 编码。
-	SignatureName = "release.json.sig"
-)
+// ManifestName 是发布清单的文件名。
+const ManifestName = "release.json"
 
 // 发布文件的操作系统。
 const (
@@ -91,8 +84,6 @@ type Update struct {
 	// Arch 是更新包的处理器架构：amd64、arm64 或 universal。
 	Arch string `json:"arch"`
 	File
-	// Signature 是对客户端版本与更新包 SHA-512 摘要的 Ed25519 签名，取标准 Base64 编码，供桌面端更新器校验。
-	Signature string `json:"signature"`
 }
 
 // Executor 是一个无界面执行器压缩包，内含单个静态程序：Windows 为 zip，其余系统为 tar.gz。
@@ -113,17 +104,8 @@ func (m Manifest) ClientFiles() []File {
 	)
 }
 
-// Sign 返回清单原文 data 的签名文件内容。
-func Sign(key ed25519.PrivateKey, data []byte) []byte {
-	return []byte(base64.StdEncoding.EncodeToString(ed25519.Sign(key, data)) + "\n")
-}
-
-// Parse 用 key 校验清单原文 data 的签名 signature，再解析清单并校验文件名。
-func Parse(data, signature []byte, key ed25519.PublicKey) (Manifest, error) {
-	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(signature)))
-	if err != nil || len(key) != ed25519.PublicKeySize || !ed25519.Verify(key, data, decoded) {
-		return Manifest{}, errors.New("发布清单签名无效")
-	}
+// Parse 解析清单原文 data 并校验版本与文件名。
+func Parse(data []byte) (Manifest, error) {
 	var manifest Manifest
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		return Manifest{}, fmt.Errorf("解析发布清单: %w", err)
@@ -134,7 +116,7 @@ func Parse(data, signature []byte, key ed25519.PublicKey) (Manifest, error) {
 	var names set.Set[string]
 	for _, file := range append(manifest.ClientFiles(), arr.Map(manifest.Servers, func(server Server) File { return server.File })...) {
 		// 文件名只能是单层文件名，且在清单中唯一。
-		if file.Name == "" || filepath.Base(file.Name) != file.Name || strings.ContainsAny(file.Name, `/\`) || strings.HasPrefix(file.Name, ".") || file.Name == ManifestName || file.Name == SignatureName {
+		if file.Name == "" || filepath.Base(file.Name) != file.Name || strings.ContainsAny(file.Name, `/\`) || strings.HasPrefix(file.Name, ".") || file.Name == ManifestName {
 			return Manifest{}, fmt.Errorf("发布清单中的文件名无效: %q", file.Name)
 		}
 		if !names.Add(file.Name) {
@@ -144,16 +126,11 @@ func Parse(data, signature []byte, key ed25519.PublicKey) (Manifest, error) {
 	return manifest, nil
 }
 
-// ReadDir 读取并校验 directory 中的发布清单与签名，清单不存在时返回的错误匹配 fs.ErrNotExist。
-func ReadDir(directory string, key ed25519.PublicKey) (Manifest, error) {
+// ReadDir 读取并校验 directory 中的发布清单，清单不存在时返回的错误匹配 fs.ErrNotExist。
+func ReadDir(directory string) (Manifest, error) {
 	data, err := os.ReadFile(filepath.Join(directory, ManifestName))
 	if err != nil {
 		return Manifest{}, fmt.Errorf("读取发布清单: %w", err)
 	}
-	signature, err := os.ReadFile(filepath.Join(directory, SignatureName))
-	// 清单存在而签名缺失时视为签名无效，错误不匹配 fs.ErrNotExist。
-	if err != nil {
-		return Manifest{}, fmt.Errorf("读取发布清单签名: %v", err)
-	}
-	return Parse(data, signature, key)
+	return Parse(data)
 }

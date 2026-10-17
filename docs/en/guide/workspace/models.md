@@ -15,4 +15,4 @@ Each feature's model selector shows names and sources of models available to the
 
 ## Model types
 
-Chat models serve AI employees, summaries and translation; decision models answer classification questions; embedding and rerank models support knowledge indexing and retrieval. Each setting lists models suitable for its purpose. Remove business references before deleting an in-use model.
+Chat models serve AI employees, summaries and translation, and can also power media-understanding OCR (must accept images) and speech transcription (must accept audio). Decision models answer classification questions; embedding and rerank models support knowledge indexing and retrieval. Chat models may also declare file input for providers that accept PDFs and similar files natively. Each setting lists models suitable for its purpose. Remove business references before deleting an in-use model.

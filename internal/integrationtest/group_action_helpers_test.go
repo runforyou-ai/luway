@@ -19,7 +19,7 @@ func newGroupSendAction(db *bun.DB) *groupchataction.SendGroupTextMessageAction 
 	return groupchataction.NewSendGroupTextMessageAction(db, testEnqueuer, agentrunaction.NewScheduler(newGroupAgentTasks(db)))
 }
 
-// newGroupAgentCoordinator 创建群成员变化事务使用的 Agent 执行收敛器。
-func newGroupAgentCoordinator(db *bun.DB) *testAgentRun {
+// newGroupAgentCanceller 创建群成员变化事务使用的 Agent 执行收敛器。
+func newGroupAgentCanceller(db *bun.DB) *testAgentRun {
 	return newTestAgentRun(db, newGroupAgentTasks(db), nil, testModelInvoker(db), testAttachmentReader(db), nil, servertest.DisabledMail{}, nil, nil)
 }

@@ -4,6 +4,13 @@ import "context"
 
 // AgentEvaluationBackend 定义 AI 员工评测与评测用例的业务调用。
 type AgentEvaluationBackend interface {
+	// GetAgentEvaluationSettings 读取工作区 AI 评测设置。
+	//appservice:route GET /settings/ai-evaluation perm=ai_employees.manage
+	GetAgentEvaluationSettings(context.Context, RequestMeta) (AgentEvaluationSettings, error)
+	// UpdateAgentEvaluationSettings 修改工作区 AI 评测设置。
+	//appservice:route PUT /settings/ai-evaluation perm=ai_employees.manage
+	UpdateAgentEvaluationSettings(context.Context, RequestMeta, AgentEvaluationSettings) (AgentEvaluationSettings, error)
+
 	// GetAgentEvaluation 返回 AI 员工评测页的最近两次运行与全部用例。
 	//appservice:route GET /agents/{agentID:uuid}/evaluation perm=ai_employees.manage
 	GetAgentEvaluation(context.Context, RequestMeta, string) (AgentEvaluation, error)

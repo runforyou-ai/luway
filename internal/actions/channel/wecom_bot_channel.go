@@ -10,7 +10,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentcancel"
+	"github.com/runforyou-ai/luway/internal/actions/agentrun"
 	"github.com/runforyou-ai/luway/internal/actions/channeladapter"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
@@ -126,7 +126,7 @@ func (a *SaveWeComBotConnectionAction) Execute(ctx context.Context, identity *se
 			return ErrWeComBotInUse
 		}
 		if channel.ProviderAccountID != nil && *channel.ProviderAccountID != input.BotID {
-			if cancelledRuns, err = agentcancel.CancelChannelRuns(ctx, tx, workspaceID, channelID, domain.AgentRunErrorCodeAccountChanged); err != nil {
+			if cancelledRuns, err = agentrun.CancelChannelRuns(ctx, tx, workspaceID, channelID, domain.AgentRunErrorCodeAccountChanged); err != nil {
 				return err
 			}
 			if _, err := tx.ExecContext(ctx, "UPDATE channel_message_deliveries SET status = 'failed', last_error = 'account_changed' WHERE channel_id = ? AND workspace_id = ? AND status IN ('pending', 'retry_wait')", channelID, workspaceID); err != nil {

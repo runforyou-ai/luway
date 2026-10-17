@@ -15,6 +15,7 @@ import (
 	"github.com/runforyou-ai/support/arr"
 	"github.com/runforyou-ai/support/set"
 	"github.com/uptrace/bun"
+	"github.com/uptrace/bun/dialect/pgdialect"
 )
 
 const (
@@ -55,32 +56,32 @@ func attemptOrder(routes []aimodel.Route, tripped set.Set[string]) []aimodel.Rou
 	return append(healthy, arr.Filter(order, func(route aimodel.Route) bool { return tripped.Has(route.ID) })...)
 }
 
-// trippedRoutes 返回熔断中的来源：按结束时间最近的 breakerFailures 次已结束的上游尝试全部失败或上游超时，且最近一次在 breakerCooldown 内结束；
-// 调用方取消、时限到期与进程中断的尝试记为已取消，不计入。冷却结束后来源重新按权重参与，再次失败即重新熔断。
+// trippedRoutes 返回熔断中的来源：按结束时间最近的 breakerFailures 次已结束的上游尝试全部失败或上游超时，且最近一次在 breakerCooldown 内结束。
+// 来源编号可以是工作区 ai_model_routes.id 或 Auto 池成员 id，只按 attempt.route_id 统计，不依赖路由表。
 func trippedRoutes(ctx context.Context, db bun.IDB, routes []aimodel.Route) set.Set[string] {
 	var ids []string
-	if len(routes) > 1 {
-		err := db.NewSelect().TableExpr("ai_model_routes AS amr").
-			ColumnExpr("amr.id::text").
-			Join(`JOIN LATERAL (
-				SELECT count(*) FILTER (WHERE recent.status <> ?) AS failed, max(recent.finished_at) AS last_finished_at
-				FROM (
-					SELECT a.status, a.finished_at FROM ai_model_call_attempts AS a
-					WHERE a.route_id = amr.id AND a.status IN (?)
-					ORDER BY a.finished_at DESC, a.id DESC
-					LIMIT ?
-				) AS recent
-			) AS health ON true`,
-				domain.AIModelCallStatusSucceeded,
-				bun.List([]domain.AIModelCallStatus{domain.AIModelCallStatusSucceeded, domain.AIModelCallStatusFailed, domain.AIModelCallStatusTimedOut}),
-				breakerFailures).
-			Where("amr.id IN (?)", bun.List(arr.Map(routes, func(route aimodel.Route) string { return route.ID }))).
-			Where("health.failed = ? AND health.last_finished_at > now() - make_interval(secs => ?)", breakerFailures, breakerCooldown.Seconds()).
-			Scan(ctx, &ids)
-		// 读取失败时按未熔断处理，调用仍按权重顺序尝试全部来源。
-		if err != nil {
-			slog.WarnContext(ctx, "读取模型来源熔断状态失败", "error", err)
-		}
+	if len(routes) <= 1 {
+		return set.Collect(ids)
+	}
+	routeIDs := arr.Map(routes, func(route aimodel.Route) string { return route.ID })
+	err := db.NewSelect().TableExpr("unnest(?::uuid[]) AS candidate(route_id)", pgdialect.Array(routeIDs)).
+		ColumnExpr("candidate.route_id::text").
+		Join(`JOIN LATERAL (
+			SELECT count(*) FILTER (WHERE recent.status <> ?) AS failed, max(recent.finished_at) AS last_finished_at
+			FROM (
+				SELECT a.status, a.finished_at FROM ai_model_call_attempts AS a
+				WHERE a.route_id = candidate.route_id AND a.status IN (?)
+				ORDER BY a.finished_at DESC, a.id DESC
+				LIMIT ?
+			) AS recent
+		) AS health ON true`,
+			domain.AIModelCallStatusSucceeded,
+			bun.List([]domain.AIModelCallStatus{domain.AIModelCallStatusSucceeded, domain.AIModelCallStatusFailed, domain.AIModelCallStatusTimedOut}),
+			breakerFailures).
+		Where("health.failed = ? AND health.last_finished_at > now() - make_interval(secs => ?)", breakerFailures, breakerCooldown.Seconds()).
+		Scan(ctx, &ids)
+	if err != nil {
+		slog.WarnContext(ctx, "读取模型来源熔断状态失败", "error", err)
 	}
 	return set.Collect(ids)
 }

@@ -5,19 +5,17 @@ package direct
 import (
 	"context"
 	"errors"
-	"mime"
 
 	computeraction "github.com/runforyou-ai/luway/internal/actions/computer"
-	conversationfileaction "github.com/runforyou-ai/luway/internal/actions/conversationfile"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
-	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/i18n"
-	serverfilecontent "github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 )
 
-// ListComputerSharedFiles 返回本电脑执行中的操作所属会话共享文件区的文件清单：本地存储给出服务端相对的内容地址，对象存储给出预签名下载地址。
+// ListComputerSharedFiles 返回本电脑执行中的操作所属会话共享文件区的文件清单：文件使用稳定的公开访问地址。
 func (o *fileOps) ListComputerSharedFiles(ctx context.Context, meta appservice.RequestMeta, computer computeraction.Identity, operationID string) (appservice.ComputerSharedFileList, error) {
 	files, err := o.computerSharedFiles.List(ctx, computer, operationID)
 	if err != nil {
@@ -25,12 +23,8 @@ func (o *fileOps) ListComputerSharedFiles(ctx context.Context, meta appservice.R
 	}
 	output := appservice.ComputerSharedFileList{Files: make([]appservice.ComputerSharedFile, 0, len(files))}
 	for _, file := range files {
-		url, err := o.links.URL(domain.FileStorageBackend(file.Content.StorageBackend), file.Content.StorageKey)
-		if err == nil && file.Content.StorageBackend == string(domain.FileStorageBackendS3) {
-			var signed serverfilecontent.SignedRequest
-			signed, err = serverfilecontent.PresignDownload(ctx, o.s3(), file.Content.StorageKey, mime.FormatMediaType("attachment", map[string]string{"filename": file.Content.OriginalName}))
-			url = signed.URL
-		}
+		url, err := o.links.URL(file.Content.StorageKey)
+
 		if err != nil {
 			return appservice.ComputerSharedFileList{}, computerRequestError(meta, err)
 		}
@@ -39,19 +33,15 @@ func (o *fileOps) ListComputerSharedFiles(ctx context.Context, meta appservice.R
 	return output, nil
 }
 
-// CreateComputerSharedUpload 为写回会话共享文件区中的一个文件创建整体上传：本地存储以电脑凭据写入服务端，对象存储使用预签名请求直传。
+// CreateComputerSharedUpload 为写回会话共享文件区中的一个文件创建整体上传：使用 S3 预签名请求直传。
 func (o *fileOps) CreateComputerSharedUpload(ctx context.Context, meta appservice.RequestMeta, computer computeraction.Identity, operationID string, input appservice.ComputerSharedUploadInput) (appservice.ComputerSharedUpload, error) {
-	record, err := o.computerSharedFiles.CreateUpload(ctx, computer, operationID, o.s3().Backend(), computeraction.SharedUploadInput{
+	record, err := o.computerSharedFiles.CreateUpload(ctx, computer, operationID, computeraction.SharedUploadInput{
 		Path: input.Path, ContentType: input.ContentType, ByteSize: input.ByteSize,
 	})
 	if err != nil {
 		return appservice.ComputerSharedUpload{}, computerSharedError(meta, err)
 	}
-	contentURL, err := o.links.URL(domain.FileStorageBackend(record.StorageBackend), record.StorageKey)
-	if err != nil {
-		return appservice.ComputerSharedUpload{}, computerRequestError(meta, err)
-	}
-	request, err := o.fileUploadRequest(ctx, meta, record, contentURL)
+	request, err := o.fileUploadRequest(ctx, record)
 	if err != nil {
 		return appservice.ComputerSharedUpload{}, computerRequestError(meta, err)
 	}
@@ -72,12 +62,12 @@ func (o *fileOps) CommitComputerSharedFile(ctx context.Context, meta appservice.
 // computerSharedErrors 是电脑同步会话共享文件区的错误转换规则。
 var computerSharedErrors = dispatch.Catalog{
 	dispatch.Is(computeraction.ErrSyncUnavailable, dispatch.Conflict(i18n.ErrorComputerRequestFailed, "shared_sync_unavailable")),
-	dispatch.Is(conversationfileaction.ErrInvalidPath, dispatch.Invalid(i18n.ErrorConversationFileNameInvalid)),
+	dispatch.Is(conversationaction.ErrInvalidPath, dispatch.Invalid(i18n.ErrorConversationFileNameInvalid)),
 	dispatch.Is(fileaction.ErrFileNotFound, dispatch.NotFound(i18n.ErrorFileNotFound)),
-	dispatch.Is(conversationfileaction.ErrNotFound, dispatch.NotFound(i18n.ErrorFileNotFound)),
+	dispatch.Is(conversationaction.ErrFileNotFound, dispatch.NotFound(i18n.ErrorFileNotFound)),
 	// 文件内容校验失败时返回不带字段的校验失败。
 	func(meta appservice.RequestMeta, err error) error {
-		if _, ok := errors.AsType[*fileaction.ValidationError](err); ok {
+		if _, ok := errors.AsType[*common.FieldError](err); ok {
 			return appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
 		}
 		return nil

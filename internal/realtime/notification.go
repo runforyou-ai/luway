@@ -1,10 +1,12 @@
 //go:build server
 
 // Package realtime 在写事务内登记受众通知并在提交后向成员实时服务或消息总线广播，同时经消息总线在服务端实例之间转发 Agent 运行流。
+// 权限撤销、会话失权与用户通知经 outbox 至少一次投递；其余瞬时提示只在提交后投递，不保证崩溃窗口内补发。
 package realtime
 
 import (
 	"context"
+	"uuid"
 
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -69,6 +71,7 @@ const (
 
 // Notification 表示发往单个受众的变更通知、输入状态、用户通知或撤销控制，载荷含通知种类、会话 ID、会话类型、版本、会话变化类别、登录会话 ID、输入状态、用户通知内容、AI 员工 ID 与渠道 ID，零值字段省略。
 type Notification struct {
+	ID               string
 	WorkspaceID      string
 	AudienceKind     AudienceKind
 	AudienceID       string
@@ -242,16 +245,38 @@ type batch struct {
 	items map[mergeKey]Notification
 }
 
-// RunInTx 经 serverstorage.RunInTx 执行写事务，事务内通过 Notify 登记的通知合并为一批，作为一个提交后回调交给发布器，唤醒信号另外直接送达本进程订阅，回滚则丢弃；
+// Persistent 表示通知须经 outbox 至少一次送达（提交后进程退出也不能丢）：权限撤销、会话失权与用户通知。
+// 会话变更、输入状态、电脑唤醒、Agent 信号与报表刷新等瞬时提示只在 AfterCommit 投递，崩溃窗口可丢，客户端靠 HTTP 快照或电脑领取轮询对齐。
+func (n Notification) Persistent() bool {
+	return IsAuthorizationChange(n.Kind) || n.Kind == KindConversationRemoved || n.Kind == KindUserNotification
+}
+
+// RunInTx 经 serverstorage.RunInTx 执行写事务，事务内通过 Notify 登记的通知合并为一批；Persistent 通知写入 outbox，其余在提交后交给发布器，唤醒信号另外直接送达本进程订阅，回滚则丢弃；
 // db 为 bun.Tx 时按 serverstorage.RunInTx 的保存点规则加入外层事务，通知随外层事务提交发布。
 func RunInTx(ctx context.Context, db bun.IDB, fn func(context.Context, bun.Tx) error) error {
 	return serverstorage.RunInTx(ctx, db, func(ctx context.Context, tx bun.Tx) error {
 		pending := &batch{items: map[mergeKey]Notification{}}
-		serverstorage.AfterCommit(ctx, func(context.Context) error {
-			deliver(pending.notifications())
-			return nil
-		})
-		return fn(context.WithValue(ctx, batchKey{}, pending), tx)
+		if err := fn(context.WithValue(ctx, batchKey{}, pending), tx); err != nil {
+			return err
+		}
+		var durable, ephemeral []Notification
+		for _, n := range pending.notifications() {
+			if n.Persistent() {
+				if n.ID == "" {
+					n.ID = uuid.NewV7().String()
+				}
+				durable = append(durable, n)
+			} else {
+				ephemeral = append(ephemeral, n)
+			}
+		}
+		if len(durable) > 0 {
+			if _, err := serverstorage.PutOutbox(ctx, "realtime", durable); err != nil {
+				return err
+			}
+		}
+		serverstorage.AfterCommit(ctx, func(context.Context) error { deliver(ephemeral); return nil })
+		return nil
 	})
 }
 

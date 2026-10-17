@@ -18,7 +18,7 @@ import (
 )
 
 // removeGroupPersonalAgents 在调用方已锁定的群聊中移出指定负责人仍在群内的个人 AI 员工，收敛其运行并取消其在群内等待确认或审批的操作，返回被移出 AI 员工的快照。
-func removeGroupPersonalAgents(ctx context.Context, tx bun.Tx, enqueuer servertask.TxEnqueuer, coordinator GroupAgentRunCoordinator, workspaceID, conversationID, responsibleUserID string) ([]conversationaction.ConversationSystemEventParticipant, error) {
+func removeGroupPersonalAgents(ctx context.Context, tx bun.Tx, enqueuer servertask.TxEnqueuer, canceller GroupAgentRunCanceller, workspaceID, conversationID, responsibleUserID string) ([]conversationaction.ConversationSystemEventParticipant, error) {
 	rows := make([]activeGroupParticipantRow, 0)
 	if err := tx.NewSelect().TableExpr("conversation_participants AS cp").
 		ColumnExpr("cp.id AS participant_id, oi.id AS identity_id, oi.display_name, cp.role").
@@ -38,7 +38,7 @@ func removeGroupPersonalAgents(ctx context.Context, tx bun.Tx, enqueuer serverta
 		if err := leaveGroupParticipant(ctx, tx, workspaceID, row.ParticipantID); err != nil {
 			return nil, err
 		}
-		if err := coordinator.CancelForGroupAgent(ctx, tx, workspaceID, conversationID, row.IdentityID); err != nil {
+		if err := canceller.CancelForGroupAgent(ctx, tx, workspaceID, conversationID, row.IdentityID); err != nil {
 			return nil, err
 		}
 		if err := agentprocess.CancelConversationParticipantToolDecisions(ctx, tx, enqueuer, workspaceID, conversationID, row.IdentityID); err != nil {
@@ -82,13 +82,13 @@ func ensurePersonalAgentsReachable(ctx context.Context, db bun.IDB, workspaceID 
 
 // PersonalAgentRetirer 在停用成员的事务中停用其负责的个人 AI 员工并移出所有群聊。
 type PersonalAgentRetirer struct {
-	enqueuer    servertask.TxEnqueuer
-	coordinator GroupAgentRunCoordinator
+	enqueuer  servertask.TxEnqueuer
+	canceller GroupAgentRunCanceller
 }
 
 // NewPersonalAgentRetirer 创建成员负责的个人 AI 员工的停用处理。
-func NewPersonalAgentRetirer(enqueuer servertask.TxEnqueuer, coordinator GroupAgentRunCoordinator) *PersonalAgentRetirer {
-	return &PersonalAgentRetirer{enqueuer: enqueuer, coordinator: coordinator}
+func NewPersonalAgentRetirer(enqueuer servertask.TxEnqueuer, canceller GroupAgentRunCanceller) *PersonalAgentRetirer {
+	return &PersonalAgentRetirer{enqueuer: enqueuer, canceller: canceller}
 }
 
 // RetirePersonalAgents 停用指定成员负责的全部个人 AI 员工，取消它们等待确认或审批的操作，并以操作人名义把它们移出所在的活跃群聊。
@@ -133,7 +133,7 @@ func (r *PersonalAgentRetirer) RetirePersonalAgents(ctx context.Context, tx bun.
 		if err != nil {
 			return err
 		}
-		removed, err := removeGroupPersonalAgents(ctx, tx, r.enqueuer, r.coordinator, workspaceID, conversationID, responsibleUserID)
+		removed, err := removeGroupPersonalAgents(ctx, tx, r.enqueuer, r.canceller, workspaceID, conversationID, responsibleUserID)
 		if err != nil {
 			return err
 		}

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"log/slog"
 	"mime"
-	"net/url"
 
 	directchataction "github.com/runforyou-ai/luway/internal/actions/directchat"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
@@ -58,31 +57,19 @@ func (o *conversationOps) GetAttachmentDownload(ctx context.Context, meta appser
 	return o.files.fileDownload(ctx, meta, record)
 }
 
-// fileDownload 按文件实际存储位置创建带原始文件名的下载请求，可内嵌展示的图片同时返回预览地址。
+// fileDownload 按用户本次下载请求签发带原文件名的地址，图片预览保留稳定访问地址。
 func (o *fileOps) fileDownload(ctx context.Context, meta appservice.RequestMeta, record *servermodels.File) (appservice.FileDownload, error) {
-	_, inline := domain.InlineImageExtension(record.ContentType)
-	if record.StorageBackend == string(domain.FileStorageBackendLocal) {
-		contentURL, err := o.links.URL(domain.FileStorageBackendLocal, record.StorageKey)
-		if err != nil {
-			return appservice.FileDownload{}, fileOperationError(meta, err, i18n.ErrorFileNotFound)
-		}
-		download := appservice.FileDownload{URL: contentURL + "?download=" + url.QueryEscape(record.OriginalName)}
-		if inline {
-			download.PreviewURL = contentURL
-		}
-		return download, nil
-	}
-	request, err := serverfilecontent.PresignDownload(ctx, o.s3(), record.StorageKey, mime.FormatMediaType("attachment", map[string]string{"filename": record.OriginalName}))
+	link, err := o.links.URL(record.StorageKey)
 	if err != nil {
 		return appservice.FileDownload{}, fileOperationError(meta, err, i18n.ErrorFileNotFound)
 	}
-	download := appservice.FileDownload{URL: request.URL}
-	if inline {
-		preview, err := serverfilecontent.PresignDownload(ctx, o.s3(), record.StorageKey, "inline")
-		if err != nil {
-			return appservice.FileDownload{}, fileOperationError(meta, err, i18n.ErrorFileNotFound)
-		}
-		download.PreviewURL = preview.URL
+	signed, err := serverfilecontent.PresignDownload(ctx, o.s3(), record.StorageKey, mime.FormatMediaType("attachment", map[string]string{"filename": record.OriginalName}))
+	if err != nil {
+		return appservice.FileDownload{}, fileOperationError(meta, err, i18n.ErrorFileNotFound)
 	}
-	return download, nil
+	result := appservice.FileDownload{URL: signed.URL}
+	if _, inline := domain.InlineImageExtension(record.ContentType); inline {
+		result.PreviewURL = link
+	}
+	return result, nil
 }

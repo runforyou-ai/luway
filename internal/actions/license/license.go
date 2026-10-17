@@ -1,6 +1,6 @@
 //go:build server
 
-// Package license 实现授权的激活、保存与生效能力读取，以及与 control 的服务器登记、授权同步和运行指标上报。
+// Package license 实现部署登记、授权激活与生效状态读取。
 package license
 
 import (
@@ -21,51 +21,50 @@ import (
 )
 
 var (
-	// ErrLicenseInvalid 表示授权码格式、签名、签发方、产品或能力清单无效。
+	// ErrLicenseInvalid 表示授权码格式、签名、签发方或产品无效。
 	ErrLicenseInvalid = errors.New("license code invalid")
-	// ErrLicenseServerMismatch 表示授权码绑定的是其他服务器。
-	ErrLicenseServerMismatch = errors.New("license code belongs to another server")
+	// ErrLicenseDeploymentMismatch 表示授权码绑定的是其他部署。
+	ErrLicenseDeploymentMismatch = errors.New("license code belongs to another deployment")
 	// ErrLicenseExpired 表示授权码已过授权期限。
 	ErrLicenseExpired = errors.New("license code expired")
 	// ErrLicenseSuperseded 表示授权码的签发时间不晚于当前授权。
 	ErrLicenseSuperseded = errors.New("license code is not newer than the current license")
 )
 
-// ControlStatus 定义与 control 同步的结果：SyncedAt 为最近一次成功的时间，FailedAt 与 Error 为此后最近一次失败的时间与原因。
-type ControlStatus struct {
-	SyncedAt *time.Time
-	FailedAt *time.Time
-	Error    string
-}
-
-// License 定义服务器标识与授权状态；Capabilities 是授权码授予的能力，授权到期后平台按免费取值运行；ControlMissingAt 是与 control 同步时查不到本服务器授权的起始时间，Sync 是与 control 的同步结果，只由授权查询填写。
+// License 定义部署身份与授权状态；有效授权即产品功能全开。
 type License struct {
-	ServerID         string
-	Status           domain.LicenseStatus
-	LicenseID        string
-	Customer         string
-	IssuedAt         time.Time
-	ExpiresAt        time.Time
-	Capabilities     domain.Capabilities
-	ControlMissingAt *time.Time
-	Sync             ControlStatus
+	DeploymentID string
+	Status       domain.LicenseStatus
+	LicenseID    string
+	Customer     string
+	IssuedAt     time.Time
+	ExpiresAt    time.Time
 }
 
-// Capabilities 返回平台当前生效的能力；未激活授权或授权到期时按免费取值执行。
-func Capabilities(ctx context.Context, db bun.IDB) (domain.Capabilities, error) {
+// Licensed 返回授权是否处于有效期内。
+func (l License) Licensed() bool {
+	return l.Status.Licensed()
+}
+
+// IsLicensed 读取平台当前是否处于有效授权。
+func IsLicensed(ctx context.Context, db bun.IDB) (bool, error) {
 	current, err := loadLicense(ctx, db)
 	if err != nil {
-		return domain.Capabilities{}, err
+		return false, err
 	}
-	return current.EffectiveCapabilities(), nil
+	return current.Licensed(), nil
 }
 
-// EffectiveCapabilities 返回授权当前生效的能力，未激活或已到期时为免费取值。
-func (l License) EffectiveCapabilities() domain.Capabilities {
-	if l.Status != domain.LicenseStatusActive {
-		return domain.FreeCapabilities()
+// EffectiveCreationQuota 返回账号自建工作区额度；未授权时恒为 0。
+func EffectiveCreationQuota(ctx context.Context, db bun.IDB, platformQuota int) (int, error) {
+	licensed, err := IsLicensed(ctx, db)
+	if err != nil {
+		return 0, err
 	}
-	return l.Capabilities
+	if !licensed || platformQuota < 0 {
+		return 0, nil
+	}
+	return platformQuota, nil
 }
 
 // loadLicense 读取平台当前的授权，是否到期按数据库时刻判断。
@@ -77,53 +76,27 @@ func loadLicense(ctx context.Context, db bun.IDB) (License, error) {
 	err := db.NewSelect().Model(&record).
 		ColumnExpr("lic.*").
 		ColumnExpr("lic.expires_at > now() AS active").
-		Where("lic.server_id = (SELECT pf.server_id FROM platforms AS pf LIMIT 1)").
+		Where("lic.deployment_id = (SELECT pf.deployment_id FROM platforms AS pf LIMIT 1)").
 		Scan(ctx)
 	if errors.Is(err, sql.ErrNoRows) {
-		return License{Status: domain.LicenseStatusNone, Capabilities: domain.FreeCapabilities()}, nil
+		return License{Status: domain.LicenseStatusNone}, nil
 	}
 	if err != nil {
 		return License{}, fmt.Errorf("load license: %w", err)
 	}
-	return licenseFromModel(&record.License, record.Active)
+	return licenseFromModel(&record.License, record.Active), nil
 }
 
 // licenseFromModel 把授权行转换为授权状态，active 表示授权尚未到期。
-func licenseFromModel(record *servermodels.License, active bool) (License, error) {
-	var granted map[string]json.RawMessage
-	if err := json.Unmarshal(record.Capabilities, &granted); err != nil {
-		return License{}, fmt.Errorf("decode license capabilities: %w", err)
-	}
+func licenseFromModel(record *servermodels.License, active bool) License {
 	status := domain.LicenseStatusExpired
 	if active {
 		status = domain.LicenseStatusActive
 	}
 	return License{
-		ServerID: record.ServerID, Status: status, LicenseID: record.LicenseID, Customer: record.Customer,
+		DeploymentID: record.DeploymentID, Status: status, LicenseID: record.LicenseID, Customer: record.Customer,
 		IssuedAt: record.IssuedAt, ExpiresAt: record.ExpiresAt,
-		Capabilities: capabilitiesFromLicense(granted), ControlMissingAt: record.ControlMissingAt,
-	}, nil
-}
-
-// capabilitiesFromLicense 在免费取值上应用授权码列出的能力键。
-func capabilitiesFromLicense(granted map[string]json.RawMessage) domain.Capabilities {
-	capabilities := domain.FreeCapabilities()
-	if raw, ok := granted[licensecode.CapabilityWorkspaceLimit]; ok {
-		if limit, err := licensecode.WorkspaceLimit(raw); err == nil {
-			capabilities.WorkspaceLimit = limit
-		}
 	}
-	if raw, ok := granted[licensecode.CapabilityCustomBranding]; ok {
-		if custom, err := licensecode.CustomBranding(raw); err == nil {
-			capabilities.CustomBranding = custom
-		}
-	}
-	if raw, ok := granted[licensecode.CapabilityPushRelay]; ok {
-		if relay, err := licensecode.PushRelay(raw); err == nil {
-			capabilities.PushRelay = relay
-		}
-	}
-	return capabilities
 }
 
 // LicenseQuery 读取授权状态。
@@ -136,15 +109,14 @@ func NewLicenseQuery(db *bun.DB) *LicenseQuery {
 	return &LicenseQuery{db: db}
 }
 
-// Execute 返回服务器标识、当前的授权状态与 control 同步结果。
+// Execute 返回部署标识、当前的授权状态。
 func (q *LicenseQuery) Execute(ctx context.Context) (License, error) {
 	platform, err := platformaction.Load(ctx, q.db)
 	if err != nil {
 		return License{}, err
 	}
 	current, err := loadLicense(ctx, q.db)
-	current.ServerID = platform.ServerID
-	current.Sync = ControlStatus{SyncedAt: platform.ControlSyncedAt, FailedAt: platform.ControlFailedAt, Error: platform.ControlError}
+	current.DeploymentID = platform.DeploymentID
 	return current, err
 }
 
@@ -169,9 +141,10 @@ func (a *ActivateLicenseAction) Execute(ctx context.Context, operator *servermod
 	return storeLicense(ctx, a.db, a.state, operator, claims)
 }
 
-// storeLicense 在事务内校验服务器标识与授权期限后保存授权：首次激活或签发时间晚于当前授权时写入，与当前授权码相同时原样返回，其余返回 ErrLicenseSuperseded；写入时清空 control 中查不到授权的记录；operator 非空时先确认其仍是有效平台管理员；完成后刷新本实例的部署状态，按新授权应用部署品牌。
+// storeLicense 在事务内校验部署标识与授权期限后保存授权。
 func storeLicense(ctx context.Context, db *bun.DB, state platformaction.DeploymentReloader, operator *servermodels.AccountIdentity, claims licensecode.Claims) (License, error) {
-	capabilities, err := json.Marshal(claims.Capabilities)
+	// 兼容旧库列：capabilities 存空对象，产品侧不再读取分项能力。
+	capabilities, err := json.Marshal(map[string]any{})
 	if err != nil {
 		return License{}, err
 	}
@@ -187,8 +160,8 @@ func storeLicense(ctx context.Context, db *bun.DB, state platformaction.Deployme
 		if err != nil {
 			return err
 		}
-		if claims.ServerID != platform.ServerID {
-			return ErrLicenseServerMismatch
+		if claims.DeploymentID != platform.DeploymentID {
+			return ErrLicenseDeploymentMismatch
 		}
 		var valid bool
 		if err := tx.NewRaw("SELECT ?::timestamptz > now()", claims.ExpiresAt).Scan(ctx, &valid); err != nil {
@@ -197,7 +170,7 @@ func storeLicense(ctx context.Context, db *bun.DB, state platformaction.Deployme
 		if !valid {
 			return ErrLicenseExpired
 		}
-		record := &servermodels.License{ServerID: platform.ServerID}
+		record := &servermodels.License{DeploymentID: platform.DeploymentID}
 		err = tx.NewSelect().Model(record).WherePK().Scan(ctx)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
@@ -205,8 +178,8 @@ func storeLicense(ctx context.Context, db *bun.DB, state platformaction.Deployme
 		case err != nil:
 			return err
 		case record.LicenseCode == claims.Code:
-			output, err = licenseFromModel(record, true)
-			return err
+			output = licenseFromModel(record, true)
+			return nil
 		case !claims.IssuedAt.After(record.IssuedAt):
 			return ErrLicenseSuperseded
 		}
@@ -216,24 +189,22 @@ func storeLicense(ctx context.Context, db *bun.DB, state platformaction.Deployme
 		record.Capabilities = capabilities
 		record.IssuedAt = claims.IssuedAt
 		record.ExpiresAt = claims.ExpiresAt
-		record.ControlMissingAt = nil
 		if _, err := tx.NewInsert().Model(record).
-			Column("server_id", "license_id", "customer", "license_code", "capabilities", "issued_at", "expires_at").
-			On("CONFLICT (server_id) DO UPDATE").
+			Column("deployment_id", "license_id", "customer", "license_code", "capabilities", "issued_at", "expires_at").
+			On("CONFLICT (deployment_id) DO UPDATE").
 			Set("license_id = EXCLUDED.license_id").
 			Set("customer = EXCLUDED.customer").
 			Set("license_code = EXCLUDED.license_code").
 			Set("capabilities = EXCLUDED.capabilities").
 			Set("issued_at = EXCLUDED.issued_at").
 			Set("expires_at = EXCLUDED.expires_at").
-			Set("control_missing_at = NULL").
 			Returning("created_at, updated_at").
 			Exec(ctx); err != nil {
 			return err
 		}
 		stored = true
-		output, err = licenseFromModel(record, true)
-		return err
+		output = licenseFromModel(record, true)
+		return nil
 	})
 	if err != nil {
 		return License{}, err
@@ -241,7 +212,6 @@ func storeLicense(ctx context.Context, db *bun.DB, state platformaction.Deployme
 	if stored {
 		slog.InfoContext(ctx, "已保存授权", "license_id", claims.LicenseID, "issued_at", claims.IssuedAt, "expires_at", claims.ExpiresAt)
 	}
-	// 授权已保存，刷新失败时由下次心跳刷新。
 	if err := state.Reload(context.WithoutCancel(ctx)); err != nil {
 		slog.WarnContext(ctx, "保存授权后刷新部署状态失败", "error", err)
 	}

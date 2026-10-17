@@ -60,11 +60,12 @@ type route struct {
 	path       string
 	status     int
 	queryName  string
-	// authSet 记录指令是否显式给出 auth 选项，public、account 与 admin 只表达解析后的取值。
+	// authSet 记录指令是否显式给出 auth 选项，public、account、admin 与 bearer 只表达解析后的取值。
 	authSet bool
 	public  bool
 	account bool
 	admin   bool
+	bearer  bool
 	// permission 是 perm 选项的取值：权限代码或 none，未声明时为空；permissionConst 是权限代码对应的 domain 常量名。
 	permission      string
 	permissionConst string
@@ -130,6 +131,9 @@ type contract struct {
 // domainPath 是核心领域包路径，提供核心枚举、权限与实时协议领域类型。
 const domainPath = "github.com/runforyou-ai/luway/internal/domain"
 
+// apptypesPath 是契约与 Action 共用的 API 形状类型包，契约侧以同名别名引用。
+const apptypesPath = "github.com/runforyou-ai/luway/internal/apptypes"
+
 // loadPackages 在 directory 下以服务端构建标签加载指定包的语法树与类型信息，同一次加载的包共用类型对象。
 func loadPackages(directory string, patterns ...string) ([]*packages.Package, error) {
 	config := &packages.Config{
@@ -149,12 +153,12 @@ func loadPackages(directory string, patterns ...string) ([]*packages.Package, er
 
 // loadModuleContract 加载 directory 下的模块契约包与它引用的核心契约包，模块契约的 base 为核心契约。
 func loadModuleContract(directory string, domainPaths ...string) (*contract, error) {
-	patterns := append([]string{".", corePath, domainPath}, domainPaths...)
+	patterns := append([]string{".", corePath, domainPath, apptypesPath}, domainPaths...)
 	loaded, err := loadPackages(directory, patterns...)
 	if err != nil {
 		return nil, err
 	}
-	var module, core, domain *packages.Package
+	var module, core, domain, apptypes *packages.Package
 	var extraDomains []*packages.Package
 	for _, item := range loaded {
 		switch item.PkgPath {
@@ -162,6 +166,8 @@ func loadModuleContract(directory string, domainPaths ...string) (*contract, err
 			core = item
 		case domainPath:
 			domain = item
+		case apptypesPath:
+			apptypes = item
 		default:
 			if slices.Contains(domainPaths, item.PkgPath) {
 				extraDomains = append(extraDomains, item)
@@ -170,11 +176,12 @@ func loadModuleContract(directory string, domainPaths ...string) (*contract, err
 			}
 		}
 	}
-	if module == nil || core == nil || domain == nil {
-		return nil, fmt.Errorf("expected module, core and domain packages for %s", directory)
+	if module == nil || core == nil || domain == nil || apptypes == nil {
+		return nil, fmt.Errorf("expected module, core, domain and apptypes packages for %s", directory)
 	}
-	result := newContract(module, append([]*packages.Package{domain}, extraDomains...)...)
-	result.base = newContract(core, domain)
+	moduleDomains := append([]*packages.Package{domain, apptypes}, extraDomains...)
+	result := newContract(module, moduleDomains...)
+	result.base = newContract(core, domain, apptypes)
 	result.domainDir = filepath.Dir(domain.GoFiles[0])
 	// 模块契约包与核心契约包同名时，生成代码以别名引用模块契约包。
 	if result.qualifier == result.base.qualifier {
@@ -185,21 +192,38 @@ func loadModuleContract(directory string, domainPaths ...string) (*contract, err
 
 // loadContract 加载 directory 下的契约包的语法树与类型信息，并建立文档与枚举索引。
 func loadContract(directory string) (*contract, error) {
-	loaded, err := loadPackages(directory, ".", domainPath)
+	loaded, err := loadPackages(directory, ".", domainPath, apptypesPath)
 	if err != nil {
 		return nil, err
 	}
-	// 目标目录就是领域包时只加载到一个包，领域包同时作为目标包。
-	if len(loaded) == 1 && loaded[0].PkgPath == domainPath {
-		loaded = append(loaded, loaded[0])
+	var contractPkg, domainPkg, apptypesPkg *packages.Package
+	for _, item := range loaded {
+		switch item.PkgPath {
+		case domainPath:
+			domainPkg = item
+		case apptypesPath:
+			apptypesPkg = item
+		default:
+			if contractPkg != nil && contractPkg.PkgPath != item.PkgPath {
+				return nil, fmt.Errorf("unexpected package %s alongside %s for %s", item.PkgPath, contractPkg.PkgPath, directory)
+			}
+			contractPkg = item
+		}
 	}
-	if len(loaded) != 2 {
-		return nil, fmt.Errorf("expected two packages for %s, got %d", directory, len(loaded))
+	// 目标目录就是领域包时只加载到领域包，领域包同时作为目标包。
+	if contractPkg == nil && domainPkg != nil {
+		contractPkg = domainPkg
 	}
-	if loaded[0].PkgPath == domainPath {
-		loaded[0], loaded[1] = loaded[1], loaded[0]
+	if contractPkg == nil || domainPkg == nil {
+		return nil, fmt.Errorf("expected contract and domain packages for %s, got %d", directory, len(loaded))
 	}
-	return newContract(loaded[0], loaded[1]), nil
+	domainPackages := []*packages.Package{domainPkg}
+	if apptypesPkg != nil {
+		domainPackages = append(domainPackages, apptypesPkg)
+	} else if contractPkg.PkgPath == corePath {
+		return nil, fmt.Errorf("apptypes package required for %s", directory)
+	}
+	return newContract(contractPkg, domainPackages...), nil
 }
 
 // newContract 为契约包建立文档与枚举索引，枚举类型别名指向指定领域包中的同名类型。
@@ -349,6 +373,10 @@ func (c *contract) parseInterface(interfaceName string, kind contractKind) ([]me
 	methods := make([]method, 0, len(fields))
 	for _, field := range fields {
 		name := field.Names[0].Name
+		// 仅访客契约允许无 route 的手写辅助方法（如 VerifyCustomer）；业务契约漏写指令仍应报错。
+		if kind == visitorContract && !hasRouteDirective(field) {
+			continue
+		}
 		item, err := c.parseMethod(functions[name], field, kind)
 		if err != nil {
 			return nil, fmt.Errorf("method %s: %w", name, err)
@@ -356,6 +384,19 @@ func (c *contract) parseInterface(interfaceName string, kind contractKind) ([]me
 		methods = append(methods, item)
 	}
 	return methods, nil
+}
+
+// hasRouteDirective 判断方法文档是否包含 appservice:route 指令。
+func hasRouteDirective(field *ast.Field) bool {
+	if field.Doc == nil {
+		return false
+	}
+	for _, comment := range field.Doc.List {
+		if strings.HasPrefix(comment.Text, directivePrefix) {
+			return true
+		}
+	}
+	return false
 }
 
 // collectInterfaceFields 按声明顺序收集接口的方法声明，嵌入的同包接口在嵌入位置展开；方法名重复、嵌入外部包接口或循环嵌入时返回错误。
@@ -560,6 +601,8 @@ func parseRoute(directive string) (route, error) {
 				parsed.account = true
 			case "admin":
 				parsed.admin = true
+			case "bearer":
+				parsed.bearer = true
 			default:
 				return route{}, fmt.Errorf("unknown auth mode %q", value)
 			}

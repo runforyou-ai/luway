@@ -141,10 +141,11 @@ type ServiceQueueTeamList struct {
 
 // InboxChannel 定义收件箱渠道筛选候选。
 type InboxChannel struct {
-	ID      string      `json:"id"`
-	Type    ChannelType `json:"type"`
-	Name    string      `json:"name"`
-	Enabled bool        `json:"enabled"`
+	Audience ServiceAudience `json:"audience"`
+	ID       string          `json:"id"`
+	Type     ChannelType     `json:"type"`
+	Name     string          `json:"name"`
+	Enabled  bool            `json:"enabled"`
 }
 
 // InboxChannelList 定义收件箱渠道筛选候选列表。

@@ -69,7 +69,7 @@ func (r *EinoRuntime) ExtractMemory(ctx context.Context, request MemoryExtractio
 		Language: llm.Chinese,
 		Limits:   memory.ExtractLimits{Name: domain.AgentMemoryNameMaxLength, Description: domain.AgentMemoryDescriptionMaxLength, Body: domain.AgentMemoryBodyMaxLength},
 	})
-	result := MemoryExtractionResult{Usage: agentcontract.UsageFrom(used)}
+	result := MemoryExtractionResult{Usage: usageFrom(used)}
 	if err != nil {
 		return result, fmt.Errorf("extract agent memory: %w", err)
 	}

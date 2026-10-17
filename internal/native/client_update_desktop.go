@@ -4,9 +4,7 @@ package native
 
 import (
 	"context"
-	"crypto/ed25519"
 	"crypto/sha512"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -20,10 +18,9 @@ import (
 	"time"
 
 	"github.com/runforyou-ai/luway/internal/appservice"
-	"github.com/runforyou-ai/luway/internal/clientrelease"
-	"github.com/runforyou-ai/luway/internal/common/brand"
 	"github.com/runforyou-ai/luway/internal/common/buildinfo"
 	"github.com/runforyou-ai/luway/internal/i18n"
+	releaseclients "github.com/runforyou-ai/luway/internal/release/clients"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/updater"
 	"github.com/wailsapp/wails/v3/pkg/updater/providers/endpoint"
@@ -43,7 +40,7 @@ type selfUpdater interface {
 type clientUpdater struct {
 	updater selfUpdater
 	mu      sync.Mutex
-	// ready 是已下载并通过签名校验的版本。
+	// ready 是已下载并通过摘要校验的版本。
 	ready string
 	// replaceable 表示当前用户能在应用所在目录替换应用。
 	replaceable bool
@@ -59,7 +56,7 @@ func NewClientUpdater(app *application.App) ClientUpdater {
 		return nil
 	}
 	client := &clientUpdater{updater: app.Updater, replaceable: applicationReplaceable(), version: buildinfo.Version}
-	if err := app.Updater.Init(updaterConfig(buildinfo.Version, brand.Build().UpdateKey(), client.serverURL)); err != nil {
+	if err := app.Updater.Init(updaterConfig(buildinfo.Version, client.serverURL)); err != nil {
 		slog.WarnContext(context.Background(), "初始化客户端更新失败", "error", err)
 		return nil
 	}
@@ -95,16 +92,16 @@ func applicationReplaceable() bool {
 	return true
 }
 
-// updaterConfig 返回从当前服务器读取更新清单、用品牌公钥校验更新包签名且不打开更新窗口的更新器配置。
-func updaterConfig(version string, publicKey ed25519.PublicKey, serverURL func(context.Context) (string, error)) updater.Config {
+// updaterConfig 返回从当前服务器读取更新清单且不打开更新窗口的更新器配置。
+func updaterConfig(version string, serverURL func(context.Context) (string, error)) updater.Config {
 	return updater.Config{
 		CurrentVersion: version,
-		Providers:      []updater.Provider{&serverProvider{serverURL: serverURL, publicKey: publicKey}},
+		Providers:      []updater.Provider{&serverProvider{serverURL: serverURL}},
 		Window:         updater.WindowNone,
 	}
 }
 
-// PrepareClientUpdate 检查指定服务器提供的客户端版本，较新时下载更新包并校验签名，同一版本只下载一次；服务器没有本机平台的更新包或当前用户不能替换应用时不下载，返回 available。超过 prepareTimeout 按失败返回。
+// PrepareClientUpdate 检查指定服务器提供的客户端版本，较新时下载更新包并校验摘要，同一版本只下载一次；服务器没有本机平台的更新包或当前用户不能替换应用时不下载，返回 available。超过 prepareTimeout 按失败返回。
 func (u *clientUpdater) PrepareClientUpdate(ctx context.Context, meta appservice.RequestMeta, serverURL string) (ClientUpdate, error) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -158,10 +155,9 @@ func (u *clientUpdater) RestartClientUpdate(ctx context.Context, meta appservice
 	return nil
 }
 
-// serverProvider 按 Wails 更新清单协议读取当前连接服务器的更新清单，只接受签名覆盖清单版本与摘要的更新包，更新器下载后按该摘要校验内容。
+// serverProvider 按 Wails 更新清单协议读取当前连接服务器的更新清单，只接受带 SHA-512 摘要的更新包，更新器下载后按该摘要校验内容。
 type serverProvider struct {
 	serverURL func(context.Context) (string, error)
-	publicKey ed25519.PublicKey
 	mu        sync.Mutex
 	// current 是最近一次检查使用的清单读取方，下载沿用同一个。
 	current *endpoint.Provider
@@ -172,7 +168,7 @@ func (p *serverProvider) Name() string {
 	return "server"
 }
 
-// Check 读取当前服务器的更新清单并校验更新包签名；未连接服务器时视为没有更新。
+// Check 读取当前服务器的更新清单并确认更新包带 SHA-512 摘要；未连接服务器时视为没有更新。
 func (p *serverProvider) Check(ctx context.Context, request updater.CheckRequest) (*updater.Release, error) {
 	serverURL, err := p.serverURL(ctx)
 	if err != nil {
@@ -185,7 +181,7 @@ func (p *serverProvider) Check(ctx context.Context, request updater.CheckRequest
 	transport := http.DefaultTransport.(*http.Transport).Clone()
 	transport.ResponseHeaderTimeout = 30 * time.Second
 	client := &http.Client{Transport: transport}
-	provider, err := endpoint.New(endpoint.Config{URL: strings.TrimRight(serverURL, "/") + clientrelease.UpdatePath, HTTPClient: client})
+	provider, err := endpoint.New(endpoint.Config{URL: strings.TrimRight(serverURL, "/") + releaseclients.UpdatePath, HTTPClient: client})
 	if err != nil {
 		return nil, err
 	}
@@ -193,12 +189,9 @@ func (p *serverProvider) Check(ctx context.Context, request updater.CheckRequest
 	if err != nil || release == nil {
 		return nil, err
 	}
-	encoded, _ := release.Metadata[clientrelease.SignatureMetadataKey].(string)
-	signature, _ := base64.StdEncoding.DecodeString(encoded)
 	verification := release.Verification
-	if verification == nil || verification.DigestAlgo != "sha512" || len(verification.Digest) != sha512.Size ||
-		!ed25519.Verify(p.publicKey, clientrelease.UpdateStatement(release.Version, verification.Digest), signature) {
-		return nil, fmt.Errorf("更新包 %s 的签名无效", release.Artifact.Filename)
+	if verification == nil || verification.DigestAlgo != "sha512" || len(verification.Digest) != sha512.Size {
+		return nil, fmt.Errorf("更新包 %s 缺少 SHA-512 摘要", release.Artifact.Filename)
 	}
 	p.mu.Lock()
 	p.current = provider

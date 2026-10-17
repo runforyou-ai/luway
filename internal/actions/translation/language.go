@@ -8,8 +8,8 @@ import (
 	"errors"
 	"fmt"
 
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -62,10 +62,10 @@ func loadCustomerLanguage(ctx context.Context, db bun.IDB, workspaceID, conversa
 		ColumnExpr("cc.reply_language AS locked").
 		ColumnExpr(`(SELECT msg.language FROM messages AS msg
 			JOIN conversation_participants AS cp ON cp.id = msg.sender_participant_id AND cp.workspace_id = msg.workspace_id AND cp.conversation_id = msg.conversation_id
-			JOIN chat_subjects AS cs ON cs.id = cp.subject_id AND cs.workspace_id = cp.workspace_id
-			WHERE msg.workspace_id = cc.workspace_id AND msg.conversation_id = cc.conversation_id AND cs.kind = ?
+			JOIN service_conversations AS svc ON svc.workspace_id = cp.workspace_id AND svc.conversation_id = cp.conversation_id AND svc.requester_subject_id = cp.subject_id
+			WHERE msg.workspace_id = cc.workspace_id AND msg.conversation_id = cc.conversation_id
 				AND msg.language IS NOT NULL AND msg.language <> ? AND msg.deleted_at IS NULL
-			ORDER BY msg.message_seq DESC LIMIT 1) AS detected`, domain.ChatSubjectKindContact, languagetag.Undetermined).
+			ORDER BY msg.message_seq DESC LIMIT 1) AS detected`, languagetag.Undetermined).
 		ColumnExpr(`(SELECT ss.visitor_context->>'language' FROM service_sessions AS ss
 			WHERE ss.workspace_id = cc.workspace_id AND ss.conversation_id = cc.conversation_id AND ss.visitor_context->>'language' <> ''
 			ORDER BY ss.sequence DESC LIMIT 1) AS browser`).
@@ -88,17 +88,20 @@ func (t *Translator) ConversationState(ctx context.Context, identity *servermode
 
 // conversationState 读取翻译模型设置与客户语言，组合为成员的翻译状态。
 func conversationState(ctx context.Context, db bun.IDB, identity *servermodels.Identity, conversationID string) (ConversationState, error) {
+	if err := authorizeConversation(ctx, db, identity.Workspace.ID, conversationID); err != nil {
+		return ConversationState{}, err
+	}
 	sources, err := loadCustomerLanguage(ctx, db, identity.Workspace.ID, conversationID)
 	if err != nil {
 		return ConversationState{}, err
 	}
-	model, err := customerserviceaction.LoadTranslationModelID(ctx, db, identity.Workspace.ID)
+	modelID, err := LoadTranslationModelID(ctx, db, identity.Workspace.ID)
 	if err != nil {
 		return ConversationState{}, err
 	}
 	language, locked := sources.resolve()
 	return ConversationState{
-		Enabled: model != nil, ViewerLanguage: ViewerLanguage(identity),
+		Enabled: modelID != nil, ViewerLanguage: ViewerLanguage(identity),
 		CustomerLanguage: language, ReplyLanguageLocked: locked,
 	}, nil
 }
@@ -110,13 +113,16 @@ func (t *Translator) SetReplyLanguage(ctx context.Context, identity *servermodel
 	if language != "" {
 		normalized, ok := languagetag.Normalize(language)
 		if !ok || normalized == languagetag.Undetermined {
-			return ConversationState{}, &ValidationError{Fields: map[string]ValidationCode{"language": ValidationLanguageInvalid}}
+			return ConversationState{}, &common.FieldError{Fields: map[string]common.FieldCode{"language": ValidationLanguageInvalid}}
 		}
 		locked = &normalized
 	}
 	var state ConversationState
 	err := serverstorage.RunInTx(ctx, t.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
+			return err
+		}
+		if err := authorizeConversation(ctx, tx, identity.Workspace.ID, conversationID); err != nil {
 			return err
 		}
 		result, err := tx.NewUpdate().Model((*servermodels.ChannelConversation)(nil)).

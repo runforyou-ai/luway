@@ -1,6 +1,6 @@
 //go:build server
 
-// Package conversation 提供各类会话共用的消息模型、历史读取、会话状态与消息写入能力。
+// Package conversation 提供各类会话共用的消息模型、历史读取、会话状态、消息写入与共享文件区能力。
 package conversation
 
 import (
@@ -12,21 +12,18 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
-// ValidationCode 标识会话业务输入的校验结果。
-type ValidationCode = common.FieldCode
-
 const (
-	ValidationConversationIDInvalid   ValidationCode = "conversation_id_invalid"
-	ValidationTargetIdentityIDInvalid ValidationCode = "target_identity_id_invalid"
-	ValidationClientMessageIDInvalid  ValidationCode = "client_message_id_invalid"
-	ValidationReplyToMessageIDInvalid ValidationCode = "reply_to_message_id_invalid"
-	ValidationBodyRequired            ValidationCode = "body_required"
-	ValidationBodyTooLong             ValidationCode = "body_too_long"
-	ValidationCursorInvalid           ValidationCode = "cursor_invalid"
-	ValidationFileIDInvalid           ValidationCode = "file_id_invalid"
-	ValidationNeighborIDInvalid       ValidationCode = "neighbor_id_invalid"
-	ValidationPinPositionInvalid      ValidationCode = "pin_position_invalid"
-	ValidationPinOrderVersionInvalid  ValidationCode = "pin_order_version_invalid"
+	ValidationConversationIDInvalid   common.FieldCode = "conversation_id_invalid"
+	ValidationTargetIdentityIDInvalid common.FieldCode = "target_identity_id_invalid"
+	ValidationClientMessageIDInvalid  common.FieldCode = "client_message_id_invalid"
+	ValidationReplyToMessageIDInvalid common.FieldCode = "reply_to_message_id_invalid"
+	ValidationBodyRequired            common.FieldCode = "body_required"
+	ValidationBodyTooLong             common.FieldCode = "body_too_long"
+	ValidationCursorInvalid           common.FieldCode = "cursor_invalid"
+	ValidationFileIDInvalid           common.FieldCode = "file_id_invalid"
+	ValidationNeighborIDInvalid       common.FieldCode = "neighbor_id_invalid"
+	ValidationPinPositionInvalid      common.FieldCode = "pin_position_invalid"
+	ValidationPinOrderVersionInvalid  common.FieldCode = "pin_order_version_invalid"
 )
 
 const (

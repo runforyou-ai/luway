@@ -86,30 +86,33 @@ func TestDeploymentCertificate(t *testing.T) {
 	db := servertest.OpenEmptyDatabase(t, serverstorage.CoreMigrations())
 	deployment := servertest.NewDeployment(t, db)
 	issuer := &fakeIssuer{validity: 90 * 24 * time.Hour}
-	service := direct.New(db, direct.DeploymentConfig{Deployment: deployment, CertificateIssuer: issuer}, nil, nil, nil, testEnqueuer, nil, nil, nil)
-	installed, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
-		PublicURL: "http://203.0.113.5", WorkspaceName: "证书", DisplayName: "管理员", Email: servertest.UniqueEmail("certificate"),
+	service := direct.New(db, direct.DeploymentConfig{Deployment: deployment, CertificateIssuer: issuer}, nil, nil, testEnqueuer, nil, nil, nil)
+	admin := servertest.InstallPlatform(t, service, appservice.InstallPlatformInput{
+		PublicURL: "http://203.0.113.5", DisplayName: "管理员", Email: servertest.UniqueEmail("certificate"),
 		Password: "password123", Locale: domain.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
-	require.NoError(t, err)
-	adminMeta := appservice.RequestMeta{Token: installed.Auth.Token, Locale: domain.LocaleChineseSimplified}
-	upload := func(publicURL, chain, key string) (appservice.PlatformDeployment, error) {
-		return service.UpdatePlatformAddress(ctx, adminMeta, appservice.PlatformAddressInput{
-			PublicURL: publicURL, Certificate: appservice.PlatformCertificate{Source: appservice.PlatformCertificateSourceUpload, Certificate: chain, PrivateKey: key},
-		})
+	adminMeta := servertest.AdminMeta(admin.AdminToken)
+	upload := func(publicURL, chain, key string) (appservice.PlatformSite, error) {
+		input := loadPlatformSiteInput(t, service, ctx, adminMeta)
+		input.PublicURL = publicURL
+		input.Certificate = appservice.PlatformCertificate{Source: appservice.PlatformCertificateSourceUpload, Certificate: chain, PrivateKey: key}
+		return service.UpdatePlatformSite(ctx, adminMeta, input)
 	}
 
 	// 上传的证书须能与私钥配对、未到期且包含 HTTPS 部署地址的域名。
 	chain, key, expiresAt := selfSignedCertificate(t, "upload.example.test", time.Now().Add(30*24*time.Hour))
 	otherChain, otherKey, _ := selfSignedCertificate(t, "upload.example.test", time.Now().Add(30*24*time.Hour))
-	_, err = upload("https://upload.example.test", chain, otherKey)
+	_, err := upload("https://upload.example.test", chain, otherKey)
 	servertest.RequireFieldError(t, err, "certificate", i18n.FieldCertificateInvalid)
 	expiredChain, expiredKey, _ := selfSignedCertificate(t, "upload.example.test", time.Now().Add(-time.Hour))
 	_, err = upload("https://upload.example.test", expiredChain, expiredKey)
 	servertest.RequireFieldError(t, err, "certificate", i18n.FieldCertificateExpired)
 	_, err = upload("https://other.example.test", chain, key)
 	servertest.RequireFieldError(t, err, "certificate", i18n.FieldCertificateDomainMismatch)
-	_, err = service.UpdatePlatformAddress(ctx, adminMeta, appservice.PlatformAddressInput{PublicURL: "https://upload.example.test", Certificate: appservice.PlatformCertificate{Source: "manual"}})
+	input := loadPlatformSiteInput(t, service, ctx, adminMeta)
+	input.PublicURL = "https://upload.example.test"
+	input.Certificate = appservice.PlatformCertificate{Source: "manual"}
+	_, err = service.UpdatePlatformSite(ctx, adminMeta, input)
 	servertest.RequireFieldError(t, err, "certificateSource", i18n.FieldCertificateSourceInvalid)
 	updated, err := upload("https://upload.example.test", "\n"+otherChain+"\n", otherKey)
 	require.NoError(t, err)
@@ -128,13 +131,19 @@ func TestDeploymentCertificate(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "http://upload.example.test", updated.PublicURL)
 	require.WithinDuration(t, expiresAt, *updated.CertificateStatus.ExpiresAt, time.Second)
-	updated, err = service.UpdatePlatformAddress(ctx, adminMeta, appservice.PlatformAddressInput{PublicURL: "http://upload.example.test", Certificate: appservice.PlatformCertificate{Source: appservice.PlatformCertificateSourceACME}})
+	input = loadPlatformSiteInput(t, service, ctx, adminMeta)
+	input.PublicURL = "http://upload.example.test"
+	input.Certificate = appservice.PlatformCertificate{Source: appservice.PlatformCertificateSourceACME}
+	updated, err = service.UpdatePlatformSite(ctx, adminMeta, input)
 	require.NoError(t, err)
 	require.Equal(t, appservice.PlatformCertificateSourceUpload, updated.Certificate.Source)
 
 	// 部署中没有直接提供 HTTPS 的服务器时，自动签发不签发证书。
-	acmeAddress := func(publicURL string) (appservice.PlatformDeployment, error) {
-		return service.UpdatePlatformAddress(ctx, adminMeta, appservice.PlatformAddressInput{PublicURL: publicURL, Certificate: appservice.PlatformCertificate{Source: appservice.PlatformCertificateSourceACME}})
+	acmeAddress := func(publicURL string) (appservice.PlatformSite, error) {
+		input := loadPlatformSiteInput(t, service, ctx, adminMeta)
+		input.PublicURL = publicURL
+		input.Certificate = appservice.PlatformCertificate{Source: appservice.PlatformCertificateSourceACME}
+		return service.UpdatePlatformSite(ctx, adminMeta, input)
 	}
 	updated, err = acmeAddress("https://acme.example.test")
 	require.NoError(t, err)
@@ -193,7 +202,7 @@ func TestDeploymentCertificate(t *testing.T) {
 	require.NoError(t, err)
 	issuer.err = &acme.Error{Detail: "rate limited"}
 	require.NoError(t, certificates.Renew(ctx, struct{}{}))
-	current, err := service.GetPlatformDeployment(ctx, adminMeta)
+	current, err := service.GetPlatformSite(ctx, adminMeta)
 	require.NoError(t, err)
 	require.Equal(t, "rate limited", current.CertificateStatus.RenewalError)
 	require.NotNil(t, current.CertificateStatus.RenewalFailedAt)

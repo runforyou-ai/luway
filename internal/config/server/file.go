@@ -33,8 +33,12 @@ func Keys() []string {
 		for index := range kind.NumField() {
 			field := kind.Field(index)
 			name := prefix + field.Tag.Get("yaml")
-			if field.Type.Kind() == reflect.Struct {
+			switch field.Type.Kind() {
+			case reflect.Struct:
 				walk(name+".", field.Type)
+				continue
+			case reflect.Map:
+				keys = append(keys, name+".<名称>")
 				continue
 			}
 			keys = append(keys, name)
@@ -111,7 +115,16 @@ func SetValues(settings []Setting) error {
 // settingValue 按配置项的字段类型转换配置值，配置项不存在时报错。
 func settingValue(setting Setting) (any, error) {
 	kind := reflect.TypeFor[Config]()
-	for _, name := range strings.Split(setting.Key, ".") {
+	names := strings.Split(setting.Key, ".")
+	for index, name := range names {
+		// 映射类配置项的下一级是任意名称的字符串值。
+		if kind.Kind() == reflect.Map {
+			if index != len(names)-1 || name == "" {
+				return nil, fmt.Errorf("未知配置项 %s", setting.Key)
+			}
+			kind = kind.Elem()
+			break
+		}
 		field, ok := fieldByYAMLName(kind, name)
 		if !ok {
 			return nil, fmt.Errorf("未知配置项 %s", setting.Key)
@@ -203,15 +216,18 @@ func setNode(file *ast.File, keys []string, value any) error {
 	return nil
 }
 
-// Redacted 返回用于展示的配置副本，数据库密码以星号代替，NATS 地址去掉凭据。
+// Redacted 返回用于展示的配置副本，数据库密码与程序组成专属配置项的取值以星号代替，NATS 地址去掉凭据。
 func (config Config) Redacted() Config {
 	if config.Database.Password != "" {
 		config.Database.Password = "******"
 	}
-	config.NATS.URL = withoutCredentials(config.NATS.URL)
-	config.NATS.SystemURL = withoutCredentials(config.NATS.SystemURL)
-	if config.NATS.CalloutSeed != "" {
-		config.NATS.CalloutSeed = "******"
+	if len(config.Extension) > 0 {
+		redacted := make(map[string]string, len(config.Extension))
+		for key := range config.Extension {
+			redacted[key] = "******"
+		}
+		config.Extension = redacted
 	}
+	config.NATS.URL = withoutCredentials(config.NATS.URL)
 	return config
 }

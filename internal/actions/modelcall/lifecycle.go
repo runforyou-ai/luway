@@ -14,18 +14,24 @@ import (
 
 // Facts 定义模型调用的身份、用量与上游成功事实。
 type Facts struct {
-	CallID      string
-	WorkspaceID string
-	ModelID     string
-	Scope       domain.AIModelScope
-	Usage       Usage
-	Succeeded   bool
+	CallID         string
+	WorkspaceID    string
+	ModelID        string
+	PrimaryRouteID string // 平台 Auto 调用为池成员编号，用于准入与按成员定价。
+	Scope          domain.AIModelScope
+	Usage          Usage
+	Succeeded      bool
 }
 
 // Lifecycle 在调用记录的事务内处理调用开始与结束。
 type Lifecycle interface {
 	Begin(context.Context, bun.Tx, Facts) error
 	Finish(context.Context, bun.Tx, Facts) error
+}
+
+// RouteAuthorizer 在每次上游尝试前复核当前路由（池成员）是否仍可用；不可用时返回 aimodel.ErrUnavailable。
+type RouteAuthorizer interface {
+	AuthorizeRoute(context.Context, bun.Tx, Facts) error
 }
 
 // Rejection 表示携带稳定原因码和本地化词条标识的调用拒绝。

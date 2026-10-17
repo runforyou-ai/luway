@@ -43,11 +43,12 @@ func TestAdmitInstance(t *testing.T) {
 	db := store.DB()
 
 	var migrations atomic.Int32
+	messagingURL := "nats://test"
 	// admit 以指定版本在新主机上加入部署，返回本进程登记信息与实例锁。
 	admit := func(version string) (serverinstanceaction.InstanceReport, *serverinstanceaction.InstanceLease, error) {
 		report := serverinstanceaction.InstanceReport{
 			ID: uuid.NewV7().String(), Hostname: "host-" + random.Hex(4), Version: version,
-			Config: serverconfig.Diagnostics{},
+			Config: serverconfig.Diagnostics{NATS: serverconfig.NATSDiagnostics{URL: messagingURL}},
 		}
 		lease, err := serverinstanceaction.AdmitInstance(ctx, db, serverinstanceaction.Admission{
 			Instance: report,
@@ -76,30 +77,16 @@ func TestAdmitInstance(t *testing.T) {
 	require.NoError(t, err)
 	require.EqualValues(t, 1, migrations.Load())
 	requireVersion("1.0.0")
-	_, err = db.NewRaw("INSERT INTO platforms (registration_policy, workspace_creation_policy, public_url, s3_enabled) VALUES ('invitation_only', 'platform_admin', ?, true)", servertest.PublicURL).Exec(ctx)
+	_, err = db.NewRaw("INSERT INTO platforms (registration_policy, workspace_creation_quota, public_url) VALUES ('invitation_only', 0, ?)", servertest.PublicURL).Exec(ctx)
 	require.NoError(t, err)
-	setS3 := func(enabled bool) {
-		t.Helper()
-		_, err := db.NewRaw("UPDATE platforms SET s3_enabled = ?", enabled).Exec(ctx)
-		require.NoError(t, err)
-	}
 
 	// 低版本拒绝启动，不执行迁移。
 	_, _, err = admit("0.9.0")
 	require.ErrorIs(t, err, serverinstanceaction.ErrVersionOutdated)
 
-	// 有其他服务器运行时，部署配置未开启对象存储时拒绝启动，不执行迁移。
-	setS3(false)
-	_, _, err = admit("1.0.0")
-	require.ErrorIs(t, err, serverinstanceaction.ErrMultiServerUnsupported)
-	setS3(true)
-	require.EqualValues(t, 1, migrations.Load())
-
 	// 进程崩溃后登记仍在心跳时限内，但实例锁已释放，不再视为运行中。
 	firstLease.Release()
-	setS3(false)
 	solo, soloLease, err := admit("1.0.0")
-	setS3(true)
 	require.NoError(t, err)
 	exit(solo, soloLease)
 
@@ -165,6 +152,34 @@ func TestAdmitInstance(t *testing.T) {
 	require.NoError(t, err)
 	exit(downgraded, downgradedLease)
 	requireVersion("1.0.0")
+
+	// 同一主机的内嵌实例独占消息模式，外部实例共享，退出后可以切换模式。
+	messagingURL = ""
+	embedded, embeddedLease, err := admit("1.0.0")
+	require.NoError(t, err)
+	for _, url := range []string{"", "nats://test"} {
+		report := serverinstanceaction.InstanceReport{ID: uuid.NewV7().String(), Hostname: embedded.Hostname, Version: "1.0.0", Config: serverconfig.Diagnostics{NATS: serverconfig.NATSDiagnostics{URL: url}}}
+		_, err := serverinstanceaction.AdmitInstance(ctx, db, serverinstanceaction.Admission{Instance: report, Migrate: func(context.Context) error { return nil }})
+		require.ErrorIs(t, err, serverinstanceaction.ErrMultiServerUnsupported)
+	}
+	embeddedLease.Release()
+	for _, url := range []string{"", "nats://test"} {
+		messagingURL = url
+		_, _, err = admit("1.0.0")
+		require.ErrorIs(t, err, serverinstanceaction.ErrMultiServerUnsupported, "锁连接断开后的心跳窗口保持消息模式隔离")
+	}
+	require.NoError(t, serverinstanceaction.RemoveInstance(ctx, db, embedded.ID))
+	messagingURL = "nats://test"
+	external, externalLease, err := admit("1.0.0")
+	require.NoError(t, err)
+	messagingURL = ""
+	_, _, err = admit("1.0.0")
+	require.ErrorIs(t, err, serverinstanceaction.ErrMultiServerUnsupported)
+	externalLease.Release()
+	_, _, err = admit("1.0.0")
+	require.ErrorIs(t, err, serverinstanceaction.ErrMultiServerUnsupported)
+	require.NoError(t, serverinstanceaction.RemoveInstance(ctx, db, external.ID))
+	messagingURL = "nats://test"
 
 	// 准入锁被占用超过连接读超时后释放，等待中的进程仍能加入。
 	holder, err := db.Conn(ctx)

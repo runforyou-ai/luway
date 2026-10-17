@@ -8,7 +8,6 @@ import (
 	"log/slog"
 	"mime"
 	"net/http"
-	"net/url"
 	"strconv"
 
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
@@ -23,6 +22,7 @@ import (
 	tooldecisionaction "github.com/runforyou-ai/luway/internal/actions/tooldecision"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
@@ -33,7 +33,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-var _ appservice.WebsiteVisitorService = (*WebsiteVisitorBackend)(nil)
+var _ appservice.WebsiteVisitorBackend = (*WebsiteVisitorBackend)(nil)
 
 // WebsiteVisitorAudience 是网站访客事件流的受众标识，渠道身份记录 ID 用于构造受众 Subject。
 type WebsiteVisitorAudience struct {
@@ -45,7 +45,6 @@ type WebsiteVisitorAudience struct {
 // WebsiteVisitorBackend 在服务端进程内调用匿名访客 Action 和 Query。
 type WebsiteVisitorBackend struct {
 	db                *bun.DB
-	realtimePrefix    string
 	listConversations *customerchataction.ListWebsiteConversationsQuery
 	sendMessage       *customerchataction.ReceiveWebsiteCustomerMessageAction
 	listMessages      *customerchataction.ListWebsiteMessagesQuery
@@ -62,17 +61,16 @@ type WebsiteVisitorBackend struct {
 	getHelpCenter     *helpcenteraction.GetHelpCenterQuery
 	getHelpArticle    *helpcenteraction.GetArticleQuery
 	searchHelpCenter  *helpcenteraction.SearchQuery
-	localFiles        *serverfilecontent.LocalStore
 	s3                serverfilecontent.S3Settings
 	links             serverfilecontent.Links
 	limiter           *ratelimit.Limiter
-	reader            *serverfilecontent.Reader
+	reader            *serverfilecontent.Store
 }
 
 // NewWebsiteVisitorBackend 创建匿名网站访客直接后端；s3 返回部署当前的对象存储配置，emailSender 按部署当前的邮件配置发送，knowledgeRetrieval 用于帮助中心搜索。
-func NewWebsiteVisitorBackend(db *bun.DB, agentScheduler conversationaction.CustomerAgentMessageScheduler, taskEnqueuer servertask.TxEnqueuer, localFiles *serverfilecontent.LocalStore, s3 serverfilecontent.S3Settings, emailSender customernotify.Sender, knowledgeRetrieval helpcenteraction.Retrieval) *WebsiteVisitorBackend {
+func NewWebsiteVisitorBackend(db *bun.DB, agentScheduler conversationaction.CustomerAgentMessageScheduler, taskEnqueuer servertask.TxEnqueuer, s3 serverfilecontent.S3Settings, emailSender customernotify.Sender, knowledgeRetrieval helpcenteraction.Retrieval) *WebsiteVisitorBackend {
 	backend := &WebsiteVisitorBackend{
-		db: db, realtimePrefix: "app_realtime",
+		db:                db,
 		listConversations: customerchataction.NewListWebsiteConversationsQuery(db),
 		sendMessage:       customerchataction.NewReceiveWebsiteCustomerMessageAction(db, agentScheduler, taskEnqueuer, emailSender),
 		listMessages:      customerchataction.NewListWebsiteMessagesQuery(db),
@@ -88,13 +86,12 @@ func NewWebsiteVisitorBackend(db *bun.DB, agentScheduler conversationaction.Cust
 		getHelpCenter:     helpcenteraction.NewGetHelpCenterQuery(db),
 		getHelpArticle:    helpcenteraction.NewGetArticleQuery(db),
 		searchHelpCenter:  helpcenteraction.NewSearchQuery(db, knowledgeRetrieval),
-		localFiles:        localFiles,
 		s3:                s3,
-		links:             serverfilecontent.NewLinks(nil, s3),
+		links:             serverfilecontent.NewLinks(s3),
 		limiter:           ratelimit.NewLimiter(db),
-		reader:            serverfilecontent.NewReader(localFiles, s3),
+		reader:            serverfilecontent.NewStore(s3),
 	}
-	backend.createUpload = customerchataction.NewCreateWebsiteVisitorUploadAction(db, taskEnqueuer, func() domain.FileStorageBackend { return s3().Backend() })
+	backend.createUpload = customerchataction.NewCreateWebsiteVisitorUploadAction(db, taskEnqueuer)
 	return backend
 }
 
@@ -196,7 +193,7 @@ func (b *WebsiteVisitorBackend) SendAttachmentMessage(ctx context.Context, meta 
 
 // sentMessageResult 转换访客消息写入结果并记录保存日志。
 func (b *WebsiteVisitorBackend) sentMessageResult(ctx context.Context, meta appservice.WebsiteVisitorMeta, channelID string, result customerchataction.ReceiveWebsiteCustomerMessageResult) (appservice.WebsiteVisitorMessageResult, error) {
-	linker := visitorAttachmentLinker{s3: b.s3, fileLinks: b.links}
+	linker := visitorAttachmentLinker{fileLinks: b.links}
 	message, err := websiteVisitorMessageFromAction(ctx, &linker, result.Message)
 	if err != nil {
 		return appservice.WebsiteVisitorMessageResult{}, websiteVisitorError(meta, err, i18n.VisitorErrorSendFailed)
@@ -236,7 +233,7 @@ func (b *WebsiteVisitorBackend) CreateAttachmentUpload(ctx context.Context, meta
 	if err != nil {
 		return appservice.WebsiteVisitorUpload{}, websiteVisitorError(meta, err, i18n.VisitorErrorUploadFailed)
 	}
-	request, err := b.visitorUploadRequest(ctx, meta, record)
+	request, err := b.visitorUploadRequest(ctx, record)
 	if err != nil {
 		return appservice.WebsiteVisitorUpload{}, websiteVisitorError(meta, err, i18n.VisitorErrorUploadFailed)
 	}
@@ -251,7 +248,7 @@ func (b *WebsiteVisitorBackend) CompleteAttachmentUpload(ctx context.Context, me
 	if err != nil {
 		return websiteVisitorError(meta, err, i18n.VisitorErrorUploadFailed)
 	}
-	slog.InfoContext(logscope.WithWorkspace(ctx, record.WorkspaceID), "网站访客附件上传已完成", "channel_id", channelID, "file_id", record.ID, "storage_backend", record.StorageBackend)
+	slog.InfoContext(logscope.WithWorkspace(ctx, record.WorkspaceID), "网站访客附件上传已完成", "channel_id", channelID, "file_id", record.ID)
 	return nil
 }
 
@@ -263,28 +260,22 @@ func (b *WebsiteVisitorBackend) GetMessageAttachment(ctx context.Context, meta a
 	if err != nil {
 		return appservice.WebsiteVisitorAttachmentLinks{}, websiteVisitorError(meta, err, i18n.MessengerAttachmentUnavailable)
 	}
-	linker := visitorAttachmentLinker{s3: b.s3, fileLinks: b.links}
-	links, err := linker.links(ctx, domain.FileStorageBackend(record.StorageBackend), record.StorageKey, record.OriginalName, record.ContentType)
+	linker := visitorAttachmentLinker{fileLinks: b.links}
+	links, err := linker.links(record.StorageKey, record.ContentType)
 	if err != nil {
 		return appservice.WebsiteVisitorAttachmentLinks{}, websiteVisitorError(meta, err, i18n.MessengerAttachmentUnavailable)
 	}
+	// 按用户本次下载请求保留附件原名，聊天历史中的访问地址仍由 linker 生成。
+	signed, err := serverfilecontent.PresignDownload(ctx, b.s3(), record.StorageKey, mime.FormatMediaType("attachment", map[string]string{"filename": record.OriginalName}))
+	if err != nil {
+		return appservice.WebsiteVisitorAttachmentLinks{}, websiteVisitorError(meta, err, i18n.MessengerAttachmentUnavailable)
+	}
+	links.DownloadURL = signed.URL
 	return links, nil
 }
 
-// visitorUploadRequest 返回访客直传的本地上传地址或 S3 预签名请求。
-func (b *WebsiteVisitorBackend) visitorUploadRequest(ctx context.Context, meta appservice.WebsiteVisitorMeta, record *servermodels.File) (appservice.WebsiteVisitorUploadRequest, error) {
-	if record.StorageBackend == string(domain.FileStorageBackendLocal) {
-		contentURL, err := b.links.URL(domain.FileStorageBackendLocal, record.StorageKey)
-		if err != nil {
-			return appservice.WebsiteVisitorUploadRequest{}, err
-		}
-		// 登录用户以签名身份直传，匿名访客以访客令牌直传。
-		headers := map[string]string{appservice.WebsiteVisitorTokenHeader: meta.Token, "Content-Type": record.ContentType}
-		if meta.Customer != nil {
-			headers = map[string]string{appservice.CustomerTokenHeader: meta.CustomerToken, "Content-Type": record.ContentType}
-		}
-		return appservice.WebsiteVisitorUploadRequest{Method: http.MethodPut, URL: contentURL, Headers: headers}, nil
-	}
+// visitorUploadRequest 返回访客直传 S3 的预签名请求。
+func (b *WebsiteVisitorBackend) visitorUploadRequest(ctx context.Context, record *servermodels.File) (appservice.WebsiteVisitorUploadRequest, error) {
 	signed, err := serverfilecontent.PresignPut(ctx, b.s3(), record.StorageKey, record.ContentType, record.ByteSize)
 	if err != nil {
 		return appservice.WebsiteVisitorUploadRequest{}, err
@@ -294,42 +285,25 @@ func (b *WebsiteVisitorBackend) visitorUploadRequest(ctx context.Context, meta a
 
 // visitorAttachmentLinker 按部署级对象存储配置签发访客附件地址。
 type visitorAttachmentLinker struct {
-	s3        serverfilecontent.S3Settings
 	fileLinks serverfilecontent.Links
 }
 
 // links 返回附件的下载地址，可内嵌展示的图片同时返回预览地址。
-func (l *visitorAttachmentLinker) links(ctx context.Context, backend domain.FileStorageBackend, storageKey, fileName, contentType string) (appservice.WebsiteVisitorAttachmentLinks, error) {
-	_, inline := domain.InlineImageExtension(contentType)
-	if backend == domain.FileStorageBackendLocal {
-		contentURL, err := l.fileLinks.URL(domain.FileStorageBackendLocal, storageKey)
-		if err != nil {
-			return appservice.WebsiteVisitorAttachmentLinks{}, err
-		}
-		links := appservice.WebsiteVisitorAttachmentLinks{DownloadURL: contentURL + "?download=" + url.QueryEscape(fileName)}
-		if inline {
-			links.PreviewURL = contentURL
-		}
-		return links, nil
-	}
-	download, err := serverfilecontent.PresignDownload(ctx, l.s3(), storageKey, mime.FormatMediaType("attachment", map[string]string{"filename": fileName}))
+func (l *visitorAttachmentLinker) links(storageKey, contentType string) (appservice.WebsiteVisitorAttachmentLinks, error) {
+	link, err := l.fileLinks.URL(storageKey)
 	if err != nil {
 		return appservice.WebsiteVisitorAttachmentLinks{}, err
 	}
-	links := appservice.WebsiteVisitorAttachmentLinks{DownloadURL: download.URL}
-	if inline {
-		preview, err := serverfilecontent.PresignDownload(ctx, l.s3(), storageKey, "inline")
-		if err != nil {
-			return appservice.WebsiteVisitorAttachmentLinks{}, err
-		}
-		links.PreviewURL = preview.URL
+	result := appservice.WebsiteVisitorAttachmentLinks{DownloadURL: link}
+	if _, inline := domain.InlineImageExtension(contentType); inline {
+		result.PreviewURL = link
 	}
-	return links, nil
+	return result, nil
 }
 
 // avatarURL 返回头像文件的稳定公开地址。
 func (l *visitorAttachmentLinker) avatarURL(_ context.Context, location customerchataction.FileLocation) (string, error) {
-	return l.fileLinks.URL(location.StorageBackend, location.StorageKey)
+	return l.fileLinks.URL(location.StorageKey)
 }
 
 // ListMessages 返回网站访客指定客户线程的消息历史。
@@ -346,7 +320,7 @@ func (b *WebsiteVisitorBackend) ListMessages(ctx context.Context, meta appservic
 	if err != nil {
 		return appservice.WebsiteVisitorMessageHistory{}, websiteVisitorError(meta, err, i18n.VisitorErrorLoadFailed)
 	}
-	linker := visitorAttachmentLinker{s3: b.s3, fileLinks: b.links}
+	linker := visitorAttachmentLinker{fileLinks: b.links}
 	messages, err := arr.MapErr(page.Messages, func(message customerchataction.Message) (appservice.WebsiteVisitorMessage, error) {
 		return websiteVisitorMessageFromAction(ctx, &linker, message)
 	})
@@ -508,7 +482,7 @@ func websiteVisitorHelpArticles(articles []helpcenteraction.ArticleSummary) []ap
 
 // websiteVisitorError 把语言无关访客错误映射为按对客语言本地化的应用错误。
 func websiteVisitorError(meta appservice.WebsiteVisitorMeta, err error, failureKey i18n.Key) error {
-	if validation, ok := errors.AsType[*conversationaction.ValidationError](err); ok {
+	if validation, ok := errors.AsType[*common.FieldError](err); ok {
 		fieldKeys := dispatch.TranslateFields(validation.Fields, websiteVisitorValidationKeys)
 		// 各字段文案一致时直接作为错误文案，否则提示请求无效。
 		var messageKey i18n.Key
@@ -562,7 +536,7 @@ func websiteVisitorError(meta appservice.WebsiteVisitorMeta, err error, failureK
 }
 
 // websiteVisitorValidationKeys 把网站访客消息输入校验错误码映射为本地化文案键。
-var websiteVisitorValidationKeys = map[conversationaction.ValidationCode]i18n.Key{
+var websiteVisitorValidationKeys = map[common.FieldCode]i18n.Key{
 	conversationaction.ValidationReplyToMessageIDInvalid: i18n.VisitorErrorRequestInvalid,
 	customerchataction.ValidationChannelIDInvalid:        i18n.VisitorErrorRequestInvalid,
 	customerchataction.ValidationExternalIDInvalid:       i18n.VisitorErrorRequestInvalid,
@@ -598,7 +572,7 @@ func websiteVisitorReceptionFromAction(value serviceroute.Reception, links serve
 		Online: value.Online, Reply: string(value.Reply), NextOpeningAt: value.NextOpeningAt,
 	}
 	if value.HandlerAvatar != nil {
-		avatarURL, err := links.URL(value.HandlerAvatar.StorageBackend, value.HandlerAvatar.StorageKey)
+		avatarURL, err := links.URL(value.HandlerAvatar.StorageKey)
 		if err != nil {
 			return appservice.WebsiteVisitorReception{}, err
 		}
@@ -625,7 +599,7 @@ func websiteVisitorMessageFromAction(ctx context.Context, linker *visitorAttachm
 		}
 		// 内容尚未就绪的附件不返回地址。
 		if value.Attachment.TransferStatus == domain.MessageAttachmentTransferReady {
-			links, err := linker.links(ctx, value.Attachment.StorageBackend, value.Attachment.StorageKey, value.Attachment.Name, value.Attachment.ContentType)
+			links, err := linker.links(value.Attachment.StorageKey, value.Attachment.ContentType)
 			if err != nil {
 				return appservice.WebsiteVisitorMessage{}, err
 			}

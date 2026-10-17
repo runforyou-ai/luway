@@ -9,12 +9,11 @@ import (
 	"slices"
 	"time"
 
-	"github.com/runforyou-ai/luway/internal/actions/agentmessage"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess"
 	deliveryaction "github.com/runforyou-ai/luway/internal/actions/channeldelivery"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	"github.com/runforyou-ai/luway/internal/actions/contactprofile"
-	"github.com/runforyou-ai/luway/internal/actions/servicecategory"
+	"github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/actions/servicestate"
 	"github.com/runforyou-ai/luway/internal/actions/servicesummary"
@@ -61,15 +60,8 @@ func (p customerRunPolicy) lockContext(ctx context.Context, db bun.IDB, run *ser
 	return agentRunPolicyContext{Conversation: conversation, ServiceSession: session, ServiceSource: source, DeliveryRoute: route}, nil
 }
 
-// historyServiceSession 返回客户历史检索锚点：服务客户的会话取运行所属的服务周期，其他会话为空。
-func (p customerRunPolicy) historyServiceSession(ctx context.Context, db bun.IDB, run *servermodels.AgentRun) (string, error) {
-	service, err := chatstate.LoadServiceConversation(ctx, db, run.WorkspaceID, run.ConversationID)
-	if err != nil {
-		return "", err
-	}
-	if domain.ServiceAudience(service.Audience) != domain.ServiceAudienceCustomer {
-		return "", nil
-	}
+// historyServiceSession 以运行所属的服务周期为锚点，检索同一发起人的历史沟通。
+func (p customerRunPolicy) historyServiceSession(_ context.Context, _ bun.IDB, run *servermodels.AgentRun) (string, error) {
 	return run.ScopeID, nil
 }
 
@@ -166,11 +158,11 @@ func loadLastClaimedInput(ctx context.Context, db bun.IDB, run *servermodels.Age
 
 // persistMessage 追加客服 Agent 结果并记录有效首响。
 func (p customerRunPolicy) persistMessage(ctx context.Context, db bun.IDB, policyContext agentRunPolicyContext, run *servermodels.AgentRun, messageID string, messageType domain.MessageType, content string) error {
-	participantID, err := agentmessage.EnsureCustomerParticipant(ctx, db, run.WorkspaceID, run.ConversationID, run.AgentIdentityID)
+	participantID, err := chatstate.EnsureCustomerParticipant(ctx, db, run.WorkspaceID, run.ConversationID, run.AgentIdentityID)
 	if err != nil {
 		return err
 	}
-	_, err = agentmessage.AppendCustomer(ctx, db, p.enqueuer, policyContext.Conversation, policyContext.ServiceSession, policyContext.DeliveryRoute, agentResultMessage(run, messageID, participantID, messageType, content, &policyContext.ServiceSession.ID))
+	_, err = chatstate.AppendCustomer(ctx, db, p.enqueuer, policyContext.Conversation, policyContext.ServiceSession, policyContext.DeliveryRoute, agentResultMessage(run, messageID, participantID, messageType, content, &policyContext.ServiceSession.ID))
 	return err
 }
 
@@ -184,7 +176,7 @@ func (p customerRunPolicy) sceneContext(ctx context.Context, db bun.IDB, executi
 	if domain.ServiceAudience(service.Audience) != domain.ServiceAudienceCustomer {
 		scene = agentruntime.SceneEmployeeService
 	}
-	categories, err := servicecategory.Active(ctx, db, execution.Run.WorkspaceID)
+	categories, err := servicepolicy.Active(ctx, db, execution.Run.WorkspaceID, domain.ServiceAudience(service.Audience))
 	if err != nil {
 		return agentruntime.SceneContext{}, err
 	}
@@ -263,7 +255,7 @@ func loadServiceSessionMessages(ctx context.Context, db bun.IDB, workspaceID, co
 		ColumnExpr("reply.deleted_at IS NOT NULL AS reply_deleted").
 		ColumnExpr("? AS reply_body", messagequery.Summary("reply")).
 		ColumnExpr("reply_cs.kind AS reply_sender_kind, reply_cs.source_id AS reply_sender_id").
-		ColumnExpr("CASE WHEN reply_cs.kind = ? THEN COALESCE(reply_cci.display_name, reply_c.display_name) ELSE reply_oi.display_name END AS reply_sender_name", domain.ChatSubjectKindContact).
+		ColumnExpr(contactprofile.KindResolvedName("reply_cs.kind", "reply_c", "reply_oi")+" AS reply_sender_name").
 		Join("JOIN conversation_participants AS cp ON cp.id = msg.sender_participant_id AND cp.workspace_id = msg.workspace_id AND cp.conversation_id = msg.conversation_id").
 		Join("JOIN chat_subjects AS cs ON cs.id = cp.subject_id AND cs.workspace_id = cp.workspace_id").
 		Join("JOIN service_conversations AS svc ON svc.workspace_id = msg.workspace_id AND svc.conversation_id = msg.conversation_id").
@@ -271,8 +263,6 @@ func loadServiceSessionMessages(ctx context.Context, db bun.IDB, workspaceID, co
 		Join("LEFT JOIN conversation_participants AS reply_cp ON reply_cp.id = reply.sender_participant_id AND reply_cp.workspace_id = reply.workspace_id AND reply_cp.conversation_id = reply.conversation_id").
 		Join("LEFT JOIN chat_subjects AS reply_cs ON reply_cs.id = reply_cp.subject_id AND reply_cs.workspace_id = reply_cp.workspace_id").
 		Join("LEFT JOIN workspace_identities AS reply_oi ON reply_oi.id = reply_cs.source_id AND reply_oi.workspace_id = reply_cs.workspace_id AND reply_cs.kind = ?", domain.ChatSubjectKindWorkspaceIdentity).
-		Join("LEFT JOIN channel_conversations AS cc ON cc.conversation_id = msg.conversation_id AND cc.workspace_id = msg.workspace_id").
-		Join("LEFT JOIN channel_identities AS reply_cci ON reply_cci.id = cc.channel_identity_id AND reply_cci.workspace_id = cc.workspace_id AND reply_cci.contact_id = reply_cs.source_id AND reply_cs.kind = ?", domain.ChatSubjectKindContact).
 		Join("LEFT JOIN contacts AS reply_c ON reply_c.id = reply_cs.source_id AND reply_c.workspace_id = reply_cs.workspace_id AND reply_cs.kind = ?", domain.ChatSubjectKindContact).
 		Where("msg.workspace_id = ?", workspaceID).
 		Where("msg.conversation_id = ?", conversationID).
@@ -374,7 +364,7 @@ func CustomerContextContent(ctx context.Context, db bun.IDB, workspaceID, servic
 	if err := db.NewSelect().
 		TableExpr("service_sessions AS ss").
 		ColumnExpr("c.id::text AS contact_id, ci.verified_user_id, ss.visitor_context").
-		ColumnExpr("COALESCE(ci.display_name, c.display_name) AS name").
+		ColumnExpr(contactprofile.ResolvedColumn("c") + " AS name").
 		Join("JOIN channel_conversations AS cc ON cc.workspace_id = ss.workspace_id AND cc.conversation_id = ss.conversation_id").
 		Join("JOIN channel_identities AS ci ON ci.id = cc.channel_identity_id AND ci.workspace_id = cc.workspace_id").
 		Join("JOIN contacts AS c ON c.id = ci.contact_id AND c.workspace_id = ci.workspace_id").

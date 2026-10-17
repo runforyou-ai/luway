@@ -23,9 +23,9 @@ type UpdateTeamAction struct{ db *bun.DB }
 func NewUpdateTeamAction(db *bun.DB) *UpdateTeamAction { return &UpdateTeamAction{db: db} }
 
 // Execute 校验并修改当前企业的团队。
-func (a *UpdateTeamAction) Execute(ctx context.Context, identity *servermodels.Identity, teamID string, input Input) (*TeamRecord, error) {
+func (a *UpdateTeamAction) Execute(ctx context.Context, identity *servermodels.Identity, teamID string, input Input) (*Record, error) {
 	input = normalizeInput(input)
-	var record *TeamRecord
+	var record *Record
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err

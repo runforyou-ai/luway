@@ -8,11 +8,13 @@ import (
 	"testing"
 	"uuid"
 
+	translationaction "github.com/runforyou-ai/luway/internal/actions/translation"
+
 	agentaction "github.com/runforyou-ai/luway/internal/actions/agent"
 	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
 	knowledgeaction "github.com/runforyou-ai/luway/internal/actions/knowledgebase"
+	servicepolicyaction "github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
@@ -56,7 +58,7 @@ func TestAIModelReferences(t *testing.T) {
 		}},
 	})
 	require.NoError(t, err)
-	_, err = customerserviceaction.NewUpdateServiceSummarySettingsAction(db).Execute(ctx, identity, domain.ServiceSummarySettings{
+	_, err = servicepolicyaction.NewUpdateServiceSummarySettingsAction(db).Execute(ctx, identity, domain.ServiceAudienceCustomer, domain.ServiceSummarySettings{
 		DecisionModelID: &decisionModelID, SummaryModelID: &chatModelID, Locale: domain.LocaleChineseSimplified,
 	})
 	require.NoError(t, err)
@@ -143,9 +145,9 @@ func TestAIModelReferences(t *testing.T) {
 	})
 	require.ErrorAs(t, err, &validation, "foreign agent error")
 	require.Equal(t, agentaction.ValidationModelInvalid, validation.Fields["modelId"])
-	_, err = customerserviceaction.NewUpdateTranslationSettingsAction(db).Execute(ctx, foreign, &chatModelID)
+	_, err = translationaction.UpdateTranslationSettings(ctx, db, foreign, &chatModelID)
 	require.ErrorAs(t, err, &validation, "foreign translation error")
-	require.Equal(t, customerserviceaction.ValidationTranslationModelInvalid, validation.Fields["modelId"])
+	require.Equal(t, translationaction.ValidationTranslationModelInvalid, validation.Fields["modelId"])
 	foreignOptions, err := list.Execute(ctx, foreign, domain.AIModelUsageAgent)
 	require.NoError(t, err)
 	require.False(t, slices.ContainsFunc(foreignOptions, func(option aimodel.Option) bool { return option.ID == chatModelID }), "foreign options=%+v", foreignOptions)

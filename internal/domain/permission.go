@@ -10,6 +10,8 @@ const (
 	PermissionAIEmployeesManage PermissionCode = "ai_employees.manage"
 	// PermissionCustomerServiceManage 管理渠道与客服设置。
 	PermissionCustomerServiceManage PermissionCode = "customer_service.manage"
+	// PermissionEmployeeServiceManage 管理员工服务策略与员工渠道。
+	PermissionEmployeeServiceManage PermissionCode = "employee_service.manage"
 	// PermissionExternalContactsManage 新建、编辑与删除外部联系人。
 	PermissionExternalContactsManage PermissionCode = "external_contacts.manage"
 	// PermissionReportsView 查看 AI 表现与团队表现报表。
@@ -26,6 +28,7 @@ var permissionDefinitions = []PermissionDefinition{
 	{Code: PermissionWorkspaceManage},
 	{Code: PermissionAIEmployeesManage},
 	{Code: PermissionCustomerServiceManage},
+	{Code: PermissionEmployeeServiceManage},
 	{Code: PermissionExternalContactsManage},
 	{Code: PermissionReportsView},
 }

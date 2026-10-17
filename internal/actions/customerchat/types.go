@@ -9,13 +9,14 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/channelinbound"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/actions/serviceroute"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
 const (
-	ValidationChannelIDInvalid     conversationaction.ValidationCode = "channel_id_invalid"
-	ValidationExternalIDInvalid    conversationaction.ValidationCode = "external_id_invalid"
-	ValidationRatingCommentTooLong conversationaction.ValidationCode = "rating_comment_too_long"
+	ValidationChannelIDInvalid     common.FieldCode = "channel_id_invalid"
+	ValidationExternalIDInvalid    common.FieldCode = "external_id_invalid"
+	ValidationRatingCommentTooLong common.FieldCode = "rating_comment_too_long"
 )
 
 const (
@@ -175,8 +176,7 @@ type VisitorSessionRating struct {
 
 // FileLocation 定义文件的存储位置。
 type FileLocation struct {
-	StorageBackend domain.FileStorageBackend
-	StorageKey     string
+	StorageKey string
 }
 
 // ReceiveWebsiteCustomerMessageResult 定义网站消息写入结果。

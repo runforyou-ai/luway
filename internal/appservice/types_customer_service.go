@@ -69,6 +69,7 @@ type HandoffSummary struct {
 type ServiceSessionSummary struct {
 	ServiceSessionID string                    `json:"serviceSessionId"`
 	ConversationID   string                    `json:"conversationId"`
+	Audience         ServiceAudience           `json:"audience"`
 	Source           ServiceSource             `json:"source"`
 	ChannelType      *ChannelType              `json:"channelType"`
 	ChannelName      *string                   `json:"channelName"`

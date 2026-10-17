@@ -260,7 +260,7 @@ func (RunStreamDelta) FrameType() Type { return TypeRunStreamDelta }
 // FrameType 返回运行过程流结束事件种类。
 func (RunStreamEnded) FrameType() Type { return TypeRunStreamEnded }
 
-// envelope 是事件经 jetcast 传输的外层结构。
+// envelope 是业务事件的版本化外层结构。
 type envelope struct {
 	V    int             `json:"v"`
 	Type Type            `json:"type"`

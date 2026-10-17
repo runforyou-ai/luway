@@ -5,7 +5,6 @@ package integrationtest
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"sync"
 	"testing"
@@ -63,7 +62,6 @@ func (p *runtimeProbe) finalizedWith(name string) (servertask.Execution, string,
 // TestTaskRuntime 以进程内 NATS 验证服务端任务运行时：事务内投递只在提交后执行、回滚后丢弃；所属工作区未启用时推迟到启用后执行；
 // 带路由的任务由持有路由租约的实例执行；永久失败与重试耗尽后执行最终失败收尾，并在队列概况与失败任务中报告。
 func TestTaskRuntime(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	store, err := openSharedTestDatabase(ctx, servertest.DatabaseConfig(t))
 	require.NoError(t, err)
@@ -78,7 +76,7 @@ func TestTaskRuntime(t *testing.T) {
 	_, err = rand.Read(suffix)
 	require.NoError(t, err)
 	instanceID := uuid.NewV7().String()
-	runtime, err := servertask.New(ctx, nats.JS, servertask.Options{Namespace: "t" + hex.EncodeToString(suffix), Replicas: 1}, db, db, instanceID)
+	runtime, err := servertask.New(ctx, nats.JS, db, db, instanceID)
 	require.NoError(t, err)
 	probe := &runtimeProbe{runs: map[string][]servertask.Execution{}, finalized: map[string]error{}, finalizing: map[string]servertask.Execution{}}
 	require.NoError(t, runtime.Registry().RegisterJSON("test.runtime.probe", func(ctx context.Context, input runtimeProbeInput) error {
@@ -229,7 +227,6 @@ func TestTaskRuntime(t *testing.T) {
 
 // TestTaskRuntimeRemovedWorkspace 验证所属工作区已删除时任务不执行，直接最终失败并执行收尾，不再按暂停推迟。
 func TestTaskRuntimeRemovedWorkspace(t *testing.T) {
-	t.Parallel()
 	ctx := context.Background()
 	store, err := openSharedTestDatabase(ctx, servertest.DatabaseConfig(t))
 	require.NoError(t, err)
@@ -242,7 +239,7 @@ func TestTaskRuntimeRemovedWorkspace(t *testing.T) {
 	suffix := make([]byte, 4)
 	_, err = rand.Read(suffix)
 	require.NoError(t, err)
-	runtime, err := servertask.New(ctx, nats.JS, servertask.Options{Namespace: "t" + hex.EncodeToString(suffix), Replicas: 1}, db, db, uuid.NewV7().String())
+	runtime, err := servertask.New(ctx, nats.JS, db, db, uuid.NewV7().String())
 	require.NoError(t, err)
 	probe := &runtimeProbe{runs: map[string][]servertask.Execution{}, finalized: map[string]error{}, finalizing: map[string]servertask.Execution{}}
 	require.NoError(t, runtime.Registry().RegisterJSONWithTerminalFailure("test.runtime.removed", func(ctx context.Context, input runtimeProbeInput) error {
@@ -266,4 +263,26 @@ func TestTaskRuntimeRemovedWorkspace(t *testing.T) {
 	_, removedErr, _ := probe.finalizedWith("removed")
 	require.Contains(t, removedErr, "is removed")
 	require.Empty(t, probe.executions("removed"), "task ran for a removed workspace")
+}
+
+// TestTaskAbsoluteSchedule 验证持锁事务经过时间后绝对排期仍指向原时刻。
+func TestTaskAbsoluteSchedule(t *testing.T) {
+	db := openRealtimeDB(t)
+	connection := servertest.StartRealtimeBroker(t)
+	runtime, err := servertask.New(t.Context(), connection.JS, db, db, uuid.NewV7().String())
+	require.NoError(t, err)
+	require.NoError(t, runtime.Registry().RegisterJSON("test.absolute", func(context.Context, runtimeProbeInput) error { return nil }))
+	require.NoError(t, serverstorage.RunInTx(t.Context(), db, func(ctx context.Context, tx bun.Tx) error {
+		at, err := serverstorage.Now(ctx, tx)
+		require.NoError(t, err)
+		_, err = tx.ExecContext(ctx, "SELECT pg_sleep(0.1)")
+		require.NoError(t, err)
+		id, err := runtime.EnqueueIn(ctx, "test.absolute", runtimeProbeInput{Name: "scheduled"}, servertask.EnqueueOptions{At: at})
+		require.NoError(t, err)
+		var actual time.Time
+		require.NoError(t, tx.NewRaw("SELECT (payload->'Options'->>'At')::timestamptz FROM message_outbox WHERE payload->>'ID' = ?", id).Scan(ctx, &actual))
+		require.True(t, at.Equal(actual), "absolute schedule moved with transaction duration")
+		_, err = tx.NewRaw("DELETE FROM message_outbox WHERE payload->>'ID' = ?", id).Exec(ctx)
+		return err
+	}))
 }

@@ -13,6 +13,7 @@ import (
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	aiprovideraction "github.com/runforyou-ai/luway/internal/actions/aiprovider"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
+	"github.com/runforyou-ai/luway/internal/actions/conversationaccess"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
@@ -32,7 +33,7 @@ type executionScopeFixture struct {
 	agentIdentityID string
 	tasks           *servertest.Tasks
 	scheduler       *agentrunaction.Scheduler
-	coordinator     *testAgentRun
+	canceller       *testAgentRun
 	transfer        *servicesessionaction.TransferServiceSessionAction
 	claim           *servicesessionaction.ClaimServiceSessionAction
 	close           *servicesessionaction.CloseServiceSessionAction
@@ -61,12 +62,12 @@ func newExecutionScopeFixture(t *testing.T) executionScopeFixture {
 	require.NoError(t, err, "创建 AI 员工失败")
 	tasks := servertest.NewTasks()
 	scheduler := agentrunaction.NewScheduler(tasks)
-	coordinator := newTestAgentRun(f.db, tasks, nil, testModelInvoker(f.db), testAttachmentReader(f.db), nil, servertest.DisabledMail{}, nil, nil)
+	canceller := newTestAgentRun(f.db, tasks, nil, testModelInvoker(f.db), testAttachmentReader(f.db), nil, servertest.DisabledMail{}, nil, nil)
 	return executionScopeFixture{
-		customerReadFixture: f, agentIdentityID: agent.IdentityID, tasks: tasks, scheduler: scheduler, coordinator: coordinator,
-		transfer: servicesessionaction.NewTransferServiceSessionAction(f.db, coordinator, scheduler, testEnqueuer),
-		claim:    servicesessionaction.NewClaimServiceSessionAction(f.db, coordinator, testEnqueuer),
-		close:    servicesessionaction.NewCloseServiceSessionAction(f.db, coordinator, testEnqueuer),
+		customerReadFixture: f, agentIdentityID: agent.IdentityID, tasks: tasks, scheduler: scheduler, canceller: canceller,
+		transfer: servicesessionaction.NewTransferServiceSessionAction(f.db, canceller, scheduler, testEnqueuer),
+		claim:    servicesessionaction.NewClaimServiceSessionAction(f.db, canceller, testEnqueuer),
+		close:    servicesessionaction.NewCloseServiceSessionAction(f.db, canceller, testEnqueuer),
 	}
 }
 
@@ -242,12 +243,12 @@ func TestAgentExecutionScopeKeepsSuppressedProcess(t *testing.T) {
 	go func() { finished <- executor.Execute(ctx, agentrunaction.RunInput{RunID: run.ID}) }()
 	<-claimed
 	require.NoError(t, realtime.RunInTx(ctx, f.db, func(ctx context.Context, tx bun.Tx) error {
-		_, err := f.coordinator.CancelForServiceSession(ctx, tx, run.WorkspaceID, sessionID, f.agentIdentityID, domain.AgentRunErrorCodeAccountChanged)
+		_, err := f.canceller.CancelForServiceSession(ctx, tx, run.WorkspaceID, sessionID, f.agentIdentityID, domain.AgentRunErrorCodeAccountChanged)
 		return err
 	}))
 	close(release)
 	require.NoError(t, <-finished, "抑制的运行返回错误")
-	process, err := processquery.NewGetRunProcessQuery(f.db).Execute(ctx, f.owner, run.ID)
+	process, err := processquery.NewGetRunProcessQuery(f.db, conversationaccess.Guard{}).Execute(ctx, f.owner, run.ID)
 	require.NoError(t, err)
 	require.Len(t, process.Blocks, 1)
 	require.Equal(t, "失去资格前的思考", process.Blocks[0].Payload.Text)

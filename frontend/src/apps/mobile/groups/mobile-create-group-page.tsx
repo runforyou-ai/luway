@@ -7,7 +7,7 @@ import {
   createGroupConversationSchema,
   groupDescriptionMaxLength,
   groupTitleMaxLength,
-} from "@/features/inbox/group/group-conversation-schema"
+} from "@/features/inbox/public"
 
 import { createGroupConversation, type MemberOption } from "@/api"
 import { MobileGroupMemberPicker } from "@/apps/mobile/groups/mobile-group-member-picker"
@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { useGroupImageUpload } from "@/features/inbox/group/use-group-image-upload"
+import { useGroupImageUpload } from "@/features/inbox/public"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormLifetime } from "@/hooks/use-form-lifetime"
 import { useImmediateSave } from "@/hooks/use-immediate-save"

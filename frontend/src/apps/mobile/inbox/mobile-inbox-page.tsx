@@ -19,16 +19,16 @@ import {
 import { mobileSearchPath, useMobileNavigation } from "@/apps/mobile/shared/mobile-navigation"
 import { useMobileWorkspace } from "@/apps/mobile/shared/mobile-workspace-layout"
 import { Button } from "@/components/ui/button"
-import { useInboxAttention } from "@/features/inbox/list/inbox-attention"
-import { inboxTabs, normalizeInboxQuery } from "@/features/inbox/list/inbox-query"
+import { useInboxAttention } from "@/features/inbox/public"
+import { inboxTabs, normalizeInboxQuery } from "@/features/inbox/public"
 import {
   useInboxList,
   usePartitionedInboxList,
   type InboxList,
   type InboxListViewport,
   type PartitionedInboxList,
-} from "@/features/inbox/list/use-inbox-list"
-import { useInboxListViewport } from "@/features/inbox/list/use-inbox-list-viewport"
+} from "@/features/inbox/public"
+import { useInboxListViewport } from "@/features/inbox/public"
 import { cn } from "@/lib/utils"
 
 type MobileInboxPaneProps = {

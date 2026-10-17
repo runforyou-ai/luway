@@ -1,7 +1,7 @@
 /** 前端业务 API 入口，聚合各业务域模块并导出契约类型。 */
 export * from "@/api/generated/contract"
 export { ApiError, isApiError, isNotFoundApiError, serverURL } from "@/api/client"
-export { connectServer, install, login, logout, probeServer, register } from "@/api/auth"
+export { adminLogin, adminLogout, connectServer, install, login, logout, probeServer, register } from "@/api/auth"
 export { getSyncHeads, loadIdentity, loadInstallationStatus, loadStartup, sessionPath, type ConnectReason, type Startup } from "@/api/session"
 export {
   createRunStreamClient,
@@ -17,10 +17,8 @@ export {
 } from "@/api/realtime"
 export {
   completeFileUpload,
-  createFilePartUpload,
-  FileTransfer,
+  FileUploadTask,
   cancelFileUpload,
-  uploadFileSlice,
   createFileUpload,
   uploadFile,
 } from "@/api/uploads"
@@ -31,6 +29,7 @@ export * from "@/api/personal-agents"
 export * from "@/api/ai-providers"
 export * from "@/api/business-systems"
 export * from "@/api/web-search"
+export * from "@/api/web-fetch"
 export * from "@/api/channels"
 export * from "@/api/contacts"
 export * from "@/api/platform"

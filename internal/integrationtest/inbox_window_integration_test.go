@@ -58,7 +58,7 @@ func TestInboxContextDeepWindow(t *testing.T) {
 	// 批量造数后刷新收件箱相关表的统计信息。
 	analyzeInboxTables(ctx, t, f.db)
 	login := servertest.LoginMember(t, f.db, f.owner.Workspace.ID, f.memberEmail, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	meta := appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Workspace.ID}
 	filter := appservice.InboxQuery{Scope: domain.InboxScopeChat}
 	all, err := backend.LoadInbox(ctx, meta, appservice.LoadInboxInput{Scope: filter.Scope, Limit: 300})
@@ -117,7 +117,7 @@ func TestInboxContextDeepWindow(t *testing.T) {
 	require.False(t, current.Window.HasBefore)
 	require.Equal(t, anchor.ID, current.Window.Conversations[0].ID)
 
-	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: anchor.ID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: anchor.ID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 	require.NoError(t, err)
 	removed, err := backend.GetInboxContext(ctx, meta, request)
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestInboxContextUnavailable(t *testing.T) {
 	f := newNavigationFixture(t)
 	ctx := context.Background()
 	login := servertest.LoginMember(t, f.db, f.owner.Workspace.ID, f.memberEmail, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	meta := appservice.RequestMeta{Token: login.Token, WorkspaceID: f.owner.Workspace.ID}
 	filter := appservice.InboxQuery{Scope: domain.InboxScopeChat}
 	located, err := backend.GetInboxContext(ctx, meta, appservice.InboxContextInput{Query: filter, AnchorID: f.groupID})
@@ -225,7 +225,7 @@ func TestInboxContextUnavailable(t *testing.T) {
 		_, err := query.ReadContext(ctx, identity, inboxaction.ContextInput{Query: inboxaction.LoadInput{Scope: domain.InboxScopeChat}, AnchorID: f.groupID, AnchorCursor: oldCursor})
 		require.ErrorIs(t, err, inboxaction.ErrCursorInvalid, "accepted foreign cursor")
 	}
-	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+	_, err = groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 	require.NoError(t, err)
 	request := appservice.InboxContextInput{Query: filter, AnchorID: f.groupID, AnchorCursor: oldCursor}
 	empty, err := backend.GetInboxContext(ctx, meta, request)
@@ -263,7 +263,7 @@ func TestInboxContextSnapshot(t *testing.T) {
 		done <- err
 	}()
 	waitChatSignal(t, ctx, gate.reached)
-	_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+	_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 	require.NoError(t, err)
 	gate.open()
 	require.NoError(t, waitChatResult(t, ctx, done))

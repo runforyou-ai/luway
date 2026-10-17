@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/runforyou-ai/luway/internal/actions/reportpage"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 )
@@ -16,7 +17,7 @@ import (
 // human_handling_seconds 只在真人负责过时有值，为真人首次负责到最后一次关闭。
 const reportScopeSQL = `
 WITH closed AS (
-	SELECT ss.id, ss.workspace_id, ss.conversation_id, ss.closed_at, ss.category_id, ci.channel_id, ss.rating_resolved,
+	SELECT ss.id, ss.workspace_id, ss.conversation_id, ss.closed_at, ss.category_id, ss.channel_id, ss.rating_resolved,
 		ss.human_requested_at, ss.human_assigned_at, ss.human_first_response_at,
 		CASE WHEN ss.human_assigned_at IS NOT NULL THEN assignee.id END AS member_id,
 		ss.human_first_response_seconds AS first_response_seconds,
@@ -25,28 +26,18 @@ WITH closed AS (
 		extract(epoch FROM ss.closed_at - ss.human_assigned_at) AS human_handling_seconds,
 		ssr.satisfaction, ssr.human_incorrect, ssr.human_poor_attitude
 	FROM service_sessions ss
+	JOIN service_conversations svc ON svc.workspace_id = ss.workspace_id AND svc.id = ss.service_conversation_id
 	LEFT JOIN workspace_identities assignee ON assignee.workspace_id = ss.workspace_id AND assignee.id = ss.assignee_identity_id AND assignee.type = ?
-	LEFT JOIN channel_conversations cc ON cc.conversation_id = ss.conversation_id AND cc.workspace_id = ss.workspace_id
-	LEFT JOIN channel_identities ci ON ci.id = cc.channel_identity_id AND ci.workspace_id = cc.workspace_id
 	LEFT JOIN service_session_reviews ssr ON ssr.workspace_id = ss.workspace_id AND ssr.service_session_id = ss.id
-	WHERE %s AND ss.status = ? AND ss.summary_status IS DISTINCT FROM ?
+	WHERE svc.audience IN ('customer', 'employee') AND %s AND ss.status = ? AND ss.summary_status IS DISTINCT FROM ?
 		AND ss.closed_at >= now() - make_interval(days => ?)%s
 )`
 
-// median 与 p90 按秒汇总时长列，四舍五入为整数秒，没有样本时为空。
-const (
-	median = "round(percentile_cont(0.5) WITHIN GROUP (ORDER BY %s))::int"
-	p90    = "round(percentile_cont(0.9) WITHIN GROUP (ORDER BY %s))::int"
-)
-
 // reportScope 返回单个工作区拼好渠道与队列条件的公共集合 SQL 与参数，调用方在其后追加本条查询；选定公共队列时忽略团队。
 func reportScope(identity *servermodels.Identity, input Input) (string, []any) {
-	// 指定渠道或队列时追加对应条件，全部时不比较。
-	filters, args := "", []any{}
-	if input.ChannelID != "" {
-		filters += " AND ci.channel_id = ?"
-		args = append(args, input.ChannelID)
-	}
+	filters, args := reportpage.ServiceFilters{
+		Audience: input.Audience, ServiceSource: input.ServiceSource, ChannelID: input.ChannelID,
+	}.AppendClosedSessionFilters("", nil)
 	if input.PublicQueue {
 		filters += " AND ss.team_id IS NULL"
 	} else if input.TeamID != "" {
@@ -69,8 +60,8 @@ func WorkspaceUsageSQL(workspaces string, workspaceArgs []any, days int) (string
 	scope, args := scopeSQL(workspaces, workspaceArgs, days, "", nil)
 	return scope + `
 SELECT closed.workspace_id, count(*) AS closed, count(DISTINCT conversation_id) AS conversations,
-	` + fmt.Sprintf(median, "first_response_seconds") + ` AS first_response_median,
-	` + fmt.Sprintf(p90, "first_response_seconds") + ` AS first_response_p90
+	` + reportpage.MedianExpr("first_response_seconds") + ` AS first_response_median,
+	` + reportpage.P90Expr("first_response_seconds") + ` AS first_response_p90
 FROM closed
 GROUP BY GROUPING SETS ((closed.workspace_id), ())`, args
 }

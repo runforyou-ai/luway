@@ -1,15 +1,41 @@
 name: Apply brand profile
-description: 从调用方仓库检出品牌目录，把其中的品牌文件和图标应用到当前源码。
+description: 把品牌文件和图标应用到当前源码；品牌来自调用方仓库的品牌目录（profile），或来自支持面构建任务的品牌快照（brand-job-id）。
 
 inputs:
   profile:
-    description: 调用方仓库中的品牌目录，如 brands/acme。
-    required: true
+    description: 调用方仓库中的品牌目录，如 brands/acme；与 brand-job-id 二选一。
+    required: false
+    default: ""
+  brand-job-id:
+    description: 支持面构建任务编号，从支持面拉取冻结的品牌快照；与 profile 二选一，需调用步骤通过环境变量 SUPPORT_BUILD_TOKEN 传入构建令牌。
+    required: false
+    default: ""
+  support-api-base:
+    description: 支持面服务地址，如 https://luway.net；使用 brand-job-id 时必填。
+    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
+    - name: Validate brand source
+      shell: bash
+      env:
+        BRAND_JOB_ID: ${{ inputs.brand-job-id }}
+        PROFILE: ${{ inputs.profile }}
+      run: |
+        set -euo pipefail
+        if [[ -n "$PROFILE" && -n "$BRAND_JOB_ID" ]]; then
+          echo "Exactly one of profile and brand-job-id must be set, got both"
+          exit 1
+        fi
+        if [[ -z "$PROFILE" && -z "$BRAND_JOB_ID" ]]; then
+          echo "Exactly one of profile and brand-job-id must be set, got neither"
+          exit 1
+        fi
+
     - name: Checkout brand profile
+      if: inputs.profile != ''
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         repository: ${{ github.repository }}
@@ -19,6 +45,7 @@ runs:
 
     # 应用后删除品牌目录，构建上下文只保留已应用的品牌文件。
     - name: Apply brand profile
+      if: inputs.profile != ''
       shell: bash
       env:
         PROFILE: ${{ inputs.profile }}
@@ -26,3 +53,23 @@ runs:
         set -euo pipefail
         go run ./build/scripts/applybrand ".brand-profile/${PROFILE}"
         rm -rf .brand-profile
+
+    # 品牌快照写入临时目录的 brand.json，应用后删除。
+    - name: Apply brand snapshot
+      if: inputs.brand-job-id != ''
+      shell: bash
+      env:
+        JOB_ID: ${{ inputs.brand-job-id }}
+        SUPPORT_API_BASE: ${{ inputs.support-api-base }}
+      run: |
+        set -euo pipefail
+        if [[ -z "$SUPPORT_API_BASE" || -z "${SUPPORT_BUILD_TOKEN:-}" ]]; then
+          echo "support-api-base input and SUPPORT_BUILD_TOKEN env are required with brand-job-id"
+          exit 1
+        fi
+        brand_dir="$(mktemp -d)"
+        trap 'rm -rf "$brand_dir"' EXIT
+        curl -fsS -H "Authorization: Bearer $SUPPORT_BUILD_TOKEN" \
+          "$SUPPORT_API_BASE/api/support/v1/build-jobs/$JOB_ID/brand" \
+          -o "$brand_dir/brand.json"
+        go run ./build/scripts/applybrand "$brand_dir"

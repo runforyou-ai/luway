@@ -10,6 +10,7 @@ import (
 	"time"
 
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -17,7 +18,7 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ErrPlatformInUse 表示平台供应商仍是平台模型的来源。
+// ErrPlatformInUse 表示平台供应商仍是 Auto 池成员的供应商。
 var ErrPlatformInUse = errors.New("platform AI provider is in use")
 
 // PlatformInput 定义平台供应商的名称与连接配置，修改时品牌沿用创建时的值。
@@ -42,7 +43,7 @@ type PlatformRecord struct {
 // providerHealthWindow 是平台供应商健康统计覆盖的时长。
 const providerHealthWindow = 24 * time.Hour
 
-// PlatformSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的平台模型数；
+// PlatformSummary 定义平台供应商列表项，ModelCount 是以该供应商为来源的 Auto 池成员数；
 // 近 24 小时内结束的上游尝试中，RecentAttempts 为成功、失败与超时的次数，RecentFailures 为失败与超时的次数，LastError 与 LastFailedAt 为最近一次失败或超时的原因与时间，没有时为空。
 type PlatformSummary struct {
 	ID             string                 `bun:"id"`
@@ -64,14 +65,14 @@ func NewListPlatformQuery(db *bun.DB) *ListPlatformQuery {
 	return &ListPlatformQuery{db: db}
 }
 
-// Execute 按添加顺序返回平台供应商、其服务的平台模型数与近 24 小时上游尝试的结果。
+// Execute 按添加顺序返回平台供应商、其服务的 Auto 池成员数与近 24 小时上游尝试的结果。
 func (q *ListPlatformQuery) Execute(ctx context.Context) ([]PlatformSummary, error) {
 	failed := []domain.AIModelCallStatus{domain.AIModelCallStatusFailed, domain.AIModelCallStatusTimedOut}
 	concluded := append([]domain.AIModelCallStatus{domain.AIModelCallStatusSucceeded}, failed...)
 	providers := make([]PlatformSummary, 0)
 	if err := q.db.NewSelect().TableExpr("ai_providers AS aip").
 		ColumnExpr("aip.id::text AS id, aip.brand, aip.name, aip.api_url").
-		ColumnExpr("(SELECT count(DISTINCT amr.model_id) FROM ai_model_routes AS amr WHERE amr.provider_id = aip.id) AS model_count").
+		ColumnExpr("(SELECT count(*) FROM auto_pool_members AS apm WHERE apm.provider_id = aip.id) AS model_count").
 		ColumnExpr("coalesce(attempts.concluded, 0) AS recent_attempts, coalesce(attempts.failed, 0) AS recent_failures").
 		ColumnExpr("coalesce(last_failure.error_message, '') AS last_error, last_failure.finished_at AS last_failed_at").
 		Join(`LEFT JOIN LATERAL (
@@ -126,7 +127,7 @@ func (a *CreatePlatformAction) Execute(ctx context.Context, operator *servermode
 		Brand: input.Brand, CredentialType: input.CredentialType, APIKey: input.APIKey, APIURL: input.APIURL,
 	})
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	provider := servermodels.AIProvider{
 		Brand: string(connection.Brand), Name: name, CredentialType: string(connection.CredentialType),
@@ -175,7 +176,7 @@ func (a *UpdatePlatformAction) Execute(ctx context.Context, operator *servermode
 			Brand: domain.AIProviderBrand(current.Brand), CredentialType: input.CredentialType, APIKey: input.APIKey, APIURL: input.APIURL,
 		})
 		if len(fields) > 0 {
-			return &ValidationError{Fields: fields}
+			return &common.FieldError{Fields: fields}
 		}
 		current.Name = name
 		current.CredentialType = string(connection.CredentialType)
@@ -209,7 +210,7 @@ func NewDeletePlatformAction(db *bun.DB) *DeletePlatformAction {
 	return &DeletePlatformAction{db: db}
 }
 
-// Execute 删除不是任何平台模型来源的平台供应商，仍是来源时返回 ErrPlatformInUse。
+// Execute 删除不是任何 Auto 池成员供应商的平台供应商，仍有池成员时返回 ErrPlatformInUse。
 func (a *DeletePlatformAction) Execute(ctx context.Context, operator *servermodels.AccountIdentity, providerID string) error {
 	err := serverstorage.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := platformaction.LockAdmin(ctx, tx, operator); err != nil {
@@ -219,7 +220,7 @@ func (a *DeletePlatformAction) Execute(ctx context.Context, operator *servermode
 		if err != nil {
 			return err
 		}
-		used, err := tx.NewSelect().Model((*servermodels.AIModelRoute)(nil)).Where("provider_id = ?", provider.ID).Exists(ctx)
+		used, err := tx.NewSelect().Model((*servermodels.AutoPoolMember)(nil)).Where("provider_id = ?", provider.ID).Exists(ctx)
 		if err != nil {
 			return err
 		}

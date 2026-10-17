@@ -42,10 +42,13 @@ export function useResource<T>(
     refetchInterval?: number | false | ((data: T | undefined) => number | false)
     refetchOnWindowFocus?: boolean
     placeholder?: () => T | undefined
+    /** 为 false 时不根据会话错误导航用户端入口，供平台后台 Cookie 读取使用。 */
+    recoverSession?: boolean
   } = {},
 ) {
   const navigate = useNavigate()
   const refetchInterval = options.refetchInterval
+  const recover = options.recoverSession !== false
   const query = useQuery({
     queryKey: key,
     queryFn: ({ signal }) => load(signal),
@@ -65,10 +68,10 @@ export function useResource<T>(
 
   const sessionError = query.error
   useEffect(() => {
-    if (sessionError) {
+    if (recover && sessionError) {
       recoverSession(sessionError, navigate)
     }
-  }, [sessionError, navigate])
+  }, [recover, sessionError, navigate])
 
   return {
     data: query.data,

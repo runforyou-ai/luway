@@ -20,16 +20,16 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
 	groupchataction "github.com/runforyou-ai/luway/internal/actions/groupchat"
 	seataction "github.com/runforyou-ai/luway/internal/actions/seat"
-	servicecategoryaction "github.com/runforyou-ai/luway/internal/actions/servicecategory"
 	servicehandoffaction "github.com/runforyou-ai/luway/internal/actions/servicehandoff"
+	servicepolicyaction "github.com/runforyou-ai/luway/internal/actions/servicepolicy"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
 	useraction "github.com/runforyou-ai/luway/internal/actions/user"
 	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
@@ -377,21 +377,21 @@ func testHandoffCategoryRouting(t *testing.T, f handoffFixture) {
 		{IdentityType: domain.WorkspaceIdentityTypeUser, IdentityID: human.IdentityID},
 	})
 	require.NoError(t, err)
-	refund, err := servicecategoryaction.NewCreateAction(f.db).Execute(ctx, f.identity, servicecategoryaction.Input{Name: "退款 " + suffix, Description: "退款、退货", TeamID: &team.ID})
+	refund, err := servicepolicyaction.NewCreateAction(f.db).Execute(ctx, f.identity, domain.ServiceAudienceCustomer, servicepolicyaction.Input{Name: "退款 " + suffix, Description: "退款、退货", TeamID: &team.ID})
 	require.NoError(t, err)
-	shipping, err := servicecategoryaction.NewCreateAction(f.db).Execute(ctx, f.identity, servicecategoryaction.Input{Name: "物流 " + suffix})
+	shipping, err := servicepolicyaction.NewCreateAction(f.db).Execute(ctx, f.identity, domain.ServiceAudienceCustomer, servicepolicyaction.Input{Name: "物流 " + suffix})
 	require.NoError(t, err)
-	archived, err := servicecategoryaction.NewCreateAction(f.db).Execute(ctx, f.identity, servicecategoryaction.Input{Name: "旧分类 " + suffix, TeamID: &team.ID})
+	archived, err := servicepolicyaction.NewCreateAction(f.db).Execute(ctx, f.identity, domain.ServiceAudienceCustomer, servicepolicyaction.Input{Name: "旧分类 " + suffix, TeamID: &team.ID})
 	require.NoError(t, err)
-	require.NoError(t, servicecategoryaction.NewArchiveAction(f.db).Execute(ctx, f.identity, archived.ID))
+	require.NoError(t, servicepolicyaction.NewArchiveAction(f.db).Execute(ctx, f.identity, domain.ServiceAudienceCustomer, archived.ID))
 	emptyTeam, err := teamaction.NewCreateTeamAction(f.db).Execute(ctx, f.identity, teamaction.Input{Name: "空团队 " + suffix})
 	require.NoError(t, err)
-	unstaffed, err := servicecategoryaction.NewCreateAction(f.db).Execute(ctx, f.identity, servicecategoryaction.Input{Name: "投诉 " + suffix, TeamID: &emptyTeam.ID})
+	unstaffed, err := servicepolicyaction.NewCreateAction(f.db).Execute(ctx, f.identity, domain.ServiceAudienceCustomer, servicepolicyaction.Input{Name: "投诉 " + suffix, TeamID: &emptyTeam.ID})
 	require.NoError(t, err)
 	channelID := f.newChannel(t, agent.IdentityID, channelaction.RoutingTarget{Type: domain.ChannelRoutingTargetTypePublicQueue})
 	for _, scenario := range []struct {
 		name         string
-		category     *servicecategoryaction.Record
+		category     *servicepolicyaction.Record
 		wantTeam     *string
 		wantCategory *string
 	}{
@@ -479,13 +479,13 @@ func testHandoffAutoAssignment(t *testing.T, f handoffFixture) {
 func testBusinessHoursHandoffNotice(t *testing.T, f handoffFixture) {
 	ctx := context.Background()
 	t.Cleanup(func() {
-		_, err := f.db.ExecContext(ctx, `UPDATE customer_service_settings SET business_hours_enabled = DEFAULT, business_hours_time_zone = DEFAULT,
-			business_hours_weekly = DEFAULT, business_hours_overrides = DEFAULT WHERE workspace_id = ?`, f.identity.Workspace.ID)
+		_, err := f.db.ExecContext(ctx, `UPDATE service_policies SET business_hours_enabled = DEFAULT, business_hours_time_zone = DEFAULT,
+			business_hours_weekly = DEFAULT, business_hours_overrides = DEFAULT WHERE audience = 'customer' AND workspace_id = ?`, f.identity.Workspace.ID)
 		assert.NoError(t, err)
 	})
-	update := customerserviceaction.NewUpdateBusinessHoursAction(f.db)
+	update := servicepolicyaction.NewUpdateBusinessHoursAction(f.db)
 	// 新工作区的设置行取列默认值。
-	hours, err := customerserviceaction.NewGetBusinessHoursQuery(f.db).Execute(ctx, f.identity)
+	hours, err := servicepolicyaction.NewGetBusinessHoursQuery(f.db).Execute(ctx, f.identity, domain.ServiceAudienceCustomer)
 	require.NoError(t, err)
 	require.False(t, hours.Enabled)
 	require.Equal(t, "Asia/Shanghai", hours.TimeZone)
@@ -496,12 +496,12 @@ func testBusinessHoursHandoffNotice(t *testing.T, f handoffFixture) {
 	invalid := hours
 	invalid.Weekly[0] = []domain.BusinessHoursPeriod{{Start: "09:00", End: "13:00"}, {Start: "12:00", End: "18:00"}}
 	invalid.Overrides = []domain.BusinessHoursOverride{{Date: "2026-10-01"}, {Date: "2026-10-01"}}
-	var validation *customerserviceaction.ValidationError
-	_, err = update.Execute(ctx, f.identity, invalid)
+	var validation *common.FieldError
+	_, err = update.Execute(ctx, f.identity, domain.ServiceAudienceCustomer, invalid)
 	require.ErrorAs(t, err, &validation)
 	require.Len(t, validation.Fields, 2)
-	require.Equal(t, customerserviceaction.ValidationWeeklyInvalid, validation.Fields["weekly"])
-	require.Equal(t, customerserviceaction.ValidationOverrideInvalid, validation.Fields["overrides"])
+	require.Equal(t, servicepolicyaction.ValidationWeeklyInvalid, validation.Fields["weekly"])
+	require.Equal(t, servicepolicyaction.ValidationOverrideInvalid, validation.Fields["overrides"])
 
 	agent := f.newAgent(t, "工作时间验证客服")
 	channelID := f.newChannel(t, agent.IdentityID, channelaction.RoutingTarget{Type: domain.ChannelRoutingTargetTypePublicQueue})
@@ -526,10 +526,10 @@ func testBusinessHoursHandoffNotice(t *testing.T, f handoffFixture) {
 			for day := range hours.Weekly {
 				hours.Weekly[day] = scenario.weekly
 			}
-			_, err := update.Execute(ctx, f.identity, hours)
+			_, err := update.Execute(ctx, f.identity, domain.ServiceAudienceCustomer, hours)
 			require.NoError(t, err)
 			// 保存后的日期覆盖时段按开始时间排序。
-			saved, err := customerserviceaction.LoadBusinessHours(ctx, f.db, f.identity.Workspace.ID)
+			saved, err := servicepolicyaction.LoadBusinessHours(ctx, f.db, f.identity.Workspace.ID, domain.ServiceAudienceCustomer)
 			require.NoError(t, err)
 			require.True(t, saved.Enabled)
 			require.Len(t, saved.Overrides, len(scenario.overrides))
@@ -778,7 +778,7 @@ func testChannelEditVersusDeactivation(t *testing.T, f handoffFixture) {
 	gate.open()
 	require.NoError(t, waitChatResult(t, ctx, deactivated), "deactivate agent")
 	// 渠道编辑在停用提交后校验目标，AI 员工已不可用时按校验失败返回。
-	var validation *channelaction.ValidationError
+	var validation *common.FieldError
 	if err := waitChatResult(t, ctx, edited); err != nil {
 		require.ErrorAs(t, err, &validation, "edit channel")
 	}

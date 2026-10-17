@@ -17,7 +17,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/integration/wechat"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support"
-	"github.com/runforyou-ai/support/arr"
 	"github.com/uptrace/bun"
 )
 
@@ -49,7 +48,7 @@ func newWechatOps(db *bun.DB, client *wechat.Client, publicURL func() string) *w
 	}
 }
 
-// GetWechatPlatform 返回微信第三方平台配置、接入地址、各服务器出口 IP 与平台凭据状态。
+// GetWechatPlatform 返回微信第三方平台配置、接入地址与平台凭据状态。
 func (o *wechatOps) GetWechatPlatform(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.WechatPlatform, error) {
 	return o.readWechatPlatform(ctx, meta)
 }
@@ -84,7 +83,6 @@ func (o *wechatOps) readWechatPlatform(ctx context.Context, meta appservice.Requ
 		Configured: platform.Configured, ComponentAppID: platform.ComponentAppID, ComponentAppSecret: platform.ComponentAppSecret,
 		Token: platform.Token, EncodingAESKey: platform.EncodingAESKey,
 		AuthorizationDomain: platform.AuthorizationDomain, EventURL: platform.EventURL, MessageURL: platform.MessageURL,
-		Servers:                wechatServersFromRecord(platform.Servers),
 		VerifyTicketReceivedAt: platform.VerifyTicketReceivedAt, AccessTokenExpiresAt: platform.AccessTokenExpiresAt,
 		TokenFailedAt: platform.TokenFailedAt, TokenFailureDetail: platform.TokenFailureDetail,
 		Status: support.NilIfZero(platform.Status),
@@ -224,7 +222,6 @@ func wechatKeyChannelFromRecord(channel *wechataction.KeyChannel) appservice.Wec
 	output := appservice.WechatKeyConnection{
 		AppID: connection.AppID, AppSecret: connection.AppSecret, Token: connection.Token, EncodingAESKey: connection.EncodingAESKey,
 		ServerURL: connection.ServerURL, ServerVerifiedAt: connection.ServerVerifiedAt,
-		Servers:          wechatServersFromRecord(connection.Servers),
 		WechatTokenState: wechatTokenStateFromRecord(connection.TokenState),
 	}
 	if connection.EncryptionMode != nil {
@@ -248,11 +245,4 @@ func wechatAuthorizationChannelFromRecord(channel *wechataction.AuthorizationCha
 	}
 	output.MissingPermissions = append(output.MissingPermissions, connection.MissingPermissions...)
 	return appservice.WechatAuthorizationChannel{MessageChannelSummary: messageChannelFromRecord(&channel.MessageChannelRecord), Connection: output}
-}
-
-// wechatServersFromRecord 转换各服务器的出口 IP。
-func wechatServersFromRecord(servers []wechataction.ServerEgress) []appservice.WechatServer {
-	return arr.OrEmpty(arr.Map(servers, func(server wechataction.ServerEgress) appservice.WechatServer {
-		return appservice.WechatServer{Hostname: server.Hostname, EgressIP: server.EgressIP, Online: server.Online}
-	}))
 }

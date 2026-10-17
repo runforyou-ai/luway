@@ -2,6 +2,7 @@
 import type * as React from "react"
 
 import { SelectableText } from "@/components/selectable-text"
+import { useAdminSurface } from "@/lib/admin-surface"
 import { cn } from "@/lib/utils"
 
 function selectableText(children: React.ReactNode) {
@@ -11,11 +12,13 @@ function selectableText(children: React.ReactNode) {
 }
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  // 用户端禁选防误触；总后台需复制邮箱、标识等，整表允许选中。
+  const adminSurface = useAdminSurface()
   return (
     <div data-slot="table-container" className="relative w-full overflow-x-auto">
       <table
         data-slot="table"
-        className={cn("w-full caption-bottom text-sm select-none", className)}
+        className={cn("w-full caption-bottom text-sm", adminSurface ? "select-text" : "select-none", className)}
         {...props}
       />
     </div>

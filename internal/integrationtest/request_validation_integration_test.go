@@ -26,7 +26,7 @@ func TestDeclarativeRequestValidation(t *testing.T) {
 	db := store.DB()
 	ctx := context.Background()
 	owner := servertest.InstallWorkspace(t, db, servertest.WorkspaceSpec{Name: "请求校验", DisplayName: "负责人", Email: servertest.UniqueEmail("owner"), Password: "password123"})
-	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	memberID := uuid.NewV7().String()
 	meta := appservice.RequestMeta{Token: owner.Token, WorkspaceID: owner.Identity.Workspace.ID, Locale: domain.LocaleChineseSimplified}
 
@@ -74,7 +74,7 @@ func TestCustomerServiceRequestValidation(t *testing.T) {
 	db := store.DB()
 	ctx := context.Background()
 	owner := servertest.InstallWorkspace(t, db, servertest.WorkspaceSpec{Name: "客服请求校验", DisplayName: "负责人", Email: servertest.UniqueEmail("owner"), Password: "password123"})
-	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	meta := appservice.RequestMeta{Token: owner.Token, WorkspaceID: owner.Identity.Workspace.ID, Locale: domain.LocaleChineseSimplified}
 	missingID := uuid.NewV7().String()
 
@@ -116,18 +116,18 @@ func TestCustomerServiceRequestValidation(t *testing.T) {
 	servertest.RequireFieldError(t, err, "sort", i18n.FieldContactQueryInvalid)
 	servertest.RequireFieldError(t, err, "pageSize", i18n.FieldContactQueryInvalid)
 
-	_, err = backend.CreateServiceCategory(ctx, meta, appservice.ServiceCategoryInput{Name: "", TeamID: new("bad")})
+	_, err = backend.CreateServiceCategory(ctx, meta, "customer", appservice.ServiceCategoryInput{Name: "", TeamID: new("bad")})
 	servertest.RequireFieldError(t, err, "name", i18n.FieldServiceCategoryNameRequired)
 	servertest.RequireFieldError(t, err, "teamId", i18n.FieldTeamInvalid)
 
-	_, err = backend.UpdateBusinessHours(ctx, meta, appservice.BusinessHours{TimeZone: "Asia/Shanghai"})
+	_, err = backend.UpdateBusinessHours(ctx, meta, "customer", appservice.BusinessHours{TimeZone: "Asia/Shanghai"})
 	servertest.RequireFieldError(t, err, "weekly", i18n.FieldBusinessHoursWeeklyInvalid)
 
 	// 时区名区分大小写，与服务器文件系统无关。
-	_, err = backend.UpdateBusinessHours(ctx, meta, appservice.BusinessHours{TimeZone: "asia/shanghai", Weekly: make([][]appservice.BusinessHoursPeriod, 7)})
+	_, err = backend.UpdateBusinessHours(ctx, meta, "customer", appservice.BusinessHours{TimeZone: "asia/shanghai", Weekly: make([][]appservice.BusinessHoursPeriod, 7)})
 	servertest.RequireFieldError(t, err, "timeZone", i18n.FieldTimeZoneInvalid)
 
-	_, err = backend.UpdateServiceTimeouts(ctx, meta, appservice.ServiceTimeouts{ResponseReminderMinutes: 5, ResponseReclaimMinutes: 10, QueueReminderMinutes: 0, AIFollowUpMinutes: 1, AICloseMinutes: 1})
+	_, err = backend.UpdateServiceTimeouts(ctx, meta, "customer", appservice.ServiceTimeouts{ResponseReminderMinutes: 5, ResponseReclaimMinutes: 10, QueueReminderMinutes: 0, AIFollowUpMinutes: 1, AICloseMinutes: 1})
 	servertest.RequireFieldError(t, err, "queueReminderMinutes", i18n.FieldServiceTimeoutMinutesInvalid)
 }
 
@@ -140,7 +140,7 @@ func TestAIKnowledgeRequestValidation(t *testing.T) {
 	db := store.DB()
 	ctx := context.Background()
 	owner := servertest.InstallWorkspace(t, db, servertest.WorkspaceSpec{Name: "AI 请求校验", DisplayName: "负责人", Email: servertest.UniqueEmail("owner"), Password: "password123"})
-	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	meta := appservice.RequestMeta{Token: owner.Token, WorkspaceID: owner.Identity.Workspace.ID, Locale: domain.LocaleChineseSimplified}
 	missingID := uuid.NewV7().String()
 
@@ -221,12 +221,15 @@ func TestAccountPlatformRequestValidation(t *testing.T) {
 	t.Cleanup(func() { _ = store.Close() })
 	db := store.DB()
 	ctx := context.Background()
-	owner := servertest.InstallWorkspace(t, db, servertest.WorkspaceSpec{Name: "平台校验", DisplayName: "负责人", Email: servertest.UniqueEmail("owner"), Password: "password123"})
+	ownerEmail := servertest.UniqueEmail("owner")
+	owner := servertest.InstallWorkspace(t, db, servertest.WorkspaceSpec{Name: "平台校验", DisplayName: "负责人", Email: ownerEmail, Password: "password123"})
 	_, err = db.NewUpdate().Model((*servermodels.Account)(nil)).Set("is_platform_admin = true").Where("id = ?", owner.Identity.Account.ID).Exec(ctx)
 	require.NoError(t, err)
-	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	meta := appservice.RequestMeta{Token: owner.Token, WorkspaceID: owner.Identity.Workspace.ID, Locale: domain.LocaleChineseSimplified}
-	adminMeta := appservice.RequestMeta{Token: owner.Token, Locale: domain.LocaleChineseSimplified}
+	adminAuth, err := backend.AdminLogin(ctx, appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}, appservice.LoginInput{Email: ownerEmail, Password: "password123"})
+	require.NoError(t, err)
+	adminMeta := servertest.AdminMeta(adminAuth.Token)
 
 	_, err = backend.GetTeam(ctx, meta, "not-a-uuid")
 	servertest.RequireErrorKind(t, err, appservice.ErrorKindNotFound)
@@ -259,9 +262,10 @@ func TestAccountPlatformRequestValidation(t *testing.T) {
 	servertest.RequireFieldError(t, err, "channelId", i18n.ErrorChannelNotFound)
 	servertest.RequireFieldError(t, err, "teamId", i18n.ErrorTeamNotFound)
 
-	_, err = backend.UpdatePlatformSettings(ctx, adminMeta, appservice.PlatformPoliciesInput{RegistrationPolicy: "closed", WorkspaceCreationPolicy: "nobody"})
+	input := loadPlatformSiteInput(t, backend, ctx, adminMeta)
+	input.RegistrationPolicy = "closed"
+	_, err = backend.UpdatePlatformSite(ctx, adminMeta, input)
 	servertest.RequireFieldError(t, err, "registrationPolicy", i18n.FieldRegistrationPolicyInvalid)
-	servertest.RequireFieldError(t, err, "workspaceCreationPolicy", i18n.FieldWorkspaceCreationPolicyInvalid)
 	_, err = backend.ListPlatformAccounts(ctx, adminMeta, appservice.PlatformAccountListInput{Status: "deleted", Page: 1, PageSize: 50})
 	servertest.RequireFieldError(t, err, "status", i18n.FieldUserStatusInvalid)
 	_, err = backend.ListPlatformWorkspaces(ctx, adminMeta, appservice.PlatformWorkspaceListInput{Status: "deleted", Sort: "name", Page: 1, PageSize: 50})
@@ -270,6 +274,4 @@ func TestAccountPlatformRequestValidation(t *testing.T) {
 	_, err = backend.ListPlatformWorkspaceUsage(ctx, adminMeta, appservice.PlatformWorkspaceUsageListInput{Days: 0, Sort: "members", Page: 1, PageSize: 50})
 	servertest.RequireFieldError(t, err, "days", i18n.FieldPlatformQueryInvalid)
 	servertest.RequireFieldError(t, err, "sort", i18n.FieldPlatformQueryInvalid)
-	_, err = backend.ListPlatformServerLogs(ctx, adminMeta, appservice.PlatformServerLogListInput{MinLevel: "trace"})
-	servertest.RequireFieldError(t, err, "minLevel", i18n.FieldPlatformQueryInvalid)
 }

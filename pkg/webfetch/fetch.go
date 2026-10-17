@@ -1,7 +1,8 @@
-// Package webfetch 按地址抓取公开网页并提取正文。
+// Package webfetch 按地址读取公开网页并提取 Markdown 正文。
 package webfetch
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io"
@@ -10,6 +11,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/runforyou-ai/mdchunk/convert"
+	"github.com/runforyou-ai/mdchunk/convert/html"
 )
 
 const (
@@ -19,13 +23,16 @@ const (
 	maxRedirects = 5
 )
 
-// Page 支持的内容类型。
+// 内置抓取支持的内容类型。
 const (
-	ContentTypeHTML = "text/html"
-	ContentTypeText = "text/plain"
+	contentTypeHTML = "text/html"
+	contentTypeText = "text/plain"
 )
 
-// Error 定义网页抓取的语言无关失败原因码。
+// htmlConverter 把网页 HTML 转换为 Markdown，原件大小由抓取响应的读取上限约束。
+var htmlConverter = html.New(html.Options{Limits: convert.Limits{MaxBytes: -1}})
+
+// Error 定义网页读取的语言无关失败原因码。
 type Error struct {
 	Code string `json:"code"`
 }
@@ -33,21 +40,25 @@ type Error struct {
 // Error 返回语言无关的失败原因。
 func (e *Error) Error() string { return "web fetch: " + e.Code }
 
-// Page 返回页面跟随重定向后的地址、内容类型、UTF-8 内容与正文标题；HTML 页面的内容是提取出的正文文档。
-type Page struct {
-	URL         string
-	ContentType string
-	Body        []byte
-	Title       string // 从 HTML 正文中提取的标题，纯文本或提取不到正文时为空。
+// Document 是转换为 Markdown 的网页正文。
+type Document struct {
+	URL     string `json:"url"`
+	Title   string `json:"title,omitempty"`
+	Content string `json:"content"`
 }
 
-// Client 抓取单个公开网页。
+// Fetcher 按地址读取网页并返回 Markdown 正文。
+type Fetcher interface {
+	Fetch(context.Context, string) (Document, error)
+}
+
+// Client 以内置 HTTP 抓取实现 Fetcher：不执行 JavaScript，HTML 经正文提取后转为 Markdown。
 type Client struct {
 	http      *http.Client
 	userAgent string
 }
 
-// NewClient 创建以指定 User-Agent 发起请求的网页抓取客户端。
+// NewClient 创建以指定 User-Agent 发起请求的内置网页读取客户端。
 func NewClient(userAgent string) *Client {
 	return &Client{userAgent: userAgent, http: &http.Client{
 		Timeout: 30 * time.Second,
@@ -83,49 +94,66 @@ func parseTarget(target string) (*url.URL, error) {
 	return parsed, nil
 }
 
-// Fetch 读取 HTML 或纯文本页面，HTML 页面提取正文与标题。
-func (c *Client) Fetch(ctx context.Context, target string) (Page, error) {
+// Fetch 读取 HTML 或纯文本页面并返回 Markdown 正文；正文为空时返回 content_empty。
+func (c *Client) Fetch(ctx context.Context, target string) (Document, error) {
 	parsed, err := parseTarget(target)
 	if err != nil {
-		return Page{}, err
+		return Document{}, err
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, parsed.String(), nil)
 	if err != nil {
-		return Page{}, &Error{Code: "url_unreachable"}
+		return Document{}, &Error{Code: "url_unreachable"}
 	}
 	request.Header.Set("User-Agent", c.userAgent)
 	request.Header.Set("Accept", "text/html,application/xhtml+xml,text/plain")
 	response, err := c.http.Do(request)
 	if err != nil {
 		if ctx.Err() != nil {
-			return Page{}, ctx.Err()
+			return Document{}, ctx.Err()
 		}
-		return Page{}, &Error{Code: "url_unreachable"}
+		return Document{}, &Error{Code: "url_unreachable"}
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return Page{}, &Error{Code: "url_unreachable"}
+		return Document{}, &Error{Code: "url_unreachable"}
 	}
 	contentType, err := pageContentType(response.Header.Get("Content-Type"))
 	if err != nil {
-		return Page{}, err
+		return Document{}, err
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxResponseBytes+1))
 	if err != nil {
-		return Page{}, &Error{Code: "url_unreachable"}
+		return Document{}, &Error{Code: "url_unreachable"}
 	}
 	if len(body) > maxResponseBytes {
-		return Page{}, &Error{Code: "url_content_too_large"}
+		return Document{}, &Error{Code: "url_content_too_large"}
 	}
 	body = decodeUTF8(body, response.Header.Get("Content-Type"))
-	page := Page{URL: response.Request.URL.String(), ContentType: contentType, Body: body}
-	if contentType == ContentTypeHTML {
-		page.Body, page.Title = extractArticle(body, response.Request.URL)
+	pageURL := response.Request.URL.String()
+	title := ""
+	if contentType == contentTypeHTML {
+		body, title = extractArticle(body, response.Request.URL)
 	}
-	return page, nil
+	content := string(body)
+	if contentType == contentTypeHTML {
+		doc, err := htmlConverter.Convert(ctx, convert.Input{Reader: bytes.NewReader(body), Charset: "utf-8", BaseURL: pageURL})
+		if err != nil {
+			if ctx.Err() != nil {
+				return Document{}, ctx.Err()
+			}
+			return Document{}, &Error{Code: "content_unreadable"}
+		}
+		content = doc.Markdown
+	}
+	content = strings.TrimSpace(content)
+	if content == "" {
+		return Document{}, &Error{Code: "content_empty"}
+	}
+	address, _ := Normalize(target)
+	return Document{URL: address, Title: title, Content: content}, nil
 }
 
-// pageContentType 把响应内容类型归一为 Page 支持的内容类型。
+// pageContentType 把响应内容类型归一为内置抓取支持的内容类型。
 func pageContentType(contentType string) (string, error) {
 	media, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
@@ -133,9 +161,9 @@ func pageContentType(contentType string) (string, error) {
 	}
 	switch media {
 	case "text/html", "application/xhtml+xml":
-		return ContentTypeHTML, nil
+		return contentTypeHTML, nil
 	case "text/plain":
-		return ContentTypeText, nil
+		return contentTypeText, nil
 	default:
 		return "", &Error{Code: "url_content_unsupported"}
 	}

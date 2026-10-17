@@ -12,7 +12,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/inbox"
 	"github.com/runforyou-ai/luway/internal/actions/notificationtask"
 	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/luway/internal/integration/control"
+	"github.com/runforyou-ai/luway/internal/integration/supportplane"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support/str"
 	"github.com/uptrace/bun"
@@ -58,11 +58,11 @@ func loadPushDevices(ctx context.Context, db bun.IDB, accountIDs []string) (map[
 type Pusher struct {
 	db      *bun.DB
 	inbox   *inbox.LoadInboxQuery
-	control *control.Client
+	control *supportplane.Client
 }
 
 // NewPusher 创建离线推送任务执行器。
-func NewPusher(db *bun.DB, client *control.Client) *Pusher {
+func NewPusher(db *bun.DB, client *supportplane.Client) *Pusher {
 	return &Pusher{db: db, inbox: inbox.NewLoadInboxQuery(db), control: client}
 }
 
@@ -100,12 +100,12 @@ func (p *Pusher) Push(ctx context.Context, input notificationtask.PushInput) err
 	if len(deviceIDs) == 0 {
 		return nil
 	}
-	err = p.control.Push(ctx, control.PushRequest{
+	err = p.control.Push(ctx, supportplane.PushRequest{
 		NotificationID: input.NotificationID, App: input.App, Platform: string(input.Platform), DeviceIDs: deviceIDs,
 		Title: str.Substr(input.Title, 0, pushTitleMaxRunes), Body: str.Substr(input.Body, 0, pushBodyMaxRunes),
 		Data: map[string]string{"workspaceId": input.WorkspaceID, "conversationId": input.ConversationID, "view": string(input.View)},
 	})
-	if errors.Is(err, control.ErrPushUndeliverable) {
+	if errors.Is(err, supportplane.ErrPushUndeliverable) {
 		slog.WarnContext(ctx, "离线推送无法送达", "notification_id", input.NotificationID, "app", input.App, "platform", input.Platform, "error", err)
 		return nil
 	}

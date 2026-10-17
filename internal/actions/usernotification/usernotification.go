@@ -16,7 +16,6 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
 	"github.com/runforyou-ai/luway/internal/realtime"
-	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/support/arr"
@@ -146,17 +145,23 @@ func (d *Deliverer) dispatch(ctx context.Context, deliveries []delivery) error {
 	if len(deliveries) == 0 {
 		return nil
 	}
-	capabilities, err := licenseaction.Capabilities(ctx, d.db)
+	licensed, err := licenseaction.IsLicensed(ctx, d.db)
 	if err != nil {
-		return fmt.Errorf("load platform capabilities: %w", err)
+		return fmt.Errorf("load platform license: %w", err)
 	}
-	if capabilities.PushRelay {
-		if err := d.enqueuePushes(ctx, deliveries); err != nil {
-			return err
+	return realtime.RunInTx(ctx, d.db, func(ctx context.Context, _ bun.Tx) error {
+		if licensed {
+			if err := d.enqueuePushes(ctx, deliveries); err != nil {
+				return err
+			}
 		}
-	}
-	realtime.Publish(arr.Map(deliveries, func(item delivery) realtime.Notification { return item.notification })...)
-	return nil
+		for _, item := range deliveries {
+			notification := item.notification
+			notification.ID = "notification/" + notification.WorkspaceID + "/" + notification.AudienceID + "/" + notification.NotificationID
+			realtime.Notify(ctx, notification)
+		}
+		return nil
+	})
 }
 
 // enqueuePushes 读取接收账号未过期登录会话上的推送设备，每个接收人在同一应用与平台上的设备登记为一个离线推送任务。
@@ -178,10 +183,7 @@ func (d *Deliverer) enqueuePushes(ctx context.Context, deliveries []delivery) er
 	if len(pushes) == 0 {
 		return nil
 	}
-	if err := serverstorage.RunInTx(ctx, d.db, func(ctx context.Context, tx bun.Tx) error {
-		err := d.enqueuer.EnqueueManyIn(ctx, pushes)
-		return err
-	}); err != nil {
+	if err := d.enqueuer.EnqueueManyIn(ctx, pushes); err != nil {
 		return fmt.Errorf("enqueue push notifications: %w", err)
 	}
 	return nil

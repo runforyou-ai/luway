@@ -16,18 +16,17 @@ import (
 	"github.com/runforyou-ai/einorun/stream"
 	"github.com/runforyou-ai/luway/internal/actions/businesssystem"
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
-	"github.com/runforyou-ai/luway/internal/actions/conversationfile"
+	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	"github.com/runforyou-ai/luway/internal/actions/customernotify"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
-	websearchaction "github.com/runforyou-ai/luway/internal/actions/websearch"
+	"github.com/runforyou-ai/luway/internal/actions/webtools"
 	"github.com/runforyou-ai/luway/internal/agentruntime"
-	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
+	integrationwebfetch "github.com/runforyou-ai/luway/internal/integration/webfetch"
 	"github.com/runforyou-ai/luway/internal/integration/websearch"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
-	"github.com/runforyou-ai/luway/pkg/webfetch"
 	"github.com/uptrace/bun"
 )
 
@@ -48,12 +47,12 @@ type ExecuteAction struct {
 	invoker     *modelcall.Invoker
 	attachments *AttachmentReader
 	knowledge   KnowledgeRetrieval
-	webSearch   websearchaction.Searcher
-	webFetch    *webfetch.Client
+	webSearch   webtools.Searcher
+	webFetch    webtools.Fetcher
 	connector   *businesssystem.Connector
 	emailSender customernotify.Sender
 	// sharedFiles 与 documents 为运行提供会话共享文件区，未配置时文件工具只操作电脑。
-	sharedFiles *conversationfile.Store
+	sharedFiles *conversationaction.Store
 	documents   DocumentConverter
 	runningMu   sync.Mutex
 	runningRuns map[string]*runningAgentRun
@@ -88,10 +87,10 @@ type executionContext struct {
 // NewExecuteAction 创建 Agent Worker Action，联网搜索、网页读取与业务系统调用使用默认客户端；emailSender 为空表示部署未配置邮件发送；
 // sharedFiles 为运行提供所属会话的共享文件区，documents 把文档转换为只读文本，sharedFiles 为空时文件工具只操作电脑。
 func NewExecuteAction(db *bun.DB, enqueuer servertask.TxEnqueuer, runtime agentruntime.Runtime, invoker *modelcall.Invoker, attachments *AttachmentReader, knowledge KnowledgeRetrieval,
-	emailSender customernotify.Sender, sharedFiles *conversationfile.Store, documents DocumentConverter) *ExecuteAction {
+	emailSender customernotify.Sender, sharedFiles *conversationaction.Store, documents DocumentConverter) *ExecuteAction {
 	return &ExecuteAction{
 		db: db, enqueuer: enqueuer, runtime: runtime, invoker: invoker, attachments: attachments, knowledge: knowledge,
-		webSearch: websearch.NewClient(), webFetch: webfetch.NewClient(common.WebFetchUserAgent()), connector: businesssystem.NewDefaultConnector(),
+		webSearch: websearch.NewClient(), webFetch: integrationwebfetch.NewClient(), connector: businesssystem.NewDefaultConnector(),
 		emailSender: emailSender, sharedFiles: sharedFiles, documents: documents,
 		runningRuns: make(map[string]*runningAgentRun),
 	}
@@ -194,6 +193,7 @@ func (a *ExecuteAction) runAssigned(assigned runAssignment) (agentruntime.RunRes
 	if err != nil {
 		return agentruntime.RunResult{}, err
 	}
+	mediaURL, adaptMedia := a.mediaHandlers(assigned.RunCtx, &execution.Run, assigned.Dependencies.SharedFiles)
 	// 场景、依据策略、指令、模型参数与输入模态以有效配置为准，模型来源取当前配置。
 	result, err := a.runtime.Run(assigned.RunCtx, agentruntime.RunRequest{
 		RunID:        execution.Run.ID,
@@ -203,6 +203,7 @@ func (a *ExecuteAction) runAssigned(assigned runAssignment) (agentruntime.RunRes
 		ReadAttachment: func(ctx context.Context, messageID string) ([]byte, error) {
 			return a.attachments.Content(ctx, &execution.Run, messageID)
 		},
+		MediaURL: mediaURL, AdaptMedia: adaptMedia,
 		StreamID: running.streamID,
 		OnStream: func(delta stream.Delta) {
 			// 运行 context 已取消时丢弃增量。

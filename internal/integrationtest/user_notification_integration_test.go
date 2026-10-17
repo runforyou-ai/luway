@@ -41,6 +41,7 @@ type userNotice struct {
 // userNotices 读取已发布的用户通知，片刻内没有新通知时返回，忽略其他种类的通知。
 func (f *realtimeFeed) userNotices(t *testing.T) []userNotice {
 	t.Helper()
+	waitRealtimeOutbox(t, f.db, f.workspaceID)
 	got := make([]userNotice, 0)
 	for {
 		var message tappedBroadcast
@@ -197,7 +198,7 @@ func TestUserNotificationCustomerService(t *testing.T) {
 	got = feed.userNotices(t)
 	require.Len(t, got, 1)
 	if diff := cmp.Diff(userNotice{
-		UserID: f.member.User.ID, ID: "service_attention:returned", View: domain.NotificationViewService, Body: "你超时未回复的客户会话已退回队列",
+		UserID: f.member.User.ID, ID: "service_attention:returned", View: domain.NotificationViewService, Body: "你超时未回复的服务会话已退回队列",
 	}, got[0], cmpopts.IgnoreFields(userNotice{}, "ConversationID", "Title")); diff != "" {
 		t.Fatalf("attention notice mismatch (-want +got):\n%s", diff)
 	}

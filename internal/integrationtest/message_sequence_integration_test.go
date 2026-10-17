@@ -131,7 +131,7 @@ func TestMessageSequenceHTTPContract(t *testing.T) {
 	sent, err := f.visitorMessage(ctx, "HTTP 大整数")
 	require.NoError(t, err)
 	login := servertest.LoginMember(t, f.db, f.owner.Workspace.ID, f.owner.Account.Email, "password123")
-	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, nil, testEnqueuer, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db)}, nil, nil, testEnqueuer, nil, nil, nil)
 	service := api.NewService(backend)
 	for _, route := range []string{"messages", "read"} {
 		t.Run(route, func(t *testing.T) {
@@ -155,7 +155,7 @@ func TestMessageSequenceHTTPContract(t *testing.T) {
 			require.Contains(t, response.Body.String(), `"`+key+`":"9007199254740993"`, "lossy response")
 		})
 	}
-	visitor := direct.NewWebsiteVisitorBackend(f.db, nil, testEnqueuer, nil, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
+	visitor := direct.NewWebsiteVisitorBackend(f.db, nil, testEnqueuer, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
 	page, err := visitor.ListMessages(ctx, appservice.WebsiteVisitorMeta{}, f.channelID, "web-session:0123456789abcdef0123456789abcdef", f.conversationID, appservice.WebsiteVisitorMessageHistoryInput{})
 	require.NoError(t, err)
 	require.Equal(t, "9007199254740993", page.Messages[len(page.Messages)-1].MessageSeq)

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	teamaction "github.com/runforyou-ai/luway/internal/actions/team"
-	"github.com/runforyou-ai/luway/internal/common"
+	"github.com/runforyou-ai/luway/internal/apptypes"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
@@ -110,5 +110,5 @@ func (i ListItem) Presence() domain.PersonalAgentPresence {
 // ListOutput 定义 AI 员工分页结果。
 type ListOutput struct {
 	Agents []ListItem
-	Page   common.PageInfo
+	Page   apptypes.PageInfo
 }

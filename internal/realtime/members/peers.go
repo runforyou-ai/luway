@@ -4,18 +4,18 @@ package members
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"github.com/runforyou-ai/jetcast"
-	"github.com/runforyou-ai/luway/internal/domain"
-	"github.com/runforyou-ai/luway/internal/realtime"
-	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 	"sync"
 	"time"
+
+	"github.com/runforyou-ai/luway/internal/domain"
+	"github.com/runforyou-ai/luway/internal/realtime"
+	"github.com/runforyou-ai/luway/internal/realtime/gateway"
+	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 )
 
 // revokeInvalidComputers 关闭账号所属且已失去业务资格的个人电脑连接。
-func (s *Service) revokeInvalidComputers(ctx context.Context, accountID string) error {
+func (s *Service) revokeInvalidComputers(ctx context.Context, accountID, eventID string) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
 	var ids []string
@@ -26,14 +26,14 @@ func (s *Service) revokeInvalidComputers(ctx context.Context, accountID string) 
 	if err != nil {
 		return err
 	}
-	return s.revokePeers(ctx, "c_", ids)
+	return s.revokePeers(ctx, "c_", ids, eventID)
 }
 
 // peerRevocationConcurrency 是按主体撤销访客或电脑连接时的并发数。
 const peerRevocationConcurrency = 16
 
 // revokePeers 以每个主体的独立时限、有限并发登记并强制关闭其原连接。
-func (s *Service) revokePeers(ctx context.Context, kind string, ids []string) error {
+func (s *Service) revokePeers(ctx context.Context, kind string, ids []string, eventID string) error {
 	var (
 		mu     sync.Mutex
 		result error
@@ -45,11 +45,8 @@ func (s *Service) revokePeers(ctx context.Context, kind string, ids []string) er
 		group.Go(func() {
 			defer func() { <-slots }()
 			attempt, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
-			revoked, err := s.Server.Disconnect(attempt, jetcast.ByUser(kind+id))
+			err := s.Server.Disconnect(attempt, gateway.Target{User: kind + id, ID: eventID})
 			cancel()
-			if err == nil && (!revoked.Enforced || revoked.Failed != 0) {
-				err = errors.New("peer revocation was not enforced")
-			}
 			mu.Lock()
 			result = errors.Join(result, err)
 			mu.Unlock()
@@ -80,24 +77,24 @@ func (s *Service) publishPeer(ctx context.Context, n realtime.Notification) erro
 		}
 	}
 	if realtime.IsAuthorizationChange(n.Kind) {
-		return s.revokePeers(ctx, kind, ids)
+		return s.revokePeers(ctx, kind, ids, n.ID)
 	}
-	var result error
+	var frame protocol.Frame
+	switch n.Kind {
+	case realtime.KindConversationChanged:
+		frame = protocol.ConversationChanged{ConversationID: n.ConversationID, ConversationType: n.ConversationType, Version: n.Version, Changes: n.Changes}
+	case realtime.KindVisitorTyping:
+		frame = protocol.VisitorTyping{ConversationID: n.ConversationID, Active: n.Active}
+	case realtime.KindReceptionChanged:
+		frame = protocol.ReceptionChanged{}
+	case realtime.KindComputerWork:
+		frame = protocol.ComputerWork{}
+	}
+	if frame == nil {
+		return nil
+	}
+	channels := make([]string, 0, len(ids))
 	for _, id := range ids {
-		var frame protocol.Frame
-		switch n.Kind {
-		case realtime.KindConversationChanged:
-			frame = protocol.ConversationChanged{ConversationID: n.ConversationID, ConversationType: n.ConversationType, Version: n.Version, Changes: n.Changes}
-		case realtime.KindVisitorTyping:
-			frame = protocol.VisitorTyping{ConversationID: n.ConversationID, Active: n.Active}
-		case realtime.KindReceptionChanged:
-			frame = protocol.ReceptionChanged{}
-		case realtime.KindComputerWork:
-			frame = protocol.ComputerWork{}
-		}
-		if frame == nil {
-			continue
-		}
 		channel := realtime.VisitorChannel(n.WorkspaceID, id)
 		if n.AudienceKind == realtime.AudienceWebsiteVisitors {
 			channel = "w." + n.WorkspaceID + ".visitors"
@@ -108,11 +105,7 @@ func (s *Service) publishPeer(ctx context.Context, n realtime.Notification) erro
 		if n.Kind == realtime.KindVisitorTyping {
 			channel += ".typing"
 		}
-		data, err := protocol.Encode(frame)
-		if err == nil {
-			_, err = s.Server.Broadcast(ctx, jetcast.Event{Name: string(frame.FrameType()), Channels: []jetcast.Channel{jetcast.Private(channel)}, Data: json.RawMessage(data)})
-		}
-		result = errors.Join(result, err)
+		channels = append(channels, channel)
 	}
-	return result
+	return s.broadcast(ctx, frame, n.ID, channels...)
 }

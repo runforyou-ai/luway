@@ -6,6 +6,20 @@ import (
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
+// Handover 记录除运行时外由谁推进工具调用；字面量与持久化列及 einorun.Handover 一致。
+type Handover string
+
+const (
+	// HandoverNone 表示由运行时推进调用。
+	HandoverNone Handover = ""
+	// HandoverAwait 表示宿主在运行外推进调用，运行在当前批调用后挂起等待。
+	HandoverAwait Handover = "await"
+	// HandoverDetached 表示宿主在运行外推进调用，运行带着回执继续。
+	HandoverDetached Handover = "detached"
+	// HandoverSubmitted 表示调用已提交宿主裁决，运行带着回执继续。
+	HandoverSubmitted Handover = "submitted"
+)
+
 // 工具调用记录中由业务侧写入的注解键，取值写入工具调用表的同名列。
 const (
 	NoteSource             = "luway.source"               // 工具来源，取 domain.AgentToolSource。

@@ -49,5 +49,13 @@ func RefreshPrimaryEmail(ctx context.Context, db bun.IDB, workspaceID, contactID
 	if err != nil {
 		return false, fmt.Errorf("refresh contact primary email: %w", err)
 	}
-	return changed(result)
+	ok, err := changed(result)
+	if err != nil || !ok {
+		return ok, err
+	}
+	// 首选邮箱参与成员界面名称。
+	if _, err := RefreshResolvedDisplayName(ctx, db, workspaceID, contactID); err != nil {
+		return false, err
+	}
+	return true, nil
 }

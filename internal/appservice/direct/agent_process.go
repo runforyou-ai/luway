@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/runforyou-ai/einorun/stream"
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess/processquery"
+	"github.com/runforyou-ai/luway/internal/agentcontract"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -29,8 +29,8 @@ func (o *conversationOps) GetAgentRunProcess(ctx context.Context, meta appservic
 		InputTokens: process.Usage.PromptTokens, OutputTokens: process.Usage.CompletionTokens,
 		Outcome: process.Outcome, OutcomeReason: process.OutcomeReason,
 		Blocks: make([]appservice.AgentRunContentBlock, 0, len(process.Blocks)),
-		Plan: arr.Map(process.Plan, func(task stream.PlanTask) appservice.AgentPlanTask {
-			return appservice.AgentPlanTask{ID: task.ID, Subject: task.Subject, Status: domain.AgentPlanTaskStatus(task.Status)}
+		Plan: arr.Map(process.Plan, func(task agentcontract.PlanTask) appservice.AgentPlanTask {
+			return appservice.AgentPlanTask{ID: task.ID, Subject: task.Subject, Status: task.Status}
 		})}
 	for _, block := range process.Blocks {
 		item := appservice.AgentRunContentBlock{ID: block.ID, Position: block.Position, Kind: block.Kind, Text: block.Payload.Text}

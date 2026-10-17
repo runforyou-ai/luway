@@ -12,7 +12,7 @@ import {
   type AgentEvaluationContextMessage,
   type AgentEvaluationCase,
 } from "@/api"
-import { AgentRunBlocks } from "@/components/agent-run-blocks"
+import { AgentRunBlocks } from "@/features/inbox/transcript"
 import { ResourceContent } from "@/components/resource-content"
 import { StatusBadge } from "@/components/status-badge"
 import { Button } from "@/components/ui/button"

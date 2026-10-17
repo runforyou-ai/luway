@@ -9,14 +9,12 @@ import (
 	"time"
 	"uuid"
 
-	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
-	telegramaction "github.com/runforyou-ai/luway/internal/actions/telegram"
-
 	"github.com/golang-jwt/jwt/v5"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	contactaction "github.com/runforyou-ai/luway/internal/actions/contact"
-	customerserviceaction "github.com/runforyou-ai/luway/internal/actions/customerservice"
+	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
+	telegramaction "github.com/runforyou-ai/luway/internal/actions/telegram"
 	"github.com/runforyou-ai/luway/internal/domain"
 	telegramintegration "github.com/runforyou-ai/luway/internal/integration/telegram"
 	"github.com/runforyou-ai/luway/internal/servertest"
@@ -189,7 +187,7 @@ func TestTelegramGatewayCustomerIdentity(t *testing.T) {
 	ctx := context.Background()
 	f := newTelegramGatewayFixture(t)
 	f.connect(t, domain.TelegramConnectionGateway)
-	secret, err := customerserviceaction.NewRegenerateCustomerIdentitySecretAction(f.db).Execute(ctx, f.identity)
+	secret, err := customerchataction.RegenerateCustomerIdentitySecret(ctx, f.db, f.identity)
 	require.NoError(t, err)
 	suffix := strconv.FormatInt(time.Now().UnixNano(), 36)
 	sign := func(userID, email string) string {
@@ -306,7 +304,7 @@ func TestTelegramGatewayIdentityChangeCancelsRun(t *testing.T) {
 	f := newAgentTelegramFixture(t, db, identity, providerID, modelID)
 	_, err := db.ExecContext(ctx, "UPDATE telegram_channel_settings SET connection_mode = ? WHERE channel_id = ?", domain.TelegramConnectionGateway, f.channel.ID)
 	require.NoError(t, err)
-	secret, err := customerserviceaction.NewRegenerateCustomerIdentitySecretAction(db).Execute(ctx, identity)
+	secret, err := customerchataction.RegenerateCustomerIdentitySecret(ctx, db, identity)
 	require.NoError(t, err)
 
 	// 同一身份的后续消息不取消在途运行。

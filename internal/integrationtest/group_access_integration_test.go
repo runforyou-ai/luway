@@ -68,7 +68,7 @@ func TestRemovedMemberCannotWriteAfterWaiting(t *testing.T) {
 			defer release.Do(func() { close(barrier.release) })
 			removed, written := make(chan error, 1), make(chan error, 1)
 			go func() {
-				_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+				_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 				removed <- err
 			}()
 			select {
@@ -150,7 +150,7 @@ func TestGroupSettingsCommitBeforeRemoval(t *testing.T) {
 		t.Fatal(ctx.Err())
 	}
 	go func() {
-		_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
+		_, err := groupchataction.NewRemoveGroupConversationMemberAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, groupchataction.GroupConversationMemberInput{ConversationID: f.groupID, MemberIdentityID: f.member.WorkspaceIdentity.ID})
 		removed <- err
 	}()
 	waitForNavigationLock(t, ctx, f.db, f.groupID)
@@ -177,8 +177,8 @@ func TestGroupOwnerTransferAndLeave(t *testing.T) {
 	require.ErrorIs(t, err, conversationaction.ErrGroupOwnerRequired, "former owner management")
 	_, err = update.Execute(ctx, f.member, input)
 	require.NoError(t, err)
-	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCoordinator(f.db)).Execute(ctx, f.owner, f.groupID))
-	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCoordinator(f.db)).Execute(ctx, f.member, f.groupID)
+	require.NoError(t, groupchataction.NewLeaveGroupConversationAction(f.db, testEnqueuer, newGroupAgentCanceller(f.db)).Execute(ctx, f.owner, f.groupID))
+	_, err = groupchataction.NewDissolveGroupConversationAction(f.db, newGroupAgentCanceller(f.db)).Execute(ctx, f.member, f.groupID)
 	require.NoError(t, err)
 	detail, err := groupchataction.NewGetGroupConversationQuery(f.db).Execute(ctx, f.member, f.groupID)
 	require.NoError(t, err)

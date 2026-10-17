@@ -63,7 +63,8 @@ func validInputModalities(modalities []domain.AIModelInputModality) bool {
 		case domain.AIModelInputModalityText,
 			domain.AIModelInputModalityImage,
 			domain.AIModelInputModalityAudio,
-			domain.AIModelInputModalityVideo:
+			domain.AIModelInputModalityVideo,
+			domain.AIModelInputModalityFile:
 		default:
 			return false
 		}

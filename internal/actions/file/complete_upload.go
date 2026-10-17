@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	"github.com/runforyou-ai/luway/internal/storage/server/filecontent"
@@ -82,7 +83,7 @@ func completeUpload(ctx context.Context, db *bun.DB, scope uploadScope, fileID s
 	}
 	// 按扩展名内嵌展示的图片须与实际内容的类型一致。
 	if contentType, inline := domain.InlineImageContentType(path.Ext(record.StorageKey)); inline && http.DetectContentType(object.Head) != contentType {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"contentType": ValidationContentTypeInvalid}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"contentType": ValidationContentTypeInvalid}}
 	}
 	marked, err := markUploaded(ctx, db, scope, record.ID, object.ETag)
 	if !errors.Is(err, ErrFileNotFound) {

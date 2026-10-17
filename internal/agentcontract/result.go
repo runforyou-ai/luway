@@ -1,7 +1,6 @@
 package agentcontract
 
 import (
-	"github.com/runforyou-ai/einorun/llm"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
@@ -12,9 +11,9 @@ type Usage struct {
 	TotalTokens      int `json:"totalTokens"`
 }
 
-// UsageFrom 把模型调用的用量转换为运行用量，合计按输入与输出之和计算。
-func UsageFrom(used llm.Usage) Usage {
-	return Usage{PromptTokens: used.Input, CompletionTokens: used.Output, TotalTokens: used.Input + used.Output}
+// NewUsage 由输入与输出 Token 数构造运行用量，合计为两者之和。
+func NewUsage(promptTokens, completionTokens int) Usage {
+	return Usage{PromptTokens: promptTokens, CompletionTokens: completionTokens, TotalTokens: promptTokens + completionTokens}
 }
 
 // Merge 累计另一份用量。

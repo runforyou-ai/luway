@@ -15,20 +15,14 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// ValidationCode 标识工作区设置的校验结果。
-type ValidationCode = common.FieldCode
-
 const (
 	// ValidationNameRequired 表示工作区名称为空。
-	ValidationNameRequired ValidationCode = "WORKSPACE_NAME_REQUIRED"
+	ValidationNameRequired common.FieldCode = "WORKSPACE_NAME_REQUIRED"
 	// ValidationNameTooLong 表示工作区名称超过长度上限。
-	ValidationNameTooLong ValidationCode = "WORKSPACE_NAME_TOO_LONG"
+	ValidationNameTooLong common.FieldCode = "WORKSPACE_NAME_TOO_LONG"
 	// ValidationNameDuplicate 表示平台中已有同名工作区。
-	ValidationNameDuplicate ValidationCode = "WORKSPACE_NAME_DUPLICATE"
+	ValidationNameDuplicate common.FieldCode = "WORKSPACE_NAME_DUPLICATE"
 )
-
-// ValidationError 表示工作区设置校验失败。
-type ValidationError = common.FieldError
 
 // UpdateWorkspaceAction 修改工作区通用设置。
 type UpdateWorkspaceAction struct {
@@ -44,7 +38,7 @@ func NewUpdateWorkspaceAction(db *bun.DB) *UpdateWorkspaceAction {
 func (a *UpdateWorkspaceAction) Execute(ctx context.Context, identity *servermodels.Identity, name string) (*servermodels.Workspace, error) {
 	name, fields := normalizeWorkspaceName(name)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	var workspace *servermodels.Workspace
 	err := serverstorage.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
@@ -61,7 +55,7 @@ func (a *UpdateWorkspaceAction) Execute(ctx context.Context, identity *servermod
 		return err
 	})
 	if pgerr.UniqueViolationOn(err, "workspaces_name_unique") {
-		return nil, &ValidationError{Fields: map[string]ValidationCode{"name": ValidationNameDuplicate}}
+		return nil, &common.FieldError{Fields: map[string]common.FieldCode{"name": ValidationNameDuplicate}}
 	}
 	if err != nil {
 		return nil, fmt.Errorf("update workspace: %w", err)

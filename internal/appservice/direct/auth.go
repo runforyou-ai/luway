@@ -18,6 +18,8 @@ import (
 	installationaction "github.com/runforyou-ai/luway/internal/actions/installation"
 	invitationaction "github.com/runforyou-ai/luway/internal/actions/invitation"
 	"github.com/runforyou-ai/luway/internal/actions/ratelimit"
+	"github.com/runforyou-ai/luway/internal/actions/realtimeauth"
+	seataction "github.com/runforyou-ai/luway/internal/actions/seat"
 	workspaceaction "github.com/runforyou-ai/luway/internal/actions/workspace"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
@@ -35,12 +37,14 @@ import (
 
 // authOps 持有首次安装、账号会话和工作区列表的 Action 和 Query。
 type authOps struct {
-	realtimePrefix     string
 	deployment         *deploymentaction.DeploymentState
-	installWorkspace   *installationaction.InstallWorkspaceAction
+	installPlatform    *installationaction.InstallPlatformAction
 	login              *authaction.LoginAction
+	adminLogin         *authaction.AdminLoginAction
 	register           *accountaction.RegisterAction
 	logout             *authaction.LogoutAction
+	createSupport      *authaction.CreateSupportAccessAction
+	revokeSupport      *authaction.RevokeSupportAccessAction
 	changePassword     *accountaction.ChangePasswordAction
 	setPushDevice      *authaction.SetPushDeviceAction
 	listWorkspaces     *workspaceaction.ListAccountWorkspacesQuery
@@ -55,16 +59,34 @@ type authOps struct {
 	files *fileOps
 }
 
-// GetRealtimeConnection 返回有效成员的实时频道和账号连接身份。
+// GetRealtimeConnection 返回有效成员的实时频道和账号连接身份；支援会话只返回绑定工作区。
 func (o *authOps) GetRealtimeConnection(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.RealtimeConnection, error) {
-	members, err := authaction.ListMemberships(ctx, o.db, account)
-	if err != nil {
-		return appservice.RealtimeConnection{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed, err)
+	var members []authaction.Membership
+	var err error
+	if account.Session.Kind == string(domain.SessionKindSupport) {
+		if account.Session.WorkspaceID == nil {
+			return appservice.RealtimeConnection{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed, authaction.ErrSupportWorkspaceMismatch)
+		}
+		identity, resolveErr := authaction.ResolveMember(ctx, o.db, account, *account.Session.WorkspaceID)
+		if resolveErr != nil {
+			return appservice.RealtimeConnection{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed, resolveErr)
+		}
+		members = []authaction.Membership{{WorkspaceID: identity.Workspace.ID, UserID: identity.User.ID}}
+	} else {
+		members, err = authaction.ListMemberships(ctx, o.db, account)
+		if err != nil {
+			return appservice.RealtimeConnection{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed, err)
+		}
 	}
-	result := appservice.RealtimeConnection{UserID: "a_" + account.Account.ID, SessionID: account.Session.ID, Prefix: o.realtimePrefix, Path: "/nats", Members: make([]appservice.RealtimeMember, 0, len(members))}
+	result := appservice.RealtimeConnection{UserID: "a_" + account.Account.ID, SessionID: account.Session.ID, Path: "/realtime", Members: make([]appservice.RealtimeMember, 0, len(members))}
 	for _, member := range members {
 		result.Members = append(result.Members, RealtimeMemberChannels(member.WorkspaceID, member.UserID))
 	}
+	ticket, err := realtimeauth.IssueMember(ctx, o.db, account.Account.ID, account.Session.ID)
+	if err != nil {
+		return appservice.RealtimeConnection{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed, err)
+	}
+	result.Token = ticket
 	return result, nil
 }
 
@@ -74,15 +96,18 @@ func RealtimeMemberChannels(workspaceID, memberID string) appservice.RealtimeMem
 	return appservice.RealtimeMember{WorkspaceID: workspaceID, UserID: memberID, Channel: channels.Channel, InboxChannel: channels.InboxChannel, TypingChannel: channels.TypingChannel, InboxTypingChannel: channels.InboxTypingChannel}
 }
 
-// newAuthOps 创建首次安装、账号会话和工作区入口的业务实现依赖，certificates 为首次安装的 HTTPS 部署地址签发证书，taskEnqueuer 投递首次安装后的后台任务。
-func newAuthOps(db *bun.DB, deployment *deploymentaction.DeploymentState, certificates *certificateaction.Certificates, taskEnqueuer servertask.TxEnqueuer, files *fileOps, initializer workspaceaction.Initializer) *authOps {
+// newAuthOps 创建首次安装、账号会话和工作区入口的业务实现依赖，certificates 为首次安装的 HTTPS 部署地址签发证书，taskEnqueuer 投递首次安装后的后台任务，platformInitializer 在首次安装事务内初始化附加数据，seats 在自助注册加入默认工作区时校验席位。
+func newAuthOps(db *bun.DB, deployment *deploymentaction.DeploymentState, certificates *certificateaction.Certificates, taskEnqueuer servertask.TxEnqueuer, files *fileOps, initializer workspaceaction.Initializer, platformInitializer installationaction.PlatformInitializer, seats seataction.Seats) *authOps {
 	return &authOps{
 		deployment:         deployment,
-		installWorkspace:   installationaction.NewInstallWorkspaceAction(db, taskEnqueuer, deployment, certificates, initializer),
+		installPlatform:    installationaction.NewInstallPlatformAction(db, taskEnqueuer, deployment, certificates, initializer, platformInitializer),
 		login:              authaction.NewLoginAction(db),
+		adminLogin:         authaction.NewAdminLoginAction(db),
 		limiter:            ratelimit.NewLimiter(db),
-		register:           accountaction.NewRegisterAction(db),
+		register:           accountaction.NewRegisterAction(db, initializer, seats),
 		logout:             authaction.NewLogoutAction(db),
+		createSupport:      authaction.NewCreateSupportAccessAction(db),
+		revokeSupport:      authaction.NewRevokeSupportAccessAction(db),
 		changePassword:     accountaction.NewChangePasswordAction(db),
 		setPushDevice:      authaction.NewSetPushDeviceAction(db),
 		listWorkspaces:     workspaceaction.NewListAccountWorkspacesQuery(db),
@@ -99,6 +124,11 @@ func authFromSession(output authaction.SessionOutput) appservice.Auth {
 	return appservice.Auth{Account: accountFromModel(*output.Account), Token: output.Token, ExpiresAt: output.ExpiresAt}
 }
 
+// adminAuthFromSession 把新签发的后台会话转换为应用契约。
+func adminAuthFromSession(output authaction.SessionOutput) appservice.AdminAuth {
+	return appservice.AdminAuth{Account: accountFromModel(*output.Account), Token: output.Token, ExpiresAt: output.ExpiresAt}
+}
+
 // InstallationStatus 从本进程的部署状态快照返回部署名称、首次安装状态、注册策略是否开放注册，以及产品品牌和接口版本。
 func (o *authOps) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
 	snapshot := o.deployment.Current()
@@ -110,9 +140,9 @@ func (o *authOps) InstallationStatus(ctx context.Context, meta appservice.Reques
 	}, nil
 }
 
-// InstallWorkspace 在平台尚无账号时创建平台管理员和第一个工作区，并返回工作区和登录会话。
-func (o *authOps) InstallWorkspace(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallWorkspaceInput) (appservice.InstallWorkspaceResult, error) {
-	output, err := o.installWorkspace.Execute(ctx, installationaction.InstallWorkspaceInput{
+// InstallPlatform 在平台尚无账号时创建平台管理员并返回后台会话。
+func (o *authOps) InstallPlatform(ctx context.Context, meta appservice.RequestMeta, input appservice.InstallPlatformInput) (appservice.AdminAuth, error) {
+	output, err := o.installPlatform.Execute(ctx, installationaction.InstallPlatformInput{
 		PublicURL:     input.PublicURL,
 		WorkspaceName: input.WorkspaceName,
 		DisplayName:   input.DisplayName,
@@ -122,27 +152,23 @@ func (o *authOps) InstallWorkspace(ctx context.Context, meta appservice.RequestM
 		TimeZone:      input.TimeZone,
 	})
 	if validationError, ok := errors.AsType[*common.FieldError](err); ok {
-		return appservice.InstallWorkspaceResult{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, dispatch.TranslateFields(validationError.Fields, accountFieldKeys))
+		return appservice.AdminAuth{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, dispatch.TranslateFields(validationError.Fields, accountFieldKeys))
 	}
 	if issueErr, ok := certificateIssueError(ctx, meta, err); ok {
-		return appservice.InstallWorkspaceResult{}, issueErr
+		return appservice.AdminAuth{}, issueErr
 	}
 	if errors.Is(err, installationaction.ErrAlreadyInstalled) {
 		slog.InfoContext(ctx, "平台已完成首次安装")
-		return appservice.InstallWorkspaceResult{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAlreadyInitialized).WithStatus(http.StatusConflict)
+		return appservice.AdminAuth{}, appservice.SessionError(meta, appservice.SessionStateLogin, i18n.ErrorAlreadyInitialized).WithStatus(http.StatusConflict)
 	}
 	if err != nil {
-		return appservice.InstallWorkspaceResult{}, appservice.FailedError(meta, i18n.ErrorInstallationFailed, err)
+		return appservice.AdminAuth{}, appservice.FailedError(meta, i18n.ErrorInstallationFailed, err)
 	}
-	slog.InfoContext(logscope.WithMember(ctx, output.Identity.Workspace.ID, output.Identity.Account.ID), "首次安装完成")
-	workspace := output.Identity.Workspace
-	return appservice.InstallWorkspaceResult{
-		Auth:      authFromSession(output.Session),
-		Workspace: appservice.Workspace{ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug, Status: appservice.WorkspaceStatus(workspace.LifecycleStatus)},
-	}, nil
+	slog.InfoContext(logscope.WithAccount(ctx, output.Account.ID), "首次安装完成")
+	return adminAuthFromSession(output.Session), nil
 }
 
-// Login 校验账号密码并返回登录会话。
+// Login 校验账号密码并返回用户端登录会话。
 func (o *authOps) Login(ctx context.Context, meta appservice.RequestMeta, input appservice.LoginInput) (appservice.Auth, error) {
 	if err := o.allowAuth(ctx, meta, ratelimit.LoginByIP.For(ratelimit.IPSubject(appservice.ClientIP(ctx))), ratelimit.LoginByEmail.For(strings.ToLower(strings.TrimSpace(input.Email)))); err != nil {
 		return appservice.Auth{}, err
@@ -156,6 +182,22 @@ func (o *authOps) Login(ctx context.Context, meta appservice.RequestMeta, input 
 	}
 	slog.InfoContext(logscope.WithAccount(ctx, output.Account.ID), "账号登录成功")
 	return authFromSession(output), nil
+}
+
+// AdminLogin 校验平台管理员密码并返回后台会话。
+func (o *authOps) AdminLogin(ctx context.Context, meta appservice.RequestMeta, input appservice.LoginInput) (appservice.AdminAuth, error) {
+	if err := o.allowAuth(ctx, meta, ratelimit.LoginByIP.For(ratelimit.IPSubject(appservice.ClientIP(ctx))), ratelimit.LoginByEmail.For(strings.ToLower(strings.TrimSpace(input.Email)))); err != nil {
+		return appservice.AdminAuth{}, err
+	}
+	output, err := o.adminLogin.Execute(ctx, authaction.LoginInput{Email: input.Email, Password: input.Password})
+	if errors.Is(err, authaction.ErrInvalidCredentials) {
+		return appservice.AdminAuth{}, appservice.InvalidError(meta, i18n.ErrorInvalidCredentials, nil)
+	}
+	if err != nil {
+		return appservice.AdminAuth{}, appservice.FailedError(meta, i18n.ErrorLoginFailed, err)
+	}
+	slog.InfoContext(logscope.WithAccount(ctx, output.Account.ID), "平台管理员登录成功")
+	return adminAuthFromSession(output), nil
 }
 
 // allowAuth 为登录与注册入口消耗限速额度，超出时返回本地化的限速错误。
@@ -197,6 +239,12 @@ func (o *authOps) Register(ctx context.Context, meta appservice.RequestMeta, inp
 	if errors.Is(err, accountaction.ErrInstallationRequired) {
 		return appservice.Auth{}, appservice.SessionError(meta, appservice.SessionStateSetup, i18n.ErrorInstallationRequired)
 	}
+	if errors.Is(err, seataction.ErrLimitReached) {
+		return appservice.Auth{}, appservice.ConflictError(meta, i18n.ErrorSeatLimitReached, "seat_limit_reached")
+	}
+	if errors.Is(err, workspaceaction.ErrDefaultWorkspaceMissing) {
+		return appservice.Auth{}, appservice.ConflictError(meta, i18n.ErrorDefaultWorkspaceUnavailable, "default_workspace_unavailable")
+	}
 	if err != nil {
 		return appservice.Auth{}, appservice.FailedError(meta, i18n.ErrorRegistrationFailed, err)
 	}
@@ -204,7 +252,7 @@ func (o *authOps) Register(ctx context.Context, meta appservice.RequestMeta, inp
 	return authFromSession(output), nil
 }
 
-// Logout 删除当前登录会话。
+// Logout 删除当前用户端登录会话。
 func (o *authOps) Logout(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) error {
 	if err := o.logout.Execute(ctx, account); err != nil {
 		return appservice.FailedError(meta, i18n.ErrorLogoutFailed, err)
@@ -213,9 +261,64 @@ func (o *authOps) Logout(ctx context.Context, meta appservice.RequestMeta, accou
 	return nil
 }
 
-// LoadAccount 返回当前登录账号。
+// AdminLogout 删除当前平台后台会话。
+func (o *authOps) AdminLogout(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) error {
+	if err := o.logout.Execute(ctx, account); err != nil {
+		return appservice.FailedError(meta, i18n.ErrorLogoutFailed, err)
+	}
+	slog.InfoContext(ctx, "平台管理员退出登录")
+	return nil
+}
+
+// LoadAccount 返回当前用户端登录账号。
 func (o *authOps) LoadAccount(_ context.Context, _ appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.Account, error) {
 	return accountFromModel(account.Account), nil
+}
+
+// LoadAdminAccount 返回当前平台后台登录账号。
+func (o *authOps) LoadAdminAccount(_ context.Context, _ appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.Account, error) {
+	return accountFromModel(account.Account), nil
+}
+
+// ChangeAdminPassword 核验当前平台管理员的密码并保存新密码，其他登录会话随之失效。
+func (o *authOps) ChangeAdminPassword(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.ChangePasswordInput) error {
+	return o.ChangePassword(ctx, meta, account, input)
+}
+
+// CreateSupportAccess 为平台管理员签发进入指定工作区的短期支援凭证。
+func (o *authOps) CreateSupportAccess(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, workspaceID string) (appservice.SupportAccess, error) {
+	output, err := o.createSupport.Execute(ctx, account, workspaceID)
+	if errors.Is(err, authaction.ErrWorkspaceNotFound) {
+		return appservice.SupportAccess{}, appservice.NotFoundError(meta, i18n.ErrorPlatformWorkspaceNotFound)
+	}
+	if errors.Is(err, authaction.ErrWorkspaceSuspended) {
+		return appservice.SupportAccess{}, appservice.SessionError(meta, appservice.SessionStateWorkspace, i18n.ErrorWorkspaceSuspended)
+	}
+	if err != nil {
+		return appservice.SupportAccess{}, appservice.FailedError(meta, i18n.ErrorInternal, err)
+	}
+	slog.InfoContext(logscope.WithWorkspace(ctx, output.Workspace.ID), "平台支援会话已签发", "support_session_id", output.Session.SessionID)
+	return appservice.SupportAccess{
+		Token:     output.Session.Token,
+		ExpiresAt: output.Session.ExpiresAt,
+		Workspace: appservice.Workspace{
+			ID: output.Workspace.ID, Name: output.Workspace.Name, Slug: output.Workspace.Slug,
+			Status: appservice.WorkspaceStatus(output.Workspace.LifecycleStatus),
+		},
+	}, nil
+}
+
+// RevokeSupportAccess 撤销当前支援会话。
+func (o *authOps) RevokeSupportAccess(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) error {
+	err := o.revokeSupport.Execute(ctx, account)
+	if errors.Is(err, authaction.ErrSessionKindMismatch) {
+		return appservice.InvalidError(meta, i18n.ErrorValidationFailed, nil)
+	}
+	if err != nil {
+		return appservice.FailedError(meta, i18n.ErrorLogoutFailed, err)
+	}
+	slog.InfoContext(ctx, "平台支援会话已撤销")
+	return nil
 }
 
 // ChangePassword 核验当前账号的密码并保存新密码，其他登录会话随之失效。
@@ -254,10 +357,23 @@ func (o *authOps) SetPushDevice(ctx context.Context, meta appservice.RequestMeta
 	return nil
 }
 
-// ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区。
+// ListWorkspaces 返回当前账号作为有效成员可进入的工作区，以及当前账号能否再创建工作区；支援会话只返回绑定工作区且不可创建。
 func (o *authOps) ListWorkspaces(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.WorkspaceList, error) {
 	failed := func(err error) (appservice.WorkspaceList, error) {
 		return appservice.WorkspaceList{}, appservice.FailedError(meta, i18n.ErrorWorkspaceListFailed, err)
+	}
+	if account.Session.Kind == string(domain.SessionKindSupport) {
+		workspace, err := o.supportWorkspace(ctx, account)
+		if err != nil {
+			return failed(err)
+		}
+		return appservice.WorkspaceList{
+			Items: []appservice.Workspace{{
+				ID: workspace.ID, Name: workspace.Name, Slug: workspace.Slug,
+				Status: appservice.WorkspaceStatus(workspace.Status),
+			}},
+			CanCreate: false,
+		}, nil
 	}
 	workspaces, err := o.listWorkspaces.Execute(ctx, account)
 	if err != nil {
@@ -326,14 +442,24 @@ var workspaceFieldKeys = map[common.FieldCode]i18n.Key{
 	workspaceaction.ValidationNameDuplicate: i18n.FieldWorkspaceNameDuplicate,
 }
 
-// ListWorkspaceAttention 逐个读取账号有效成员身份所在工作区的提醒数量；已暂停或读取期间失去成员身份的工作区不返回。
+// ListWorkspaceAttention 逐个读取账号有效成员身份所在工作区的提醒数量；已暂停或读取期间失去成员身份的工作区不返回；支援会话只返回绑定工作区。
 func (o *authOps) ListWorkspaceAttention(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.WorkspaceAttentionList, error) {
 	failed := func(err error) (appservice.WorkspaceAttentionList, error) {
 		return appservice.WorkspaceAttentionList{}, appservice.FailedError(meta, i18n.ErrorInboxLoadFailed, err)
 	}
-	workspaces, err := o.listWorkspaces.Execute(ctx, account)
-	if err != nil {
-		return failed(err)
+	var workspaces []workspaceaction.Workspace
+	if account.Session.Kind == string(domain.SessionKindSupport) {
+		workspace, err := o.supportWorkspace(ctx, account)
+		if err != nil {
+			return failed(err)
+		}
+		workspaces = []workspaceaction.Workspace{workspace}
+	} else {
+		var err error
+		workspaces, err = o.listWorkspaces.Execute(ctx, account)
+		if err != nil {
+			return failed(err)
+		}
 	}
 	items := make([]appservice.WorkspaceAttention, 0, len(workspaces))
 	for _, workspace := range workspaces {
@@ -353,4 +479,19 @@ func (o *authOps) ListWorkspaceAttention(ctx context.Context, meta appservice.Re
 		})
 	}
 	return appservice.WorkspaceAttentionList{Items: items}, nil
+}
+
+// supportWorkspace 返回支援会话绑定的有效成员工作区。
+func (o *authOps) supportWorkspace(ctx context.Context, account *servermodels.AccountIdentity) (workspaceaction.Workspace, error) {
+	if account.Session.WorkspaceID == nil {
+		return workspaceaction.Workspace{}, authaction.ErrSupportWorkspaceMismatch
+	}
+	identity, err := authaction.ResolveMember(ctx, o.db, account, *account.Session.WorkspaceID)
+	if err != nil {
+		return workspaceaction.Workspace{}, err
+	}
+	return workspaceaction.Workspace{
+		ID: identity.Workspace.ID, Name: identity.Workspace.Name, Slug: identity.Workspace.Slug,
+		Status: domain.WorkspaceLifecycleStatus(identity.Workspace.LifecycleStatus),
+	}, nil
 }

@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import {
   FilePurpose,
   KnowledgeDocumentFormat,
-  FileTransfer,
+  FileUploadTask,
   createFileUpload,
   completeFileUpload,
   createKnowledgeDocuments,
@@ -22,7 +22,7 @@ import { recoverSession } from "@/lib/session-navigation"
 /** 上传批次中的一个原件及其传输与保存进度。 */
 type UploadItem = {
   file: File
-  transfer: FileTransfer
+  transfer: FileUploadTask
   controller: AbortController
   stage: "waiting" | "uploading" | "saving" | "failed" | "saved"
   bytes: number
@@ -48,6 +48,7 @@ export function useKnowledgeDocumentUpload({ baseId }: { baseId: string }) {
         // 等待已提交保存命令的事务结果。
         if (item.stage === "saving" || item.stage === "saved") continue
         item.controller.abort()
+        item.transfer.dispose()
         if (item.transfer.upload) void cancelFileUpload(item.transfer.upload.file.id).catch(() => {})
       }
     }
@@ -125,7 +126,7 @@ export function useKnowledgeDocumentUpload({ baseId }: { baseId: string }) {
       bytes: 0,
       stage: "waiting",
       controller: new AbortController(),
-      transfer: new FileTransfer(file, () =>
+      transfer: new FileUploadTask(file, () =>
         createFileUpload({
           purpose: FilePurpose.KnowledgeDocument,
           fileName: file.name,
@@ -141,6 +142,7 @@ export function useKnowledgeDocumentUpload({ baseId }: { baseId: string }) {
   function close() {
     if (busy) return
     for (const item of items.current) {
+      item.transfer.dispose()
       if (item.stage !== "saved" && item.transfer.upload)
         void cancelFileUpload(item.transfer.upload.file.id).catch(() => {})
     }

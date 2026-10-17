@@ -60,7 +60,7 @@ type sentMedia struct {
 // deliveryFiles 按存储键返回测试附件内容，未登记的键视为存储读取失败。
 type deliveryFiles map[string]string
 
-// Open 返回登记的附件内容，失败时与本地存储读取器一样携带空的具体类型值。
+// Open 返回登记的附件内容，失败时返回携带空指针的接口值。
 func (f deliveryFiles) Open(_ context.Context, file *models.File) (io.ReadCloser, error) {
 	content, ok := f[file.StorageKey]
 	if !ok {

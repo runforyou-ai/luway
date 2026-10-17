@@ -184,7 +184,7 @@ const channels = {
     checkFailed: "接口凭据获取失败，请查看失败原因。",
     checkError: "检测公众号凭据失败，请稍后重试。",
     credentialsTitle: "公众号凭据",
-    credentialsHelp: "保存时会用 AppID 和 AppSecret 向微信验证，请先把「IP 白名单」中列出的服务器出口 IP 加入公众号的 IP 白名单。",
+    credentialsHelp: "保存时会用 AppID 和 AppSecret 向微信验证，请自行查询服务器出口 IP 并加入公众号的 IP 白名单。",
     form: {
       appId: "AppID",
       appIdHelp: "连接后不可更换，更换公众号请新建渠道。",
@@ -215,10 +215,6 @@ const channels = {
       waiting: "等待验证",
       verifiedAt: "微信于 {{time}} 验证通过。",
       waitingHelp: "在公众平台提交服务器配置后，微信会验证该地址。",
-    },
-    info: {
-      whitelistTitle: "IP 白名单",
-      whitelistHelp: "把以下服务器出口 IP 加入公众平台「设置与开发 › 基本配置」中的 IP 白名单。",
     },
   },
   wechatAuthorization: {

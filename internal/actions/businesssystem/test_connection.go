@@ -5,6 +5,7 @@ package businesssystem
 import (
 	"context"
 
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 )
 
@@ -20,7 +21,7 @@ func NewTestConnectionAction(connector *Connector) *TestConnectionAction {
 func (a *TestConnectionAction) Execute(ctx context.Context, input ConnectionInput) (ConnectionInput, []domain.BusinessTool, error) {
 	input, fields := normalizeConnectionInput(input)
 	if len(fields) > 0 {
-		return ConnectionInput{}, nil, &ValidationError{Fields: fields}
+		return ConnectionInput{}, nil, &common.FieldError{Fields: fields}
 	}
 	discovery, err := a.connector.Discover(ctx, input)
 	if err != nil {

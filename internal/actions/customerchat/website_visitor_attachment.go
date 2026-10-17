@@ -9,10 +9,12 @@ import (
 	"fmt"
 	"uuid"
 
+	"github.com/runforyou-ai/luway/internal/actions/agentrun"
 	"github.com/runforyou-ai/luway/internal/actions/channelinbound"
 	contactaction "github.com/runforyou-ai/luway/internal/actions/contact"
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/common/customeridentity"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -25,17 +27,16 @@ import (
 type CreateWebsiteVisitorUploadAction struct {
 	db       *bun.DB
 	enqueuer servertask.TxEnqueuer
-	backend  func() domain.FileStorageBackend
 }
 
-// NewCreateWebsiteVisitorUploadAction 创建网站访客附件上传操作，backend 返回新文件写入的存储类型。
-func NewCreateWebsiteVisitorUploadAction(db *bun.DB, enqueuer servertask.TxEnqueuer, backend func() domain.FileStorageBackend) *CreateWebsiteVisitorUploadAction {
-	return &CreateWebsiteVisitorUploadAction{db: db, enqueuer: enqueuer, backend: backend}
+// NewCreateWebsiteVisitorUploadAction 创建网站访客附件上传操作。
+func NewCreateWebsiteVisitorUploadAction(db *bun.DB, enqueuer servertask.TxEnqueuer) *CreateWebsiteVisitorUploadAction {
+	return &CreateWebsiteVisitorUploadAction{db: db, enqueuer: enqueuer}
 }
 
-// Execute 按渠道上限校验元数据，渠道开启附件时幂等建立渠道身份并按企业存储配置创建临时文件。
+// Execute 按渠道上限校验元数据，渠道开启附件时幂等建立渠道身份并创建临时文件。
 func (a *CreateWebsiteVisitorUploadAction) Execute(ctx context.Context, input WebsiteVisitorUploadInput) (*servermodels.File, error) {
-	fields := map[string]conversationaction.ValidationCode{}
+	fields := map[string]common.FieldCode{}
 	if !str.IsUUID(input.ChannelID) {
 		fields["channelId"] = ValidationChannelIDInvalid
 	}
@@ -43,7 +44,7 @@ func (a *CreateWebsiteVisitorUploadAction) Execute(ctx context.Context, input We
 		fields["visitorToken"] = ValidationExternalIDInvalid
 	}
 	if len(fields) > 0 {
-		return nil, &conversationaction.ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	if limit := domain.ChannelCapabilitiesOf(domain.ChannelTypeWebsite).InboundAttachmentLimit; input.ByteSize > limit {
 		return nil, &conversationaction.ConflictError{Reason: conversationaction.ConflictReasonAttachmentTooLarge}
@@ -73,10 +74,10 @@ func (a *CreateWebsiteVisitorUploadAction) Execute(ctx context.Context, input We
 		if err != nil {
 			return err
 		}
-		if ensured, err = contactaction.SyncChannelIdentity(ctx, tx, a.enqueuer, identityInput, ensured); err != nil {
+		if ensured, err = contactaction.SyncChannelIdentity(ctx, tx, a.enqueuer, agentrun.CancelChannelIdentityRuns, identityInput, ensured); err != nil {
 			return err
 		}
-		record, err = fileaction.CreateVisitorPending(ctx, tx, a.backend(), fileaction.VisitorUploadInput{
+		record, err = fileaction.CreateVisitorPending(ctx, tx, fileaction.VisitorUploadInput{
 			WorkspaceID: channel.WorkspaceID, CreatedByUserID: channel.CreatedByUserID, ChannelIdentityID: ensured.Identity.ID,
 			Upload: fileaction.UploadInput{
 				Purpose: domain.FilePurposeMessageAttachment, FileName: input.FileName,
@@ -151,7 +152,7 @@ func (q *GetWebsiteVisitorAttachmentQuery) Execute(ctx context.Context, channelI
 
 // loadWebsiteVisitor 读取启用网站渠道下已建立的访客渠道身份。
 func loadWebsiteVisitor(ctx context.Context, db bun.IDB, channelID, externalID string) (*servermodels.Channel, *servermodels.ChannelIdentity, error) {
-	fields := map[string]conversationaction.ValidationCode{}
+	fields := map[string]common.FieldCode{}
 	if !str.IsUUID(channelID) {
 		fields["channelId"] = ValidationChannelIDInvalid
 	}
@@ -159,7 +160,7 @@ func loadWebsiteVisitor(ctx context.Context, db bun.IDB, channelID, externalID s
 		fields["visitorToken"] = ValidationExternalIDInvalid
 	}
 	if len(fields) > 0 {
-		return nil, nil, &conversationaction.ValidationError{Fields: fields}
+		return nil, nil, &common.FieldError{Fields: fields}
 	}
 	channel, err := loadWebsiteChannel(ctx, db, channelID)
 	if err != nil {

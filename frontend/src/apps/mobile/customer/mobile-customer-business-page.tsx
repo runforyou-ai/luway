@@ -4,7 +4,7 @@ import { useOutletContext } from "react-router"
 
 import type { MobileCustomerConversationContext } from "@/apps/mobile/customer/mobile-customer-conversation-page"
 import { MobilePageHeader, MobileScrollArea } from "@/apps/mobile/shared/mobile-page"
-import { ServiceBusinessQueries } from "@/features/inbox/service/customer-business-queries"
+import { ServiceBusinessQueries } from "@/features/inbox/public"
 
 /** 全屏展示当前客服周期的业务查询记录，返回时回到客户会话。 */
 export function MobileCustomerBusinessPage() {

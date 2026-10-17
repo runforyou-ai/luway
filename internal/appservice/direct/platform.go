@@ -12,7 +12,6 @@ import (
 	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	licenseaction "github.com/runforyou-ai/luway/internal/actions/license"
 	platformaction "github.com/runforyou-ai/luway/internal/actions/platform"
-	platformdiagnosticsaction "github.com/runforyou-ai/luway/internal/actions/platformdiagnostics"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
 	"github.com/runforyou-ai/luway/internal/common"
@@ -20,18 +19,25 @@ import (
 	"github.com/runforyou-ai/luway/internal/common/logscope"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
-	"github.com/runforyou-ai/luway/internal/integration/control"
+	"github.com/runforyou-ai/luway/internal/integration/supportplane"
+	"github.com/runforyou-ai/luway/internal/storage/server/filecontent"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	servertask "github.com/runforyou-ai/luway/internal/task/server"
 	"github.com/runforyou-ai/support/arr"
 	"github.com/uptrace/bun"
 )
 
+// platformDiagnosticBucketTimeout 是导出诊断时检查对象存储桶的时限。
+const platformDiagnosticBucketTimeout = 3 * time.Second
+
 // platformOps 持有平台管理的 Action 和 Query。
 type platformOps struct {
+	db                     *bun.DB
+	tasks                  servertask.Monitor
+	dataDirectory          string
+	control                *supportplane.Client
 	platformOverview       *platformaction.OverviewQuery
 	platformSettingsRead   *platformaction.SettingsQuery
-	updatePlatformPolicies *platformaction.UpdatePoliciesAction
 	listPlatformAccounts   *platformaction.ListAccountsQuery
 	updatePlatformAccount  *platformaction.UpdateAccountAction
 	listPlatformWorkspaces *platformaction.ListWorkspacesQuery
@@ -39,25 +45,19 @@ type platformOps struct {
 	platformUsage          *platformaction.UsageQuery
 	platformRuntime        *platformaction.RuntimeStatusQuery
 	platformFailedTasks    *platformaction.FailedTaskListQuery
-	platformServerLogs     *platformaction.ServerLogListQuery
-	platformDiagnostics    *platformdiagnosticsaction.Query
 	instanceID             string
 	licenseRead            *licenseaction.LicenseQuery
 	activateLicense        *licenseaction.ActivateLicenseAction
 	onlineLicense          *licenseaction.OnlineLicenseAction
 	deploymentRead         *deploymentaction.DeploymentSettingsQuery
 	updateDeployment       *deploymentaction.UpdateDeploymentAction
-	// homePricing 表示产品首页展示价格区块。
-	homePricing bool
 }
 
-// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与同步授权，deployment 是本进程的部署状态，certificates 为部署地址准备证书，instanceID 是本服务端进程编号，homePricing 表示产品首页展示价格区块。
-func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, taskMonitor servertask.Monitor, licenseKeys license.Keys, controlClient *control.Client, deployment *deploymentaction.DeploymentState, certificates *certificateaction.Certificates, instanceID string, homePricing bool) *platformOps {
-	return &platformOps{
-		homePricing:            homePricing,
+// newPlatformOps 创建平台管理的业务实现依赖，licenseKeys 是授权码验签公钥，controlClient 用于在线激活与诊断上传，deployment 是本进程的部署状态，certificates 为部署地址准备证书，instanceID 是本服务端进程编号。
+func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, taskMonitor servertask.Monitor, licenseKeys license.Keys, controlClient *supportplane.Client, deployment *deploymentaction.DeploymentState, certificates *certificateaction.Certificates, instanceID string, dataDirectory string) *platformOps {
+	return &platformOps{db: db, tasks: taskMonitor, dataDirectory: dataDirectory, control: controlClient,
 		platformOverview:       platformaction.NewOverviewQuery(db),
 		platformSettingsRead:   platformaction.NewSettingsQuery(db),
-		updatePlatformPolicies: platformaction.NewUpdatePoliciesAction(db, deployment),
 		listPlatformAccounts:   platformaction.NewListAccountsQuery(db),
 		updatePlatformAccount:  platformaction.NewUpdateAccountAction(db),
 		listPlatformWorkspaces: platformaction.NewListWorkspacesQuery(db),
@@ -65,8 +65,6 @@ func newPlatformOps(db *bun.DB, taskEnqueuer servertask.TxEnqueuer, taskMonitor 
 		platformUsage:          platformaction.NewUsageQuery(db),
 		platformRuntime:        platformaction.NewRuntimeStatusQuery(db, taskMonitor),
 		platformFailedTasks:    platformaction.NewFailedTaskListQuery(db, taskMonitor),
-		platformServerLogs:     platformaction.NewServerLogListQuery(db),
-		platformDiagnostics:    platformdiagnosticsaction.NewQuery(db, taskMonitor),
 		instanceID:             instanceID,
 		licenseRead:            licenseaction.NewLicenseQuery(db),
 		activateLicense:        licenseaction.NewActivateLicenseAction(db, licenseKeys, deployment),
@@ -85,32 +83,10 @@ func (o *platformOps) GetPlatformOverview(ctx context.Context, meta appservice.R
 	return platformOverviewFromAction(overview), nil
 }
 
-// GetPlatformSettings 返回平台注册策略与工作区创建策略。
-func (o *platformOps) GetPlatformSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformSettings, error) {
-	settings, err := o.platformSettingsRead.Execute(ctx)
-	if err != nil {
-		return appservice.PlatformSettings{}, platformError(meta, err, i18n.ErrorPlatformSettingsReadFailed)
-	}
-	return platformSettingsFromAction(settings), nil
-}
-
-// UpdatePlatformSettings 修改平台注册策略和工作区创建策略。
-func (o *platformOps) UpdatePlatformSettings(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformPoliciesInput) (appservice.PlatformSettings, error) {
-	settings, err := o.updatePlatformPolicies.Execute(ctx, account, platformaction.Policies{
-		RegistrationPolicy:      input.RegistrationPolicy,
-		WorkspaceCreationPolicy: input.WorkspaceCreationPolicy,
-	})
-	if err != nil {
-		return appservice.PlatformSettings{}, platformError(meta, err, i18n.ErrorPlatformSettingsUpdateFailed)
-	}
-	slog.InfoContext(ctx, "平台策略已修改", "registration_policy", settings.RegistrationPolicy, "workspace_creation_policy", settings.WorkspaceCreationPolicy)
-	return platformSettingsFromAction(settings), nil
-}
-
 // ListPlatformAccounts 返回平台内的账号。
 func (o *platformOps) ListPlatformAccounts(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformAccountListInput) (appservice.PlatformAccountList, error) {
 	output, err := o.listPlatformAccounts.Execute(ctx, platformaction.AccountListInput{
-		Query: input.Query, Status: input.Status, Page: input.Page, PageSize: input.PageSize,
+		WorkspaceID: input.WorkspaceID, Query: input.Query, Status: input.Status, Page: input.Page, PageSize: input.PageSize,
 	})
 	if err != nil {
 		return appservice.PlatformAccountList{}, platformError(meta, err, i18n.ErrorPlatformAccountListFailed)
@@ -156,7 +132,7 @@ func (o *platformOps) ListPlatformWorkspaces(ctx context.Context, meta appservic
 	return appservice.PlatformWorkspaceList{Workspaces: workspaces, Page: appservice.PageInfo{Number: output.Page.Number, Size: output.Page.Size, Total: output.Page.Total}}, nil
 }
 
-// GetLicense 返回服务器标识、授权状态与 control 同步结果。
+// GetLicense 返回部署标识、授权状态。
 func (o *platformOps) GetLicense(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.License, error) {
 	current, err := o.licenseRead.Execute(ctx)
 	if err != nil {
@@ -185,31 +161,15 @@ func (o *platformOps) ActivateLicenseOnline(ctx context.Context, meta appservice
 	return o.GetLicense(ctx, meta, account)
 }
 
-// SyncLicense 立即向 control 登记服务器并拉取最新授权，返回同步后重新读取的授权状态。
-func (o *platformOps) SyncLicense(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.License, error) {
-	current, err := o.onlineLicense.Sync(ctx, account)
-	if errors.Is(err, licenseaction.ErrLicenseExpired) {
-		return appservice.License{}, appservice.InvalidError(meta, i18n.ErrorLicenseRenewalRequired, nil)
-	}
-	if err != nil {
-		return appservice.License{}, platformError(meta, err, i18n.ErrorLicenseSyncFailed)
-	}
-	slog.InfoContext(ctx, "授权已同步", "license_id", current.LicenseID, "expires_at", current.ExpiresAt)
-	return o.GetLicense(ctx, meta, account)
-}
-
 // licenseFromAction 把授权状态转换为应用契约，未激活时不返回授权字段。
 func licenseFromAction(current licenseaction.License) appservice.License {
 	output := appservice.License{
-		ServerID: current.ServerID, Status: current.Status,
-		Capabilities: appservice.Capabilities(current.EffectiveCapabilities()),
+		DeploymentID: current.DeploymentID, Status: current.Status, Licensed: current.Licensed(),
 	}
 	if current.Status != domain.LicenseStatusNone {
 		output.LicenseID, output.Customer = current.LicenseID, current.Customer
 		output.IssuedAt, output.ExpiresAt = &current.IssuedAt, &current.ExpiresAt
-		output.ControlMissingAt = current.ControlMissingAt
 	}
-	output.Sync = appservice.PlatformControlStatus(current.Sync)
 	return output
 }
 
@@ -294,56 +254,33 @@ func (o *platformOps) ListPlatformFailedTasks(ctx context.Context, meta appservi
 	}, nil
 }
 
-// serverLogLevels 是日志级别对应的 slog 级别数值。
-var serverLogLevels = map[appservice.ServerLogLevel]slog.Level{
-	appservice.ServerLogLevelDebug: slog.LevelDebug,
-	appservice.ServerLogLevelInfo:  slog.LevelInfo,
-	appservice.ServerLogLevelWarn:  slog.LevelWarn,
-	appservice.ServerLogLevelError: slog.LevelError,
-}
-
-// ListPlatformServerLogs 按筛选条件以时间倒序返回近 30 天的服务端日志，按游标逐页读取。
-func (o *platformOps) ListPlatformServerLogs(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity, input appservice.PlatformServerLogListInput) (appservice.PlatformServerLogList, error) {
-	query := platformaction.ServerLogListInput{
-		Cursor: input.Cursor, PageSize: input.PageSize, InstanceID: input.InstanceID,
-		WorkspaceID: input.WorkspaceID, Entry: input.Entry, TraceID: input.TraceID,
-	}
-	if input.MinLevel != "" {
-		query.MinLevel = new(int(serverLogLevels[input.MinLevel]))
-	}
-	output, err := o.platformServerLogs.Execute(ctx, query)
-	if err != nil {
-		return appservice.PlatformServerLogList{}, platformError(meta, err, i18n.ErrorPlatformRuntimeFailed)
-	}
-	logs := make([]appservice.PlatformServerLog, 0, len(output.Logs))
-	for _, record := range output.Logs {
-		// 记录的级别数值归入不高于它的最高日志级别。
-		level := appservice.ServerLogLevelDebug
-		for candidate, value := range serverLogLevels {
-			if slog.Level(record.Level) >= value && value > serverLogLevels[level] {
-				level = candidate
-			}
-		}
-		logs = append(logs, appservice.PlatformServerLog{
-			ID: record.ID, OccurredAt: record.OccurredAt, Level: level, InstanceID: record.InstanceID, Hostname: record.Hostname,
-			Version: record.Version, Message: record.Message, TraceID: record.TraceID, Operation: record.Operation, TaskRunID: record.TaskRunID,
-			Action: record.Action, Queue: record.Queue, WorkspaceID: record.WorkspaceID, WorkspaceName: record.WorkspaceName,
-			AccountID: record.AccountID, Error: record.Error, EventID: record.EventID, Attributes: record.Attributes,
-		})
-	}
-	return appservice.PlatformServerLogList{Logs: logs, NextCursor: output.NextCursor}, nil
-}
-
-// GetPlatformDiagnostics 返回平台概览、授权与 control 同步结果、部署配置与对象存储检查结果、各服务端进程的状态与配置、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
+// GetPlatformDiagnostics 返回平台概览、授权、部署配置与对象存储检查结果、各服务端进程的状态与配置、数据库、后台任务和平台供应商的诊断信息，不含密码、密钥与业务内容。
 func (o *platformOps) GetPlatformDiagnostics(ctx context.Context, meta appservice.RequestMeta, account *servermodels.AccountIdentity) (appservice.PlatformDiagnostics, error) {
-	diagnostics, err := o.platformDiagnostics.Execute(ctx)
+	diagnostics, err := platformaction.LoadDiagnostics(ctx, o.db, o.tasks)
 	if err != nil {
 		return appservice.PlatformDiagnostics{}, platformError(meta, err, i18n.ErrorPlatformDiagnosticsFailed)
 	}
+	currentLicense, err := o.licenseRead.Execute(ctx)
+	if err != nil {
+		return appservice.PlatformDiagnostics{}, platformError(meta, err, i18n.ErrorPlatformDiagnosticsFailed)
+	}
+	deployment, err := o.deploymentRead.Execute(ctx)
+	if err != nil {
+		return appservice.PlatformDiagnostics{}, platformError(meta, err, i18n.ErrorPlatformDiagnosticsFailed)
+	}
+	objectStorage := platformaction.ObjectStorage{Enabled: deployment.S3.Bucket != ""}
+	if objectStorage.Enabled {
+		checkCtx, cancel := context.WithTimeout(ctx, platformDiagnosticBucketTimeout)
+		err := filecontent.CheckBucket(checkCtx, deployment.S3)
+		cancel()
+		if err != nil {
+			objectStorage.Error = err.Error()
+		}
+	}
 	output := appservice.PlatformDiagnostics{
 		GeneratedAt: diagnostics.GeneratedAt, ExportedBy: o.instanceID, InstalledAt: diagnostics.InstalledAt,
-		Overview: platformOverviewFromAction(diagnostics.Overview), License: licenseFromAction(diagnostics.License),
-		ObjectStorage: appservice.PlatformObjectStorageStatus(diagnostics.ObjectStorage), Deployment: platformDeploymentSummaryFromAction(diagnostics.Deployment), Runtime: platformRuntimeFromAction(diagnostics.Runtime),
+		Overview: platformOverviewFromAction(diagnostics.Overview), License: licenseFromAction(currentLicense),
+		ObjectStorage: appservice.PlatformObjectStorageStatus(objectStorage), Deployment: platformDeploymentSummaryFromAction(deployment), Runtime: platformRuntimeFromAction(diagnostics.Runtime),
 		Database: appservice.PlatformDatabaseStatus(diagnostics.Database),
 		FailedTasks: arr.Map(diagnostics.FailedTasks, func(task servertask.FailedRun) appservice.PlatformDiagnosticTask {
 			return appservice.PlatformDiagnosticTask{
@@ -392,7 +329,6 @@ func platformRuntimeFromAction(runtime platformaction.RuntimeStatus) appservice.
 				Database:         appservice.PlatformServerDatabaseConfig(config.Database),
 				NATS:             appservice.PlatformServerNATSConfig(config.NATS),
 				LogLevel:         config.LogLevel,
-				LocalDirectory:   config.LocalDirectory,
 				ClientsDirectory: config.ClientsDir,
 			},
 		})
@@ -406,14 +342,6 @@ func platformWorkspaceFromAction(record platformaction.WorkspaceRecord) appservi
 		ID: record.ID, Name: record.Name, Slug: record.Slug, Status: appservice.WorkspaceStatus(record.Status),
 		MemberCount: record.MemberCount, AIEmployeeCount: record.AIEmployeeCount, ChannelCount: record.ChannelCount,
 		ComputerCount: record.ComputerCount, HasPlatformAdmin: record.HasAdmin, StorageBytes: record.StorageBytes, LastActiveDays: record.LastActiveDays, CreatedAt: record.CreatedAt,
-	}
-}
-
-// platformSettingsFromAction 把平台级策略转换为应用契约。
-func platformSettingsFromAction(settings platformaction.Settings) appservice.PlatformSettings {
-	return appservice.PlatformSettings{
-		RegistrationPolicy:      settings.RegistrationPolicy,
-		WorkspaceCreationPolicy: settings.WorkspaceCreationPolicy,
 	}
 }
 
@@ -436,24 +364,27 @@ func platformAccountResult(ctx context.Context, meta appservice.RequestMeta, acc
 
 // platformFieldKeys 把平台管理校验错误码映射为本地化文案键。
 var platformFieldKeys = map[common.FieldCode]i18n.Key{
-	platformaction.ValidationQueryInvalid:                 i18n.FieldPlatformQueryInvalid,
-	deploymentaction.ValidationTimeZoneInvalid:            i18n.FieldTimeZoneInvalid,
-	deploymentaction.ValidationDeploymentNameInvalid:      i18n.FieldDeploymentNameInvalid,
-	certificateaction.ValidationPublicURLInvalid:          i18n.FieldPublicURLInvalid,
-	certificateaction.ValidationPublicURLDomainRequired:   i18n.FieldPublicURLDomainRequired,
-	certificateaction.ValidationCertificateSourceInvalid:  i18n.FieldCertificateSourceInvalid,
-	certificateaction.ValidationCertificateInvalid:        i18n.FieldCertificateInvalid,
-	certificateaction.ValidationCertificateExpired:        i18n.FieldCertificateExpired,
-	certificateaction.ValidationCertificateDomainMismatch: i18n.FieldCertificateDomainMismatch,
-	deploymentaction.ValidationS3URLInvalid:               i18n.FieldHTTPURLInvalid,
-	deploymentaction.ValidationS3SettingRequired:          i18n.FieldStorageSettingRequired,
-	deploymentaction.ValidationSMTPPortInvalid:            i18n.FieldPortInvalid,
-	deploymentaction.ValidationSMTPSecurityInvalid:        i18n.FieldSMTPSecurityInvalid,
-	deploymentaction.ValidationSMTPCredentialsIncomplete:  i18n.FieldSMTPCredentialsIncomplete,
-	deploymentaction.ValidationSMTPFromAddressInvalid:     i18n.FieldEmailInvalid,
-	deploymentaction.ValidationBrandNameInvalid:           i18n.FieldBrandNameInvalid,
-	deploymentaction.ValidationBrandSDKNameInvalid:        i18n.FieldBrandSDKNameInvalid,
-	deploymentaction.ValidationBrandIconInvalid:           i18n.FieldBrandIconInvalid,
+	deploymentaction.ValidationEmailSettingInvalid:          i18n.FieldEmailSettingInvalid,
+	platformaction.ValidationQueryInvalid:                   i18n.FieldPlatformQueryInvalid,
+	platformaction.ValidationWorkspaceCreationQuotaDecrease: i18n.FieldWorkspaceCreationQuotaDecrease,
+	deploymentaction.ValidationTimeZoneInvalid:              i18n.FieldTimeZoneInvalid,
+	deploymentaction.ValidationDeploymentNameInvalid:        i18n.FieldDeploymentNameInvalid,
+	certificateaction.ValidationPublicURLInvalid:            i18n.FieldPublicURLInvalid,
+	certificateaction.ValidationPublicURLDomainRequired:     i18n.FieldPublicURLDomainRequired,
+	certificateaction.ValidationCertificateSourceInvalid:    i18n.FieldCertificateSourceInvalid,
+	certificateaction.ValidationCertificateInvalid:          i18n.FieldCertificateInvalid,
+	certificateaction.ValidationCertificateExpired:          i18n.FieldCertificateExpired,
+	certificateaction.ValidationCertificateDomainMismatch:   i18n.FieldCertificateDomainMismatch,
+	deploymentaction.ValidationS3URLInvalid:                 i18n.FieldHTTPURLInvalid,
+	deploymentaction.ValidationS3SettingRequired:            i18n.FieldStorageSettingRequired,
+	deploymentaction.ValidationSMTPPortInvalid:              i18n.FieldPortInvalid,
+	deploymentaction.ValidationSMTPSecurityInvalid:          i18n.FieldSMTPSecurityInvalid,
+	deploymentaction.ValidationSMTPCredentialsIncomplete:    i18n.FieldSMTPCredentialsIncomplete,
+	deploymentaction.ValidationSMTPFromAddressInvalid:       i18n.FieldEmailInvalid,
+	deploymentaction.ValidationBrandNameInvalid:             i18n.FieldBrandNameInvalid,
+	deploymentaction.ValidationBrandSDKNameInvalid:          i18n.FieldBrandSDKNameInvalid,
+	deploymentaction.ValidationBrandIconInvalid:             i18n.FieldBrandIconInvalid,
+	deploymentaction.ValidationRegistrationPolicyInvalid:    i18n.FieldRegistrationPolicyInvalid,
 }
 
 // platformErrors 是平台管理操作的错误转换规则，授权码校验与 control 通信错误按输入无效返回。
@@ -464,13 +395,12 @@ var platformErrors = dispatch.Catalog{
 	dispatch.Is(platformaction.ErrSelfChange, dispatch.Invalid(i18n.ErrorPlatformAccountSelfChange)),
 	dispatch.Is(platformaction.ErrNoActiveMembership, dispatch.Invalid(i18n.ErrorPlatformAccountNoWorkspace)),
 	dispatch.Is(licenseaction.ErrLicenseInvalid, dispatch.Invalid(i18n.ErrorLicenseInvalid)),
-	dispatch.Is(licenseaction.ErrLicenseServerMismatch, dispatch.Invalid(i18n.ErrorLicenseServerMismatch)),
+	dispatch.Is(licenseaction.ErrLicenseDeploymentMismatch, dispatch.Invalid(i18n.ErrorLicenseDeploymentMismatch)),
 	dispatch.Is(licenseaction.ErrLicenseExpired, dispatch.Invalid(i18n.ErrorLicenseExpired)),
 	dispatch.Is(licenseaction.ErrLicenseSuperseded, dispatch.Invalid(i18n.ErrorLicenseSuperseded)),
 	dispatch.Is(licenseaction.ErrActivationCodeInvalid, dispatch.Invalid(i18n.ErrorActivationCodeInvalid)),
-	dispatch.Is(licenseaction.ErrActivationServerMismatch, dispatch.Invalid(i18n.ErrorActivationServerMismatch)),
-	dispatch.Is(licenseaction.ErrServerKeyMismatch, dispatch.Invalid(i18n.ErrorServerKeyMismatch)),
-	dispatch.Is(licenseaction.ErrLicenseNotIssued, dispatch.Invalid(i18n.ErrorLicenseNotIssued)),
+	dispatch.Is(licenseaction.ErrActivationDeploymentMismatch, dispatch.Invalid(i18n.ErrorActivationDeploymentMismatch)),
+	dispatch.Is(licenseaction.ErrDeploymentKeyMismatch, dispatch.Invalid(i18n.ErrorDeploymentKeyMismatch)),
 	dispatch.Is(licenseaction.ErrControlUnavailable, dispatch.Invalid(i18n.ErrorControlUnavailable)),
 }
 

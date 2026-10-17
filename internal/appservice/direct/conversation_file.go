@@ -6,7 +6,6 @@ import (
 	"context"
 
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
-	conversationfileaction "github.com/runforyou-ai/luway/internal/actions/conversationfile"
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/dispatch"
 	"github.com/runforyou-ai/luway/internal/i18n"
@@ -62,8 +61,8 @@ func (o *fileOps) GetConversationFileDownload(ctx context.Context, meta appservi
 // conversationFileErrors 是会话文件区的错误转换规则。
 var conversationFileErrors = dispatch.Catalogs(dispatch.Catalog{
 	dispatch.Is(conversationaction.ErrConversationNotFound, dispatch.NotFound(i18n.ErrorConversationNotFound)),
-	dispatch.Is(conversationfileaction.ErrNotFound, dispatch.NotFound(i18n.ErrorFileNotFound)),
-	dispatch.Is(conversationfileaction.ErrInvalidPath, dispatch.Invalid(i18n.ErrorConversationFileNameInvalid)),
+	dispatch.Is(conversationaction.ErrFileNotFound, dispatch.NotFound(i18n.ErrorFileNotFound)),
+	dispatch.Is(conversationaction.ErrInvalidPath, dispatch.Invalid(i18n.ErrorConversationFileNameInvalid)),
 }, dispatch.CommonErrors)
 
 // conversationFileError 把会话文件区的错误转换为本地化错误，未预期的失败使用 failureKey。
@@ -72,7 +71,7 @@ func conversationFileError(meta appservice.RequestMeta, err error, failureKey i1
 }
 
 // conversationFileFromEntry 把会话文件转换为应用契约。
-func conversationFileFromEntry(entry conversationfileaction.Entry) appservice.ConversationFile {
+func conversationFileFromEntry(entry conversationaction.Entry) appservice.ConversationFile {
 	return appservice.ConversationFile{
 		ID: entry.ID, Path: entry.Path, ContentType: entry.ContentType, ByteSize: entry.ByteSize, UpdatedAt: entry.UpdatedAt,
 		UpdatedByName: support.Deref(entry.UpdatedByName),

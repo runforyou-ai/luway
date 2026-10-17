@@ -17,6 +17,7 @@ const TraceparentHeader = "traceparent"
 const TraceHeader = "X-Trace-ID"
 
 // RequestMetaFromHTTP 从请求头提取 Bearer 令牌、目标工作区和语言，构造应用服务请求元数据。
+// 平台后台 Cookie 须经 RequestMetaFromRequest 读取。
 func RequestMetaFromHTTP(header http.Header) RequestMeta {
 	return RequestMeta{
 		Token:           BearerToken(header.Get("Authorization")),
@@ -24,6 +25,13 @@ func RequestMetaFromHTTP(header http.Header) RequestMeta {
 		Locale:          Locale(header.Get("Accept-Language")),
 		ExecutorVersion: strings.TrimSpace(header.Get(ExecutorVersionHeader)),
 	}
+}
+
+// RequestMetaFromRequest 从请求头与平台后台 Cookie 构造应用服务请求元数据。
+func RequestMetaFromRequest(request *http.Request) RequestMeta {
+	meta := RequestMetaFromHTTP(request.Header)
+	meta.AdminToken = AdminTokenFromRequest(request)
+	return meta
 }
 
 // BearerToken 从 Authorization 头解析 Bearer 令牌，格式不符时返回空串。

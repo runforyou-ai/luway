@@ -32,16 +32,15 @@ func TestWechatReleaseTest(t *testing.T) {
 	t.Cleanup(server.Close)
 	client := wechat.NewClient(server.Client(), wechat.WithBaseURL(server.URL))
 	tasks := servertest.NewTasks()
-	service := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db), Wechat: client}, nil, nil, nil, tasks, nil, nil, nil)
+	service := direct.New(db, direct.DeploymentConfig{Deployment: servertest.NewDeployment(t, db), Wechat: client}, nil, nil, tasks, nil, nil, nil)
 	f := &wechatInboundFixture{db: db, fake: fake, httpAPI: api.NewService(service, api.WithWechatMessages(wechataction.NewReceiveMessageAction(db, tasks)))}
-	installed, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
-		PublicURL: servertest.PublicURL, WorkspaceName: "全网发布", DisplayName: "管理员", Email: "admin@example.test",
+	admin := servertest.InstallPlatform(t, service, appservice.InstallPlatformInput{
+		PublicURL: servertest.PublicURL, DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: domain.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
-	require.NoError(t, err)
-	meta := appservice.RequestMeta{Token: installed.Auth.Token, WorkspaceID: installed.Workspace.ID, Locale: domain.LocaleChineseSimplified}
+	adminMeta := servertest.AdminMeta(admin.AdminToken)
 	fake.set("/cgi-bin/component/api_component_token", `{"component_access_token":"platform-token","expires_in":7200}`)
-	_, err = service.SaveWechatPlatform(ctx, meta, appservice.WechatPlatformInput{
+	_, err := service.SaveWechatPlatform(ctx, adminMeta, appservice.WechatPlatformInput{
 		ComponentAppID: testComponentAppID, ComponentAppSecret: "secret", Token: testComponentToken, EncodingAESKey: testComponentAESKey,
 	})
 	require.NoError(t, err)

@@ -12,19 +12,21 @@ import {
 } from "@/apps/mobile/shared/mobile-page"
 import { useMobileWorkspace } from "@/apps/mobile/shared/mobile-workspace-layout"
 import { mobilePendingPath } from "@/apps/mobile/shared/mobile-navigation"
-import { usePendingToolDecisionCount } from "@/features/tool-decisions/use-pending-tool-decisions"
-import { useResponsibleKnowledgeGapCount } from "@/features/knowledge-gaps/use-responsible-knowledge-gaps"
+import { usePendingToolDecisionCount } from "@/features/tool-decisions/public"
+import { useResponsibleKnowledgeGapCount } from "@/features/knowledge-gaps/public"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { useUnsavedChangesContext } from "@/contexts/unsaved-changes-context"
 import { CountBadge } from "@/components/count-badge"
 import { Button } from "@/components/ui/button"
 import { UserAvatar } from "@/components/user-avatar"
-import { WorkStatusDot, WorkStatusPicker } from "@/components/work-status"
-import { ChangePasswordForm } from "@/features/settings/change-password-form"
+import { WorkStatusDot, WorkStatusPicker } from "@/features/contacts/public"
+import {
+  ChangePasswordForm,
+  NotificationSettingsForm,
+  ProfileSettingsForm,
+  UserPreferencesForm,
+} from "@/features/settings/public"
 import { useWorkspaceAttention } from "@/hooks/use-workspace-attention"
-import { NotificationSettingsForm } from "@/features/settings/notification-settings-form"
-import { ProfileSettingsForm } from "@/features/settings/profile-settings-form"
-import { UserPreferencesForm } from "@/features/settings/user-preferences-form"
 import { useWorkStatusChange } from "@/hooks/use-work-status-change"
 import { withReturnTo } from "@/lib/workspace-route"
 import { openProductDocs } from "@/platform/product-docs"

@@ -12,9 +12,9 @@
 # CGO needs a C toolchain in the builder and a libc in the runtime image; keep
 # the builder and runtime libc compatible (a glibc builder -> a glibc runtime).
 # The Taskfile passes these through: task build:docker CGO_ENABLED=1 GO_IMAGE=... RUNTIME_IMAGE=...
-# 通过 wails3 task build:docker 先构建 frontend/dist、internal/publicweb/dist 和 internal/productdocs/dist/site。
+# 通过 wails3 task build:docker 先构建 frontend/dist、internal/web/messenger/dist 和 internal/web/docs/dist/site。
 # 直接调用 docker build 前须准备这些资源，CI 的前端 build 脚本会一并生成；未构建文档样式时 /docs/ 页面不带样式。
-# 发布清单与客户端文件通过构建上下文 release 传入（--build-context release=<目录>），目录含与 APP_VERSION 同版本的 release.json、release.json.sig 与 clients 子目录；未传入时镜像不提供客户端下载。
+# 发布清单与客户端文件通过构建上下文 release 传入（--build-context release=<目录>），目录含与 APP_VERSION 同版本的 release.json 与 clients 子目录；未传入时镜像不提供客户端下载。
 
 ARG GO_IMAGE=golang:1.27-alpine
 ARG RUNTIME_IMAGE=gcr.io/distroless/static-debian12

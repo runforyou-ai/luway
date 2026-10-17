@@ -1,6 +1,6 @@
 //go:build server
 
-// Package documentconvert 把知识库原件转换为 Markdown 正文，转换由 mdchunk 完成。
+// Package documentconvert 把通用文档原件转换为 Markdown 正文（知识库索引与 Agent 共享文件等），转换由 mdchunk 完成。
 package documentconvert
 
 import (
@@ -22,7 +22,7 @@ import (
 	"golang.org/x/text/encoding/simplifiedchinese"
 )
 
-// 原件读取上限与知识文档上传上限一致，Office 原件解压与 HTML 表格展开的总量上限、输出正文上限均为 64 MiB，PDF 转换并发与知识库任务并发一致。
+// 原件读取上限与知识文档上传上限一致，Office 原件解压与 HTML 表格展开的总量上限、输出正文上限均为 64 MiB，PDF 转换并发与知识库任务并发对齐。
 const (
 	maxSourceBytes   = 20 << 20
 	maxExpandedBytes = 64 << 20
@@ -30,7 +30,7 @@ const (
 	pdfWorkers       = 2
 )
 
-// supported 是知识库接受的原件格式，按 mdchunk 规范化后的格式登记。
+// supported 是本转换器接受的原件格式，按 mdchunk 规范化后的格式登记。
 var supported = set.CollectBy([]domain.KnowledgeDocumentFormat{
 	domain.KnowledgeDocumentTXT, domain.KnowledgeDocumentMD, domain.KnowledgeDocumentMarkdown,
 	domain.KnowledgeDocumentHTML, domain.KnowledgeDocumentHTM, domain.KnowledgeDocumentPDF,
@@ -67,7 +67,7 @@ func NewConverter() *Converter {
 	return &Converter{registry: registry}
 }
 
-// Convert 读取原件并按扩展名返回 Markdown 正文，文本编码依次按 BOM、charset 与文档内声明确定，都没有时按 UTF-8 或 GB18030 解码。知识库不支持的格式与旧版二进制 Office 文档返回 unsupported_file，原件超过大小上限返回 file_too_large，解压、展开、输出、PDF 页数或单页字符超过上限返回 content_too_large，加密或损坏返回 parse_failed；取消与运行环境错误原样返回。
+// Convert 读取原件并按扩展名返回 Markdown 正文，文本编码依次按 BOM、charset 与文档内声明确定，都没有时按 UTF-8 或 GB18030 解码。不支持的格式与旧版二进制 Office 文档返回 unsupported_file，原件超过大小上限返回 file_too_large，解压、展开、输出、PDF 页数或单页字符超过上限返回 content_too_large，加密或损坏返回 parse_failed；取消与运行环境错误原样返回。
 func (c *Converter) Convert(ctx context.Context, name, charset string, source io.Reader) (string, error) {
 	format, ok := convert.FormatOf(name)
 	if !ok || !supported.Has(format) {

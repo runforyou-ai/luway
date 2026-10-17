@@ -11,6 +11,7 @@ import (
 	conversationaction "github.com/runforyou-ai/luway/internal/actions/conversation"
 	customerchataction "github.com/runforyou-ai/luway/internal/actions/customerchat"
 	servicesessionaction "github.com/runforyou-ai/luway/internal/actions/servicesession"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servertest "github.com/runforyou-ai/luway/internal/servertest"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -69,7 +70,7 @@ func TestWebsiteVisitorEventsAndRating(t *testing.T) {
 	require.ErrorIs(t, err, conversationaction.ErrConversationNotFound, "foreign rating")
 	tooLong := input
 	tooLong.Comment = strings.Repeat("长", 1001)
-	var validation *conversationaction.ValidationError
+	var validation *common.FieldError
 	_, err = rate.Execute(ctx, tooLong)
 	require.ErrorAs(t, err, &validation, "long comment")
 	require.Equal(t, customerchataction.ValidationRatingCommentTooLong, validation.Fields["comment"], "long comment")

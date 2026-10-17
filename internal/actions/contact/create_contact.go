@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support"
@@ -27,7 +28,7 @@ func NewCreateContactAction(db *bun.DB) *CreateContactAction {
 func (a *CreateContactAction) Execute(ctx context.Context, identity *servermodels.Identity, input ContactInput) (*ContactDetail, error) {
 	input, fields := normalizeNewContactInput(input)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	var detail *ContactDetail
 	err := serverstorage.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
@@ -58,6 +59,9 @@ func (a *CreateContactAction) Execute(ctx context.Context, identity *servermodel
 			return err
 		}
 		if _, err := replaceMethods(ctx, tx, contact.WorkspaceID, contact.ID, input.Methods); err != nil {
+			return err
+		}
+		if _, err := RefreshResolvedDisplayName(ctx, tx, contact.WorkspaceID, contact.ID); err != nil {
 			return err
 		}
 		loaded, err := loadContactDetail(ctx, tx, contact.WorkspaceID, contact.ID)

@@ -5,14 +5,14 @@ import { getTeamPerformanceReport, listTeams, ServiceReportDimension } from "@/a
 import { ListToolbar, ListToolbarFilter } from "@/components/list-toolbar"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
-import { ReportPeriodFilter } from "@/components/report-parts"
+import { ReportPeriodFilter } from "@/components/metrics"
 import { ResourceContent } from "@/components/resource-content"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { periodOptions } from "@/hooks/use-report-format"
 import { useResource } from "@/hooks/use-resource"
 
-import { ReportChannelFilter, useReportSearchParams } from "./report-filters"
+import { ReportChannelFilter, ReportServiceFilters, reportServiceScope, useReportSearchParams } from "./report-filters"
 import {
   TeamPerformanceBreakdownList,
   TeamPerformanceIssueList,
@@ -35,6 +35,8 @@ const parameterDefaults = {
   tab: reportTabs[0],
   days: String(periodOptions[0]),
   channel: "",
+  audience: "",
+  source: "",
   team: "",
   issue: teamIssueTypes[0],
   session: "",
@@ -49,6 +51,7 @@ export function TeamPerformancePage() {
   const [searchParams, setParameters] = useReportSearchParams(parameterDefaults, openItems)
   const team = searchParams.get("team") ?? ""
   const filter: TeamReportFilter = {
+    ...reportServiceScope(searchParams),
     days:
       periodOptions.find((option) => String(option) === searchParams.get("days")) ?? periodOptions[0],
     channelId: searchParams.get("channel") ?? "",
@@ -56,7 +59,7 @@ export function TeamPerformancePage() {
     publicQueue: team === publicQueueFilter,
   }
   // 选定渠道时不显示按渠道拆分。
-  const tabs = reportTabs.filter((value) => !(filter.channelId && value === "channels"))
+  const tabs = reportTabs.filter((value) => !((filter.channelId || filter.serviceSource === "direct") && value === "channels"))
   const tab = tabs.find((value) => value === searchParams.get("tab")) ?? tabs[0]
   const issue = teamIssueTypes.find((value) => value === searchParams.get("issue")) ?? teamIssueTypes[0]
   const sessionId = searchParams.get("session") ?? ""
@@ -86,7 +89,8 @@ export function TeamPerformancePage() {
 
       <ListToolbar>
         <ReportPeriodFilter value={filter.days} onValueChange={(value) => setParameters({ days: value })} />
-        <ReportChannelFilter value={filter.channelId} onValueChange={(value) => setParameters({ channel: value })} />
+        <ReportServiceFilters audience={filter.audience} serviceSource={filter.serviceSource} onAudienceChange={(value) => setParameters({ audience: value, source: "", channel: "" })} onSourceChange={(value) => setParameters({ source: value, channel: "" })} />
+        <ReportChannelFilter audience={filter.audience} serviceSource={filter.serviceSource} value={filter.channelId} onValueChange={(value) => setParameters({ channel: value })} />
         <ListToolbarFilter
           label={t("teamPerformance.team")}
           allLabel={t("teamPerformance.allTeams")}

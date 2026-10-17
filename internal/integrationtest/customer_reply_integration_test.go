@@ -66,7 +66,7 @@ func TestCustomerReplies(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, own.ReplyTo)
 	require.Equal(t, f.owner.WorkspaceIdentity.ID, own.ReplyTo.Sender.SourceID)
-	visitor := direct.NewWebsiteVisitorBackend(f.db, nil, testEnqueuer, nil, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
+	visitor := direct.NewWebsiteVisitorBackend(f.db, nil, testEnqueuer, servertest.TestDeployment(t, f.db).S3, servertest.DisabledMail{}, nil)
 	page, err := visitor.ListMessages(ctx, appservice.WebsiteVisitorMeta{}, f.channelID, "web-session:0123456789abcdef0123456789abcdef", f.conversationID, appservice.WebsiteVisitorMessageHistoryInput{})
 	require.NoError(t, err)
 	visitorReference := page.Messages[len(page.Messages)-2].ReplyTo
@@ -89,7 +89,7 @@ func TestCustomerReplies(t *testing.T) {
 	// 访客历史按发送身份当前的有效头像返回公开地址。
 	avatar := &servermodels.File{
 		ID: uuid.NewV7().String(), WorkspaceID: f.owner.Workspace.ID, CreatedByUserID: f.owner.User.ID, Purpose: string(domain.FilePurposeUserAvatar),
-		StorageBackend: string(domain.FileStorageBackendLocal), StorageKey: "avatars/" + uuid.NewV7().String() + ".png",
+		StorageKey:   "avatars/" + uuid.NewV7().String() + ".png",
 		OriginalName: "avatar.png", ContentType: "image/png", ByteSize: 1, Status: string(domain.FileStatusActive),
 	}
 	_, err = f.db.NewInsert().Model(avatar).Exec(ctx)
@@ -98,7 +98,7 @@ func TestCustomerReplies(t *testing.T) {
 	require.NoError(t, err)
 	page, err = visitor.ListMessages(ctx, appservice.WebsiteVisitorMeta{}, f.channelID, "web-session:0123456789abcdef0123456789abcdef", f.conversationID, appservice.WebsiteVisitorMessageHistoryInput{})
 	require.NoError(t, err)
-	require.Equal(t, "/storage/"+avatar.StorageKey, page.Messages[len(page.Messages)-1].SenderAvatarURL)
+	require.Equal(t, servertest.PublicURL+"/files/"+avatar.StorageKey, page.Messages[len(page.Messages)-1].SenderAvatarURL)
 	_, err = f.db.NewUpdate().Model((*servermodels.Message)(nil)).Set("deleted_at = now()").Where("id = ?", original.Message.ID).Exec(ctx)
 	require.NoError(t, err)
 	replay, err = send.Execute(ctx, f.owner, input)

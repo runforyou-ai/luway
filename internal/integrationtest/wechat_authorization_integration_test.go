@@ -111,7 +111,7 @@ func TestWechatAuthorization(t *testing.T) {
 	client := wechat.NewClient(server.Client(), wechat.WithBaseURL(server.URL))
 	tasks := servertest.NewTasks()
 	deployment := servertest.NewDeployment(t, db)
-	backend := direct.New(db, direct.DeploymentConfig{Deployment: deployment, Wechat: client}, nil, nil, nil, tasks, nil, nil, nil)
+	backend := direct.New(db, direct.DeploymentConfig{Deployment: deployment, Wechat: client}, nil, nil, tasks, nil, nil, nil)
 	service := backend
 	httpAPI := api.NewService(service,
 		api.WithWechatPlatformEvents(wechataction.NewReceivePlatformEventAction(db, tasks)),
@@ -119,12 +119,18 @@ func TestWechatAuthorization(t *testing.T) {
 	)
 	applyEvent := wechataction.NewApplyAuthorizationEventAction(db, client)
 	ctx := context.Background()
-	installed, err := service.InstallWorkspace(ctx, appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}, appservice.InstallWorkspaceInput{
+	admin := servertest.InstallPlatform(t, service, appservice.InstallPlatformInput{
 		PublicURL: servertest.PublicURL, WorkspaceName: "公众号授权", DisplayName: "管理员", Email: "admin@example.test",
 		Password: "password123", Locale: domain.LocaleChineseSimplified, TimeZone: "Asia/Shanghai",
 	})
+	adminMeta := servertest.AdminMeta(admin.AdminToken)
+	userAuth, err := service.Login(ctx, appservice.RequestMeta{Locale: domain.LocaleChineseSimplified}, appservice.LoginInput{Email: "admin@example.test", Password: "password123"})
 	require.NoError(t, err)
-	meta := appservice.RequestMeta{Token: installed.Auth.Token, WorkspaceID: installed.Workspace.ID, Locale: domain.LocaleChineseSimplified}
+	workspaces, err := backend.ListWorkspaces(ctx, appservice.RequestMeta{Token: userAuth.Token, Locale: domain.LocaleChineseSimplified})
+	require.NoError(t, err)
+	require.Len(t, workspaces.Items, 1)
+	workspace := workspaces.Items[0]
+	meta := appservice.RequestMeta{Token: userAuth.Token, WorkspaceID: workspace.ID, Locale: domain.LocaleChineseSimplified}
 
 	// 部署尚未配置第三方平台时不能创建授权接入渠道。
 	_, err = createWechatChannel(t, ctx, service, meta, domain.ChannelTypeWechatAuthorization, "未配置平台")
@@ -132,7 +138,7 @@ func TestWechatAuthorization(t *testing.T) {
 
 	// 配置平台并收到验证票据。
 	fake.set("/cgi-bin/component/api_component_token", `{"component_access_token":"platform-token","expires_in":7200}`)
-	_, err = service.SaveWechatPlatform(ctx, meta, appservice.WechatPlatformInput{
+	_, err = service.SaveWechatPlatform(ctx, adminMeta, appservice.WechatPlatformInput{
 		ComponentAppID: testComponentAppID, ComponentAppSecret: "secret", Token: testComponentToken, EncodingAESKey: testComponentAESKey,
 	})
 	require.NoError(t, err)

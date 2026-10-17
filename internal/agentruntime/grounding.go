@@ -88,7 +88,7 @@ func (g *groundingGate) AfterTool(_ context.Context, outcome einorun.CallOutcome
 		return
 	}
 	switch {
-	case outcome.Origin == einorun.OriginSubmitted || call.Handover == einorun.HandoverSubmitted:
+	case outcome.Origin == einorun.OriginSubmitted || call.Handover == einorun.Handover(agentcontract.HandoverSubmitted):
 		g.valid[call.CallID] = outcome.Raw
 	case outcome.Origin == einorun.OriginRestored:
 		// 过程记录保存的是模型看到的结果，超长结果为转存预览，不是原始结果，不登记；模型经转存读回时按读回登记。

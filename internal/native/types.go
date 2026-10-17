@@ -62,10 +62,10 @@ type ImageFile struct {
 	DataBase64  string `json:"dataBase64"`
 }
 
-// TextFileInput 定义原生端保存的文本文件：Name 为建议文件名，Content 为 UTF-8 文本内容。
-type TextFileInput struct {
+// FileInput 定义原生端保存的文件：Name 为建议文件名，Content 为文件内容。
+type FileInput struct {
 	Name    string `json:"name"`
-	Content string `json:"content"`
+	Content []byte `json:"content"`
 }
 
 // LocalComputerChangedEventName 是原生端本机电脑状态变化的 Wails 事件名，事件不携带数据，界面收到后重新读取本机电脑与本机环境。

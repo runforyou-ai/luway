@@ -11,7 +11,6 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/runforyou-ai/jetcast/client"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
 	serverinstanceaction "github.com/runforyou-ai/luway/internal/actions/serverinstance"
@@ -19,8 +18,9 @@ import (
 	"github.com/runforyou-ai/luway/internal/appservice"
 	"github.com/runforyou-ai/luway/internal/appservice/direct"
 	"github.com/runforyou-ai/luway/internal/domain"
+	broker "github.com/runforyou-ai/luway/internal/messaging"
 	"github.com/runforyou-ai/luway/internal/realtime"
-	"github.com/runforyou-ai/luway/internal/realtime/broker"
+	"github.com/runforyou-ai/luway/internal/realtime/client"
 	"github.com/runforyou-ai/luway/internal/realtime/members"
 	"github.com/runforyou-ai/luway/internal/realtime/protocol"
 	"github.com/runforyou-ai/luway/internal/servertest"
@@ -30,52 +30,48 @@ import (
 	"github.com/uptrace/bun"
 )
 
-// realtimeGatewayHarness 是提供正式 Jetcast 与业务 HTTP 入口的测试服务。
+// realtimeGatewayHarness 是提供正式 应用网关 与业务 HTTP 入口的测试服务。
 type realtimeGatewayHarness struct {
 	members     *members.Service
 	broker      *broker.Connection
 	backend     *direct.Backend
 	db          *bun.DB
-	channel     string
+	namespace   string
 	url         string
 	publisher   *realtime.Publisher
 	workspaceID string
 }
 
-// startRealtimeGateway 启动发布器、正式 Jetcast 和业务 HTTP 入口，configure 配置连接管理依赖。
+// startRealtimeGateway 启动发布器、正式 应用网关 和业务 HTTP 入口，configure 配置连接管理依赖。
 func startRealtimeGateway(t *testing.T, f navigationFixture, configure ...func(*broker.Connection)) *realtimeGatewayHarness {
 	t.Helper()
-	channel := servertest.BusChannel()
-	realtimePublisherLock.Lock()
-	t.Cleanup(realtimePublisherLock.Unlock)
-	publisher := realtime.NewPublisher(servertest.StartBus(t, f.db, channel, uuid.NewV7().String()))
+	namespace := servertest.BusNamespace()
+	publisher := newTestPublisherOn(t, f.db, namespace)
 
-	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db), RunSnapshots: publisher}, nil, nil, agentrunaction.NewRunCancellation(f.db, testEnqueuer), testEnqueuer, nil, nil, nil)
+	backend := direct.New(f.db, direct.DeploymentConfig{Deployment: servertest.TestDeployment(t, f.db), RunSnapshots: publisher}, nil, agentrunaction.NewRunCancellation(f.db, testEnqueuer), testEnqueuer, nil, nil, nil)
 	connection := servertest.StartRealtimeBroker(t)
 	for _, configureBroker := range configure {
 		configureBroker(connection)
 	}
-	memberService, err := members.New(connection, backend, f.db, "app_realtime", 1)
+	memberService, err := members.New(connection, backend, f.db)
 	require.NoError(t, err)
 	require.NoError(t, memberService.Start(context.Background()))
 	t.Cleanup(func() { _ = memberService.Stop() })
 	publisher.SetMembers(memberService)
-	publisher.SetRunTransport(connection.Conn, "app_realtime", memberService.PublishRun)
-	require.NoError(t, publisher.Start())
-	t.Cleanup(func() { _ = publisher.Stop() })
-	proxy, err := connection.Proxy()
-	require.NoError(t, err)
+	publisher.SetRunTransport(connection.Conn, "app.runs", memberService.PublishRun)
+	startPublisher(t, publisher)
+	waitRealtimeOutbox(t, f.db, f.owner.Workspace.ID)
 	mux := http.NewServeMux()
-	mux.Handle("/nats", proxy)
+	mux.Handle("/realtime", memberService.Server)
 	mux.Handle("/api/", http.StripPrefix("/api", api.NewService(backend, api.WithComputers(backend))))
 	server := httptest.NewUnstartedServer(mux)
-	// HTTP 读写超时独立于已升级的 NATS WebSocket 生命周期。
+	// HTTP 读写超时独立于已升级的 应用 WebSocket 生命周期。
 	server.Config.ReadTimeout = time.Second
 	server.Config.WriteTimeout = time.Second
 	server.Start()
 	t.Cleanup(server.Close)
 	return &realtimeGatewayHarness{
-		backend: backend, db: f.db, channel: channel,
+		backend: backend, db: f.db, namespace: namespace,
 		url: server.URL, members: memberService, broker: connection, publisher: publisher,
 		workspaceID: f.owner.Workspace.ID,
 	}
@@ -129,9 +125,11 @@ func (c *realtimeTestClient) expectQuiet() {
 }
 
 // expectEnded 在时限内确认 SDK 因失权停止。
+// 失权路径为 outbox 投递撤销 → 网关 bye → SDK 固定等待 1s 再拨号 → GetToken 拒绝后才进入 StatusStopped；
+// CI 下 outbox 排队与 JetStream 延迟可使前两步达到数秒，过短时限会误报 Condition never satisfied。
 func (c *realtimeTestClient) expectEnded() {
 	c.t.Helper()
-	require.Eventually(c.t, func() bool { return c.echo.Status() == client.StatusStopped }, 5*time.Second, 10*time.Millisecond)
+	require.Eventually(c.t, func() bool { return c.echo.Status() == client.StatusStopped }, 15*time.Second, 20*time.Millisecond)
 }
 
 // loginToken 登录测试账号并返回新签发的令牌。
@@ -182,7 +180,7 @@ func TestRealtimeGatewayDelivery(t *testing.T) {
 	clientB.expect(customerChanged)
 
 	// 撤销事务回滚时不发布，事件流继续收到后续通知。
-	identityA, err := h.backend.AuthenticateAccountMembers(ctx, appservice.RequestMeta{Token: tokenA, WorkspaceID: workspaceID})
+	identityA, err := h.backend.GetRealtimeConnection(ctx, appservice.RequestMeta{Token: tokenA, WorkspaceID: workspaceID})
 	require.NoError(t, err)
 	errRollback := errors.New("rollback")
 	require.ErrorIs(t, realtime.RunInTx(ctx, f.db, func(ctx context.Context, _ bun.Tx) error {
@@ -232,7 +230,7 @@ func executeRunOn(t *testing.T, db *bun.DB, workspaceID, runID, instanceID strin
 	t.Helper()
 	ctx := context.Background()
 	require.NoError(t, serverinstanceaction.ReportInstance(ctx, db, serverinstanceaction.InstanceReport{
-		ID: instanceID, Hostname: "run-stream", Version: "test", BusDriver: clusterbus.DriverPostgres, BusConnected: true,
+		ID: instanceID, Hostname: "run-stream", Version: "test", BusDriver: clusterbus.DriverNATS, BusConnected: true,
 	}))
 	t.Cleanup(func() {
 		_ = serverinstanceaction.RemoveInstance(context.Background(), db, instanceID)
@@ -246,24 +244,26 @@ func executeRunOn(t *testing.T, db *bun.DB, workspaceID, runID, instanceID strin
 	require.NoError(t, err)
 }
 
-// TestRealtimeGatewayNotificationsAcrossServers 验证另一台服务器提交的业务通知经共享 jetcast 送达成员连接。
+// TestRealtimeGatewayNotificationsAcrossServers 验证另一台服务器提交的业务通知经共享 应用网关 送达成员连接。
 func TestRealtimeGatewayNotificationsAcrossServers(t *testing.T) {
 	t.Parallel()
 	f := newNavigationFixture(t)
 	h := startRealtimeGateway(t, f)
 	client, _ := h.connect(t, loginToken(t, f.db, f.owner.Workspace.ID, f.memberEmail))
 
-	// 另一实例通过独立 APP 连接和 jetcast 服务发布，客户端仍连接原实例的代理。
+	// 另一实例通过独立 NATS 连接和 应用网关 服务发布，客户端仍连接原实例的网关。
 	options := h.broker.Conn.Opts
 	options.Name = "member-replica"
 	connection, err := options.Connect()
 	require.NoError(t, err)
 	t.Cleanup(connection.Close)
-	replica, err := members.New(&broker.Connection{Conn: connection, Signer: h.broker.Signer, Admin: h.broker.Admin}, h.backend, f.db, "app_realtime", 1)
+	replica, err := members.New(&broker.Connection{Conn: connection, JS: h.broker.JS}, h.backend, f.db)
 	require.NoError(t, err)
 	require.NoError(t, replica.Start(t.Context()))
 	t.Cleanup(func() { _ = replica.Stop() })
-	startPublisher(t, servertest.StartBus(t, f.db, h.channel, uuid.NewV7().String()), f.db).SetMembers(replica)
+	publisher := realtime.NewPublisher(servertest.StartBus(t, h.namespace, uuid.NewV7().String()), f.db)
+	publisher.SetMembers(replica)
+	startPublisher(t, publisher)
 	f.send(t, f.owner, "跨服务器通知", false)
 	client.expect(protocol.ConversationChanged{
 		ConversationID: f.groupID, ConversationType: domain.ConversationTypeGroup,

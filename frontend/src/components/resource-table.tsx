@@ -141,8 +141,8 @@ function ResourceTableRow<T>({
               {column.cell(row)}
             </TableCell>
           ))}
-          {/* 无操作的行用「⋯」按钮尺寸的占位，各列表的行尾列对齐。 */}
-          <TableCell className="w-px whitespace-nowrap">
+          {/* 无操作的行用「⋯」按钮尺寸的占位，各列表的行尾列对齐；后台可含多个文字按钮。 */}
+          <TableCell className="w-px whitespace-nowrap text-right">
             <div className="flex justify-end">
               {moreButton ?? <span aria-hidden="true" className="block size-7" />}
             </div>

@@ -13,6 +13,7 @@ type KnowledgeBase struct {
 	bun.BaseModel `bun:"table:knowledge_bases,alias:kb"`
 
 	EmbeddingModelID        string  `bun:"embedding_model_id"`
+	EmbeddingStickyMemberID string  `bun:"embedding_sticky_member_id"`
 	EmbeddingDimension      int     `bun:"embedding_dimension"`
 	ChunkLength             *int    `bun:"chunk_length"`
 	ChunkOverlap            *int    `bun:"chunk_overlap"`

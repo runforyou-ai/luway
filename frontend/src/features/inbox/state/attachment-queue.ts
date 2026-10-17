@@ -1,7 +1,7 @@
 /** 在工作台内上传附件，传完后按选择顺序逐个发送为消息。 */
 import {
   FilePurpose,
-  FileTransfer,
+  FileUploadTask,
   MessageAttachmentTransferStatus,
   cancelFileUpload,
   completeFileUpload,
@@ -35,7 +35,7 @@ type AttachmentJob = {
   stage: "queued" | "uploading" | "uploaded" | "sending" | "sent" | "failed" | "cancelled"
   selected: SelectedAttachment | null
   previewURL: string
-  transfer: FileTransfer | null
+  transfer: FileUploadTask | null
   bytes: number
   controller: AbortController
 }
@@ -246,11 +246,11 @@ export class AttachmentQueue {
     this.emit()
   }
 
-  /** 上传文件内容并确认临时文件，失败时保留已成功的分片供重试。 */
+  /** 上传文件内容并确认临时文件，失败时保留 Uppy 上传会话供重试。 */
   private async upload(job: AttachmentJob) {
     const file = job.selected!.file
     try {
-      job.transfer ??= new FileTransfer(file, () =>
+      job.transfer ??= new FileUploadTask(file, () =>
         createFileUpload({
           purpose: FilePurpose.MessageAttachment,
           fileName: file.name,
@@ -361,7 +361,7 @@ export class AttachmentQueue {
     }
   }
 
-  /** 重试失败的附件：已上传的重新发送，未上传的从已成功的分片继续上传。 */
+  /** 重试失败的附件：已上传的重新发送，未上传的从已有 Uppy 会话继续上传。 */
   retry(id: string) {
     const job = this.jobs.find((item) => item.id === id)
     if (job?.stage !== "failed") return
@@ -431,6 +431,7 @@ export class AttachmentQueue {
   /** 中止附件任务，释放本地预览和尚未发送的临时文件。 */
   private release(job: AttachmentJob) {
     job.controller.abort()
+    job.transfer?.dispose()
     const fileID = job.fileID || job.transfer?.upload?.file.id
     if (fileID && job.stage !== "sent") {
       void cancelFileUpload(fileID).catch((error) =>

@@ -11,10 +11,11 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
 )
 
-// queryEmbeddingKey 标识一组可以共用查询向量的向量模型配置。
+// queryEmbeddingKey 标识一组可以共用查询向量的向量模型配置；Auto 时 stickyMemberID 区分钉住的池成员。
 type queryEmbeddingKey struct {
-	modelID   string
-	dimension int
+	modelID        string
+	stickyMemberID string
+	dimension      int
 }
 
 // queryEmbedding 保存一条查询的向量化结果，done 关闭后 vector 与 err 可读。

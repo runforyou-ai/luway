@@ -12,6 +12,7 @@ import (
 	"github.com/runforyou-ai/luway/internal/actions/chatstate"
 	fileaction "github.com/runforyou-ai/luway/internal/actions/file"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
+	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/realtime"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -32,7 +33,7 @@ func NewUpdateProfileAction(db *bun.DB) *UpdateProfileAction {
 func (a *UpdateProfileAction) Execute(ctx context.Context, identity *servermodels.Identity, input ProfileInput) (*servermodels.Identity, error) {
 	input, fields := normalizeProfileInput(input)
 	if len(fields) > 0 {
-		return nil, &ValidationError{Fields: fields}
+		return nil, &common.FieldError{Fields: fields}
 	}
 	var updatedIdentity *servermodels.Identity
 	err := realtime.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
@@ -74,7 +75,7 @@ func (a *UpdateProfileAction) Execute(ctx context.Context, identity *servermodel
 		}
 		err := accountaction.UpdateAccountEmail(ctx, tx, identity.Account.ID, input.Email)
 		if errors.Is(err, accountaction.ErrAccountEmailTaken) {
-			return &ValidationError{Fields: map[string]ValidationCode{"email": ValidationEmailDuplicate}}
+			return &common.FieldError{Fields: map[string]common.FieldCode{"email": ValidationEmailDuplicate}}
 		}
 		if err != nil {
 			return err

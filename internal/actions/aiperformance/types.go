@@ -11,8 +11,6 @@ import (
 )
 
 var (
-	// ErrPageSizeInvalid 表示每页数量超出上限。
-	ErrPageSizeInvalid = errors.New("ai performance page size invalid")
 	// ErrDimensionInvalid 表示拆分维度不是渠道或咨询分类。
 	ErrDimensionInvalid = errors.New("ai performance dimension invalid")
 	// ErrIssueInvalid 表示问题会话的筛选类型不适用于 AI 表现。
@@ -21,9 +19,11 @@ var (
 
 // Input 定义报表统计范围：最近 Days 天内关闭、由 AI 员工接待过的周期，ChannelID 为空表示全部渠道，Agents 限定周期的接待 AI 员工。
 type Input struct {
-	Days      int
-	ChannelID string
-	Agents    reportpage.AgentScope
+	Audience      domain.ServiceAudience
+	ServiceSource domain.ServiceSource
+	Days          int
+	ChannelID     string
+	Agents        reportpage.AgentScope
 }
 
 // Summary 定义统计范围内 AI 员工接待过的已关闭周期的整体计数，排除小结状态为无实质诉求的周期：Resolved 与 Unresolved 按小结的是否解决计数，其余为未判定；AIOnly 为 AI 员工独立处理并关闭的周期数，AIResolved 与 AIUnresolved 为其中的已解决与未解决数，HandedOff 为发生过转人工的周期数；Satisfied、Neutral 与 Dissatisfied 按推断满意度计数，其余为未判定；AIIncorrect 等为质检标记成立的周期数，对应的 Reviewed 为该项已质检且适用的周期数。

@@ -47,14 +47,8 @@ type RealtimeServerFrameResult =
 /** 已定义的事件种类。 */
 const frameTypes = new Set<string>(Object.values(Type))
 
-/** 解码一条实时事件文本；先校验协议主版本，再校验事件种类、结构和字段类型。 */
-export function decodeServerFrame(text: string): RealtimeServerFrameResult {
-  let value: unknown
-  try {
-    value = JSON.parse(text)
-  } catch (error) {
-    return { status: "invalid", reason: error instanceof Error ? error.message : String(error) }
-  }
+/** 校验 SDK 已解码事件的协议主版本、事件种类、结构和字段类型。 */
+export function decodeServerFrame(value: unknown): RealtimeServerFrameResult {
   if (!isObject(value) || (value.v !== undefined && typeof value.v !== "number")) {
     return { status: "invalid", reason: "frame envelope is malformed" }
   }

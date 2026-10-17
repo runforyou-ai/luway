@@ -55,4 +55,8 @@ type ServiceSession struct {
 	SummaryEditedAt       *time.Time             `bun:"summary_edited_at"`
 	HandoffMessageID      *string                `bun:"handoff_message_id"`
 	HandoffSummary        *domain.HandoffSummary `bun:"handoff_summary,type:jsonb"`
+	// AIOnly 为周期关闭时是否由 AI 独立处理；未关闭时为空。
+	AIOnly *bool `bun:"ai_only"`
+	// ChannelID 为渠道会话所属渠道；非渠道来源时为空。
+	ChannelID *string `bun:"channel_id"`
 }
