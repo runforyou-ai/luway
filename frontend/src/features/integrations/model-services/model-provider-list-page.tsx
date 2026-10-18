@@ -2,11 +2,12 @@
 import { useState } from "react"
 import { PlusIcon } from "lucide-react"
 import { useTranslation } from "react-i18next"
-import { useNavigate } from "react-router"
+import { Navigate, useNavigate } from "react-router"
 
 import { deleteAIProvider, listAIProviders, type AIProviderSummary } from "@/api"
 import { ConfirmationDialog } from "@/components/confirmation-dialog"
 import { PageHeader } from "@/components/page-header"
+import { PageLoadError } from "@/components/page-load-error"
 import { ResourceListLayout } from "@/components/resource-list"
 import { ResourceRowIdentity } from "@/components/resource-row-identity"
 import { ResourceTable } from "@/components/resource-table"
@@ -20,14 +21,18 @@ import {
 } from "@/components/model-provider/model-service-options"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useConfirmedAction } from "@/hooks/use-confirmed-action"
+import { useModelSource } from "@/hooks/use-model-source"
 import { useResource } from "@/hooks/use-resource"
 
 /** 显示企业配置的模型服务供应商及各类型模型数量。 */
 export function ModelProviderListPage() {
   const { t } = useTranslation(["integrations", "common"])
   const navigate = useNavigate()
+  const { platformOnly, ready, error, refresh } = useModelSource()
   const [choosingBrand, setChoosingBrand] = useState(false)
-  const resource = useResource(resourceKeys.aiProviders(), () => listAIProviders())
+  const resource = useResource(resourceKeys.aiProviders(), () => listAIProviders(), {
+    enabled: ready && !platformOnly,
+  })
   const providers = resource.data?.providers ?? []
 
   const deletion = useConfirmedAction<AIProviderSummary>({
@@ -40,6 +45,10 @@ export function ModelProviderListPage() {
     successMessage: () => t("modelServices.delete.success"),
     errorMessage: () => t("modelServices.delete.error"),
   })
+
+  if (error) return <PageLoadError message={t("common:errors.network")} onRetry={() => void refresh()} />
+  if (!ready) return null
+  if (platformOnly) return <Navigate to="/settings/profile" replace />
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

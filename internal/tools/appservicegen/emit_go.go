@@ -184,7 +184,7 @@ func (c *contract) generateDirectBackend(methods []method, layer dispatch, pkg s
 			results = "(_ " + output + ", err error)"
 		}
 		fmt.Fprintf(builder, "func (b *Backend) %s(%s) %s {\n", item.name, parameterList, results)
-		fmt.Fprintf(builder, "\tctx = logscope.WithOperation(ctx, %q)\n\tdefer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))\n", item.name)
+		fmt.Fprintf(builder, "\tctx = logscope.WithOperation(ctx, %q)\n\tctx = b.enrichContext(ctx)\n\tdefer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))\n", item.name)
 		if !item.route.public {
 			fmt.Fprintf(builder, "\tctx, %s, err := b.ops.%s(ctx, meta)\n\tif err != nil {\n", identityName, authenticator)
 			if output == "" {

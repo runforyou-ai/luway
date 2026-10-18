@@ -9,6 +9,7 @@ import { AIModelOptionGroups, useAIModelOptions } from "@/components/ai-model-op
 import { ResourceContent } from "@/components/resource-content"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { NativeSelect } from "@/components/ui/native-select"
+import { useModelSource } from "@/hooks/use-model-source"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
@@ -39,6 +40,7 @@ export function TranslationSettings() {
 /** 维护翻译模型，修改后自动保存。 */
 function TranslationForm({ models, values }: { models: AIModelOption[]; values: TranslationFormValues }) {
   const { t } = useTranslation(["settings", "common"])
+  const { platformOnly } = useModelSource()
   const invalidate = useResourceInvalidator()
   const form = useForm<TranslationFormValues>({
     resolver: zodResolver(translationSchema),
@@ -81,7 +83,7 @@ function TranslationForm({ models, values }: { models: AIModelOption[]; values: 
               </NativeSelect>
               <FieldDescription>
                 {t("customerService.translation.modelDescription")}
-                {models.length === 0 ? (
+                {!platformOnly && models.length === 0 ? (
                   <>
                     {" "}
                     <Link to="/settings/model-services">{t("customerService.models.configureModels")}</Link>

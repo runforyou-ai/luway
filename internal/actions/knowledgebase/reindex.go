@@ -33,6 +33,27 @@ func (r *EmbeddingReindexer) ReindexEmbeddingModels(ctx context.Context, tx bun.
 		Scan(ctx); err != nil {
 		return err
 	}
+	return r.reindexLocked(ctx, tx, workspaceID, bases)
+}
+
+// ReindexKnowledgeBases 在业务事务中锁定指定知识库，清空分段并按当前配置重新投递索引。
+func (r *EmbeddingReindexer) ReindexKnowledgeBases(ctx context.Context, tx bun.Tx, workspaceID string, knowledgeBaseIDs []string) error {
+	if len(knowledgeBaseIDs) == 0 {
+		return nil
+	}
+	var bases []*servermodels.KnowledgeBase
+	if err := tx.NewSelect().Model(&bases).
+		Where("kb.workspace_id = ?", workspaceID).
+		Where("kb.id IN (?)", bun.List(knowledgeBaseIDs)).
+		Order("kb.id ASC").For("UPDATE").
+		Scan(ctx); err != nil {
+		return err
+	}
+	return r.reindexLocked(ctx, tx, workspaceID, bases)
+}
+
+// reindexLocked 对已锁定的知识库清空分段并重新投递索引。
+func (r *EmbeddingReindexer) reindexLocked(ctx context.Context, tx bun.Tx, workspaceID string, bases []*servermodels.KnowledgeBase) error {
 	for _, base := range bases {
 		documentCount, entryCount, err := reindexBase(ctx, tx, r.documents, r.qaEntries, workspaceID, base)
 		if err != nil {

@@ -78,6 +78,16 @@ const (
 	AIModelScopeWorkspace AIModelScope = "workspace"
 )
 
+// AIModelSource 定义本部署的模型来源策略：一个部署只有一种来源。
+type AIModelSource string
+
+const (
+	// AIModelSourceWorkspace 表示仅工作区自配模型（默认）。
+	AIModelSourceWorkspace AIModelSource = "workspace"
+	// AIModelSourcePlatform 表示仅平台能力池。
+	AIModelSourcePlatform AIModelSource = "platform"
+)
+
 // AIModelRefAuto 是业务配置引用平台 Auto 时使用的模型引用值；用户侧统一展示为 Auto，具体上游由能力池选型。
 const AIModelRefAuto = "auto"
 

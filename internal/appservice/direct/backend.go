@@ -12,6 +12,7 @@ import (
 
 	"github.com/runforyou-ai/luway/internal/actions/agentprocess/processquery"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	authaction "github.com/runforyou-ai/luway/internal/actions/auth"
 	businesssystemaction "github.com/runforyou-ai/luway/internal/actions/businesssystem"
 	certificateaction "github.com/runforyou-ai/luway/internal/actions/certificate"
@@ -44,8 +45,9 @@ var _ appservice.Backend = (*Backend)(nil)
 
 // Backend 解析登录身份并把业务调用分发给已认证实现，分发层由 appservicegen 生成到 backend_gen.go，auth=public 的方法不解析身份。
 type Backend struct {
-	db  *bun.DB
-	ops *directOperations
+	db          *bun.DB
+	ops         *directOperations
+	modelSource domain.AIModelSource
 }
 
 // directOperations 汇集会话守卫与各业务域实现，生成的分发层经嵌入字段调用各域方法。
@@ -107,8 +109,19 @@ type DeploymentConfig struct {
 	InstanceID string
 	// Seats 按程序组成提供的席位上限校验成员启用，零值不限席位。
 	Seats seataction.Seats
+	// ModelSource 是本部署的模型来源；零值表示仅工作区自配。
+	ModelSource domain.AIModelSource
 	// TaskMonitor 读取任务队列概况与最终失败的任务。
 	TaskMonitor servertask.Monitor
+}
+
+// enrichContext 把部署模型来源写入请求 context，供模型解析与自配门禁读取。
+func (b *Backend) enrichContext(ctx context.Context) context.Context {
+	source := b.modelSource
+	if source == "" {
+		source = domain.AIModelSourceWorkspace
+	}
+	return aimodel.WithSource(ctx, source)
 }
 
 // New 创建直接访问服务端存储的应用后端。
@@ -129,7 +142,7 @@ func New(db *bun.DB, deployment DeploymentConfig, agentScheduler conversationact
 	serviceIssues := newServiceIssueOps(db, files)
 	ops := &directOperations{
 		Guard:           dispatch.NewGuard(db),
-		authOps:         newAuthOps(db, deployment.Deployment, certificates, taskEnqueuer, files, deployment.WorkspaceInitializer, deployment.PlatformInitializer, deployment.Seats),
+		authOps:         newAuthOps(db, deployment.Deployment, certificates, taskEnqueuer, files, deployment.WorkspaceInitializer, deployment.PlatformInitializer, deployment.Seats, deployment.ModelSource),
 		conversationOps: newConversationOps(db, agentScheduler, runCancellation, taskEnqueuer, translator, files),
 		inboxOps:        newInboxOps(db, taskEnqueuer, files),
 		channelOps: newChannelOps(db, taskEnqueuer, map[domain.ChannelType]channelaction.StatusUpdater{
@@ -162,7 +175,7 @@ func New(db *bun.DB, deployment DeploymentConfig, agentScheduler conversationact
 		productDocsOps:     &productDocsOps{site: deployment.ProductDocs},
 	}
 	ops.conversationOps.runSnapshots = deployment.RunSnapshots
-	return &Backend{db: db, ops: ops}
+	return &Backend{db: db, ops: ops, modelSource: deployment.ModelSource}
 }
 
 // AuthorizeRunChannel 复核账号会话、工作区成员与运行所属会话的阅读资格。

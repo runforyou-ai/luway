@@ -449,8 +449,9 @@ jobs:
           provenance: mode=max
           sbom: true
 
+      # 私有调用方（如白标仓）所在组织常无 attestation 额度，跳过以免镜像已推送后仍失败。
       - name: Attest published container
-        if: needs.prepare.outputs.publish == 'true'
+        if: needs.prepare.outputs.publish == 'true' && github.event.repository.private == false
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-name: ghcr.io/${{ github.repository }}-executor
@@ -821,8 +822,9 @@ jobs:
           provenance: mode=max
           sbom: true
 
+      # 私有调用方（如白标仓）所在组织常无 attestation 额度，跳过以免镜像已推送后仍失败。
       - name: Attest published container
-        if: needs.prepare.outputs.publish == 'true'
+        if: needs.prepare.outputs.publish == 'true' && github.event.repository.private == false
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-name: ghcr.io/${{ github.repository }}-server
@@ -867,9 +869,9 @@ jobs:
         working-directory: release-assets
         run: sha256sum * > SHA256SUMS
 
-      # 产物证明只用于开源版 Release。
+      # 产物证明只用于公开仓库的开源版 Release。
       - name: Attest release assets
-        if: needs.prepare.outputs.brand-slug == ''
+        if: needs.prepare.outputs.brand-slug == '' && github.event.repository.private == false
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
         with:
           subject-path: release-assets/*

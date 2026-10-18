@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	"github.com/runforyou-ai/luway/internal/domain"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/runforyou-ai/support/arr"
@@ -24,6 +25,9 @@ func NewListAIProvidersQuery(db *bun.DB) *ListAIProvidersQuery {
 
 // Execute 返回当前企业的模型服务供应商列表。
 func (q *ListAIProvidersQuery) Execute(ctx context.Context, identity *servermodels.Identity) ([]Summary, error) {
+	if !aimodel.AllowsWorkspaceProviders(ctx) {
+		return []Summary{}, nil
+	}
 	providers := make([]servermodels.AIProvider, 0)
 	if err := q.db.NewSelect().
 		Model(&providers).

@@ -463,6 +463,7 @@ const (
 	ErrorWechatUnavailable                           Key = "error.wechat_unavailable"
 	ErrorWeComBotConnectionSaveFailed                Key = "error.wecom_bot_connection_save_failed"
 	ErrorWorkStatusUpdateFailed                      Key = "error.work_status_update_failed"
+	ErrorWorkspaceAIProvidersDisabled                Key = "error.workspace_ai_providers_disabled"
 	ErrorWorkspaceCreateFailed                       Key = "error.workspace_create_failed"
 	ErrorWorkspaceCreationNotAllowed                 Key = "error.workspace_creation_not_allowed"
 	ErrorWorkspaceLimitReached                       Key = "error.workspace_limit_reached"

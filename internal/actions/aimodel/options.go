@@ -23,16 +23,18 @@ func NewListOptionsQuery(db *bun.DB) *ListOptionsQuery {
 	return &ListOptionsQuery{db: db}
 }
 
-// Execute 返回满足用途要求的模型：Auto（若可用）在前，其后是工作区模型（按供应商名称、模型名称排序）。
+// Execute 返回满足用途要求的模型：平台部署只返回 Auto；工作区部署只返回自配模型。
 func (q *ListOptionsQuery) Execute(ctx context.Context, identity *servermodels.Identity, usage domain.AIModelUsage) ([]Option, error) {
 	if _, ok := usage.Requirement(); !ok {
 		return nil, ErrUsageInvalid
 	}
-	options := make([]Option, 0)
-	if auto, err := autoOption(ctx, q.db, identity.Workspace.ID, usage); err != nil {
-		return nil, err
-	} else if auto != nil {
-		options = append(options, *auto)
+	if SourceOf(ctx) == domain.AIModelSourcePlatform {
+		if auto, err := autoOption(ctx, q.db, identity.Workspace.ID, usage); err != nil {
+			return nil, err
+		} else if auto != nil {
+			return []Option{*auto}, nil
+		}
+		return []Option{}, nil
 	}
 	workspace := make([]Option, 0)
 	if err := optionQuery(q.db, identity.Workspace.ID, usage).
@@ -41,5 +43,5 @@ func (q *ListOptionsQuery) Execute(ctx context.Context, identity *servermodels.I
 		Scan(ctx, &workspace); err != nil {
 		return nil, fmt.Errorf("list AI model options: %w", err)
 	}
-	return append(options, workspace...), nil
+	return workspace, nil
 }

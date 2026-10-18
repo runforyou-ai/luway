@@ -211,7 +211,10 @@ const agents = {
     noModels: "No chat models are available yet.",
     configureModels: "Configure model services",
     configureModelsOnDesktop: "Configure model services in the desktop app.",
+    legacyWorkspaceModel: "Current workspace model",
+    legacyWorkspaceModelHelp: "Hosted deployments use platform Auto. Switch to restore available capacity.",
   },
+
   status: {
     deactivate: "Disable",
     reactivate: "Restore",

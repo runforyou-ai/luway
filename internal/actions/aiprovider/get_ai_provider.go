@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
 	"github.com/uptrace/bun"
 )
@@ -22,6 +23,9 @@ func NewGetAIProviderQuery(db *bun.DB) *GetAIProviderQuery {
 
 // Execute 返回模型服务供应商及其模型目录。
 func (q *GetAIProviderQuery) Execute(ctx context.Context, identity *servermodels.Identity, providerID string) (*Record, error) {
+	if !aimodel.AllowsWorkspaceProviders(ctx) {
+		return nil, ErrNotFound
+	}
 	provider, err := loadProvider(ctx, q.db, identity.Workspace.ID, providerID, false)
 	if err != nil {
 		return nil, fmt.Errorf("get AI provider: %w", err)

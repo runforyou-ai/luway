@@ -78,6 +78,9 @@ func (o *integrationOps) GetAIProvider(ctx context.Context, meta appservice.Requ
 
 // ListAvailableAIModels 返回指定品牌的预设模型目录，模型目录由服务实例决定的品牌返回空目录。
 func (o *integrationOps) ListAvailableAIModels(ctx context.Context, meta appservice.RequestMeta, _ *servermodels.Identity, brand appservice.AIProviderBrand) (appservice.AIProviderModelList, error) {
+	if !aimodelaction.AllowsWorkspaceProviders(ctx) {
+		return appservice.AIProviderModelList{}, aiProviderError(meta, aiprovideraction.ErrWorkspaceProvidersDisabled, i18n.ErrorAIProviderListFailed)
+	}
 	if !domain.ValidAIProviderBrand(brand) {
 		fields := map[string]i18n.Key{"brand": i18n.FieldAIProviderBrandInvalid}
 		return appservice.AIProviderModelList{}, appservice.InvalidError(meta, i18n.ErrorValidationFailed, fields)
@@ -87,6 +90,9 @@ func (o *integrationOps) ListAvailableAIModels(ctx context.Context, meta appserv
 
 // DiscoverAIProviderModels 读取模型服务实例当前可用的模型目录。
 func (o *integrationOps) DiscoverAIProviderModels(ctx context.Context, meta appservice.RequestMeta, _ *servermodels.Identity, input appservice.AIProviderConnectionInput) (appservice.AIProviderModelList, error) {
+	if !aimodelaction.AllowsWorkspaceProviders(ctx) {
+		return appservice.AIProviderModelList{}, aiProviderError(meta, aiprovideraction.ErrWorkspaceProvidersDisabled, i18n.ErrorAIProviderListFailed)
+	}
 	models, err := o.discoverAIProviderModels.Execute(ctx, aiProviderConnectionInput(input))
 	if err != nil {
 		return appservice.AIProviderModelList{}, dispatch.AIProviderConnectionError(ctx, meta, err, input.Brand)
@@ -96,6 +102,9 @@ func (o *integrationOps) DiscoverAIProviderModels(ctx context.Context, meta apps
 
 // TestAIProviderConnection 测试模型服务供应商草稿配置。
 func (o *integrationOps) TestAIProviderConnection(ctx context.Context, meta appservice.RequestMeta, _ *servermodels.Identity, input appservice.AIProviderConnectionInput) error {
+	if !aimodelaction.AllowsWorkspaceProviders(ctx) {
+		return aiProviderError(meta, aiprovideraction.ErrWorkspaceProvidersDisabled, i18n.ErrorAIProviderConnectionTestFailed)
+	}
 	err := o.testAIProviderConnection.Execute(ctx, aiProviderConnectionInput(input))
 	if err == nil {
 		return nil
@@ -154,6 +163,7 @@ func aiProviderMutationError(meta appservice.RequestMeta, err error, failureKey 
 var aiProviderErrors = dispatch.Catalogs(dispatch.CommonErrors, dispatch.Catalog{
 	dispatch.Is(aiprovideraction.ErrNotFound, dispatch.NotFound(i18n.ErrorAIProviderNotFound)),
 	dispatch.Is(aiprovideraction.ErrInUse, dispatch.Invalid(i18n.ErrorAIProviderInUse)),
+	dispatch.Is(aiprovideraction.ErrWorkspaceProvidersDisabled, dispatch.Invalid(i18n.ErrorWorkspaceAIProvidersDisabled)),
 })
 
 // aiProviderMutationErrors 是模型服务供应商写入的错误转换规则。

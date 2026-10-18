@@ -378,6 +378,7 @@
   "error.ai_provider_read_failed": "无法加载模型服务供应商。",
   "error.ai_provider_create_failed": "无法添加模型服务供应商。",
   "error.ai_provider_update_failed": "无法保存模型服务供应商。",
+  "error.workspace_ai_providers_disabled": "当前部署仅使用平台模型，不能配置工作区自有模型服务。",
   "error.ai_provider_delete_failed": "无法删除模型服务供应商。",
   "error.ai_provider_in_use": "该模型服务供应商的模型仍被 AI 员工、知识库、服务设置或评测设置使用，不能删除。",
   "error.ai_provider_connection_test_failed": "无法连接模型服务，请检查 API 地址和网络。",

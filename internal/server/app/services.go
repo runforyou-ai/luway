@@ -14,6 +14,7 @@ import (
 
 	doccontent "github.com/runforyou-ai/luway/docs"
 	agentrunaction "github.com/runforyou-ai/luway/internal/actions/agentrun"
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	certificateaction "github.com/runforyou-ai/luway/internal/actions/certificate"
 	channelaction "github.com/runforyou-ai/luway/internal/actions/channel"
 	"github.com/runforyou-ai/luway/internal/actions/channeladapter"
@@ -84,6 +85,7 @@ func applicationServices(ctx context.Context, extend func(Host) (Extension, erro
 			return nil, fmt.Errorf("extend server: %w", err)
 		}
 	}
+	aimodel.SetProcessSource(extension.ModelSource)
 	home := productHome(deployment, extension.HomePricing)
 	siteOptions := []site.Option{site.WithCapabilities(extension.SiteCapabilities)}
 	if len(extension.SiteText) > 0 {
@@ -227,7 +229,8 @@ func ExtensionDeployment(extension Extension) (direct.DeploymentConfig, error) {
 	}
 	return direct.DeploymentConfig{
 		WorkspaceInitializer: extension.WorkspaceInitializer, PlatformInitializer: extension.PlatformInitializer, ProductDocs: productDocs,
-		Seats: seataction.New(extension.SeatLimit),
+		Seats:       seataction.New(extension.SeatLimit),
+		ModelSource: extension.ModelSource,
 	}, nil
 }
 

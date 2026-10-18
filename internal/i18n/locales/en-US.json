@@ -378,6 +378,7 @@
   "error.ai_provider_read_failed": "Could not load the model service provider.",
   "error.ai_provider_create_failed": "Could not add the model service provider.",
   "error.ai_provider_update_failed": "Could not save the model service provider.",
+  "error.workspace_ai_providers_disabled": "This deployment only uses platform models, so workspace model providers cannot be configured.",
   "error.ai_provider_delete_failed": "Could not delete the model service provider.",
   "error.ai_provider_in_use": "Models from this provider are still used by AI employees, knowledge bases, service settings, or evaluation settings, so it cannot be deleted.",
   "error.ai_provider_connection_test_failed": "Could not connect to the model service. Check the API URL and network.",

@@ -15,6 +15,7 @@ import (
 // GetComputerRealtimeConnection 换取本电脑的短期实时凭据和工作通知频道。
 func (b *Backend) GetComputerRealtimeConnection(ctx context.Context, meta appservice.RequestMeta) (_ appservice.RealtimePeerConnection, err error) {
 	ctx = logscope.WithOperation(ctx, "GetComputerRealtimeConnection")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
@@ -27,6 +28,7 @@ func (b *Backend) GetComputerRealtimeConnection(ctx context.Context, meta appser
 // HeartbeatComputer 以当前电脑凭据记录最近在线时间。
 func (b *Backend) HeartbeatComputer(ctx context.Context, meta appservice.RequestMeta) (err error) {
 	ctx = logscope.WithOperation(ctx, "HeartbeatComputer")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
@@ -38,6 +40,7 @@ func (b *Backend) HeartbeatComputer(ctx context.Context, meta appservice.Request
 // ReportComputerCapabilities 上报本电脑的操作系统平台、执行能力、执行器版本与同时执行的操作上限。
 func (b *Backend) ReportComputerCapabilities(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerCapabilitiesInput) (err error) {
 	ctx = logscope.WithOperation(ctx, "ReportComputerCapabilities")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
@@ -49,6 +52,7 @@ func (b *Backend) ReportComputerCapabilities(ctx context.Context, meta appservic
 // ClaimComputerOperations 领取派发给本电脑的待执行操作，并返回应当中止的操作。
 func (b *Backend) ClaimComputerOperations(ctx context.Context, meta appservice.RequestMeta, input appservice.ComputerClaimInput) (_ appservice.ComputerOperationList, err error) {
 	ctx = logscope.WithOperation(ctx, "ClaimComputerOperations")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
@@ -61,6 +65,7 @@ func (b *Backend) ClaimComputerOperations(ctx context.Context, meta appservice.R
 // CompleteComputerOperation 上报本电脑执行一次操作的结果。
 func (b *Backend) CompleteComputerOperation(ctx context.Context, meta appservice.RequestMeta, operationID string, input appservice.ComputerOutcomeInput) (err error) {
 	ctx = logscope.WithOperation(ctx, "CompleteComputerOperation")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
@@ -72,6 +77,7 @@ func (b *Backend) CompleteComputerOperation(ctx context.Context, meta appservice
 // ReportComputerOperationUpdates 上报本电脑执行中的一次操作的过程更新。
 func (b *Backend) ReportComputerOperationUpdates(ctx context.Context, meta appservice.RequestMeta, operationID string, input appservice.ComputerUpdatesInput) (err error) {
 	ctx = logscope.WithOperation(ctx, "ReportComputerOperationUpdates")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
@@ -83,6 +89,7 @@ func (b *Backend) ReportComputerOperationUpdates(ctx context.Context, meta appse
 // ListComputerSharedFiles 返回本电脑执行中的命令或本机 Agent 轮次所属会话共享文件区的文件清单与下载地址。
 func (b *Backend) ListComputerSharedFiles(ctx context.Context, meta appservice.RequestMeta, operationID string) (_ appservice.ComputerSharedFileList, err error) {
 	ctx = logscope.WithOperation(ctx, "ListComputerSharedFiles")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
@@ -95,6 +102,7 @@ func (b *Backend) ListComputerSharedFiles(ctx context.Context, meta appservice.R
 // CreateComputerSharedUpload 为写回会话共享文件区中的一个文件创建内容上传。
 func (b *Backend) CreateComputerSharedUpload(ctx context.Context, meta appservice.RequestMeta, operationID string, input appservice.ComputerSharedUploadInput) (_ appservice.ComputerSharedUpload, err error) {
 	ctx = logscope.WithOperation(ctx, "CreateComputerSharedUpload")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
@@ -107,6 +115,7 @@ func (b *Backend) CreateComputerSharedUpload(ctx context.Context, meta appservic
 // CommitComputerSharedFile 把上传完成的内容按同步基准写回会话共享文件区。
 func (b *Backend) CommitComputerSharedFile(ctx context.Context, meta appservice.RequestMeta, operationID string, input appservice.ComputerSharedCommitInput) (_ appservice.ComputerSharedCommit, err error) {
 	ctx = logscope.WithOperation(ctx, "CommitComputerSharedFile")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {
@@ -119,6 +128,7 @@ func (b *Backend) CommitComputerSharedFile(ctx context.Context, meta appservice.
 // RequestComputerPermission 上报本电脑上本机 Agent 在执行中的一轮里请求的权限。
 func (b *Backend) RequestComputerPermission(ctx context.Context, meta appservice.RequestMeta, operationID string, input appservice.ComputerPermissionInput) (err error) {
 	ctx = logscope.WithOperation(ctx, "RequestComputerPermission")
+	ctx = b.enrichContext(ctx)
 	defer dispatch.Settle(&ctx, &err, dispatch.InternalError(meta))
 	ctx, computer, err := b.ops.authenticateComputer(ctx, meta)
 	if err != nil {

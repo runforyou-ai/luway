@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/common"
 	"github.com/runforyou-ai/luway/internal/domain"
@@ -27,6 +28,9 @@ func NewUpdateAIProviderAction(db *bun.DB, reindexer EmbeddingReindexer) *Update
 
 // Execute 修改模型服务供应商和模型目录；被引用的模型须保留并满足引用用途，在用向量模型的上游标识变化时重新索引相关知识库。
 func (a *UpdateAIProviderAction) Execute(ctx context.Context, identity *servermodels.Identity, providerID string, update UpdateInput) (*Record, error) {
+	if !aimodel.AllowsWorkspaceProviders(ctx) {
+		return nil, ErrWorkspaceProvidersDisabled
+	}
 	var provider *servermodels.AIProvider
 	var models []Model
 	err := serverstorage.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
