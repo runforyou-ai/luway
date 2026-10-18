@@ -24,6 +24,7 @@ import {
 import { FormActions } from "@/components/form/form-actions"
 import { PageContent } from "@/components/page-content"
 import { PageHeader } from "@/components/page-header"
+import { PageLoadError } from "@/components/page-load-error"
 import { ResourceContent } from "@/components/resource-content"
 import { Button } from "@/components/ui/button"
 import { useAIModelSchemaMessages } from "@/components/model-provider/use-ai-model-schema-messages"
@@ -35,6 +36,7 @@ import {
   modelFormValue,
   rollbackModels,
 } from "@/features/integrations/model-services/model-provider-model-values"
+import { useModelSource } from "@/hooks/use-model-source"
 import {
   createAIProviderSchema,
   parseTokenCount,
@@ -56,6 +58,7 @@ const listPath = "/settings/model-services"
 export function ModelProviderFormPage({ mode }: { mode: "create" | "edit" }) {
   const { t } = useTranslation(["integrations", "common"])
   const navigate = useNavigate()
+  const { platformOnly, ready, error, refresh } = useModelSource()
   const reportError = useRequestErrorReporter()
   const { providerId = "", brand: routeBrand = "" } = useParams()
   const invalidateResource = useResourceInvalidator()
@@ -94,7 +97,7 @@ export function ModelProviderFormPage({ mode }: { mode: "create" | "edit" }) {
   })
 
   const detail = useResource(resourceKeys.aiProvider(providerId), () => getAIProvider(providerId), {
-    enabled: mode === "edit",
+    enabled: ready && mode === "edit" && !platformOnly,
   })
   const provider = detail.data
   // 服务端最近一次确认的模型目录，目录改动被服务端拒绝时恢复到该目录。
@@ -102,7 +105,7 @@ export function ModelProviderFormPage({ mode }: { mode: "create" | "edit" }) {
   // 新增模型保存后由服务端分配的编号，按表单内标识索引。
   const savedModelIDs = useRef(new Map<string, string>())
   const providers = useResource(resourceKeys.aiProviders(), () => listAIProviders(), {
-    enabled: mode === "create",
+    enabled: ready && mode === "create" && !platformOnly,
   })
 
   // 新建时把默认名称设为不与已有供应商重名的品牌名。
@@ -228,6 +231,9 @@ export function ModelProviderFormPage({ mode }: { mode: "create" | "edit" }) {
     mode === "create"
       ? t("modelServices.form.createTitle")
       : t("modelServices.form.editTitle")
+  if (error) return <PageLoadError message={t("common:errors.network")} onRetry={() => void refresh()} />
+  if (!ready) return null
+  if (platformOnly) return <Navigate to="/settings/profile" replace />
   if (mode === "create" && !createBrand) return <Navigate to={listPath} replace />
 
   return (

@@ -96,6 +96,14 @@ type AIProviderModelList struct {
 // AIModelScope 表示模型范围：平台模型由平台提供，工作区模型由工作区自行配置。
 type AIModelScope = domain.AIModelScope
 
+// AIModelSource 表示本部署的模型来源：workspace 为工作区自配，platform 为仅平台能力池。
+type AIModelSource = domain.AIModelSource
+
+const (
+	AIModelSourceWorkspace = domain.AIModelSourceWorkspace
+	AIModelSourcePlatform  = domain.AIModelSourcePlatform
+)
+
 // AIModelOptionProvider 定义工作区模型选项所属的供应商。
 type AIModelOptionProvider struct {
 	ID    string          `json:"id"`

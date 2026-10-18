@@ -68,12 +68,14 @@ type RequestMeta struct {
 
 // InstallationStatus 定义部署名称、平台是否已完成首次安装、注册策略是否开放注册、平台使用的产品品牌、服务端接口版本和服务端接受的最低原生端接口版本。
 type InstallationStatus struct {
-	DeploymentName      string `json:"deploymentName"`
-	Installed           bool   `json:"installed"`
-	RegistrationOpen    bool   `json:"registrationOpen"`
-	Brand               Brand  `json:"brand"`
-	APIVersion          int    `json:"apiVersion"`
-	MinClientAPIVersion int    `json:"minClientApiVersion"`
+	DeploymentName      string               `json:"deploymentName"`
+	Installed           bool                 `json:"installed"`
+	RegistrationOpen    bool                 `json:"registrationOpen"`
+	Brand               Brand                `json:"brand"`
+	APIVersion          int                  `json:"apiVersion"`
+	MinClientAPIVersion int                  `json:"minClientApiVersion"`
+	// ModelSource 表示本部署的模型来源：workspace 为工作区自配，platform 为仅平台能力池。
+	ModelSource AIModelSource `json:"modelSource"`
 }
 
 // ProductDocPageInput 定义要读取的文档语言目录（zh-cn 或 en）与页面路径，首页路径为空字符串。

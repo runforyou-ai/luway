@@ -9,6 +9,7 @@ import { AIModelOptionGroups, useAIModelOptions } from "@/components/ai-model-op
 import { ResourceContent } from "@/components/resource-content"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { NativeSelect } from "@/components/ui/native-select"
+import { useModelSource } from "@/hooks/use-model-source"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
@@ -39,6 +40,7 @@ export function AgentEvaluationSettings() {
 /** 维护评测模型，修改后自动保存。 */
 function EvaluationSettingsForm({ models, values }: { models: AIModelOption[]; values: EvaluationSettingsFormValues }) {
   const { t } = useTranslation(["settings", "common"])
+  const { platformOnly } = useModelSource()
   const invalidate = useResourceInvalidator()
   const form = useForm<EvaluationSettingsFormValues>({
     resolver: zodResolver(evaluationSettingsSchema),
@@ -81,7 +83,7 @@ function EvaluationSettingsForm({ models, values }: { models: AIModelOption[]; v
               </NativeSelect>
               <FieldDescription>
                 {t("aiEvaluation.modelDescription")}
-                {models.length === 0 ? (
+                {!platformOnly && models.length === 0 ? (
                   <>
                     {" "}
                     <Link to="/settings/model-services">{t("customerService.models.configureModels")}</Link>

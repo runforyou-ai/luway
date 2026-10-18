@@ -30,6 +30,7 @@ import { PersonalAgentCreateForm } from "@/features/agents/personal/personal-age
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useReportSearchParams } from "@/hooks/use-report-search-params"
 import { useContactInvalidator } from "@/hooks/use-contact-invalidator"
+import { platformModelRef, useModelSource } from "@/hooks/use-model-source"
 import { periodOptions } from "@/hooks/use-report-format"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
 import { useReturnTo } from "@/hooks/use-return-to"
@@ -155,13 +156,16 @@ function AgentCreateForms({
 }) {
   const { t } = useTranslation("agents")
   const { t: tCommon } = useTranslation("common")
+  const { platformOnly } = useModelSource()
   const [personal, setPersonal] = useState(false)
   const [serviceAudiences, setServiceAudiences] = useState<ServiceAudience[]>([])
   const [draft, setDraft] = useState<AgentCreateDraft>({ displayName: "", modelId: "", systemInstruction: "", knowledgeBaseIds: [] })
-  // 头像上传与已带入的草稿跨表单保留，切换后仍按未保存内容拦截离开。
+  // 头像上传与已带入的草稿跨表单保留，切换后仍按未保存内容拦截离开；平台 Auto 默认值不算草稿改动。
   const avatar = useAgentAvatarUpload()
+  const draftModelDirty =
+    draft.modelId !== "" && !(platformOnly && draft.modelId === platformModelRef)
   const draftDirty =
-    draft.displayName !== "" || draft.modelId !== "" || draft.systemInstruction !== "" || draft.knowledgeBaseIds.length > 0
+    draft.displayName !== "" || draftModelDirty || draft.systemInstruction !== "" || draft.knowledgeBaseIds.length > 0
   const local = useResource(resourceKeys.currentComputer(), () => currentComputer())
   const canManage = usePermission(PermissionCode.PermissionAIEmployeesManage)
   const canManageBusinessSystems = usePermission(PermissionCode.PermissionWorkspaceManage)

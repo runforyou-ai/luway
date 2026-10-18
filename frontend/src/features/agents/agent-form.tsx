@@ -11,12 +11,14 @@ import { AgentModelField } from "@/features/agents/fields/agent-model-field"
 import { FormActions } from "@/components/form/form-actions"
 import { FormInputField } from "@/components/form/form-input-field"
 import { ImagePicker } from "@/components/image-picker"
+import { PageLoadError } from "@/components/page-load-error"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Textarea } from "@/components/ui/textarea"
 import { createAgentSchema, type AgentFormValues } from "@/features/agents/agent-schema"
 import { AgentServiceAudiencesField } from "@/features/agents/agent-service-audiences-field"
 import { useContactInvalidator } from "@/hooks/use-contact-invalidator"
 import { useFormLifetime } from "@/hooks/use-form-lifetime"
+import { platformModelRef, useModelSource } from "@/hooks/use-model-source"
 import { usePendingImageUpload } from "@/hooks/use-pending-image-upload"
 import { useRequestErrorReporter } from "@/hooks/use-request-error-reporter"
 import { recoverSession } from "@/lib/session-navigation"
@@ -46,17 +48,7 @@ export type AgentCreateDraft = {
   knowledgeBaseIds: string[]
 }
 
-/** 创建服务客户或员工的 AI 员工，可同时设置头像；传入 personal 时服务对象中显示「仅自己」，勾选后把已填内容交给 onSelect；draftDirty 表示从另一表单带来了未保存内容。 */
-export function AgentForm({
-  defaultTeamIds = [],
-  defaultServiceAudiences = [],
-  draft,
-  draftDirty = false,
-  avatar,
-  personal,
-  onSaved,
-  onCancel,
-}: {
+type AgentFormProps = {
   defaultTeamIds?: string[]
   defaultServiceAudiences?: ServiceAudience[]
   draft?: AgentCreateDraft
@@ -65,7 +57,30 @@ export function AgentForm({
   personal?: { available: boolean; onSelect: (draft: AgentCreateDraft) => void }
   onSaved: () => void
   onCancel: () => void
-}) {
+}
+
+/** 创建服务客户或员工的 AI 员工，可同时设置头像；传入 personal 时服务对象中显示「仅自己」，勾选后把已填内容交给 onSelect；draftDirty 表示从另一表单带来了未保存内容。 */
+export function AgentForm(props: AgentFormProps) {
+  const { t } = useTranslation("common")
+  const { platformOnly, ready, error, refresh } = useModelSource()
+  // 等模型来源成功读取后再挂载表单，把平台 Auto 写入默认值而不是事后 onChange，避免未编辑即脏。
+  if (error) return <PageLoadError message={t("errors.network")} onRetry={() => void refresh()} />
+  if (!ready) return null
+  return <AgentFormReady {...props} platformOnly={platformOnly} />
+}
+
+/** 模型来源已确认后的新建表单。 */
+function AgentFormReady({
+  defaultTeamIds = [],
+  defaultServiceAudiences = [],
+  draft,
+  draftDirty = false,
+  avatar,
+  personal,
+  onSaved,
+  onCancel,
+  platformOnly,
+}: AgentFormProps & { platformOnly: boolean }) {
   const { t } = useTranslation(["agents", "contacts"])
   const reportError = useRequestErrorReporter()
   const invalidateContact = useContactInvalidator()
@@ -87,7 +102,7 @@ export function AgentForm({
       execution: {
         mode: AgentExecutionMode.Managed,
         managed: {
-          modelId: draft?.modelId ?? "",
+          modelId: draft?.modelId || (platformOnly ? platformModelRef : ""),
           systemInstruction: draft?.systemInstruction ?? "",
           knowledgeBaseIds: draft?.knowledgeBaseIds ?? [],
         },

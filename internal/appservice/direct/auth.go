@@ -57,6 +57,8 @@ type authOps struct {
 	loadInbox *inboxaction.LoadInboxQuery
 	// files 解析文件地址与当前成员资料。
 	files *fileOps
+	// modelSource 是本部署的模型来源。
+	modelSource domain.AIModelSource
 }
 
 // GetRealtimeConnection 返回有效成员的实时频道和账号连接身份；支援会话只返回绑定工作区。
@@ -97,7 +99,7 @@ func RealtimeMemberChannels(workspaceID, memberID string) appservice.RealtimeMem
 }
 
 // newAuthOps 创建首次安装、账号会话和工作区入口的业务实现依赖，certificates 为首次安装的 HTTPS 部署地址签发证书，taskEnqueuer 投递首次安装后的后台任务，platformInitializer 在首次安装事务内初始化附加数据，seats 在自助注册加入默认工作区时校验席位。
-func newAuthOps(db *bun.DB, deployment *deploymentaction.DeploymentState, certificates *certificateaction.Certificates, taskEnqueuer servertask.TxEnqueuer, files *fileOps, initializer workspaceaction.Initializer, platformInitializer installationaction.PlatformInitializer, seats seataction.Seats) *authOps {
+func newAuthOps(db *bun.DB, deployment *deploymentaction.DeploymentState, certificates *certificateaction.Certificates, taskEnqueuer servertask.TxEnqueuer, files *fileOps, initializer workspaceaction.Initializer, platformInitializer installationaction.PlatformInitializer, seats seataction.Seats, modelSource domain.AIModelSource) *authOps {
 	return &authOps{
 		deployment:         deployment,
 		installPlatform:    installationaction.NewInstallPlatformAction(db, taskEnqueuer, deployment, certificates, initializer, platformInitializer),
@@ -116,6 +118,7 @@ func newAuthOps(db *bun.DB, deployment *deploymentaction.DeploymentState, certif
 		db:                 db,
 		loadInbox:          inboxaction.NewLoadInboxQuery(db),
 		files:              files,
+		modelSource:        modelSource,
 	}
 }
 
@@ -129,14 +132,19 @@ func adminAuthFromSession(output authaction.SessionOutput) appservice.AdminAuth 
 	return appservice.AdminAuth{Account: accountFromModel(*output.Account), Token: output.Token, ExpiresAt: output.ExpiresAt}
 }
 
-// InstallationStatus 从本进程的部署状态快照返回部署名称、首次安装状态、注册策略是否开放注册，以及产品品牌和接口版本。
+// InstallationStatus 从本进程的部署状态快照返回部署名称、首次安装状态、注册策略是否开放注册，以及产品品牌、接口版本和模型来源。
 func (o *authOps) InstallationStatus(ctx context.Context, meta appservice.RequestMeta) (appservice.InstallationStatus, error) {
 	snapshot := o.deployment.Current()
 	current := brand.Current()
+	modelSource := o.modelSource
+	if modelSource == "" {
+		modelSource = domain.AIModelSourceWorkspace
+	}
 	return appservice.InstallationStatus{
 		DeploymentName: snapshot.Settings.Name, Installed: snapshot.Installed, RegistrationOpen: snapshot.RegistrationPolicy == domain.RegistrationPolicyOpen,
 		Brand:      appservice.Brand{Names: current.Names, SDKName: current.SDKName, LinkScheme: current.Slug},
 		APIVersion: appservice.APIVersion, MinClientAPIVersion: appservice.MinClientAPIVersion,
+		ModelSource: modelSource,
 	}, nil
 }
 

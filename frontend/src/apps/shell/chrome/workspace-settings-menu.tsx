@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next"
 import { PermissionCode, type CurrentUser } from "@/api"
 import { appExtensions } from "@/app-extensions"
 import { PagePaneGroup, PagePaneLink } from "@/components/page-split"
+import { useModelSource } from "@/hooks/use-model-source"
 import { hasPermission } from "@/lib/permissions"
 import { businessSystemsPath } from "@/lib/workspace-paths"
 import { cn } from "@/lib/utils"
@@ -40,6 +41,7 @@ export function WorkspaceSettingsMenu({
   railToggle: ReactNode
 }) {
   const { t } = useTranslation("settings")
+  const { platformOnly } = useModelSource()
   const can = (code: PermissionCode) => hasPermission(user, code)
   const extensionLinks = appExtensions().useSettingsMenuLinks()
   // 工作区分组按所属角色的权限显示入口，没有可见入口时不显示分组。
@@ -185,7 +187,7 @@ export function WorkspaceSettingsMenu({
       ) : null}
       {/* 集成：模型服务、业务系统与互联网供 AI 使用，构建挂接的入口排在模型服务之后。 */}
       <PagePaneGroup title={t("groups.integrations")} collapsed={collapsed}>
-        {manageWorkspace ? (
+        {manageWorkspace && !platformOnly ? (
           <PagePaneLink
             collapsed={collapsed}
             to="/settings/model-services"

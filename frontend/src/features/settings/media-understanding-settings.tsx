@@ -14,6 +14,7 @@ import { AIModelOptionGroups, useAIModelOptions } from "@/components/ai-model-op
 import { ResourceContent } from "@/components/resource-content"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { NativeSelect } from "@/components/ui/native-select"
+import { useModelSource } from "@/hooks/use-model-source"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
@@ -61,6 +62,7 @@ function MediaUnderstandingForm({
   values: MediaFormValues
 }) {
   const { t } = useTranslation(["settings", "common"])
+  const { platformOnly } = useModelSource()
   const invalidate = useResourceInvalidator()
   const form = useForm<MediaFormValues>({
     resolver: zodResolver(mediaSchema),
@@ -104,7 +106,7 @@ function MediaUnderstandingForm({
               </NativeSelect>
               <FieldDescription>
                 {t("mediaUnderstanding.ocrModelDescription")}
-                {ocrModels.length === 0 ? (
+                {!platformOnly && ocrModels.length === 0 ? (
                   <>
                     {" "}
                     <Link to="/settings/model-services">{t("customerService.models.configureModels")}</Link>
@@ -126,7 +128,7 @@ function MediaUnderstandingForm({
               </NativeSelect>
               <FieldDescription>
                 {t("mediaUnderstanding.transcriptionModelDescription")}
-                {transcriptionModels.length === 0 ? (
+                {!platformOnly && transcriptionModels.length === 0 ? (
                   <>
                     {" "}
                     <Link to="/settings/model-services">{t("customerService.models.configureModels")}</Link>

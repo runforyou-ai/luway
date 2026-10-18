@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
 	servermodels "github.com/runforyou-ai/luway/internal/storage/server/models"
@@ -25,6 +26,9 @@ func NewDeleteAIProviderAction(db *bun.DB) *DeleteAIProviderAction {
 
 // Execute 删除模型服务供应商及其模型目录。
 func (a *DeleteAIProviderAction) Execute(ctx context.Context, identity *servermodels.Identity, providerID string) error {
+	if !aimodel.AllowsWorkspaceProviders(ctx) {
+		return ErrWorkspaceProvidersDisabled
+	}
 	err := serverstorage.RunInTx(ctx, a.db, func(ctx context.Context, tx bun.Tx) error {
 		if err := identityaction.LockActiveUser(ctx, tx, identity); err != nil {
 			return err

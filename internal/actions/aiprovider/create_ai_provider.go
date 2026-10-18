@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/runforyou-ai/luway/internal/actions/aimodel"
 	identityaction "github.com/runforyou-ai/luway/internal/actions/identity"
 	"github.com/runforyou-ai/luway/internal/common"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -25,6 +26,9 @@ func NewCreateAIProviderAction(db *bun.DB) *CreateAIProviderAction {
 
 // Execute 创建模型服务供应商并保存模型目录。
 func (a *CreateAIProviderAction) Execute(ctx context.Context, identity *servermodels.Identity, input Input) (*Record, error) {
+	if !aimodel.AllowsWorkspaceProviders(ctx) {
+		return nil, ErrWorkspaceProvidersDisabled
+	}
 	input, fields := normalizeInput(input)
 	if len(fields) > 0 {
 		return nil, &common.FieldError{Fields: fields}

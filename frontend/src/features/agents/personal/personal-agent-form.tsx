@@ -20,6 +20,7 @@ import { AgentModelField } from "@/features/agents/fields/agent-model-field"
 import { FormActions } from "@/components/form/form-actions"
 import { FormInputField } from "@/components/form/form-input-field"
 import { ImagePicker } from "@/components/image-picker"
+import { PageLoadError } from "@/components/page-load-error"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -33,6 +34,7 @@ import {
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useAutoSave } from "@/hooks/use-auto-save"
 import { useFormLifetime } from "@/hooks/use-form-lifetime"
+import { platformModelRef, useModelSource } from "@/hooks/use-model-source"
 import { usePersonalAgentInvalidator } from "@/hooks/use-personal-agent-invalidator"
 import { useRequestErrorReporter } from "@/hooks/use-request-error-reporter"
 import { useResource } from "@/hooks/use-resource"
@@ -72,19 +74,7 @@ function personalAgentInput(values: PersonalAgentFormValues, avatarFileId: strin
   }
 }
 
-/** 在本机创建仅服务自己的 AI 员工，使用的电脑固定为当前电脑；服务对象改为客户或员工时把所选对象与已填内容交给 onServiceAudiencesChange 切换表单，serviceAvailable 为 false 时不能改为客户或员工；头像上传状态由创建页共享。 */
-export function PersonalAgentCreateForm({
-  computerID,
-  computerName,
-  draft,
-  draftDirty,
-  avatar,
-  serviceAvailable = true,
-  canManageBusinessSystems = false,
-  onServiceAudiencesChange,
-  onSaved,
-  onCancel,
-}: {
+type PersonalAgentCreateFormProps = {
   computerID: string
   computerName: string
   draft: AgentCreateDraft
@@ -95,7 +85,32 @@ export function PersonalAgentCreateForm({
   onServiceAudiencesChange: (audiences: ServiceAudience[], draft: AgentCreateDraft) => void
   onSaved: () => void
   onCancel: () => void
-}) {
+}
+
+/** 在本机创建仅服务自己的 AI 员工，使用的电脑固定为当前电脑；服务对象改为客户或员工时把所选对象与已填内容交给 onServiceAudiencesChange 切换表单，serviceAvailable 为 false 时不能改为客户或员工；头像上传状态由创建页共享。 */
+export function PersonalAgentCreateForm(props: PersonalAgentCreateFormProps) {
+  const { t } = useTranslation("common")
+  const { platformOnly, ready, error, refresh } = useModelSource()
+  // 等模型来源成功读取后再挂载表单，把平台 Auto 写入默认值而不是事后 onChange，避免未编辑即脏。
+  if (error) return <PageLoadError message={t("errors.network")} onRetry={() => void refresh()} />
+  if (!ready) return null
+  return <PersonalAgentCreateFormReady {...props} platformOnly={platformOnly} />
+}
+
+/** 模型来源已确认后的个人 AI 员工新建表单。 */
+function PersonalAgentCreateFormReady({
+  computerID,
+  computerName,
+  draft,
+  draftDirty,
+  avatar,
+  serviceAvailable = true,
+  canManageBusinessSystems = false,
+  onServiceAudiencesChange,
+  onSaved,
+  onCancel,
+  platformOnly,
+}: PersonalAgentCreateFormProps & { platformOnly: boolean }) {
   const { t } = useTranslation(["agents", "contacts"])
   const reportError = useRequestErrorReporter()
   const invalidate = usePersonalAgentInvalidator()
@@ -103,7 +118,12 @@ export function PersonalAgentCreateForm({
   const form = useForm<PersonalAgentFormValues>({
     resolver: zodResolver(schema),
     shouldUseNativeValidation: true,
-    defaultValues: { ...draft, businessSystems: [], localAgents: [] },
+    defaultValues: {
+      ...draft,
+      modelId: draft.modelId || (platformOnly ? platformModelRef : ""),
+      businessSystems: [],
+      localAgents: [],
+    },
   })
   const { dirty } = useFormLifetime(form.formState.isDirty || avatar.pending !== null || draftDirty)
   const computers = useResource(resourceKeys.computers(), listComputers)

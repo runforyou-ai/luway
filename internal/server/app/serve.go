@@ -17,8 +17,6 @@ import (
 	"time"
 	"uuid"
 
-	"github.com/runforyou-ai/luway/internal/messaging"
-
 	deploymentaction "github.com/runforyou-ai/luway/internal/actions/deployment"
 	installationaction "github.com/runforyou-ai/luway/internal/actions/installation"
 	"github.com/runforyou-ai/luway/internal/actions/modelcall"
@@ -32,6 +30,7 @@ import (
 	serverconfig "github.com/runforyou-ai/luway/internal/config/server"
 	"github.com/runforyou-ai/luway/internal/domain"
 	"github.com/runforyou-ai/luway/internal/i18n"
+	"github.com/runforyou-ai/luway/internal/messaging"
 	releaseclients "github.com/runforyou-ai/luway/internal/release/clients"
 	"github.com/runforyou-ai/luway/internal/server/cli"
 	serverstorage "github.com/runforyou-ai/luway/internal/storage/server"
@@ -83,6 +82,8 @@ type Extension struct {
 	PlatformInitializer installationaction.PlatformInitializer
 	// ModelCallLifecycle 与模型调用记录共用开始和结束事务。
 	ModelCallLifecycle modelcall.Lifecycle
+	// ModelSource 是本部署的模型来源；零值表示仅工作区自配，挂接平台能力池时设为 platform。
+	ModelSource domain.AIModelSource
 	// APIRoutes 注册挂到 /api 下的其他模块路由。
 	APIRoutes func(handle func(string, http.HandlerFunc))
 	// SeatLimit 是工作区的席位上限来源，为空时不限席位。

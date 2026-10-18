@@ -100,6 +100,7 @@ func Join(query *bun.SelectQuery, modelIDExpr, workspaceIDExpr string, usage dom
 }
 
 // Resolve 读取对工作区可用且满足用途要求的模型及其可用来源，不可用时返回 ErrUnavailable。
+// 存量工作区引用的迁移与运行时改写由后续变更处理，此处不静默替换，以免破坏向量空间。
 func Resolve(ctx context.Context, db bun.IDB, workspaceID, modelID string, usage domain.AIModelUsage) (*Model, error) {
 	return load(ctx, db, workspaceID, modelID, usage, "", false)
 }
@@ -139,13 +140,25 @@ func pickStickyMember(routes []Route) Route {
 }
 
 // Lock 在事务中校验模型满足用途要求，并以 KEY SHARE 锁定模型、可用来源与来源供应商直至事务结束，不可用时返回 ErrUnavailable。
+// 工作区部署不接受 Auto；平台部署只接受 Auto。
 func Lock(ctx context.Context, tx bun.Tx, workspaceID, modelID string, usage domain.AIModelUsage) (*Model, error) {
+	switch SourceOf(ctx) {
+	case domain.AIModelSourceWorkspace:
+		if IsAuto(modelID) {
+			return nil, ErrUnavailable
+		}
+	case domain.AIModelSourcePlatform:
+		if !IsAuto(modelID) {
+			return nil, ErrUnavailable
+		}
+	}
 	return load(ctx, tx, workspaceID, modelID, usage, "", true)
 }
 
 // load 读取并按需锁定单个可用模型及其来源。
 func load(ctx context.Context, db bun.IDB, workspaceID, modelID string, usage domain.AIModelUsage, stickyMemberID string, lock bool) (*Model, error) {
 	if IsAuto(modelID) {
+		// Auto 是否可用仍由能力池与 auto_pool_member_allowed 决定；开源部署下池函数恒为 false。
 		return loadAuto(ctx, db, workspaceID, usage, stickyMemberID, lock)
 	}
 	if !str.IsUUID(modelID) {
@@ -187,6 +200,7 @@ func load(ctx context.Context, db bun.IDB, workspaceID, modelID string, usage do
 }
 
 // LoadOptions 批量读取已保存配置引用的模型展示信息；结果按模型引用索引，缺失项表示不可用。
+// 平台部署的选项列表只提供 Auto，但此处仍回显存量工作区引用，直至迁移完成。
 func LoadOptions(ctx context.Context, db bun.IDB, workspaceID string, modelIDs []string, usage domain.AIModelUsage) (map[string]Option, error) {
 	result := make(map[string]Option, len(modelIDs))
 	workspaceIDs := make([]string, 0, len(modelIDs))
@@ -194,6 +208,9 @@ func LoadOptions(ctx context.Context, db bun.IDB, workspaceID string, modelIDs [
 	for _, id := range modelIDs {
 		if IsAuto(id) {
 			wantAuto = true
+			continue
+		}
+		if id == "" {
 			continue
 		}
 		workspaceIDs = append(workspaceIDs, id)

@@ -211,7 +211,10 @@ const agents = {
     noModels: "还没有可用的对话模型。",
     configureModels: "前往配置模型服务",
     configureModelsOnDesktop: "请在桌面端配置模型服务。",
+    legacyWorkspaceModel: "当前工作区模型",
+    legacyWorkspaceModelHelp: "托管部署将统一使用平台 Auto，可切换过去以恢复可用能力。",
   },
+
   status: {
     deactivate: "禁用",
     reactivate: "恢复正常",

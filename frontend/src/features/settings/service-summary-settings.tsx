@@ -16,6 +16,7 @@ import { AIModelOptionGroups, useAIModelOptions } from "@/components/ai-model-op
 import { ResourceContent } from "@/components/resource-content"
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { NativeSelect } from "@/components/ui/native-select"
+import { useModelSource } from "@/hooks/use-model-source"
 import { resourceKeys } from "@/hooks/resource-keys"
 import { useFormSave } from "@/hooks/use-form-save"
 import { useResource, useResourceInvalidator } from "@/hooks/use-resource"
@@ -62,6 +63,7 @@ function ServiceSummaryForm({
   values: ServiceSummaryFormValues
 }) {
   const { t } = useTranslation(["settings", "common"])
+  const { platformOnly } = useModelSource()
   const audience = useServicePolicyAudience()
   const invalidate = useResourceInvalidator()
   const form = useForm<ServiceSummaryFormValues>({
@@ -114,7 +116,7 @@ function ServiceSummaryForm({
                   </NativeSelect>
                   <FieldDescription>
                     {t(`customerService.summary.${label}Description`)}
-                    {models[name].length === 0 ? (
+                    {!platformOnly && models[name].length === 0 ? (
                       <>
                         {" "}
                         <Link to="/settings/model-services">

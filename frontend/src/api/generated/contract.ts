@@ -59,6 +59,15 @@ export const AIModelScope = {
 /** 表示模型范围：平台模型由平台提供，工作区模型由工作区自行配置。 */
 export type AIModelScope = (typeof AIModelScope)[keyof typeof AIModelScope]
 
+/** 表示本部署的模型来源：workspace 为工作区自配，platform 为仅平台能力池。 */
+export const AIModelSource = {
+  Workspace: "workspace",
+  Platform: "platform",
+} as const
+
+/** 表示本部署的模型来源：workspace 为工作区自配，platform 为仅平台能力池。 */
+export type AIModelSource = (typeof AIModelSource)[keyof typeof AIModelSource]
+
 /** 表示 AI 模型用途。 */
 export const AIModelType = {
   Chat: "chat",
@@ -2754,6 +2763,8 @@ export interface InstallationStatus {
   brand: Brand
   apiVersion: number
   minClientApiVersion: number
+  /** 表示本部署的模型来源：workspace 为工作区自配，platform 为仅平台能力池。 */
+  modelSource: AIModelSource
 }
 
 /** 定义工作区中待接受的邀请，待接受但已过期的邀请状态为 expired。 */
