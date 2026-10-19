@@ -1,5 +1,5 @@
 name: Setup toolchain
-description: 安装 Node.js、Go 与 wails3 CLI，直接复用执行器本机的模块、编译和 npm 缓存。
+description: 安装 Node.js、Go 与 wails3 CLI，通过 GitHub Cache 复用依赖和工具。
 
 runs:
   using: composite
@@ -8,25 +8,34 @@ runs:
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
       with:
         node-version: "24"
-        package-manager-cache: false
+        cache: npm
+        cache-dependency-path: "**/package-lock.json"
 
     - name: Setup Go
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
       with:
         go-version-file: go.mod
-        cache: false
+        cache: true
 
     - name: Resolve Go toolchain paths
       id: toolchain
       shell: bash
       run: |
         echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+        echo "cli=$(go env GOPATH)/bin/wails3$(go env GOEXE)" >> "$GITHUB_OUTPUT"
+        echo "go=$(go env GOVERSION)" >> "$GITHUB_OUTPUT"
         echo "wails=$(go list -m -f '{{.Version}}' github.com/wailsapp/wails/v3)" >> "$GITHUB_OUTPUT"
         {
           printf 'Go 编译缓存：`%s`\n\n' "$(go env GOCACHE)"
           printf 'Go 模块缓存：`%s`\n\n' "$(go env GOMODCACHE)"
           printf 'npm 缓存：`%s`\n\n' "$(npm config get cache)"
         } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Cache Wails CLI
+      uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+      with:
+        path: ${{ steps.toolchain.outputs.cli }}
+        key: wails-${{ runner.os }}-${{ runner.arch }}-${{ steps.toolchain.outputs.go }}-${{ steps.toolchain.outputs.wails }}
 
     # CLI 静态链接，不依赖桌面端系统库，服务端任务无需安装 GTK 与 WebKit。
     - name: Reuse or install wails3 CLI
