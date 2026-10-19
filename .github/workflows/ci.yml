@@ -25,38 +25,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - runner: [self-hosted, Windows, ARM64, vmpal-ci]
+          - runner: windows-11-arm
             platform: windows
-          - runner: [self-hosted, macOS, ARM64, vmpal-ci]
+          - runner: macos-26
             platform: darwin
-          - runner: [self-hosted, Linux, ARM64, vmpal-ci]
+          - runner: ubuntu-24.04-arm
             platform: linux
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-          clean: ${{ runner.os != 'Windows' }}
-      # 只保留当前工作区的一份依赖；其他未跟踪文件和生成物照常清理。
-      - name: Clean Windows workspace except frontend dependencies
-        if: runner.os == 'Windows'
-        shell: bash
-        run: |
-          git reset --hard HEAD
-          git clean -ffdx -e frontend/node_modules/
       - name: Setup toolchain
         uses: ./.github/actions/setup-toolchain
-      - name: Reuse or install Windows frontend dependencies
-        if: runner.os == 'Windows'
+      - name: Install Linux desktop dependencies
+        if: runner.os == 'Linux'
         run: |
-          node build/scripts/ci-frontend-deps.mjs frontend
-          "CI_FRONTEND_DEPS_READY=true" >> $env:GITHUB_ENV
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends build-essential pkg-config libgtk-4-dev libwebkitgtk-6.0-dev
       - name: Build native desktop
         run: wails3 task ${{ matrix.platform }}:build ARCH=arm64
 
   server-check:
     name: Server checks
-    runs-on: [self-hosted, Linux, ARM64, vmpal-ci]
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -78,7 +70,7 @@ jobs:
           echo '<!doctype html><title>App</title>' > frontend/dist/index.html
           wails3 task common:build:messenger
 
-      - name: Verify release manifest and shared artifacts
+      - name: Verify release manifest
         run: wails3 task check:ci:release
 
       - name: Check Go server build and architecture
@@ -89,15 +81,15 @@ jobs:
 
   server-test:
     name: Server tests ${{ matrix.shard }}
-    runs-on: [self-hosted, Linux, ARM64, vmpal-ci]
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         shard: [A, B]
     env:
-      CI_POSTGRES_CONTAINER: local-ci-${{ github.run_id }}-${{ github.run_attempt }}-server-${{ matrix.shard }}
-      CI_S3_CONTAINER: local-ci-${{ github.run_id }}-${{ github.run_attempt }}-s3-${{ matrix.shard }}
+      CI_POSTGRES_CONTAINER: ci-${{ github.run_id }}-${{ github.run_attempt }}-server-${{ matrix.shard }}
+      CI_S3_CONTAINER: ci-${{ github.run_id }}-${{ github.run_attempt }}-s3-${{ matrix.shard }}
       SERVER_TEST_SHARD: ${{ matrix.shard }}
     steps:
       - name: Checkout
@@ -186,7 +178,7 @@ jobs:
     name: Server
     if: ${{ always() }}
     needs: [server-check, server-test]
-    runs-on: [self-hosted, Linux, ARM64, vmpal-ci]
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 5
     steps:
       - name: Require all Server checks and test shards
@@ -292,7 +284,7 @@ jobs:
 
   container:
     name: Container
-    runs-on: [self-hosted, Linux, ARM64, vmpal-ci]
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
 
     steps:
@@ -316,10 +308,6 @@ jobs:
 
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        with:
-          name: local-${{ github.repository_id }}-${{ runner.name }}
-          keep-state: true
-          cache-binary: false
 
       # 运行镜像的构建上下文只包含当前服务端程序。
       - name: Build server image

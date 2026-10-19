@@ -11,10 +11,9 @@ vars:
 
 tasks:
   check:ci:release:
-    summary: 验证发布架构清单与共享产物传递
+    summary: 验证发布架构清单
     cmds:
       - go test ./build/scripts/releasemanifest
-      - node --test .github/actions/local-artifact/index.test.cjs
 
   check:ci:cache:
     summary: 验证 CI 前端依赖复用与失效规则

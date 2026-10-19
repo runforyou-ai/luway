@@ -3,7 +3,7 @@ set -euo pipefail
 set +x
 umask 077
 
-# 每个任务使用独立钥匙串，并显式选择它；不替换其他执行器的钥匙串搜索列表。
+# 每个任务使用独立钥匙串，结束时恢复原搜索列表。
 for name in APPLE_CERTIFICATE_P12 APPLE_CERTIFICATE_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER_ID; do
   if [[ -z "${!name:-}" ]]; then
     echo "Missing signing secret: $name" >&2
@@ -21,7 +21,12 @@ test -f "$executor"
 mkdir -p "$output" "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/notarization-reports"
 temporary=$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/apple-signing.XXXXXX")
 keychain="$temporary/signing.keychain-db"
+original_keychains=()
+while IFS= read -r existing; do
+  original_keychains+=("$existing")
+done < <(security list-keychains -d user | sed -E 's/^[[:space:]]*"(.*)"$/\1/')
 cleanup() {
+  security list-keychains -d user -s "${original_keychains[@]}" >/dev/null 2>&1 || true
   security delete-keychain "$keychain" >/dev/null 2>&1 || true
   rm -rf "$temporary"
 }
@@ -35,6 +40,8 @@ keychain_password=$(openssl rand -hex 32)
 security create-keychain -p "$keychain_password" "$keychain"
 security set-keychain-settings -lut 7200 "$keychain"
 security unlock-keychain -p "$keychain_password" "$keychain"
+# codesign 在新建托管机器上仍需通过搜索列表发现私钥。
+security list-keychains -d user -s "$keychain" "${original_keychains[@]}"
 security import "$temporary/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign >/dev/null
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" >/dev/null
 identities=$(security find-identity -v -p codesigning "$keychain" | awk '/"Developer ID Application:/ {print $2}')
